@@ -1,0 +1,40 @@
+[submodule "Hazel/vendor/spdlog"]
+	path = Hazel/vendor/spdlog
+	url = ../../gabime/spdlog.git
+	branch = v1.x
+[submodule "Hazel/vendor/GLFW"]
+	path = Hazel/vendor/GLFW
+	url = ../../TheCherno/glfw.git
+	branch = master
+[submodule "Hazel/vendor/imgui"]
+	path = Hazel/vendor/imgui
+	url = ../../TheCherno/imgui.git
+	branch = docking
+[submodule "Hazel/vendor/glm"]
+	path = Hazel/vendor/glm
+	url = ../../g-truc/glm.git
+	branch = master
+[submodule "Hazel/vendor/yaml-cpp"]
+	path = Hazel/vendor/yaml-cpp
+	url = https://github.com/thecherno/yaml-cpp
+[submodule "Hazel/vendor/ImGuizmo"]
+	path = Hazel/vendor/ImGuizmo
+	url = https://github.com/thecherno/imguizmo
+[submodule "Kaidel/vendor/glm"]
+	path = Kaidel/vendor/glm
+	url = https://github.com/g-truc/glm/
+[submodule "Kaidel/vendor/glfw"]
+	path = Kaidel/vendor/glfw
+	url = https://github.com/TheCherno/glfw
+[submodule "Kaidel/vendor/imguizmo"]
+	path = Kaidel/vendor/imguizmo
+	url = https://github.com/thecherno/imguizmo
+[submodule "Kaidel/vendor/imgui"]
+	path = Kaidel/vendor/imgui
+	url = https://github.com/TheCherno/imgui
+[submodule "Kaidel/vendor/spdlog"]
+	path = Kaidel/vendor/spdlog
+	url = https://github.com/gabime/spdlog
+[submodule "Kaidel/vendor/yaml-cpp"]
+	path = Kaidel/vendor/yaml-cpp
+	url = https://github.com/thecherno/yaml-cpp
