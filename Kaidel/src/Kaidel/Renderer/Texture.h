@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-
+#include <unordered_map>
 #include "Kaidel/Core/Base.h"
 
 namespace Kaidel {
@@ -27,6 +27,8 @@ namespace Kaidel {
 	public:
 		static Ref<Texture2D> Create(uint32_t width, uint32_t height);
 		static Ref<Texture2D> Create(const std::string& path);
+	protected:
+		static std::unordered_map < std::string , Ref<Texture2D>> s_Map;
 	};
 
 }

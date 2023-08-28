@@ -24,6 +24,8 @@ namespace Kaidel {
 		KD_PROFILE_FUNCTION();
 
 		m_CheckerboardTexture = Texture2D::Create("assets/textures/Checkerboard.png");
+		m_Icons.IconPlay = Texture2D::Create("Resources/Icons/PlayButton.png");
+		m_Icons.IconStop = Texture2D::Create("Resources/Icons/StopButton.png");
 
 		FramebufferSpecification fbSpec;
 		fbSpec.Attachments = { FramebufferTextureFormat::RGBA8, FramebufferTextureFormat::RED_INTEGER, FramebufferTextureFormat::Depth };
@@ -110,9 +112,6 @@ namespace Kaidel {
 		}
 
 		// Update
-		if (m_ViewportFocused)
-			m_CameraController.OnUpdate(ts);
-		
 		m_EditorCamera.OnUpdate(ts);
 
 		// Render
@@ -125,7 +124,19 @@ namespace Kaidel {
 		m_Framebuffer->ClearAttachment(1, -1);
 
 		// Update scene
-		m_ActiveScene->OnUpdateEditor(ts, m_EditorCamera);
+		switch (m_SceneState)
+		{
+			case Kaidel::EditorLayer::SceneState::Edit:
+			{
+				m_ActiveScene->OnUpdateEditor(ts,m_EditorCamera);
+				break;
+			}
+			case Kaidel::EditorLayer::SceneState::Play:
+			{
+				m_ActiveScene->OnUpdateRuntime(ts);
+				break;
+			}
+		}
 
 		auto[mx, my] = ImGui::GetMousePos();
 		mx -= m_ViewportBounds[0].x;
@@ -143,10 +154,10 @@ namespace Kaidel {
 
 		m_Framebuffer->Unbind();
 	}
-
 	void EditorLayer::OnImGuiRender()
 	{
 		KD_PROFILE_FUNCTION();
+
 
 		// Note: Switch this to true to enable dockspace
 		static bool dockspaceOpen = true;
@@ -222,42 +233,66 @@ namespace Kaidel {
 		}
 
 		m_SceneHierarchyPanel.OnImGuiRender();
+		m_ContentBrowserPanel.OnImGuiRender();
 
-		ImGui::Begin("Stats");
+		ShowDebugWindow();
+		ShowViewport();
+		UI_Toolbar();
+		ImGui::End();
+	}
 
-		std::string name = "None";
-		if (m_HoveredEntity)
-			name = m_HoveredEntity.GetComponent<TagComponent>().Tag;
-		ImGui::Text("Hovered Entity: %s", name.c_str());
+	void EditorLayer::OnScenePlay(){
+		m_SceneState = SceneState::Play;
+		
+	}
+	void EditorLayer::OnSceneStop(){
+		m_SceneState = SceneState::Edit;
+		
+	}
 
-		auto stats = Renderer2D::GetStats();
-		ImGui::Text("Renderer2D Stats:");
-		ImGui::Text("Draw Calls: %d", stats.DrawCalls);
-		ImGui::Text("Quads: %d", stats.QuadCount);
-		ImGui::Text("Vertices: %d", stats.GetTotalVertexCount());
-		ImGui::Text("Indices: %d", stats.GetTotalIndexCount());
+	void EditorLayer::UI_Toolbar() {
+
+		const static auto windowFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoResize;
+		auto& colors = ImGui::GetStyle().Colors;
+		const auto& buttonHovered = colors[ImGuiCol_ButtonHovered];
+		const auto& buttonActive = colors[ImGuiCol_ButtonActive];
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0,2 });
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, { 0,2 });
+		ImGui::PushStyleColor(ImGuiCol_Button, { 0,0,0,0 });
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { buttonHovered.x,buttonHovered.y,buttonHovered.z,.5f });
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive, { buttonActive.x,buttonActive.y,buttonActive.z,.5f });
+
+		ImGui::Begin("##toolbar", nullptr,windowFlags);
+
+		Ref<Texture2D> icon = m_SceneState == SceneState::Edit ? m_Icons.IconPlay : m_Icons.IconStop;
+		
+		float size = ImGui::GetWindowHeight() - 4.0f;
+		
+		ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x * .5f) - (size * .5f));
+		ImGui::SetCursorPosY((ImGui::GetWindowContentRegionMax().y * .5f) - (size * .5f));
+		
+		if (ImGui::ImageButton((ImTextureID)icon->GetRendererID(),{size,size},{0,0},{1,1},0)) {
+			if (m_SceneState == SceneState::Edit)
+				OnScenePlay();
+			else if (m_SceneState == SceneState::Play)
+				OnSceneStop();
+		}
 
 		ImGui::End();
+		ImGui::PopStyleVar(2);
+		ImGui::PopStyleColor(3);
+	}
 
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0, 0 });
-		ImGui::Begin("Viewport");
-		auto viewportMinRegion = ImGui::GetWindowContentRegionMin();
-		auto viewportMaxRegion = ImGui::GetWindowContentRegionMax();
-		auto viewportOffset = ImGui::GetWindowPos();
-		m_ViewportBounds[0] = { viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y };
-		m_ViewportBounds[1] = { viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y };
+	
 
-		m_ViewportFocused = ImGui::IsWindowFocused();
-		m_ViewportHovered = ImGui::IsWindowHovered();
-		Application::Get().GetImGuiLayer()->BlockEvents(!m_ViewportFocused && !m_ViewportHovered);
 
-		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-		m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };
 
-		uint64_t textureID = m_Framebuffer->GetColorAttachmentRendererID();
-		ImGui::Image(reinterpret_cast<void*>(textureID), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, ImVec2{ 0, 1 }, ImVec2{ 1, 0 });
 
-		// Gizmos
+
+
+
+	void EditorLayer::DrawGizmos()
+	{
 		Entity selectedEntity = m_SceneHierarchyPanel.GetSelectedEntity();
 		if (selectedEntity && m_GizmoType != -1)
 		{
@@ -267,16 +302,17 @@ namespace Kaidel {
 			ImGuizmo::SetRect(m_ViewportBounds[0].x, m_ViewportBounds[0].y, m_ViewportBounds[1].x - m_ViewportBounds[0].x, m_ViewportBounds[1].y - m_ViewportBounds[0].y);
 
 			// Camera
-			
+
 			// Runtime camera from entity
-			// auto cameraEntity = m_ActiveScene->GetPrimaryCameraEntity();
-			// const auto& camera = cameraEntity.GetComponent<CameraComponent>().Camera;
-			// const glm::mat4& cameraProjection = camera.GetProjection();
-			// glm::mat4 cameraView = glm::inverse(cameraEntity.GetComponent<TransformComponent>().GetTransform());
+			auto cameraEntity = m_ActiveScene->GetPrimaryCameraEntity();
+			const auto& camera = cameraEntity.GetComponent<CameraComponent>().Camera;
+			//const glm::mat4& cameraProjection = camera.GetProjection();
+			//glm::mat4 cameraView = glm::inverse(cameraEntity.GetComponent<TransformComponent>().GetTransform());
 
 			// Editor camera
-			const glm::mat4& cameraProjection = m_EditorCamera.GetProjection();
-			glm::mat4 cameraView = m_EditorCamera.GetViewMatrix();
+			const glm::mat4& cameraProjection = m_SceneState == SceneState::Edit ? m_EditorCamera.GetProjection() : camera.GetProjection();
+
+			glm::mat4 cameraView = m_SceneState == SceneState::Edit ? m_EditorCamera.GetViewMatrix() : glm::inverse(cameraEntity.GetComponent<TransformComponent>().GetTransform());
 
 			// Entity transform
 			auto& tc = selectedEntity.GetComponent<TransformComponent>();
@@ -306,13 +342,71 @@ namespace Kaidel {
 				tc.Scale = scale;
 			}
 		}
+	}
+
+	void EditorLayer::ShowDebugWindow()
+	{
+		ImGui::Begin("Stats");
+
+		std::string name = "None";
+		if (m_HoveredEntity)
+			name = m_HoveredEntity.GetComponent<TagComponent>().Tag;
+		ImGui::Text("Hovered Entity: %s", name.c_str());
+
+		auto stats = Renderer2D::GetStats();
+		ImGui::Text("Renderer2D Stats:");
+		ImGui::Text("Draw Calls: %d", stats.DrawCalls);
+		ImGui::Text("Quads: %d", stats.QuadCount);
+		ImGui::Text("Vertices: %d", stats.GetTotalVertexCount());
+		ImGui::Text("Indices: %d", stats.GetTotalIndexCount());
+
+		ImGui::End();
+
+	}
+
+	void EditorLayer::ShowViewport()
+	{
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0, 0 });
+		ImGui::Begin("Viewport");
+		auto viewportMinRegion = ImGui::GetWindowContentRegionMin();
+		auto viewportMaxRegion = ImGui::GetWindowContentRegionMax();
+		auto viewportOffset = ImGui::GetWindowPos();
+		m_ViewportBounds[0] = { viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y };
+		m_ViewportBounds[1] = { viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y };
+
+		m_ViewportFocused = ImGui::IsWindowFocused();
+		m_ViewportHovered = ImGui::IsWindowHovered();
+		Application::Get().GetImGuiLayer()->BlockEvents(!m_ViewportFocused && !m_ViewportHovered);
+
+		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+		m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };
+
+		uint64_t textureID = m_Framebuffer->GetColorAttachmentRendererID();
+		ImGui::Image(reinterpret_cast<void*>(textureID), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, ImVec2{ 0, 1 }, ImVec2{ 1, 0 });
+		if (ImGui::BeginDragDropTarget()) {
+			if (auto payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
+				const wchar_t* path = (const wchar_t*)payload->Data;
+				OpenScene(path);
+			}
+			ImGui::EndDragDropTarget();
+		}
+		// Gizmos
+		DrawGizmos();
 
 
 		ImGui::End();
 		ImGui::PopStyleVar();
-
-		ImGui::End();
 	}
+
+
+
+
+
+
+
+
+
+
 
 	void EditorLayer::OnEvent(Event& e)
 	{
@@ -414,6 +508,16 @@ namespace Kaidel {
 			SceneSerializer serializer(m_ActiveScene);
 			serializer.Deserialize(*filepath);
 		}
+	}
+
+	void EditorLayer::OpenScene(const std::filesystem::path& path)
+	{
+		m_ActiveScene = CreateRef<Scene>();
+		m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+
+		SceneSerializer serializer(m_ActiveScene);
+		serializer.Deserialize(path.string());
 	}
 
 	void EditorLayer::SaveSceneAs()

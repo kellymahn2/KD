@@ -328,6 +328,19 @@ namespace Kaidel {
 		DrawComponent<SpriteRendererComponent>("Sprite Renderer", entity, [](auto& component)
 		{
 			ImGui::ColorEdit4("Color", glm::value_ptr(component.Color));
+			ImGui::Button("Texture");
+			if (ImGui::BeginDragDropTarget()) {
+				if (auto payload = ImGui::AcceptDragDropPayload("ASSET_TEXTURE")) {
+					const wchar_t* path = (const wchar_t*)payload->Data;
+					std::filesystem::path p = path;
+					component.Texture = Texture2D::Create(p.string());
+				}
+				ImGui::EndDragDropTarget();
+			}
+
+
+			ImGui::DragFloat("Tiling Float", &component.TilingFactor, .1f, 0, 100.f);
+			
 		});
 
 	}

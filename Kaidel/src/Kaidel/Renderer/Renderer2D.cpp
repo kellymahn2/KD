@@ -101,7 +101,8 @@ namespace Kaidel {
 			samplers[i] = i;
 
 		s_Data.TextureShader = Shader::Create("assets/shaders/Texture.glsl");
-
+		s_Data.TextureShader->Bind();
+		s_Data.TextureShader->SetIntArray("u_Textures", samplers, 32);
 		// Set first texture slot to 0
 		s_Data.TextureSlots[0] = s_Data.WhiteTexture;
 
@@ -136,8 +137,10 @@ namespace Kaidel {
 
 		glm::mat4 viewProj = camera.GetProjection() * glm::inverse(transform);
 
+		
 		s_Data.TextureShader->Bind();
-		s_Data.TextureShader->SetMat4("u_ViewProjection", viewProj);
+		s_Data.CameraBuffer.ViewProjection = viewProj;
+		s_Data.CameraUniformBuffer->SetData(&s_Data.CameraBuffer, sizeof(Renderer2DData::CameraData));
 
 		StartBatch();
 	}
@@ -329,6 +332,8 @@ namespace Kaidel {
 
 	void Renderer2D::DrawSprite(const glm::mat4& transform, SpriteRendererComponent& src, int entityID)
 	{
+		if (src.Texture)
+			DrawQuad(transform, src.Texture,src.TilingFactor,src.Color, entityID);
 		DrawQuad(transform, src.Color, entityID);
 	}
 

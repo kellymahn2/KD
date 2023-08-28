@@ -20,14 +20,22 @@ namespace Kaidel {
 
 	Ref<Texture2D> Texture2D::Create(const std::string& path)
 	{
-		switch (Renderer::GetAPI())
-		{
-			case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
-			case RendererAPI::API::OpenGL:  return CreateRef<OpenGLTexture2D>(path);
+		if (s_Map.find(path) == s_Map.end()) {
+
+			switch (Renderer::GetAPI())
+			{
+				case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
+				case RendererAPI::API::OpenGL:  return s_Map[path]=CreateRef<OpenGLTexture2D>(path);
+			}
+		}
+		else {
+			return s_Map.at(path);
 		}
 
 		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
 		return nullptr;
 	}
+
+	std::unordered_map < std::string, Kaidel::Ref<Kaidel::Texture2D>> Texture2D::s_Map;
 
 }

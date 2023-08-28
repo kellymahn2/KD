@@ -42,6 +42,7 @@ workspace "Kaidel"
 		includedirs {
 			"%{prj.name}/src",
 			"%{prj.name}/vendor",
+			"%{prj.name}/vendor/spdlog/include",
 			"%{IncludeDir.ImGui}",
 			"%{IncludeDir.GLAD}",
 			"Kaidel/vendor/glm/",
@@ -102,6 +103,7 @@ project "KaidelEditor"
 		includedirs {
 			"Kaidel/src",
 			"Kaidel/vendor",
+			"Kaidel/vendor/spdlog/include",
 			"%{IncludeDir.ImGui}",
 			"Kaidel/vendor/glm",
 			"%{IncludeDir.EnTT}",

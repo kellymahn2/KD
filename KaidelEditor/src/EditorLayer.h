@@ -2,7 +2,7 @@
 
 #include "Kaidel.h"
 #include "Panels/SceneHierarchyPanel.h"
-
+#include "Panels/ContentBrowserPanel.h"
 #include "Kaidel/Renderer/EditorCamera.h"
 
 namespace Kaidel {
@@ -25,7 +25,18 @@ namespace Kaidel {
 
 		void NewScene();
 		void OpenScene();
+		void OpenScene(const std::filesystem::path& path);
 		void SaveSceneAs();
+
+		void OnScenePlay();
+		void OnSceneStop();
+		void UI_Toolbar();
+		void DrawGizmos();
+
+
+		void ShowDebugWindow();
+
+		void ShowViewport();
 	private:
 		Kaidel::OrthographicCameraController m_CameraController;
 
@@ -57,6 +68,19 @@ namespace Kaidel {
 
 		// Panels
 		SceneHierarchyPanel m_SceneHierarchyPanel;
+		ContentBrowserPanel m_ContentBrowserPanel;
+
+
+		struct Icons {
+			Ref<Texture2D> IconPlay;
+			Ref<Texture2D> IconStop;
+		} m_Icons;
+
+
+		enum class SceneState {
+			Edit = 0, Play = 1
+		};
+		SceneState m_SceneState=SceneState::Edit;
 	};
 
 }
