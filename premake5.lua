@@ -16,10 +16,14 @@ workspace "Kaidel"
 	IncludeDir["ImGuizmo"] = "Kaidel/vendor/ImGuizmo/"
 	IncludeDir["Yaml_cpp"] = "Kaidel/vendor/yaml-cpp/include/"
 	IncludeDir["KaidelUI"] = "KaidelUI/src/"
+	IncludeDir["Box2D"] = "Kaidel/vendor/Box2D/include/"
+	group "Dependencies"
 	include "Kaidel/vendor/GLFW"
 	include "Kaidel/vendor/Glad"
 	include "Kaidel/vendor/imgui"
 	include "Kaidel/vendor/yaml-cpp"
+	include "Kaidel/vendor/Box2D"
+	group ""
 	project "Kaidel"
 		location "Kaidel"
 		kind "StaticLib"
@@ -52,12 +56,13 @@ workspace "Kaidel"
 			"%{IncludeDir.GLFW}",
 			"%{IncludeDir.ImGuizmo}",
 			"%{IncludeDir.Yaml_cpp}",
-
+			"%{IncludeDir.Box2D}",	
 		}
 		links{
 			"GLFW",
 			"GLAD",
 			"ImGui",
+			"Box2D",
 			"yaml-cpp",
 			"opengl32.lib"
 		}

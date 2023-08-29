@@ -33,10 +33,10 @@ namespace Kaidel {
 		ImGui::Begin("Scene Hierarchy");
 
 		m_Context->m_Registry.each([&](auto entityID)
-		{
-			Entity entity{ entityID , m_Context.get() };
-			DrawEntityNode(entity);
-		});
+			{
+				Entity entity{ entityID , m_Context.get() };
+				DrawEntityNode(entity);
+			});
 
 		if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered())
 			m_SelectionContext = {};
@@ -69,7 +69,7 @@ namespace Kaidel {
 	void SceneHierarchyPanel::DrawEntityNode(Entity entity)
 	{
 		auto& tag = entity.GetComponent<TagComponent>().Tag;
-		
+
 		ImGuiTreeNodeFlags flags = ((m_SelectionContext == entity) ? ImGuiTreeNodeFlags_Selected : 0) | ImGuiTreeNodeFlags_OpenOnArrow;
 		flags |= ImGuiTreeNodeFlags_SpanAvailWidth;
 		bool opened = ImGui::TreeNodeEx((void*)(uint64_t)(uint32_t)entity, flags, tag.c_str());
@@ -169,7 +169,7 @@ namespace Kaidel {
 
 		ImGui::PopID();
 	}
-	
+
 	template<typename T, typename UIFunction>
 	static void DrawComponent(const std::string& name, Entity entity, UIFunction uiFunction)
 	{
@@ -210,7 +210,15 @@ namespace Kaidel {
 				entity.RemoveComponent<T>();
 		}
 	}
-
+	template<typename T>
+	static void DrawAddComponentItems(Entity& entity,const std::string& text) {
+		if (!entity.HasComponent<T>()) {
+			if (ImGui::MenuItem(text.c_str())) {
+				entity.AddComponent<T>();
+				ImGui::CloseCurrentPopup();
+			}
+		}
+	}
 	void SceneHierarchyPanel::DrawComponents(Entity entity)
 	{
 		if (entity.HasComponent<TagComponent>())
@@ -234,23 +242,10 @@ namespace Kaidel {
 
 		if (ImGui::BeginPopup("AddComponent"))
 		{
-				if (ImGui::MenuItem("Camera"))
-				{
-					if (!m_SelectionContext.HasComponent<CameraComponent>())
-						m_SelectionContext.AddComponent<CameraComponent>();
-					else
-						KD_CORE_WARN("This entity already has the Camera Component!");
-					ImGui::CloseCurrentPopup();
-				}
-
-				if (ImGui::MenuItem("Sprite Renderer"))
-				{
-					if (!m_SelectionContext.HasComponent<SpriteRendererComponent>())
-						m_SelectionContext.AddComponent<SpriteRendererComponent>();
-					else
-						KD_CORE_WARN("This entity already has the Sprite Renderer Component!");
-					ImGui::CloseCurrentPopup();
-				}
+			DrawAddComponentItems<CameraComponent>(m_SelectionContext, "Camera");
+			DrawAddComponentItems<SpriteRendererComponent>(m_SelectionContext, "Sprite Renderer");
+			DrawAddComponentItems<Rigidbody2DComponent>(m_SelectionContext, "Rigidbody 2D");
+			DrawAddComponentItems<BoxCollider2DComponent>(m_SelectionContext, "Box Collider 2D");
 
 			ImGui::EndPopup();
 		}
@@ -342,6 +337,40 @@ namespace Kaidel {
 			ImGui::DragFloat("Tiling Float", &component.TilingFactor, .1f, 0, 100.f);
 			
 		});
+
+
+		DrawComponent<Rigidbody2DComponent>("Rigidbody 2D", entity, [](auto& component)
+			{
+				const char* bodyTypeStrings[] = { "Static", "Dynamic","Kinematic"};
+				const char* curretBodyTypeString = bodyTypeStrings[(int)component.Type];
+				if (ImGui::BeginCombo("Body Type", curretBodyTypeString))
+				{
+					for (int i = 0; i < 3; i++)
+					{
+						bool isSelected = curretBodyTypeString == bodyTypeStrings[i];
+						if (ImGui::Selectable(bodyTypeStrings[i], isSelected))
+						{
+							curretBodyTypeString = bodyTypeStrings[i];
+							component.Type = (Rigidbody2DComponent::BodyType)i;
+						}
+
+						if (isSelected)
+							ImGui::SetItemDefaultFocus();
+					}
+
+					ImGui::EndCombo();
+				}
+				ImGui::Checkbox("Fixed Rotation", &component.FixedRotation);
+			});
+		DrawComponent<BoxCollider2DComponent>("Box Collider 2D", entity, [](auto&component) {
+			ImGui::DragFloat2("Offset", glm::value_ptr(component.Offset));
+			ImGui::DragFloat2("Size", glm::value_ptr(component.Size));
+			ImGui::DragFloat("Density", &component.Density,0.01f,.0f,1.f);
+			ImGui::DragFloat("Friction", &component.Friction, 0.01f, .0f, 1.f);
+			ImGui::DragFloat("Restitution", &component.Restitution, 0.01f, .0f, 1.f);
+			ImGui::DragFloat("Restitution Threshold", &component.RestitutionThreshold, 0.01f, .0f, 1.f);
+
+			});
 
 	}
 

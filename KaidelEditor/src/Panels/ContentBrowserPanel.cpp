@@ -39,7 +39,7 @@ namespace Kaidel {
 			
 			ImGui::ImageButton(filename.c_str(), (ImTextureID)icon->GetRendererID(), {thumbnailSize,thumbnailSize}, {0,1}, {1,0});
 			if (ImGui::BeginDragDropSource()) {
-				if (path.extension() == ".kaidel") {
+				if (path.extension() == ".kaidel"|| path.extension() == ".Kaidel") {
 					const wchar_t* itemPath = path.c_str();
 					ImGui::SetDragDropPayload("CONTENT_BROWSER_ITEM", itemPath, (wcslen(itemPath) + 1) * sizeof(wchar_t));
 				}
