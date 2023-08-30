@@ -3,9 +3,9 @@
 
 #include "Components.h"
 #include "Kaidel/Renderer/Renderer2D.h"
+#include "ScriptableEntity.h"
 
 #include <glm/glm.hpp>
-
 #include "Entity.h"
 #include "box2d/b2_world.h"
 #include "box2d/b2_body.h"
@@ -20,9 +20,9 @@ namespace Kaidel {
 
 		switch (type)
 		{
-		case Kaidel::Rigidbody2DComponent::BodyType::Static:return b2_staticBody;
-		case Kaidel::Rigidbody2DComponent::BodyType::Dynamic:return b2_dynamicBody;
-		case Kaidel::Rigidbody2DComponent::BodyType::Kinematic:return b2_kinematicBody;
+		case Rigidbody2DComponent::BodyType::Static:return b2_staticBody;
+		case Rigidbody2DComponent::BodyType::Dynamic:return b2_dynamicBody;
+		case Rigidbody2DComponent::BodyType::Kinematic:return b2_kinematicBody;
 		}
 		KD_CORE_ASSERT(false, "Not Supported");
 		return b2_staticBody;
@@ -41,11 +41,67 @@ namespace Kaidel {
 	Scene::~Scene()
 	{
 	}
+	template<typename T> 
+	static bool CopyComponent(Entity& entity, entt::registry& srcReg, entt::entity srcID) {
+		//Entity Has Component in src
+		if (srcReg.try_get<T>(srcID)!=nullptr) {
+			auto& component= entity.HasComponent<T>()?entity.GetComponent<T>():entity.AddComponent<T>();
+			component = srcReg.get<T>(srcID);
+		}
+		return true;
+	}
+	//Helper For Expansion of Args template parameter in CompyComponents
+	static void helper(...) {}
+	template<typename ...Args>
+	static void CopyComponents(Entity& entity, entt::registry& srcReg, entt::entity srcID) {
+		helper(CopyComponent<Args>(entity, srcReg, srcID)...);
+	}
+	Ref<Scene> Scene::Copy(const Ref<Scene>& rhs)
+	{
+		Ref<Scene> newScene = CreateRef<Scene>();
+		newScene->m_ViewportWidth = rhs->m_ViewportWidth;
+		newScene->m_ViewportHeight = rhs->m_ViewportHeight;
+		auto& srcReg = rhs->m_Registry;
+		auto& dstReg = newScene->m_Registry;
+		std::vector<entt::entity> V;
+		srcReg.each([&V](auto& e) {
+			V.push_back(e);
+			});
+		std::reverse(V.begin(), V.end());
+		std::for_each(V.begin(), V.end(), [&newScene, &srcReg](auto& e) {
+			UUID uuid = srcReg.get<IDComponent>(e).ID;
+			const auto& name = srcReg.get<TagComponent>(e).Tag;
+			Entity entity = newScene->CreateEntity(uuid, name);
+			CopyComponents<	TagComponent, TransformComponent,
+				SpriteRendererComponent, CameraComponent,
+				BoxCollider2DComponent, Rigidbody2DComponent,
+				NativeScriptComponent						>
+				(entity, srcReg, e); });
+		return newScene;
+	}
+
+	void Scene::DuplicateEntity(Entity& entity)
+	{
+		if (!entity)
+			return;
+		auto newEntity = CreateEntity(entity.GetComponent<TagComponent>().Tag);
+		CopyComponents < TransformComponent,
+			SpriteRendererComponent, CameraComponent,
+			BoxCollider2DComponent, Rigidbody2DComponent,
+			NativeScriptComponent>(newEntity, m_Registry, entity);
+	}
+
 
 	Entity Scene::CreateEntity(const std::string& name)
 	{
+		return CreateEntity(UUID{}, name);
+	}
+
+	Entity Scene::CreateEntity(UUID uuid, const std::string& name /*= std::string()*/)
+	{
 		Entity entity = { m_Registry.create(), this };
 		entity.AddComponent<TransformComponent>();
+		entity.AddComponent<IDComponent>(uuid);
 		auto& tag = entity.AddComponent<TagComponent>();
 		tag.Tag = name.empty() ? "Entity" : name;
 		return entity;
@@ -220,6 +276,7 @@ namespace Kaidel {
 		return {};
 	}
 
+
 	template<typename T>
 	void Scene::OnComponentAdded(Entity entity, T& component)
 	{
@@ -257,6 +314,10 @@ namespace Kaidel {
 	}
 	template<>
 	void Scene::OnComponentAdded<BoxCollider2DComponent>(Entity entity, BoxCollider2DComponent& component)
+	{
+	}
+	template<>
+	void Scene::OnComponentAdded<IDComponent>(Entity entity, IDComponent& component)
 	{
 	}
 

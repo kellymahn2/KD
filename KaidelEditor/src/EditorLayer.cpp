@@ -216,16 +216,23 @@ namespace Kaidel {
 				// Disabling fullscreen would allow the window to be moved to the front of other windows, 
 				// which we can't undo at the moment without finer window depth/z control.
 				//ImGui::MenuItem("Fullscreen", NULL, &opt_fullscreen_persistant);1
+				if (ImGui::MenuItem("Duplicate","Ctrl+D"))
+					m_ActiveScene->DuplicateEntity(m_SceneHierarchyPanel.GetSelectedEntity());
 				if (ImGui::MenuItem("New", "Ctrl+N"))
 					NewScene();
 
 				if (ImGui::MenuItem("Open...", "Ctrl+O"))
 					OpenScene();
 
+				if (ImGui::MenuItem("Save", "Ctrl+S"))
+					SaveScene();
+
 				if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S"))
 					SaveSceneAs();
 
-				if (ImGui::MenuItem("Exit")) Application::Get().Close();
+				if (ImGui::MenuItem("Exit")) 
+					Application::Get().Close();
+
 				ImGui::EndMenu();
 			}
 
@@ -242,19 +249,29 @@ namespace Kaidel {
 	}
 
 	void EditorLayer::OnScenePlay(){
-		m_ActiveScene->OnRuntimeStart();
+
 		m_SceneState = SceneState::Play;
-		
+		m_RuntimeScene = Scene::Copy(m_EditorScene);
+		m_RuntimeScene->OnRuntimeStart();
+		m_ActiveScene = m_RuntimeScene;
+		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 	}
 	void EditorLayer::OnSceneStop(){
-		m_ActiveScene->OnRuntimeStop();
 		m_SceneState = SceneState::Edit;
-		
+		m_ActiveScene->OnRuntimeStop();
+		m_RuntimeScene = nullptr;
+		m_ActiveScene = m_EditorScene;
+		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 	}
 
 	void EditorLayer::UI_Toolbar() {
-
-		const static auto windowFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoResize;
+		constexpr auto windowFlags = 
+				ImGuiWindowFlags_NoDecoration
+			|	ImGuiWindowFlags_NoScrollbar
+			|	ImGuiWindowFlags_NoScrollWithMouse
+			|	ImGuiWindowFlags_NoResize
+			|	ImGuiWindowFlags_NoMove
+			|	ImGuiWindowFlags_NoCollapse;
 		auto& colors = ImGui::GetStyle().Colors;
 		const auto& buttonHovered = colors[ImGuiCol_ButtonHovered];
 		const auto& buttonActive = colors[ImGuiCol_ButtonActive];
@@ -284,11 +301,6 @@ namespace Kaidel {
 		ImGui::PopStyleVar(2);
 		ImGui::PopStyleColor(3);
 	}
-
-	
-
-
-
 
 
 
@@ -353,8 +365,8 @@ namespace Kaidel {
 		std::string name = "None";
 		if (m_HoveredEntity)
 			name = m_HoveredEntity.GetComponent<TagComponent>().Tag;
-		ImGui::Text("Hovered Entity: %s", name.c_str());
-
+		ImGui::Text("Hovered Entity: %s, %d", name.c_str(),m_HoveredEntity.operator entt::id_type());
+		ImGui::Text("Gizmo Mode : %d", m_GizmoType);
 		auto stats = Renderer2D::GetStats();
 		ImGui::Text("Renderer2D Stats:");
 		ImGui::Text("Draw Calls: %d", stats.DrawCalls);
@@ -447,12 +459,20 @@ namespace Kaidel {
 			}
 			case Key::S:
 			{
+
 				if (control && shift)
 					SaveSceneAs();
-
+				else if (control)
+					SaveScene();
 				break;
 			}
 
+			case Key::D:
+			{
+				if (control)
+					m_ActiveScene->DuplicateEntity(m_SceneHierarchyPanel.GetSelectedEntity());
+				break;
+			}
 			// Gizmos
 			case Key::Q:
 			{
@@ -500,26 +520,39 @@ namespace Kaidel {
 
 	void EditorLayer::OpenScene()
 	{
+		if (m_SceneState != SceneState::Edit)
+			OnSceneStop();
 		std::optional<std::string> filepath = FileDialogs::OpenFile("Kaidel Scene (*.Kaidel)\0*.Kaidel\0");
 		if (filepath)
 		{
-			m_ActiveScene = CreateRef<Scene>();
-			m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
-			m_SceneHierarchyPanel.SetContext(m_ActiveScene);
-
-			SceneSerializer serializer(m_ActiveScene);
-			serializer.Deserialize(*filepath);
+			OpenScene(*filepath);
 		}
 	}
 
 	void EditorLayer::OpenScene(const std::filesystem::path& path)
 	{
-		m_ActiveScene = CreateRef<Scene>();
-		m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
-		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+		if (m_SceneState != SceneState::Edit)
+			OnSceneStop();
+		if (path.extension().string() != ".Kaidel" && path.extension().string() != ".kaidel")
+		{
+			KD_WARN("Could not load {0} - not a scene file", path.filename().string());
+		}
+		Ref<Scene> newScene = CreateRef<Scene>();
+		newScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+		newScene->SetPath(path.string());
+		SceneSerializer serializer(newScene);
+		if (serializer.Deserialize(path.string())) {
+			m_EditorScene = newScene;
 
-		SceneSerializer serializer(m_ActiveScene);
-		serializer.Deserialize(path.string());
+			m_SceneHierarchyPanel.SetContext(m_EditorScene);
+			m_ActiveScene = m_EditorScene;
+		}
+	}
+
+	void EditorLayer::SaveScene()
+	{
+		SceneSerializer serializer(m_EditorScene);
+		serializer.Serialize(m_EditorScene->GetPath());
 	}
 
 	void EditorLayer::SaveSceneAs()

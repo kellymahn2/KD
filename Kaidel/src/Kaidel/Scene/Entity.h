@@ -2,8 +2,11 @@
 
 #include "Scene.h"
 
-#include "entt.hpp"
+#include "Components.h"
+#include "Kaidel/Core/UUID.h"
 
+
+#include "entt.hpp"
 namespace Kaidel {
 
 	class Entity
@@ -41,7 +44,7 @@ namespace Kaidel {
 			KD_CORE_ASSERT(HasComponent<T>(), "Entity does not have component!");
 			m_Scene->m_Registry.remove<T>(m_EntityHandle);
 		}
-
+		inline UUID GetUUID() { return GetComponent<IDComponent>().ID; }
 		operator bool() const { return m_EntityHandle != entt::null; }
 		operator entt::entity() const { return m_EntityHandle; }
 		operator uint32_t() const { return (uint32_t)m_EntityHandle; }

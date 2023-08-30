@@ -36,6 +36,6 @@ namespace Kaidel {
 		return nullptr;
 	}
 
-	std::unordered_map < std::string, Kaidel::Ref<Kaidel::Texture2D>> Texture2D::s_Map;
+	std::unordered_map < std::string, Ref<Texture2D>> Texture2D::s_Map;
 
 }

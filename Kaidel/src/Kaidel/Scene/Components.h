@@ -1,4 +1,7 @@
 #pragma once
+#include "SceneCamera.h"
+#include "Kaidel/Renderer/Texture.h"
+#include "Kaidel/Core/UUID.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -6,11 +9,15 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
 
-#include "SceneCamera.h"
-#include "ScriptableEntity.h"
-#include "Kaidel/Renderer/Texture.h"
+
 namespace Kaidel {
 
+
+	struct IDComponent {
+		UUID ID;
+		IDComponent() = default;
+		IDComponent(const IDComponent&) = default;
+	};
 	struct TagComponent
 	{
 		std::string Tag;
@@ -62,7 +69,7 @@ namespace Kaidel {
 		CameraComponent() = default;
 		CameraComponent(const CameraComponent&) = default;
 	};
-
+	class ScriptableEntity;
 	struct NativeScriptComponent
 	{
 		ScriptableEntity* Instance = nullptr;

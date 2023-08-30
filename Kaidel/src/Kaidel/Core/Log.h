@@ -26,15 +26,15 @@ namespace Kaidel {
 }
 
 // Core log macros
-#define KD_CORE_TRACE(...)    ::Kaidel::Log::GetCoreLogger()->trace(__VA_ARGS__)
-#define KD_CORE_INFO(...)     ::Kaidel::Log::GetCoreLogger()->info(__VA_ARGS__)
-#define KD_CORE_WARN(...)     ::Kaidel::Log::GetCoreLogger()->warn(__VA_ARGS__)
-#define KD_CORE_ERROR(...)    ::Kaidel::Log::GetCoreLogger()->error(__VA_ARGS__)
-#define KD_CORE_CRITICAL(...) ::Kaidel::Log::GetCoreLogger()->critical(__VA_ARGS__)
+#define KD_CORE_TRACE(...)    ::Log::GetCoreLogger()->trace(__VA_ARGS__)
+#define KD_CORE_INFO(...)     ::Log::GetCoreLogger()->info(__VA_ARGS__)
+#define KD_CORE_WARN(...)     ::Log::GetCoreLogger()->warn(__VA_ARGS__)
+#define KD_CORE_ERROR(...)    ::Log::GetCoreLogger()->error(__VA_ARGS__)
+#define KD_CORE_CRITICAL(...) ::Log::GetCoreLogger()->critical(__VA_ARGS__)
 
 // Client log macros
-#define KD_TRACE(...)         ::Kaidel::Log::GetClientLogger()->trace(__VA_ARGS__)
-#define KD_INFO(...)          ::Kaidel::Log::GetClientLogger()->info(__VA_ARGS__)
-#define KD_WARN(...)          ::Kaidel::Log::GetClientLogger()->warn(__VA_ARGS__)
-#define KD_ERROR(...)         ::Kaidel::Log::GetClientLogger()->error(__VA_ARGS__)
-#define KD_CRITICAL(...)      ::Kaidel::Log::GetClientLogger()->critical(__VA_ARGS__)
+#define KD_TRACE(...)         ::Log::GetClientLogger()->trace(__VA_ARGS__)
+#define KD_INFO(...)          ::Log::GetClientLogger()->info(__VA_ARGS__)
+#define KD_WARN(...)          ::Log::GetClientLogger()->warn(__VA_ARGS__)
+#define KD_ERROR(...)         ::Log::GetClientLogger()->error(__VA_ARGS__)
+#define KD_CRITICAL(...)      ::Log::GetClientLogger()->critical(__VA_ARGS__)

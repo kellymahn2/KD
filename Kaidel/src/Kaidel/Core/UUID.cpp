@@ -3,9 +3,9 @@
 #include <random>
 namespace std {
 	template<>
-	struct hash<Kaidel::UUID>
+	struct hash<UUID>
 	{
-		std::size_t operator()(const Kaidel::UUID& uuid) const{
+		std::size_t operator()(const UUID& uuid) const{
 			return hash<uint64_t>()(uuid.m_UUID);
 		}
 	};
