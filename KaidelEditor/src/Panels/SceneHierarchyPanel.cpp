@@ -244,9 +244,10 @@ namespace Kaidel {
 		{
 			DrawAddComponentItems<CameraComponent>(m_SelectionContext, "Camera");
 			DrawAddComponentItems<SpriteRendererComponent>(m_SelectionContext, "Sprite Renderer");
+			DrawAddComponentItems<CircleRendererComponent>(m_SelectionContext, "Circle Renderer");
 			DrawAddComponentItems<Rigidbody2DComponent>(m_SelectionContext, "Rigidbody 2D");
 			DrawAddComponentItems<BoxCollider2DComponent>(m_SelectionContext, "Box Collider 2D");
-			DrawAddComponentItems<CircleRendererComponent>(m_SelectionContext, "Circle Renderer");
+			DrawAddComponentItems<CircleCollider2DComponent>(m_SelectionContext, "Circle Collider 2D");
 			ImGui::EndPopup();
 		}
 
@@ -338,7 +339,12 @@ namespace Kaidel {
 
 			});
 
+		DrawComponent<CircleRendererComponent>("Circle Renderer", entity, [](CircleRendererComponent& component) {
+			ImGui::ColorEdit4("Color", glm::value_ptr(component.Color));
+			ImGui::DragFloat("Thickness", &component.Thickness, .1f, .0f, 1.f);
+			ImGui::DragFloat("Fade", &component.Fade, .1f, .0f, 1.f);
 
+			});
 		DrawComponent<Rigidbody2DComponent>("Rigidbody 2D", entity, [](auto& component)
 			{
 				const char* bodyTypeStrings[] = { "Static", "Dynamic","Kinematic" };
@@ -371,13 +377,16 @@ namespace Kaidel {
 			ImGui::DragFloat("Restitution Threshold", &component.RestitutionThreshold, 0.01f, .0f, 1.f);
 
 			});
+		DrawComponent<CircleCollider2DComponent>("Box Collider 2D", entity, [](CircleCollider2DComponent& component) {
+			ImGui::DragFloat2("Offset", glm::value_ptr(component.Offset),.01f);
+			ImGui::DragFloat("Radius", &component.Radius, 0.01f);
+			ImGui::DragFloat("Density", &component.Density, 0.01f, .0f, 1.f);
+			ImGui::DragFloat("Friction", &component.Friction, 0.01f, .0f, 1.f);
+			ImGui::DragFloat("Restitution", &component.Restitution, 0.01f, .0f, 1.f);
+			ImGui::DragFloat("Restitution Threshold", &component.RestitutionThreshold, 0.01f, .0f, 1.f);
 
-		DrawComponent<CircleRendererComponent>("Circle Renderer", entity, [](CircleRendererComponent& component) {
-			ImGui::ColorEdit4("Color", glm::value_ptr(component.Color));
-			ImGui::DragFloat("Thickness", &component.Thickness,.1f,.0f,1.f);
-			ImGui::DragFloat("Fade", &component.Fade, .1f, .0f, 1.f);
-		
 			});
+		
 
 	}
 

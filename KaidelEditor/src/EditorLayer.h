@@ -34,6 +34,7 @@ namespace Kaidel {
 		void UI_Toolbar();
 		void DrawGizmos();
 
+		void OnOverlayRender();
 
 		void ShowDebugWindow();
 
@@ -54,6 +55,8 @@ namespace Kaidel {
 		Entity m_HoveredEntity;
 
 		bool m_PrimaryCamera = true;
+
+		bool m_Debug = false;
 
 		EditorCamera m_EditorCamera;
 

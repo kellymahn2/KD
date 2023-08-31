@@ -35,6 +35,10 @@ namespace Kaidel {
 
 		void SetPath(const std::string& path) { m_Path = path; }
 		const std::string& GetPath()const { return m_Path; }
+		template<typename ... Components>
+		decltype(auto) GetAllComponentsWith() {
+			return m_Registry.view<Components...>();
+		}
 	private:
 		template<typename T>
 		void OnComponentAdded(Entity entity, T& component);

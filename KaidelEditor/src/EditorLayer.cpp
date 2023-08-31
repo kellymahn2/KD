@@ -96,6 +96,20 @@ namespace Kaidel {
 		KD_PROFILE_FUNCTION();
 	}
 
+	static int GetCurrentPixelData(glm::vec2 viewportBounds[2],Ref<Framebuffer> fb) {
+		auto [mx, my] = ImGui::GetMousePos();
+		mx -= viewportBounds[0].x;
+		my -= viewportBounds[0].y;
+		glm::vec2 viewportSize = viewportBounds[1] - viewportBounds[0];
+		my = viewportSize.y - my;
+		int mouseX = (int)mx;
+		int mouseY = (int)my;
+		if (mouseX >= 0 && mouseY >= 0 && mouseX < (int)viewportSize.x && mouseY < (int)viewportSize.y)
+		{
+			return fb->ReadPixel(1, mouseX, mouseY);
+		}
+		return -1;
+	}
 	void EditorLayer::OnUpdate(Timestep ts)
 	{
 		KD_PROFILE_FUNCTION();
@@ -139,22 +153,56 @@ namespace Kaidel {
 			}
 		}
 
-		auto[mx, my] = ImGui::GetMousePos();
-		mx -= m_ViewportBounds[0].x;
-		my -= m_ViewportBounds[0].y;
-		glm::vec2 viewportSize = m_ViewportBounds[1] - m_ViewportBounds[0];
-		my = viewportSize.y - my;
-		int mouseX = (int)mx;
-		int mouseY = (int)my;
-
-		if (mouseX >= 0 && mouseY >= 0 && mouseX < (int)viewportSize.x && mouseY < (int)viewportSize.y)
-		{
-			int pixelData = m_Framebuffer->ReadPixel(1, mouseX, mouseY);
-			m_HoveredEntity = pixelData == -1 ? Entity() : Entity((entt::entity)pixelData, m_ActiveScene.get());
+		if (m_Debug) {
+			OnOverlayRender();
 		}
+		
+		int pixelData = GetCurrentPixelData(m_ViewportBounds,m_Framebuffer);
+		m_HoveredEntity = pixelData == -1 ? Entity() : Entity((entt::entity)pixelData, m_ActiveScene.get());
 
 		m_Framebuffer->Unbind();
 	}
+
+	void EditorLayer::OnOverlayRender()
+	{
+		if(m_SceneState == SceneState::Edit)
+			Renderer2D::BeginScene(m_EditorCamera);
+		else if (m_SceneState == SceneState::Play)
+		{
+			Entity camera = m_ActiveScene->GetPrimaryCameraEntity();
+			Renderer2D::BeginScene(camera.GetComponent<CameraComponent>().Camera, camera.GetComponent<TransformComponent>().GetTransform());
+		}
+		{
+			auto view = m_ActiveScene->GetAllComponentsWith<TransformComponent, CircleCollider2DComponent>();
+			for (auto e : view) {
+				auto [tc, cc2d] = view.get<TransformComponent, CircleCollider2DComponent>(e);
+				auto pos1 = tc.Translation + glm::vec3(cc2d.Offset, 0.001f);
+				auto pos2 = tc.Translation + glm::vec3(cc2d.Offset, -0.001f);
+				auto scale = tc.Scale * glm::vec3(cc2d.Radius * 2.0f);
+				glm::mat4 transform1 = glm::translate(glm::mat4(1.0f), pos1)
+					* glm::scale(glm::mat4(1.0f), scale);
+				glm::mat4 transform2 = glm::translate(glm::mat4(1.0f), pos2)
+					* glm::scale(glm::mat4(1.0f), scale);
+				Renderer2D::DrawCircle(transform1, { .2f,.9f,.3f,1.0f }, .01f);
+				Renderer2D::DrawCircle(transform2, { .2f,.9f,.3f,1.0f }, .01f);
+			}
+		}
+		{
+			auto view = m_ActiveScene->GetAllComponentsWith<TransformComponent, BoxCollider2DComponent>();
+			for (auto e : view) {
+				auto [tc, cc2d] = view.get<TransformComponent, BoxCollider2DComponent>(e);
+				auto pos = tc.Translation + glm::vec3(cc2d.Offset, 0.001f);
+				auto scale = tc.Scale * glm::vec3(cc2d.Size*2.0f,1.0f);
+				glm::mat4 transform = glm::translate(glm::mat4(1.0f), pos)
+					* glm::rotate(glm::mat4(1.0f), tc.Rotation.z, glm::vec3(0.0f, 0.0f, 1.0f))
+					* glm::scale(glm::mat4(1.0f), scale);
+				Renderer2D::DrawRect(transform, { .2f,.9f,.3f,1.0f });
+			}
+		}
+		Renderer2D::EndScene();
+	}
+
+
 	void EditorLayer::OnImGuiRender()
 	{
 		KD_PROFILE_FUNCTION();
@@ -360,6 +408,7 @@ namespace Kaidel {
 		}
 	}
 
+
 	void EditorLayer::ShowDebugWindow()
 	{
 		ImGui::Begin("Stats");
@@ -471,8 +520,10 @@ namespace Kaidel {
 
 			case Key::D:
 			{
-				if (control)
+				if (control&&!shift)
 					m_ActiveScene->DuplicateEntity(m_SceneHierarchyPanel.GetSelectedEntity());
+				else if (control&&shift)
+					m_Debug = !m_Debug;
 				break;
 			}
 			// Gizmos

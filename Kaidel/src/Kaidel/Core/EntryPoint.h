@@ -21,5 +21,14 @@ int main(int argc, char** argv)
 	delete app;
 	KD_PROFILE_END_SESSION();
 }
-
+#ifdef KAIDEL_DIST
+int __stdcall WinMain(
+	HINSTANCE hInstance,
+	HINSTANCE hPrevInstance,
+	LPSTR     lpCmdLine,
+	int       nShowCmd
+) {
+	main(0, nullptr);
+}
+#endif	
 #endif
