@@ -3,7 +3,7 @@
 
 #include "Kaidel/Renderer/Renderer.h"
 #include "Platform/OpenGL/OpenGLTexture.h"
-
+#include <shaderc/shaderc.h>
 namespace Kaidel {
 
 	Ref<Texture2D> Texture2D::Create(uint32_t width, uint32_t height)
@@ -31,7 +31,6 @@ namespace Kaidel {
 		else {
 			return s_Map.at(path);
 		}
-
 		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
 		return nullptr;
 	}

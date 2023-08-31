@@ -12,7 +12,6 @@
 
 #include "Kaidel/Math/Math.h"
 #include "Kaidel/Core/Timer.h"
-
 namespace Kaidel {
 
 	EditorLayer::EditorLayer()

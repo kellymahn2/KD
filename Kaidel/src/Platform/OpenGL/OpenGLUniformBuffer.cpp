@@ -1,6 +1,6 @@
 #include "KDpch.h"
 #include "OpenGLUniformBuffer.h"
-#include "glad.h"
+#include "glad/glad.h"
 namespace Kaidel {
 
 	OpenGLUniformBuffer::OpenGLUniformBuffer(uint32_t size, uint32_t binding)

@@ -2,7 +2,7 @@
 #include "Platform/OpenGL/OpenGLContext.h"
 
 #include <GLFW/glfw3.h>
-#include <Glad/include/glad/glad.h>
+#include <glad/glad.h>
 
 namespace Kaidel {
 

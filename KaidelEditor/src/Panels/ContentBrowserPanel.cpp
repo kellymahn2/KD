@@ -1,5 +1,5 @@
 #include "ContentBrowserPanel.h"
-#include <imgui.h>
+#include <imgui/imgui.h>
 #include <stack>
 namespace Kaidel {
 	constexpr char* s_Origin = "assets";

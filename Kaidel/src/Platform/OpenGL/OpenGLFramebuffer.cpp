@@ -1,7 +1,7 @@
 #include "KDpch.h"
 #include "Platform/OpenGL/OpenGLFramebuffer.h"
 
-#include <Glad/include/glad/glad.h>
+#include <glad/glad.h>
 
 namespace Kaidel {
 
