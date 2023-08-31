@@ -216,9 +216,13 @@ namespace Kaidel {
 		{
 			auto view = m_ActiveScene->GetAllComponentsWith<TransformComponent, BoxCollider2DComponent>();
 			for (auto e : view) {
-				auto [tc, cc2d] = view.get<TransformComponent, BoxCollider2DComponent>(e);
-				
-				Renderer2D::DrawRect(tc.GetTransform(), {.2f,.9f,.3f,1.0f});
+				auto [tc, bc2d] = view.get<TransformComponent, BoxCollider2DComponent>(e);
+				auto scale = tc.Scale * glm::vec3(bc2d.Size*2.0f, 1.0f);
+				auto transform = glm::translate(glm::mat4(1.0f), tc.Translation)
+					* glm::rotate(glm::mat4(1.0f), tc.Rotation.z, glm::vec3(0.0f, 0.0f, 1.0f))
+					*glm::translate(glm::mat4(1.0f),glm::vec3(bc2d.Offset,0.001f))
+					* glm::scale(glm::mat4(1.0f), scale);
+				Renderer2D::DrawRect(transform, {.2f,.9f,.3f,1.0f});
 			}
 		}
 		Renderer2D::EndScene();
