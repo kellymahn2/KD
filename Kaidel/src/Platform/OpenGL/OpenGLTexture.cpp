@@ -92,4 +92,11 @@ namespace Kaidel {
 
 		glBindTextureUnit(slot, m_RendererID);
 	}
+
+
+	const std::string& OpenGLTexture2D::GetPath() const
+	{
+		return m_Path;
+	}
+
 }

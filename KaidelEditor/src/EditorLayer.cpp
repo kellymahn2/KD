@@ -11,6 +11,7 @@
 #include "imguizmo/ImGuizmo.h"
 
 #include "Kaidel/Math/Math.h"
+#include "Kaidel/Core/Timer.h"
 
 namespace Kaidel {
 
@@ -22,9 +23,10 @@ namespace Kaidel {
 	void EditorLayer::OnAttach()
 	{
 		KD_PROFILE_FUNCTION();
-
 		m_CheckerboardTexture = Texture2D::Create("assets/textures/Checkerboard.png");
 		m_Icons.IconPlay = Texture2D::Create("Resources/Icons/PlayButton.png");
+		m_Icons.IconSimulateStart = Texture2D::Create("Resources/Icons/SimulateButtonStart.png");
+		m_Icons.IconSimulateStop = Texture2D::Create("Resources/Icons/SimulateButtonStop.png");
 		m_Icons.IconStop = Texture2D::Create("Resources/Icons/StopButton.png");
 
 		FramebufferSpecification fbSpec;
@@ -141,22 +143,53 @@ namespace Kaidel {
 		// Update scene
 		switch (m_SceneState)
 		{
-			case Kaidel::EditorLayer::SceneState::Edit:
+			case SceneState::Edit:
 			{
-				m_ActiveScene->OnUpdateEditor(ts,m_EditorCamera);
+				m_ActiveScene->OnUpdateEditor(ts, m_EditorCamera);
 				break;
 			}
-			case Kaidel::EditorLayer::SceneState::Play:
+			case SceneState::Play:
 			{
 				m_ActiveScene->OnUpdateRuntime(ts);
 				break;
 			}
+			case SceneState::Simulate:
+			{
+				m_ActiveScene->OnUpdateSimulation(ts, m_EditorCamera);
+				break;
+			}
 		}
+
 
 		if (m_Debug) {
 			OnOverlayRender();
 		}
 		
+		if (Entity selectedEntity = m_SceneHierarchyPanel.GetSelectedEntity();selectedEntity&&m_SceneState==SceneState::Edit)
+		{
+
+			Renderer2D::BeginScene(m_EditorCamera);
+			Renderer2D::SetLineWidth(4.0f);
+			auto& tc= selectedEntity.GetComponent<TransformComponent>();
+			if (selectedEntity.HasComponent<SpriteRendererComponent>()) {
+				auto pos = tc.GetTransform();
+				auto& col=selectedEntity.GetComponent<SpriteRendererComponent>().Color;
+
+				if(col==glm::vec4{ 1,0,0,1 })
+					Renderer2D::DrawRect(pos,glm::vec4{1});
+				else 
+					Renderer2D::DrawRect(pos, glm::vec4{ 1,0,0,1 });
+			}
+			else if (selectedEntity.HasComponent<CircleRendererComponent>()) {
+				auto pos = glm::scale(tc.GetTransform(), glm::vec3(1.02f, 1.02f, 1.0f));
+				auto& col = selectedEntity.GetComponent<CircleRendererComponent>().Color;
+				if(col==glm::vec4(1, 0, 0, 1))
+					Renderer2D::DrawCircle(pos, glm::vec4{1}, .02f);
+				else 
+					Renderer2D::DrawCircle(pos, glm::vec4{ 1,0,0,1 }, .02f);
+			}
+			Renderer2D::EndScene();
+		}
 		int pixelData = GetCurrentPixelData(m_ViewportBounds,m_Framebuffer);
 		m_HoveredEntity = pixelData == -1 ? Entity() : Entity((entt::entity)pixelData, m_ActiveScene.get());
 
@@ -176,27 +209,16 @@ namespace Kaidel {
 			auto view = m_ActiveScene->GetAllComponentsWith<TransformComponent, CircleCollider2DComponent>();
 			for (auto e : view) {
 				auto [tc, cc2d] = view.get<TransformComponent, CircleCollider2DComponent>(e);
-				auto pos1 = tc.Translation + glm::vec3(cc2d.Offset, 0.001f);
-				auto pos2 = tc.Translation + glm::vec3(cc2d.Offset, -0.001f);
-				auto scale = tc.Scale * glm::vec3(cc2d.Radius * 2.0f);
-				glm::mat4 transform1 = glm::translate(glm::mat4(1.0f), pos1)
-					* glm::scale(glm::mat4(1.0f), scale);
-				glm::mat4 transform2 = glm::translate(glm::mat4(1.0f), pos2)
-					* glm::scale(glm::mat4(1.0f), scale);
-				Renderer2D::DrawCircle(transform1, { .2f,.9f,.3f,1.0f }, .01f);
-				Renderer2D::DrawCircle(transform2, { .2f,.9f,.3f,1.0f }, .01f);
+				auto pos = glm::scale(tc.GetTransform(), glm::vec3(1.02f, 1.02f, 1.0f));
+				Renderer2D::DrawCircle(pos, { .2f,.9f,.3f,1.0f }, .02f);
 			}
 		}
 		{
 			auto view = m_ActiveScene->GetAllComponentsWith<TransformComponent, BoxCollider2DComponent>();
 			for (auto e : view) {
 				auto [tc, cc2d] = view.get<TransformComponent, BoxCollider2DComponent>(e);
-				auto pos = tc.Translation + glm::vec3(cc2d.Offset, 0.001f);
-				auto scale = tc.Scale * glm::vec3(cc2d.Size*2.0f,1.0f);
-				glm::mat4 transform = glm::translate(glm::mat4(1.0f), pos)
-					* glm::rotate(glm::mat4(1.0f), tc.Rotation.z, glm::vec3(0.0f, 0.0f, 1.0f))
-					* glm::scale(glm::mat4(1.0f), scale);
-				Renderer2D::DrawRect(transform, { .2f,.9f,.3f,1.0f });
+				
+				Renderer2D::DrawRect(tc.GetTransform(), {.2f,.9f,.3f,1.0f});
 			}
 		}
 		Renderer2D::EndScene();
@@ -314,44 +336,26 @@ namespace Kaidel {
 		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 	}
 
-	void EditorLayer::UI_Toolbar() {
-		constexpr auto windowFlags = 
-				ImGuiWindowFlags_NoDecoration
-			|	ImGuiWindowFlags_NoScrollbar
-			|	ImGuiWindowFlags_NoScrollWithMouse
-			|	ImGuiWindowFlags_NoResize
-			|	ImGuiWindowFlags_NoMove
-			|	ImGuiWindowFlags_NoCollapse;
-		auto& colors = ImGui::GetStyle().Colors;
-		const auto& buttonHovered = colors[ImGuiCol_ButtonHovered];
-		const auto& buttonActive = colors[ImGuiCol_ButtonActive];
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0,2 });
-		ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, { 0,2 });
-		ImGui::PushStyleColor(ImGuiCol_Button, { 0,0,0,0 });
-		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { buttonHovered.x,buttonHovered.y,buttonHovered.z,.5f });
-		ImGui::PushStyleColor(ImGuiCol_ButtonActive, { buttonActive.x,buttonActive.y,buttonActive.z,.5f });
+	
 
-		ImGui::Begin("##toolbar", nullptr,windowFlags);
-
-		Ref<Texture2D> icon = m_SceneState == SceneState::Edit ? m_Icons.IconPlay : m_Icons.IconStop;
-		
-		float size = ImGui::GetWindowHeight() - 4.0f;
-		
-		ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x * .5f) - (size * .5f));
-		ImGui::SetCursorPosY((ImGui::GetWindowContentRegionMax().y * .5f) - (size * .5f));
-		
-		if (ImGui::ImageButton((ImTextureID)icon->GetRendererID(),{size,size},{0,0},{1,1},0)) {
-			if (m_SceneState == SceneState::Edit)
-				OnScenePlay();
-			else if (m_SceneState == SceneState::Play)
-				OnSceneStop();
-		}
-
-		ImGui::End();
-		ImGui::PopStyleVar(2);
-		ImGui::PopStyleColor(3);
+	void EditorLayer::OnSceneSimulateStart() {
+		if (!m_EditorScene)
+			return;
+		if (m_SceneState == SceneState::Play)
+			OnSceneStop();
+		m_SceneState = SceneState::Simulate;
+		m_SimulationScene = Scene::Copy(m_EditorScene);
+		m_SimulationScene->OnSimulationStart();
+		m_ActiveScene = m_SimulationScene;
+		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 	}
-
+	void EditorLayer::OnSceneSimulateStop() {
+		m_SceneState = SceneState::Edit;
+		m_SimulationScene->OnSimulationStop();
+		m_SimulationScene = nullptr;
+		m_ActiveScene = m_EditorScene;
+		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+	}
 
 
 
@@ -424,7 +428,7 @@ namespace Kaidel {
 		ImGui::Text("Quads: %d", stats.QuadCount);
 		ImGui::Text("Vertices: %d", stats.GetTotalVertexCount());
 		ImGui::Text("Indices: %d", stats.GetTotalIndexCount());
-
+		ImGui::Text("Frame Rate: %.3f", ImGui::GetIO().Framerate);
 		ImGui::End();
 
 	}
@@ -465,7 +469,63 @@ namespace Kaidel {
 
 
 
+	void EditorLayer::UI_Toolbar() {
+		constexpr auto windowFlags =
+			ImGuiWindowFlags_NoDecoration
+			| ImGuiWindowFlags_NoScrollbar
+			| ImGuiWindowFlags_NoScrollWithMouse
+			| ImGuiWindowFlags_NoResize
+			| ImGuiWindowFlags_NoMove
+			| ImGuiWindowFlags_NoCollapse;
+		auto& colors = ImGui::GetStyle().Colors;
+		const auto& buttonHovered = colors[ImGuiCol_ButtonHovered];
+		const auto& buttonActive = colors[ImGuiCol_ButtonActive];
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0,2 });
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, { 0,2 });
+		ImGui::PushStyleColor(ImGuiCol_Button, { 0,0,0,0 });
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { buttonHovered.x,buttonHovered.y,buttonHovered.z,.5f });
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive, { buttonActive.x,buttonActive.y,buttonActive.z,.5f });
 
+		ImGui::Begin("##toolbar", nullptr, windowFlags);
+
+
+		float size = ImGui::GetWindowHeight() - 4.0f;
+
+		ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x * .5f) - (size * .5f));
+		ImGui::SetCursorPosY((ImGui::GetWindowContentRegionMax().y * .5f) - (size * .5f));
+
+		{
+			Ref<Texture2D> icon = m_Icons.IconPlay;
+			if (m_SceneState == SceneState::Play)
+				icon = m_Icons.IconStop;
+			if (ImGui::ImageButton((ImTextureID)icon->GetRendererID(), { size,size }, { 0,0 }, { 1,1 }, 0)) {
+				if (m_SceneState == SceneState::Edit)
+					OnScenePlay();
+				else if (m_SceneState == SceneState::Play)
+					OnSceneStop();
+				else if (m_SceneState == SceneState::Simulate) {
+					OnSceneSimulateStop();
+					OnScenePlay();
+				}
+			}
+		}
+		ImGui::SameLine();
+		{
+			Ref<Texture2D> icon = m_Icons.IconSimulateStart;
+			if (m_SceneState == SceneState::Simulate)
+				icon = m_Icons.IconSimulateStop;
+			if (ImGui::ImageButton((ImTextureID)icon->GetRendererID(), { size,size }, { 0,0 }, { 1,1 }, 0)) {
+				if (m_SceneState == SceneState::Simulate)
+					OnSceneSimulateStop();
+				else
+					OnSceneSimulateStart();
+			}
+		}
+
+		ImGui::End();
+		ImGui::PopStyleVar(2);
+		ImGui::PopStyleColor(3);
+	}
 
 
 

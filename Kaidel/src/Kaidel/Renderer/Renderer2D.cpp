@@ -7,6 +7,7 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 #include "UniformBuffer.h"
+#include "Kaidel/Core/Timer.h"
 namespace Kaidel {
 
 	struct QuadVertex
@@ -47,8 +48,10 @@ namespace Kaidel {
 		Ref<Shader> QuadShader;
 
 		uint32_t QuadIndexCount = 0;
-		QuadVertex* QuadVertexBufferBase = nullptr;
-		QuadVertex* QuadVertexBufferPtr = nullptr;
+		std::vector<QuadVertex> QuadVertexBufferArray;
+		size_t QuadVertexBufferIndex=0;
+		//QuadVertex* QuadVertexBufferBase = nullptr;
+		//QuadVertex* QuadVertexBufferPtr = nullptr;
 
 		Ref<VertexArray> CircleVertexArray;
 		Ref<VertexBuffer> CircleVertexBuffer;
@@ -89,8 +92,8 @@ namespace Kaidel {
 		KD_PROFILE_FUNCTION();
 
 		s_Data.QuadVertexArray = VertexArray::Create();
-
-		s_Data.QuadVertexBuffer = VertexBuffer::Create(s_Data.MaxVertices * sizeof(QuadVertex));
+		s_Data.QuadVertexBufferArray = std::vector<QuadVertex>(4, QuadVertex{});
+		s_Data.QuadVertexBuffer = VertexBuffer::Create(0);
 		s_Data.QuadVertexBuffer->SetLayout({
 			{ ShaderDataType::Float3, "a_Position"     },
 			{ ShaderDataType::Float4, "a_Color"        },
@@ -101,7 +104,7 @@ namespace Kaidel {
 		});
 		s_Data.QuadVertexArray->AddVertexBuffer(s_Data.QuadVertexBuffer);
 
-		s_Data.QuadVertexBufferBase = new QuadVertex[s_Data.MaxVertices];
+		//s_Data.QuadVertexBufferBase = new QuadVertex[s_Data.MaxVertices];
 
 		uint32_t* quadIndices = new uint32_t[s_Data.MaxIndices];
 
@@ -186,7 +189,7 @@ namespace Kaidel {
 	{
 		KD_PROFILE_FUNCTION();
 
-		delete[] s_Data.QuadVertexBufferBase;
+		//delete[] s_Data.QuadVertexBufferBase;
 	}
 
 	void Renderer2D::BeginScene(const OrthographicCamera& camera)
@@ -235,7 +238,8 @@ namespace Kaidel {
 	void Renderer2D::StartBatch()
 	{
 		s_Data.QuadIndexCount = 0;
-		s_Data.QuadVertexBufferPtr = s_Data.QuadVertexBufferBase;
+		s_Data.QuadVertexBufferIndex = 0;
+		//s_Data.QuadVertexBufferPtr = s_Data.QuadVertexBufferBase;
 
 		s_Data.CircleIndexCount = 0;
 		s_Data.CircleVertexBufferPtr = s_Data.CircleVertexBufferBase;
@@ -249,8 +253,10 @@ namespace Kaidel {
 	void Renderer2D::Flush()
 	{
 		if(s_Data.QuadIndexCount){
-			uint32_t dataSize = (uint32_t)((uint8_t*)s_Data.QuadVertexBufferPtr - (uint8_t*)s_Data.QuadVertexBufferBase);
-			s_Data.QuadVertexBuffer->SetData(s_Data.QuadVertexBufferBase, dataSize);
+			//uint32_t dataSize = (uint32_t)((uint8_t*)s_Data.QuadVertexBufferPtr - (uint8_t*)s_Data.QuadVertexBufferBase);
+
+			//s_Data.QuadVertexBuffer->SetData(s_Data.QuadVertexBufferBase, dataSize);
+			s_Data.QuadVertexBuffer->SetData(s_Data.QuadVertexBufferArray.data(), s_Data.QuadVertexBufferIndex * sizeof(QuadVertex));
 
 			// Bind textures
 			for (uint32_t i = 0; i < s_Data.TextureSlotIndex; i++)
@@ -283,61 +289,37 @@ namespace Kaidel {
 	{
 		Flush();
 		StartBatch();
+
 	}
 
-	void Renderer2D::DrawQuad(const glm::vec2& position, const glm::vec2& size, const glm::vec4& color)
-	{
-		DrawQuad({ position.x, position.y, 0.0f }, size, color);
-	}
-
-	void Renderer2D::DrawQuad(const glm::vec3& position, const glm::vec2& size, const glm::vec4& color)
-	{
-		KD_PROFILE_FUNCTION();
-
-		glm::mat4 transform = glm::translate(glm::mat4(1.0f), position)
-			* glm::scale(glm::mat4(1.0f), { size.x, size.y, 1.0f });
-		
-		DrawQuad(transform, color);
-	}
-
-	void Renderer2D::DrawQuad(const glm::vec2& position, const glm::vec2& size, const Ref<Texture2D>& texture, float tilingFactor, const glm::vec4& tintColor)
-	{
-		DrawQuad({ position.x, position.y, 0.0f }, size, texture, tilingFactor, tintColor);
-	}
-
-	void Renderer2D::DrawQuad(const glm::vec3& position, const glm::vec2& size, const Ref<Texture2D>& texture, float tilingFactor, const glm::vec4& tintColor)
-	{
-		KD_PROFILE_FUNCTION();
-
-		glm::mat4 transform = glm::translate(glm::mat4(1.0f), position)
-			* glm::scale(glm::mat4(1.0f), { size.x, size.y, 1.0f });
-
-		DrawQuad(transform, texture, tilingFactor, tintColor);
-	}
 
 	void Renderer2D::DrawQuad(const glm::mat4& transform, const glm::vec4& color, int entityID)
 	{
-		KD_PROFILE_FUNCTION();
 
 		constexpr size_t quadVertexCount = 4;
 		const float textureIndex = 0.0f; // White Texture
 		constexpr glm::vec2 textureCoords[] = { { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f }, { 0.0f, 1.0f } };
 		const float tilingFactor = 1.0f;
+		
 
-		if (s_Data.QuadIndexCount >= Renderer2DData::MaxIndices)
+		if (s_Data.QuadIndexCount >= Renderer2DData::MaxIndices||s_Data.QuadVertexBufferIndex==s_Data.MaxVertices)
 			NextBatch();
-
+		while (s_Data.QuadVertexBufferArray.size() != s_Data.MaxVertices&&s_Data.QuadVertexBufferArray.size() <= s_Data.QuadVertexBufferIndex+4) {
+			
+			size_t s = s_Data.QuadVertexBufferArray.size() * 1.5f;
+			s_Data.QuadVertexBufferArray.resize(s < s_Data.MaxVertices ? s : s_Data.MaxVertices);
+		}
+		
 		for (size_t i = 0; i < quadVertexCount; i++)
 		{
-			s_Data.QuadVertexBufferPtr->Position = transform * s_Data.QuadVertexPositions[i];
-			s_Data.QuadVertexBufferPtr->Color = color;
-			s_Data.QuadVertexBufferPtr->TexCoord = textureCoords[i];
-			s_Data.QuadVertexBufferPtr->TexIndex = textureIndex;
-			s_Data.QuadVertexBufferPtr->TilingFactor = tilingFactor;
-			s_Data.QuadVertexBufferPtr->EntityID = entityID;
-			s_Data.QuadVertexBufferPtr++;
+			s_Data.QuadVertexBufferArray[s_Data.QuadVertexBufferIndex].Position = transform * s_Data.QuadVertexPositions[i];
+			s_Data.QuadVertexBufferArray[s_Data.QuadVertexBufferIndex].Color = color;
+			s_Data.QuadVertexBufferArray[s_Data.QuadVertexBufferIndex].TexCoord = textureCoords[i];
+			s_Data.QuadVertexBufferArray[s_Data.QuadVertexBufferIndex].TexIndex = textureIndex;
+			s_Data.QuadVertexBufferArray[s_Data.QuadVertexBufferIndex].TilingFactor = tilingFactor;
+			s_Data.QuadVertexBufferArray[s_Data.QuadVertexBufferIndex].EntityID = entityID;
+			s_Data.QuadVertexBufferIndex++;
 		}
-
 		s_Data.QuadIndexCount += 6;
 
 		s_Data.Stats.QuadCount++;
@@ -350,9 +332,14 @@ namespace Kaidel {
 		constexpr size_t quadVertexCount = 4;
 		constexpr glm::vec2 textureCoords[] = { { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f }, { 0.0f, 1.0f } };
 
-		if (s_Data.QuadIndexCount >= Renderer2DData::MaxIndices)
+		if (s_Data.QuadIndexCount >= Renderer2DData::MaxIndices || s_Data.QuadVertexBufferIndex == s_Data.MaxVertices)
 			NextBatch();
 
+		while (s_Data.QuadVertexBufferArray.size() != s_Data.MaxVertices && s_Data.QuadVertexBufferArray.size() <= s_Data.QuadVertexBufferIndex + 4) {
+
+			size_t s = s_Data.QuadVertexBufferArray.size() * 1.5f;
+			s_Data.QuadVertexBufferArray.resize(s < s_Data.MaxVertices ? s : s_Data.MaxVertices);
+		}
 		float textureIndex = 0.0f;
 		for (uint32_t i = 1; i < s_Data.TextureSlotIndex; i++)
 		{
@@ -375,51 +362,20 @@ namespace Kaidel {
 
 		for (size_t i = 0; i < quadVertexCount; i++)
 		{
-			s_Data.QuadVertexBufferPtr->Position = transform * s_Data.QuadVertexPositions[i];
-			s_Data.QuadVertexBufferPtr->Color = tintColor;
-			s_Data.QuadVertexBufferPtr->TexCoord = textureCoords[i];
-			s_Data.QuadVertexBufferPtr->TexIndex = textureIndex;
-			s_Data.QuadVertexBufferPtr->TilingFactor = tilingFactor;
-			s_Data.QuadVertexBufferPtr->EntityID = entityID;
-			s_Data.QuadVertexBufferPtr++;
+			s_Data.QuadVertexBufferArray[s_Data.QuadVertexBufferIndex].Position = transform * s_Data.QuadVertexPositions[i];
+			s_Data.QuadVertexBufferArray[s_Data.QuadVertexBufferIndex].Color = tintColor;
+			s_Data.QuadVertexBufferArray[s_Data.QuadVertexBufferIndex].TexCoord = textureCoords[i];
+			s_Data.QuadVertexBufferArray[s_Data.QuadVertexBufferIndex].TexIndex = textureIndex;
+			s_Data.QuadVertexBufferArray[s_Data.QuadVertexBufferIndex].TilingFactor = tilingFactor;
+			s_Data.QuadVertexBufferArray[s_Data.QuadVertexBufferIndex].EntityID = entityID;
+			s_Data.QuadVertexBufferIndex++;
 		}
-
 		s_Data.QuadIndexCount += 6;
 
 		s_Data.Stats.QuadCount++;
 	}
 
-	void Renderer2D::DrawRotatedQuad(const glm::vec2& position, const glm::vec2& size, float rotation, const glm::vec4& color)
-	{
-		DrawRotatedQuad({ position.x, position.y, 0.0f }, size, rotation, color);
-	}
 
-	void Renderer2D::DrawRotatedQuad(const glm::vec3& position, const glm::vec2& size, float rotation, const glm::vec4& color)
-	{
-		KD_PROFILE_FUNCTION();
-
-		glm::mat4 transform = glm::translate(glm::mat4(1.0f), position)
-			* glm::rotate(glm::mat4(1.0f), glm::radians(rotation), { 0.0f, 0.0f, 1.0f })
-			* glm::scale(glm::mat4(1.0f), { size.x, size.y, 1.0f });
-
-		DrawQuad(transform, color);
-	}
-
-	void Renderer2D::DrawRotatedQuad(const glm::vec2& position, const glm::vec2& size, float rotation, const Ref<Texture2D>& texture, float tilingFactor, const glm::vec4& tintColor)
-	{
-		DrawRotatedQuad({ position.x, position.y, 0.0f }, size, rotation, texture, tilingFactor, tintColor);
-	}
-
-	void Renderer2D::DrawRotatedQuad(const glm::vec3& position, const glm::vec2& size, float rotation, const Ref<Texture2D>& texture, float tilingFactor, const glm::vec4& tintColor)
-	{
-		KD_PROFILE_FUNCTION();
-
-		glm::mat4 transform = glm::translate(glm::mat4(1.0f), position)
-			* glm::rotate(glm::mat4(1.0f), glm::radians(rotation), { 0.0f, 0.0f, 1.0f })
-			* glm::scale(glm::mat4(1.0f), { size.x, size.y, 1.0f });
-
-		DrawQuad(transform, texture, tilingFactor, tintColor);
-	}
 
 	void Renderer2D::DrawCircle(const glm::mat4& transform, const glm::vec4& color, float thickness /*= 1.0f*/, float fade /*= .005f*/, int entityID /*= -1*/)
 	{
@@ -449,9 +405,11 @@ namespace Kaidel {
 
 	void Renderer2D::DrawSprite(const glm::mat4& transform, SpriteRendererComponent& src, int entityID)
 	{
+		KD_PROFILE_FUNCTION();
 		if (src.Texture)
 			DrawQuad(transform, src.Texture,src.TilingFactor,src.Color, entityID);
-		DrawQuad(transform, src.Color, entityID);
+		else
+			DrawQuad(transform, src.Color, entityID);
 	}
 
 	void Renderer2D::DrawLine(const glm::vec3& p0, const glm::vec3& p1, const glm::vec4& color, int entityID/*=-1*/)
@@ -509,4 +467,66 @@ namespace Kaidel {
 		s_Data.LineWidth = width;
 		RenderCommand::SetLineWidth(width);
 	}
+#if 0
+	void Renderer2D::DrawQuad(const glm::vec2& position, const glm::vec2& size, const glm::vec4& color)
+	{
+		DrawQuad({ position.x, position.y, 0.0f }, size, color);
+	}
+
+	void Renderer2D::DrawQuad(const glm::vec3& position, const glm::vec2& size, const glm::vec4& color)
+	{
+		KD_PROFILE_FUNCTION();
+
+		glm::mat4 transform = glm::translate(glm::mat4(1.0f), position)
+			* glm::scale(glm::mat4(1.0f), { size.x, size.y, 1.0f });
+
+		DrawQuad(transform, color);
+	}
+
+	void Renderer2D::DrawQuad(const glm::vec2& position, const glm::vec2& size, const Ref<Texture2D>& texture, float tilingFactor, const glm::vec4& tintColor)
+	{
+		DrawQuad({ position.x, position.y, 0.0f }, size, texture, tilingFactor, tintColor);
+	}
+
+	void Renderer2D::DrawQuad(const glm::vec3& position, const glm::vec2& size, const Ref<Texture2D>& texture, float tilingFactor, const glm::vec4& tintColor)
+	{
+		KD_PROFILE_FUNCTION();
+
+		glm::mat4 transform = glm::translate(glm::mat4(1.0f), position)
+			* glm::scale(glm::mat4(1.0f), { size.x, size.y, 1.0f });
+
+		DrawQuad(transform, texture, tilingFactor, tintColor);
+	}
+	void Renderer2D::DrawRotatedQuad(const glm::vec2& position, const glm::vec2& size, float rotation, const glm::vec4& color)
+	{
+		DrawRotatedQuad({ position.x, position.y, 0.0f }, size, rotation, color);
+	}
+
+	void Renderer2D::DrawRotatedQuad(const glm::vec3& position, const glm::vec2& size, float rotation, const glm::vec4& color)
+	{
+		KD_PROFILE_FUNCTION();
+
+		glm::mat4 transform = glm::translate(glm::mat4(1.0f), position)
+			* glm::rotate(glm::mat4(1.0f), glm::radians(rotation), { 0.0f, 0.0f, 1.0f })
+			* glm::scale(glm::mat4(1.0f), { size.x, size.y, 1.0f });
+
+		DrawQuad(transform, color);
+	}
+
+	void Renderer2D::DrawRotatedQuad(const glm::vec2& position, const glm::vec2& size, float rotation, const Ref<Texture2D>& texture, float tilingFactor, const glm::vec4& tintColor)
+	{
+		DrawRotatedQuad({ position.x, position.y, 0.0f }, size, rotation, texture, tilingFactor, tintColor);
+	}
+
+	void Renderer2D::DrawRotatedQuad(const glm::vec3& position, const glm::vec2& size, float rotation, const Ref<Texture2D>& texture, float tilingFactor, const glm::vec4& tintColor)
+	{
+		KD_PROFILE_FUNCTION();
+
+		glm::mat4 transform = glm::translate(glm::mat4(1.0f), position)
+			* glm::rotate(glm::mat4(1.0f), glm::radians(rotation), { 0.0f, 0.0f, 1.0f })
+			* glm::scale(glm::mat4(1.0f), { size.x, size.y, 1.0f });
+
+		DrawQuad(transform, texture, tilingFactor, tintColor);
+	}
+#endif
 }

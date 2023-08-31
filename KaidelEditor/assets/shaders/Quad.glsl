@@ -1,3 +1,5 @@
+// Basic Texture Shader
+
 #type vertex
 #version 460 core
 
@@ -28,17 +30,18 @@ void main()
 {
 	Output.Color = a_Color;
 	Output.TexCoord = a_TexCoord;
-	v_TexIndex = a_TexIndex;
 	Output.TilingFactor = a_TilingFactor;
+	v_TexIndex = a_TexIndex;
 	v_EntityID = a_EntityID;
+
 	gl_Position = u_ViewProjection * vec4(a_Position, 1.0);
 }
 
 #type fragment
 #version 460 core
 
-layout(location = 0) out vec4 color;
-layout(location = 1) out int color2;
+layout(location = 0) out vec4 o_Color;
+layout(location = 1) out int o_EntityID;
 
 struct VertexOutput
 {
@@ -92,7 +95,10 @@ void main()
 		case 30: texColor *= texture(u_Textures[30], Input.TexCoord * Input.TilingFactor); break;
 		case 31: texColor *= texture(u_Textures[31], Input.TexCoord * Input.TilingFactor); break;
 	}
-	color = texColor;
 
-	color2 = v_EntityID;
+	if (texColor.a == 0.0)
+		discard;
+
+	o_Color = texColor;
+	o_EntityID = v_EntityID;
 }

@@ -10,6 +10,7 @@ namespace Kaidel {
 	/////////////////////////////////////////////////////////////////////////////
 
 	OpenGLVertexBuffer::OpenGLVertexBuffer(uint32_t size)
+		:m_MaxSize(size)
 	{
 		KD_PROFILE_FUNCTION();
 
@@ -51,7 +52,15 @@ namespace Kaidel {
 	void OpenGLVertexBuffer::SetData(const void* data, uint32_t size)
 	{
 		glBindBuffer(GL_ARRAY_BUFFER, m_RendererID);
+		if (m_MaxSize < size) {
+			m_MaxSize = size*1.5;
+			glBufferData(GL_ARRAY_BUFFER, m_MaxSize, nullptr, GL_DYNAMIC_DRAW);
+		}
 		glBufferSubData(GL_ARRAY_BUFFER, 0, size, data);
+	}
+
+	void OpenGLVertexBuffer::ResetBuffer(uint32_t newSize)
+	{
 	}
 
 	/////////////////////////////////////////////////////////////////////////////

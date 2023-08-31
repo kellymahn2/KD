@@ -4,11 +4,13 @@ Entities:
     TagComponent:
       Tag: Green Square
     TransformComponent:
-      Translation: [2.4000001, 0, 0]
+      Translation: [0.0454201698, 1.28089106, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     SpriteRendererComponent:
-      Color: [0, 1, 0, 1]
+      Color: [0.996078432, 1, 1, 1]
+      Texture: assets\textures\Checkerboard.png
+      TilingFactor: 1
   - Entity: 11532660612453879985
     TagComponent:
       Tag: Red Square
@@ -17,7 +19,9 @@ Entities:
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     SpriteRendererComponent:
-      Color: [1, 0, 0, 1]
+      Color: [1, 0.992156863, 1, 1]
+      Texture: assets\textures\ChernoLogo.png
+      TilingFactor: 1
   - Entity: 1838871538157561931
     TagComponent:
       Tag: Camera A

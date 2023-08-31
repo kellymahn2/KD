@@ -25,6 +25,11 @@ namespace Kaidel {
 		{
 			return m_RendererID == ((OpenGLTexture2D&)other).m_RendererID;
 		}
+
+
+
+		const std::string& GetPath() const override;
+
 	private:
 		std::string m_Path;
 		uint32_t m_Width, m_Height;

@@ -31,6 +31,9 @@ namespace Kaidel {
 
 		void OnScenePlay();
 		void OnSceneStop();
+		void OnSceneSimulateStart();
+		void OnSceneSimulateStop();
+
 		void UI_Toolbar();
 		void DrawGizmos();
 
@@ -47,7 +50,7 @@ namespace Kaidel {
 		Ref<Shader> m_FlatColorShader;
 		Ref<Framebuffer> m_Framebuffer;
 		Ref<Scene> m_ActiveScene;
-		Ref<Scene> m_EditorScene, m_RuntimeScene;
+		Ref<Scene> m_EditorScene, m_RuntimeScene,m_SimulationScene;
 		Entity m_SquareEntity;
 		Entity m_CameraEntity;
 		Entity m_SecondCamera;
@@ -77,12 +80,14 @@ namespace Kaidel {
 
 		struct Icons {
 			Ref<Texture2D> IconPlay;
+			Ref<Texture2D> IconSimulateStart;
+			Ref<Texture2D> IconSimulateStop;
 			Ref<Texture2D> IconStop;
 		} m_Icons;
 
 
 		enum class SceneState {
-			Edit = 0, Play = 1
+			Edit = 0, Play = 1 , Simulate = 2
 		};
 		SceneState m_SceneState=SceneState::Edit;
 	};

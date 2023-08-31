@@ -194,6 +194,9 @@ namespace Kaidel {
 
 			auto& spriteRendererComponent = entity.GetComponent<SpriteRendererComponent>();
 			out << YAML::Key << "Color" << YAML::Value << spriteRendererComponent.Color;
+			if (spriteRendererComponent.Texture)
+				out << YAML::Key << "Texture" << YAML::Value << spriteRendererComponent.Texture->GetPath();
+			out << YAML::Key << "TilingFactor" << YAML::Value << spriteRendererComponent.TilingFactor;
 
 			out << YAML::EndMap; // SpriteRendererComponent
 		}
@@ -299,7 +302,7 @@ namespace Kaidel {
 			return false;
 
 		std::string sceneName = data["Scene"].as<std::string>();
-		KD_CORE_TRACE("Deserializing scene '{0}'", sceneName);
+		//KD_CORE_TRACE("Deserializing scene '{0}'", sceneName);
 
 		auto entities = data["Entities"];
 		if (entities)
@@ -313,7 +316,7 @@ namespace Kaidel {
 				if (tagComponent)
 					name = tagComponent["Tag"].as<std::string>();
 
-				KD_CORE_TRACE("Deserialized entity with ID = {0}, name = {1}", uuid, name);
+				//KD_CORE_TRACE("Deserialized entity with ID = {0}, name = {1}", uuid, name);
 
 				Entity deserializedEntity = m_Scene->CreateEntity(uuid,name);
 
@@ -349,6 +352,10 @@ namespace Kaidel {
 				DeserializeComponent<SpriteRendererComponent>(deserializedEntity, "SpriteRendererComponent", entity,
 					[](auto& src, auto& entity, auto& spriteRendererComponent) {
 						src.Color = spriteRendererComponent["Color"].as<glm::vec4>();
+						if (spriteRendererComponent["Texture"])
+							src.Texture = Texture2D::Create(spriteRendererComponent["Texture"].as<std::string>());
+						if (spriteRendererComponent["TilingFactor"])
+							src.TilingFactor = spriteRendererComponent["TilingFactor"].as<float>();
 					}
 				);
 				DeserializeComponent<CircleRendererComponent>(deserializedEntity, "CircleRendererComponent", entity,

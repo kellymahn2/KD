@@ -225,13 +225,10 @@ namespace Kaidel {
 		#define KD_FUNC_SIG "KD_FUNC_SIG unknown!"
 	#endif
 
-	#define KD_PROFILE_BEGIN_SESSION(name, filepath) ::Instrumentor::Get().BeginSession(name, filepath)
-	#define KD_PROFILE_END_SESSION() ::Instrumentor::Get().EndSession()
-	#define KD_PROFILE_SCOPE_LINE2(name, line) constexpr auto fixedName##line = ::InstrumentorUtils::CleanupOutputString(name, "__cdecl ");\
-											   ::InstrumentationTimer timer##line(fixedName##line.Data)
-	#define KD_PROFILE_SCOPE_LINE(name, line) KD_PROFILE_SCOPE_LINE2(name, line)
-	#define KD_PROFILE_SCOPE(name) KD_PROFILE_SCOPE_LINE(name, __LINE__)
-	#define KD_PROFILE_FUNCTION() KD_PROFILE_SCOPE(KD_FUNC_SIG)
+	#define KD_PROFILE_BEGIN_SESSION(name, filepath) ::Kaidel::Instrumentor::Get().BeginSession(name, filepath);
+	#define KD_PROFILE_END_SESSION() ::Kaidel::Instrumentor::Get().EndSession();
+	#define KD_PROFILE_SCOPE(name) ::Kaidel::InstrumentationTimer timer##__LINE__(name);
+	#define KD_PROFILE_FUNCTION() KD_PROFILE_SCOPE(KD_FUNC_SIG);
 #else
 	#define KD_PROFILE_BEGIN_SESSION(name, filepath)
 	#define KD_PROFILE_END_SESSION()

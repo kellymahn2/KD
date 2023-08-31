@@ -32,12 +32,6 @@ namespace Kaidel {
 		return b2_staticBody;
 	}
 
-
-
-
-
-
-
 	Scene::Scene()
 	{
 	}
@@ -85,40 +79,7 @@ namespace Kaidel {
 		return newScene;
 	}
 
-	void Scene::DuplicateEntity(Entity& entity)
-	{
-		if (!entity)
-			return;
-		auto newEntity = CreateEntity(entity.GetComponent<TagComponent>().Tag);
-		CopyComponents < TransformComponent,
-			SpriteRendererComponent, CameraComponent,
-			BoxCollider2DComponent, Rigidbody2DComponent,
-			CircleRendererComponent ,CircleCollider2DComponent,
-			NativeScriptComponent>(newEntity, m_Registry, entity);
-	}
-
-
-	Entity Scene::CreateEntity(const std::string& name)
-	{
-		return CreateEntity(UUID{}, name);
-	}
-
-	Entity Scene::CreateEntity(UUID uuid, const std::string& name /*= std::string()*/)
-	{
-		Entity entity = { m_Registry.create(), this };
-		entity.AddComponent<TransformComponent>();
-		entity.AddComponent<IDComponent>(uuid);
-		auto& tag = entity.AddComponent<TagComponent>();
-		tag.Tag = name.empty() ? "Entity" : name;
-		return entity;
-	}
-
-	void Scene::DestroyEntity(Entity entity)
-	{
-		m_Registry.destroy(entity);
-	}
-
-	void Scene::OnRuntimeStart()
+	void Scene::OnPhysics2DStart()
 	{
 		m_PhysicsWorld = new b2World(b2Vec2{ 0.0f,-9.8f });
 		auto view = m_Registry.view<Rigidbody2DComponent>();
@@ -172,10 +133,114 @@ namespace Kaidel {
 		}
 	}
 
-	void Scene::OnRuntimeStop()
+
+	void Scene::OnPhysics2DUpdate(Timestep& ts)
+	{
+		{
+			const int32_t velocityIterations = 6;
+			const int32_t positionIterations = 2;
+			m_PhysicsWorld->Step(ts, velocityIterations, positionIterations);
+
+			auto view = m_Registry.view<Rigidbody2DComponent>();
+
+			for (auto e : view)
+			{
+				Entity entity{ e,this };
+				auto& transform = entity.GetComponent<TransformComponent>();
+				auto& rb2d = entity.GetComponent<Rigidbody2DComponent>();
+
+				b2Body* body = (b2Body*)rb2d.RuntimeBody;
+
+				const auto& position = body->GetPosition();
+				transform.Translation.x = position.x;
+				transform.Translation.y = position.y;
+				transform.Rotation.z = body->GetAngle();
+			}
+		}
+	}
+
+	void Scene::OnPhysics2DStop()
 	{
 		delete m_PhysicsWorld;
 		m_PhysicsWorld = nullptr;
+	}
+
+
+	void Scene::RenderScene()
+	{
+		{
+			auto group = m_Registry.group<TransformComponent>(entt::get<SpriteRendererComponent>);
+			KD_PROFILE_SCOPE();
+			for (auto entity : group)
+			{
+				auto [transform, sprite] = group.get<TransformComponent, SpriteRendererComponent>(entity);
+
+				Renderer2D::DrawSprite(transform.GetTransform(), sprite, (int)entity);
+			}
+		}
+		{
+
+			auto view = m_Registry.view<TransformComponent, CircleRendererComponent>();
+			KD_PROFILE_SCOPE();
+			for (auto e : view) {
+				auto [transform, crc] = view.get<TransformComponent, CircleRendererComponent>(e);
+
+				Renderer2D::DrawCircle(transform.GetTransform(), crc.Color, crc.Thickness, crc.Fade, (int)e);
+			}
+		}
+	}
+
+	void Scene::DuplicateEntity(Entity& entity)
+	{
+		if (!entity)
+			return;
+		auto newEntity = CreateEntity(entity.GetComponent<TagComponent>().Tag);
+		CopyComponents < TransformComponent,
+			SpriteRendererComponent, CameraComponent,
+			BoxCollider2DComponent, Rigidbody2DComponent,
+			CircleRendererComponent ,CircleCollider2DComponent,
+			NativeScriptComponent>(newEntity, m_Registry, entity);
+	}
+
+
+	Entity Scene::CreateEntity(const std::string& name)
+	{
+		return CreateEntity(UUID{}, name);
+	}
+
+	Entity Scene::CreateEntity(UUID uuid, const std::string& name /*= std::string()*/)
+	{
+		Entity entity = { m_Registry.create(), this };
+		entity.AddComponent<TransformComponent>();
+		entity.AddComponent<IDComponent>(uuid);
+		auto& tag = entity.AddComponent<TagComponent>();
+		tag.Tag = name.empty() ? "Entity" : name;
+		return entity;
+	}
+
+	void Scene::DestroyEntity(Entity entity)
+	{
+		m_Registry.destroy(entity);
+	}
+
+	void Scene::OnRuntimeStart()
+	{
+		OnPhysics2DStart();
+	}
+
+	void Scene::OnRuntimeStop()
+	{
+		OnPhysics2DStop();
+	}
+	
+	void Scene::OnSimulationStart()
+	{
+		OnPhysics2DStart();
+	}
+
+	void Scene::OnSimulationStop()
+	{
+		OnPhysics2DStop();
 	}
 
 	void Scene::OnUpdateRuntime(Timestep ts)
@@ -197,73 +262,17 @@ namespace Kaidel {
 		}
 		//Physics
 
-		{
-			const int32_t velocityIterations = 6;
-			const int32_t positionIterations = 2;
-			m_PhysicsWorld->Step(ts, velocityIterations, positionIterations);
 
-			auto view = m_Registry.view<Rigidbody2DComponent>();
-
-			for(auto e:view)
-			{
-				Entity entity{ e,this };
-				auto& transform = entity.GetComponent<TransformComponent>();
-				auto& rb2d = entity.GetComponent<Rigidbody2DComponent>();
-
-				b2Body* body = (b2Body*)rb2d.RuntimeBody;
-
-				const auto& position = body->GetPosition();
-				transform.Translation.x = position.x;
-				transform.Translation.y = position.y;
-				transform.Rotation.z = body->GetAngle();
-			}
-		}
-
-
-
-
+		OnPhysics2DUpdate(ts);
 
 
 		// Render 2D
-		Camera* mainCamera = nullptr;
-		glm::mat4 cameraTransform;
+		Entity cam = GetPrimaryCameraEntity();
+		if (cam)
 		{
-			auto view = m_Registry.view<TransformComponent, CameraComponent>();
-			for (auto entity : view)
-			{
-				auto [transform, camera] = view.get<TransformComponent, CameraComponent>(entity);
-				
-				if (camera.Primary)
-				{
-					mainCamera = &camera.Camera;
-					cameraTransform = transform.GetTransform();
-					break;
-				}
-			}
-		}
+			Renderer2D::BeginScene(cam.GetComponent<CameraComponent>().Camera, cam.GetComponent<TransformComponent>().GetTransform());
 
-		if (mainCamera)
-		{
-			Renderer2D::BeginScene(*mainCamera, cameraTransform);
-
-			{
-				auto group = m_Registry.group<TransformComponent>(entt::get<SpriteRendererComponent>);
-				for (auto entity : group)
-				{
-					auto [transform, sprite] = group.get<TransformComponent, SpriteRendererComponent>(entity);
-
-					Renderer2D::DrawSprite(transform.GetTransform(), sprite, (int)entity);
-				}
-			}
-			{
-				auto view = m_Registry.view<TransformComponent, CircleRendererComponent>();
-				for (auto e : view) {
-					auto [transform, crc] = view.get<TransformComponent, CircleRendererComponent>(e);
-
-					Renderer2D::DrawCircle(transform.GetTransform(), crc.Color, crc.Thickness, crc.Fade, (int)e);
-				}
-			}
-
+			RenderScene();
 
 			Renderer2D::EndScene();
 		}
@@ -273,26 +282,15 @@ namespace Kaidel {
 	void Scene::OnUpdateEditor(Timestep ts, EditorCamera& camera)
 	{
 		Renderer2D::BeginScene(camera);
-
-		{
-			auto group = m_Registry.group<TransformComponent>(entt::get<SpriteRendererComponent>);
-			for (auto entity : group)
-			{
-				auto [transform, sprite] = group.get<TransformComponent, SpriteRendererComponent>(entity);
-
-				Renderer2D::DrawSprite(transform.GetTransform(), sprite, (int)entity);
-			}
-		}
-		{
-			auto view = m_Registry.view<TransformComponent, CircleRendererComponent>();
-			for (auto e : view) {
-				auto [transform, crc] = view.get<TransformComponent, CircleRendererComponent>(e);
-
-				Renderer2D::DrawCircle(transform.GetTransform(), crc.Color, crc.Thickness,crc.Fade, (int)e);
-			}
-		}
-		Renderer2D::SetLineWidth(4.0);
+		RenderScene();
+		
 		Renderer2D::EndScene();
+	}
+
+	void Scene::OnUpdateSimulation(Timestep ts, EditorCamera& camera)
+	{
+		OnPhysics2DUpdate(ts);
+		OnUpdateEditor(ts, camera);
 	}
 
 	void Scene::OnViewportResize(uint32_t width, uint32_t height)

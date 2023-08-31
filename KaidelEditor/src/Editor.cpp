@@ -8,8 +8,8 @@ namespace Kaidel {
 	class Kaidelnut : public Application
 	{
 	public:
-		Kaidelnut()
-			: Application("Kaidelnut")
+		Kaidelnut(const ApplicationSpecification& specification)
+			: Application(specification)
 		{
 			PushLayer(new EditorLayer());
 		}
@@ -19,7 +19,12 @@ namespace Kaidel {
 		}
 	};
 
-	Kaidel::Application* Kaidel::CreateApplication() {
-		return new Kaidelnut();
+	Application* CreateApplication(const ApplicationCommandLineArgs& args)
+	{
+		ApplicationSpecification spec;
+		spec.Name = "Editor";
+		spec.WorkingDirectory = "../KaidelEditor";
+		spec.CommandLineArgs = args;
+		return new Kaidelnut(spec);
 	}
 }
