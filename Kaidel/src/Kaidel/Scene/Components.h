@@ -18,6 +18,7 @@ namespace Kaidel {
 		IDComponent() = default;
 		IDComponent(const IDComponent&) = default;
 	};
+
 	struct TagComponent
 	{
 		std::string Tag;
@@ -60,6 +61,15 @@ namespace Kaidel {
 			: Color(color) {}
 	};
 
+	struct CircleRendererComponent {
+		glm::vec4 Color{ 1.0f };
+		float Thickness=1.0f;
+		float Fade = 0.005f;
+
+		CircleRendererComponent() = default;
+		CircleRendererComponent(const CircleRendererComponent&) = default;
+	};
+
 	struct CameraComponent
 	{
 		SceneCamera Camera;
@@ -69,7 +79,9 @@ namespace Kaidel {
 		CameraComponent() = default;
 		CameraComponent(const CameraComponent&) = default;
 	};
+
 	class ScriptableEntity;
+
 	struct NativeScriptComponent
 	{
 		ScriptableEntity* Instance = nullptr;
@@ -86,6 +98,7 @@ namespace Kaidel {
 	};
 
 	//Physics
+
 	struct Rigidbody2DComponent {
 		enum class BodyType {
 			Static=0,Dynamic,Kinematic

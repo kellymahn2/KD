@@ -197,6 +197,18 @@ namespace Kaidel {
 
 			out << YAML::EndMap; // SpriteRendererComponent
 		}
+		if (entity.HasComponent<CircleRendererComponent>())
+		{
+			out << YAML::Key << "CircleRendererComponent";
+			out << YAML::BeginMap; // SpriteRendererComponent
+
+			auto& circleRendererComponent = entity.GetComponent<CircleRendererComponent>();
+			out << YAML::Key << "Color" << YAML::Value << circleRendererComponent.Color;
+			out << YAML::Key << "Thickness" << YAML::Value << circleRendererComponent.Thickness;
+			out << YAML::Key << "Fade" << YAML::Value << circleRendererComponent.Fade;
+
+			out << YAML::EndMap; // SpriteRendererComponent
+		}
 		if (entity.HasComponent<Rigidbody2DComponent>())
 		{
 			out << YAML::Key << "Rigidbody2DComponent";
@@ -320,6 +332,14 @@ namespace Kaidel {
 				DeserializeComponent<SpriteRendererComponent>(deserializedEntity, "SpriteRendererComponent", entity,
 					[](auto& src, auto& entity, auto& spriteRendererComponent) {
 						src.Color = spriteRendererComponent["Color"].as<glm::vec4>();
+					}
+				);
+				DeserializeComponent<CircleRendererComponent>(deserializedEntity, "CircleRendererComponent", entity,
+					[](CircleRendererComponent& crc, auto& entity, auto& circleRendererComponent) {
+						crc.Color = circleRendererComponent["Color"].as < glm::vec4>();
+						crc.Thickness = circleRendererComponent["Thickness"].as <float>();
+						crc.Fade = circleRendererComponent["Fade"].as < float>();
+
 					}
 				);
 				DeserializeComponent<Rigidbody2DComponent>(deserializedEntity, "Rigidbody2DComponent", entity,

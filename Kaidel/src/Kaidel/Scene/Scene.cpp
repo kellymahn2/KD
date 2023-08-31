@@ -12,6 +12,9 @@
 #include "box2d/b2_fixture.h"
 #include "box2d/b2_polygon_shape.h"
 
+#define DEF_COMPONENT_ADD(Component) template<>\
+void Scene::OnComponentAdded<##Component>(Entity entity, ##Component& component){}
+
 namespace Kaidel {
 
 
@@ -50,7 +53,7 @@ namespace Kaidel {
 		}
 		return true;
 	}
-	//Helper For Expansion of Args template parameter in CompyComponents
+	//Helper For Expansion of Args template parameter in Functions
 	static void helper(...) {}
 	template<typename ...Args>
 	static void CopyComponents(Entity& entity, entt::registry& srcReg, entt::entity srcID) {
@@ -62,7 +65,6 @@ namespace Kaidel {
 		newScene->m_ViewportWidth = rhs->m_ViewportWidth;
 		newScene->m_ViewportHeight = rhs->m_ViewportHeight;
 		auto& srcReg = rhs->m_Registry;
-		auto& dstReg = newScene->m_Registry;
 		std::vector<entt::entity> V;
 		srcReg.each([&V](auto& e) {
 			V.push_back(e);
@@ -73,9 +75,10 @@ namespace Kaidel {
 			const auto& name = srcReg.get<TagComponent>(e).Tag;
 			Entity entity = newScene->CreateEntity(uuid, name);
 			CopyComponents<	TagComponent, TransformComponent,
-				SpriteRendererComponent, CameraComponent,
+				SpriteRendererComponent, CircleRendererComponent,
+				CameraComponent,
 				BoxCollider2DComponent, Rigidbody2DComponent,
-				NativeScriptComponent						>
+				NativeScriptComponent					>
 				(entity, srcReg, e); });
 		return newScene;
 	}
@@ -88,6 +91,7 @@ namespace Kaidel {
 		CopyComponents < TransformComponent,
 			SpriteRendererComponent, CameraComponent,
 			BoxCollider2DComponent, Rigidbody2DComponent,
+			CircleRendererComponent,
 			NativeScriptComponent>(newEntity, m_Registry, entity);
 	}
 
@@ -220,13 +224,24 @@ namespace Kaidel {
 		{
 			Renderer2D::BeginScene(*mainCamera, cameraTransform);
 
-			auto group = m_Registry.group<TransformComponent>(entt::get<SpriteRendererComponent>);
-			for (auto entity : group)
 			{
-				auto [transform, sprite] = group.get<TransformComponent, SpriteRendererComponent>(entity);
+				auto group = m_Registry.group<TransformComponent>(entt::get<SpriteRendererComponent>);
+				for (auto entity : group)
+				{
+					auto [transform, sprite] = group.get<TransformComponent, SpriteRendererComponent>(entity);
 
-				Renderer2D::DrawSprite(transform.GetTransform(), sprite, (int)entity);
+					Renderer2D::DrawSprite(transform.GetTransform(), sprite, (int)entity);
+				}
 			}
+			{
+				auto view = m_Registry.view<TransformComponent, CircleRendererComponent>();
+				for (auto e : view) {
+					auto [transform, crc] = view.get<TransformComponent, CircleRendererComponent>(e);
+
+					Renderer2D::DrawCircle(transform.GetTransform(), crc.Color, crc.Thickness, crc.Fade, (int)e);
+				}
+			}
+
 
 			Renderer2D::EndScene();
 		}
@@ -237,14 +252,24 @@ namespace Kaidel {
 	{
 		Renderer2D::BeginScene(camera);
 
-		auto group = m_Registry.group<TransformComponent>(entt::get<SpriteRendererComponent>);
-		for (auto entity : group)
 		{
-			auto [transform, sprite] = group.get<TransformComponent, SpriteRendererComponent>(entity);
+			auto group = m_Registry.group<TransformComponent>(entt::get<SpriteRendererComponent>);
+			for (auto entity : group)
+			{
+				auto [transform, sprite] = group.get<TransformComponent, SpriteRendererComponent>(entity);
 
-			Renderer2D::DrawSprite(transform.GetTransform(), sprite, (int)entity);
+				Renderer2D::DrawSprite(transform.GetTransform(), sprite, (int)entity);
+			}
 		}
+		{
+			auto view = m_Registry.view<TransformComponent, CircleRendererComponent>();
+			for (auto e : view) {
+				auto [transform, crc] = view.get<TransformComponent, CircleRendererComponent>(e);
 
+				Renderer2D::DrawCircle(transform.GetTransform(), crc.Color, crc.Thickness,crc.Fade, (int)e);
+			}
+		}
+		Renderer2D::SetLineWidth(4.0);
 		Renderer2D::EndScene();
 	}
 
@@ -277,49 +302,18 @@ namespace Kaidel {
 	}
 
 
-	template<typename T>
-	void Scene::OnComponentAdded(Entity entity, T& component)
-	{
-		static_assert(false);
-	}
-
-	template<>
-	void Scene::OnComponentAdded<TransformComponent>(Entity entity, TransformComponent& component)
-	{
-	}
 
 	template<>
 	void Scene::OnComponentAdded<CameraComponent>(Entity entity, CameraComponent& component)
 	{
 		component.Camera.SetViewportSize(m_ViewportWidth, m_ViewportHeight);
 	}
-
-	template<>
-	void Scene::OnComponentAdded<SpriteRendererComponent>(Entity entity, SpriteRendererComponent& component)
-	{
-	}
-
-	template<>
-	void Scene::OnComponentAdded<TagComponent>(Entity entity, TagComponent& component)
-	{
-	}
-
-	template<>
-	void Scene::OnComponentAdded<NativeScriptComponent>(Entity entity, NativeScriptComponent& component)
-	{
-	}
-	template<>
-	void Scene::OnComponentAdded<Rigidbody2DComponent>(Entity entity, Rigidbody2DComponent& component)
-	{
-	}
-	template<>
-	void Scene::OnComponentAdded<BoxCollider2DComponent>(Entity entity, BoxCollider2DComponent& component)
-	{
-	}
-	template<>
-	void Scene::OnComponentAdded<IDComponent>(Entity entity, IDComponent& component)
-	{
-	}
-
-
+	DEF_COMPONENT_ADD(TransformComponent)
+	DEF_COMPONENT_ADD(SpriteRendererComponent)
+	DEF_COMPONENT_ADD(TagComponent)
+	DEF_COMPONENT_ADD(NativeScriptComponent)
+	DEF_COMPONENT_ADD(Rigidbody2DComponent)
+	DEF_COMPONENT_ADD(BoxCollider2DComponent)
+	DEF_COMPONENT_ADD(IDComponent)
+	DEF_COMPONENT_ADD(CircleRendererComponent)
 }

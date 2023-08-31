@@ -31,8 +31,8 @@ namespace Kaidel {
 		fbSpec.Attachments = { FramebufferTextureFormat::RGBA8, FramebufferTextureFormat::RED_INTEGER, FramebufferTextureFormat::Depth };
 		fbSpec.Width = 1280;
 		fbSpec.Height = 720;
+		fbSpec.Samples = 1;
 		m_Framebuffer = Framebuffer::Create(fbSpec);
-
 		m_ActiveScene = CreateRef<Scene>();
 
 		m_EditorCamera = EditorCamera(30.0f, 1.778f, 0.1f, 1000.0f);
@@ -117,11 +117,12 @@ namespace Kaidel {
 		// Render
 		Renderer2D::ResetStats();
 		m_Framebuffer->Bind();
+
 		RenderCommand::SetClearColor({ 0.1f, 0.1f, 0.1f, 1 });
 		RenderCommand::Clear();
-
 		// Clear our entity ID attachment to -1
 		m_Framebuffer->ClearAttachment(1, -1);
+
 
 		// Update scene
 		switch (m_SceneState)
@@ -249,9 +250,10 @@ namespace Kaidel {
 	}
 
 	void EditorLayer::OnScenePlay(){
-
+		if (!m_EditorScene)
+			return;
 		m_SceneState = SceneState::Play;
-		m_RuntimeScene = Scene::Copy(m_EditorScene);
+		m_RuntimeScene =Scene::Copy(m_EditorScene);
 		m_RuntimeScene->OnRuntimeStart();
 		m_ActiveScene = m_RuntimeScene;
 		m_SceneHierarchyPanel.SetContext(m_ActiveScene);

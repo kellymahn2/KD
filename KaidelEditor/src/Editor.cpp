@@ -19,9 +19,7 @@ namespace Kaidel {
 		}
 	};
 
-	Application* CreateApplication()
-	{
+	Kaidel::Application* Kaidel::CreateApplication() {
 		return new Kaidelnut();
 	}
-
 }

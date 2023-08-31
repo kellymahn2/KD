@@ -3,14 +3,14 @@
 
 #ifdef KD_PLATFORM_WINDOWS
 
-extern Application* CreateApplication();
+extern Kaidel::Application* Kaidel::CreateApplication();
 
 int main(int argc, char** argv)
 {
 	Log::Init();
 
 	KD_PROFILE_BEGIN_SESSION("Startup", "KaidelProfile-Startup.json");
-	auto app = CreateApplication();
+	auto app = Kaidel::CreateApplication();
 	KD_PROFILE_END_SESSION();
 
 	KD_PROFILE_BEGIN_SESSION("Runtime", "KaidelProfile-Runtime.json");

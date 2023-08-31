@@ -9,21 +9,19 @@
 #pragma warning(pop)
 
 
-namespace Kaidel {
 
-	class Log
-	{
-	public:
-		static void Init();
+class Log
+{
+public:
+	static void Init();
 
-		static Ref<spdlog::logger>& GetCoreLogger() { return s_CoreLogger; }
-		static Ref<spdlog::logger>& GetClientLogger() { return s_ClientLogger; }
-	private:
-		static Ref<spdlog::logger> s_CoreLogger;
-		static Ref<spdlog::logger> s_ClientLogger;
-	};
+	static Kaidel::Ref<spdlog::logger>& GetCoreLogger() { return s_CoreLogger; }
+	static Kaidel::Ref<spdlog::logger>& GetClientLogger() { return s_ClientLogger; }
+private:
+	static Kaidel::Ref<spdlog::logger> s_CoreLogger;
+	static Kaidel::Ref<spdlog::logger> s_ClientLogger;
+};
 
-}
 
 // Core log macros
 #define KD_CORE_TRACE(...)    ::Log::GetCoreLogger()->trace(__VA_ARGS__)
