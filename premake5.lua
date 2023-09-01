@@ -10,13 +10,23 @@ workspace "Kaidel"
 	outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 	IncludeDir ={}
 	IncludeDir["GLFW"]= "Kaidel/vendor/GLFW/include/"
-	IncludeDir["GLAD"] = "Kaidel/vendor/Glad/include/glad/"
+	IncludeDir["GLAD"] = "Kaidel/vendor/Glad/include/"
 	IncludeDir["ImGui"] = "Kaidel/vendor/imgui/"
 	IncludeDir["EnTT"] = "Kaidel/vendor/EnTT/"
 	IncludeDir["ImGuizmo"] = "Kaidel/vendor/ImGuizmo/"
 	IncludeDir["Yaml_cpp"] = "Kaidel/vendor/yaml-cpp/include/"
 	IncludeDir["KaidelUI"] = "KaidelUI/src/"
 	IncludeDir["Box2D"] = "Kaidel/vendor/Box2D/include/"
+	IncludeDir["mono"] = "Kaidel/vendor/mono/include"
+	LibraryDir = {}
+	LibraryDir["mono"] = "vendor/mono/Lib/%{cfg.buildcfg}"
+	Library = {}
+	Library["mono"] = "%{LibraryDir.mono}/libmono-static-sgen.lib"
+	Library["WinSock"] = "Ws2_32.lib"
+	Library["Version"] = "Version.lib"
+	Library["Bcrypt"] = "Bcrypt.lib"
+	Library["Winmm"] = "Winmm.lib"
+
 	group "Dependencies"
 	include "Kaidel/vendor/GLFW"
 	include "Kaidel/vendor/Glad"
@@ -24,6 +34,7 @@ workspace "Kaidel"
 	include "Kaidel/vendor/yaml-cpp"
 	include "Kaidel/vendor/Box2D"
 	group ""
+	include "KaidelCore"
 	project "Kaidel"
 		location "Kaidel"
 		kind "StaticLib"
@@ -57,13 +68,16 @@ workspace "Kaidel"
 			"%{IncludeDir.ImGuizmo}",
 			"%{IncludeDir.Yaml_cpp}",
 			"%{IncludeDir.Box2D}",	
+			"%{IncludeDir.mono}"
 		}
 		links{
 			"GLFW",
 			"GLAD",
 			"ImGui",
 			"Box2D",
+			"%{Library.mono}",
 			"yaml-cpp",
+			
 			"opengl32.lib"
 		}
 
@@ -74,10 +88,17 @@ workspace "Kaidel"
 			"GLFW_INCLUDE_NONE",
 			"_CRT_SECURE_NO_WARNINGS"
 		}
-		filter "files:%{prj.name}/vendor/ImGuizmo/ImGuizmo.cpp"
+		filter "system:windows"
+			links{
+				"%{Library.WinSock}",
+				"%{Library.Version}",
+				"%{Library.Bcrypt}",
+				"%{Library.Winmm}"
+			}
+		filter "files:%{prj.name}/vendor/imguizmo/ImGuizmo.cpp"
 		flags "NoPCH"
 	filter "configurations:Debug"
-		defines {"KAIDEL_DEBUG","KAIDEL_PROFILE"}
+		defines {"KAIDEL_DEBUG","KAIDEL_PROFILE","KD_ENABLE_ASSERTS"}
 		runtime "Debug"
 		buildoptions "/MDd"
 		symbols "on"
@@ -122,7 +143,7 @@ project "KaidelEditor"
 			"Kaidel"
 		}
 	filter "configurations:Debug"
-		defines {"KAIDEL_DEBUG","KAIDEL_PROFILE"}
+		defines {"KAIDEL_DEBUG","KAIDEL_PROFILE","KD_ENABLE_ASSERTS"}
 		runtime "Debug"
 		buildoptions "/MDd"
 		symbols "on"

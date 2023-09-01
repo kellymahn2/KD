@@ -5,10 +5,11 @@
 
 #include "Kaidel/Renderer/Renderer.h"
 
+#include "Kaidel/Scripting/ScriptEngine.h"
+
 #include "Kaidel/Core/Input.h"
 
 #include <GLFW/glfw3.h>
-
 namespace Kaidel {
 	Application* Application::s_Instance = nullptr;
 
@@ -26,7 +27,7 @@ namespace Kaidel {
 		m_Window->SetEventCallback(KD_BIND_EVENT_FN(Application::OnEvent));
 
 		Renderer::Init();
-
+		ScriptEngine::Init();
 		m_ImGuiLayer = new ImGuiLayer();
 		PushOverlay(m_ImGuiLayer);
 	}

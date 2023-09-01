@@ -2,7 +2,8 @@
 #include "Timer.h"
 namespace Kaidel {
 
-	Timer::Timer()
+	Timer::Timer(const std::string& name)
+		:m_Name(name)
 	{
 		m_Start = std::chrono::high_resolution_clock::now();
 	}
@@ -15,7 +16,10 @@ namespace Kaidel {
 
 	Timer::~Timer()
 	{
-		//KD_CORE_INFO("{0}ms", GetMilliseconds());
+		if (m_Name.empty())
+			KD_CORE_INFO("{0}ms", GetMilliseconds());
+		else
+			KD_CORE_INFO("{0} Took {1}ms", m_Name,GetMilliseconds());
 	}
 
 }

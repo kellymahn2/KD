@@ -13,3 +13,7 @@ bin-int/
 **.vcxproj.filters
 **.vcxproj.user
 KaidelEditor/Resources/Icons/ContentBrowser/watch-dogs-2-config-files.rar
+KaidelEditor/Resources/Scripts
+KaidelEditor/mono
+Libs
+Kaidel/vendor/mono
