@@ -2,7 +2,7 @@
 #include "Platform/OpenGL/OpenGLShader.h"
 
 #include <fstream>
-#include <Glad/include/glad/glad.h>
+#include <glad/glad.h>
 
 #include <glm/gtc/type_ptr.hpp>
 

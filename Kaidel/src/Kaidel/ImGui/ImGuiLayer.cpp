@@ -9,7 +9,7 @@
 
 // TEMPORARY
 #include <GLFW/glfw3.h>
-#include <Glad/include/glad/glad.h>
+#include <glad/glad.h>
 
 #include "ImGuizmo.h"
 
