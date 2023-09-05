@@ -14,6 +14,7 @@ namespace Kaidel {
 	private:
 		void ShowFileNavigator();
 		std::filesystem::path m_CurrentPath;
+		char m_SelectedFileName[24] = {0};
 		Icons m_Icons;
 	};
 }

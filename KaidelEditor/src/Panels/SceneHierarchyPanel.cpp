@@ -7,7 +7,7 @@
 
 #include "Kaidel/Scene/Components.h"
 #include <cstring>
-
+#include "Kaidel/Scripting/ScriptEngine.h"
 /* The Microsoft C++ compiler is non-compliant with the C++ standard and needs
  * the following definition to disable a security warning on std::strncpy().
  */
@@ -242,6 +242,7 @@ namespace Kaidel {
 
 		if (ImGui::BeginPopup("AddComponent"))
 		{
+			DrawAddComponentItems<ScriptComponent>(m_SelectionContext, "Script Component");
 			DrawAddComponentItems<CameraComponent>(m_SelectionContext, "Camera");
 			DrawAddComponentItems<SpriteRendererComponent>(m_SelectionContext, "Sprite Renderer");
 			DrawAddComponentItems<CircleRendererComponent>(m_SelectionContext, "Circle Renderer");
@@ -387,7 +388,19 @@ namespace Kaidel {
 
 			});
 		
+		DrawComponent<ScriptComponent>("Script Component", entity, [](auto& component) {
 
+			bool scriptExists = ScriptEngine::ClassExists(component.Name);
+			static char buffer[64] = { 0 };
+			strcpy(buffer, component.Name.c_str());
+			if(!scriptExists)
+				ImGui::PushStyleColor(ImGuiCol_Text,{.9,.2,.3,1.0});
+			if (ImGui::InputText("##Script", buffer, sizeof(buffer))) {
+				component.Name = buffer;
+			}
+			if (!scriptExists)
+				ImGui::PopStyleColor();
+			});
 	}
 
 }

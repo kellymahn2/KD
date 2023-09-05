@@ -1,0 +1,32 @@
+Scene: Untitled
+Entities:
+  - Entity: 4240456701348918736
+    TagComponent:
+      Tag: Camera
+    TransformComponent:
+      Translation: [0, 0, 23]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    CameraComponent:
+      Camera:
+        ProjectionType: 0
+        PerspectiveFOV: 0.785398185
+        PerspectiveNear: 0.00999999978
+        PerspectiveFar: 1000
+        OrthographicSize: 10
+        OrthographicNear: -1
+        OrthographicFar: 1
+      Primary: true
+      FixedAspectRatio: false
+  - Entity: 6678127126232339938
+    TagComponent:
+      Tag: Scripted Entity
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      TilingFactor: 1
+    ScriptComponent:
+      Name: Sandbox.Player

@@ -6,6 +6,7 @@
 #include "Kaidel/Renderer/Renderer2D.h"
 #include "ScriptableEntity.h"
 #include "Entity.h"
+#include "Kaidel/Scripting/ScriptEngine.h"
 
 #include <glm/glm.hpp>
 #include <box2d/b2_world.h>
@@ -17,8 +18,6 @@
 void Scene::OnComponentAdded<##Component>(Entity entity, ##Component& component){}
 
 namespace Kaidel {
-
-
 	
 	b2BodyType	Rigidbody2DTypeToBox2DBodyType(Rigidbody2DComponent::BodyType type) {
 
@@ -74,7 +73,7 @@ namespace Kaidel {
 				CircleRendererComponent ,CircleCollider2DComponent,
 				CameraComponent,
 				BoxCollider2DComponent, Rigidbody2DComponent,
-				NativeScriptComponent					>
+				NativeScriptComponent, ScriptComponent>
 				(entity, srcReg, e); });
 		return newScene;
 	}
@@ -140,7 +139,6 @@ namespace Kaidel {
 			const int32_t velocityIterations = 6;
 			const int32_t positionIterations = 2;
 			m_PhysicsWorld->Step(ts, velocityIterations, positionIterations);
-
 			auto view = m_Registry.view<Rigidbody2DComponent>();
 
 			for (auto e : view)
@@ -150,7 +148,6 @@ namespace Kaidel {
 				auto& rb2d = entity.GetComponent<Rigidbody2DComponent>();
 
 				b2Body* body = (b2Body*)rb2d.RuntimeBody;
-
 				const auto& position = body->GetPosition();
 				transform.Translation.x = position.x;
 				transform.Translation.y = position.y;
@@ -199,7 +196,7 @@ namespace Kaidel {
 			SpriteRendererComponent, CameraComponent,
 			BoxCollider2DComponent, Rigidbody2DComponent,
 			CircleRendererComponent ,CircleCollider2DComponent,
-			NativeScriptComponent>(newEntity, m_Registry, entity);
+			NativeScriptComponent,ScriptComponent>(newEntity, m_Registry, entity);
 	}
 
 
@@ -218,6 +215,17 @@ namespace Kaidel {
 		return entity;
 	}
 
+	Entity Scene::GetEntity(UUID id)
+	{
+		auto view = m_Registry.view<IDComponent>();
+		for (auto e : view) {
+			Entity entity = { e,this };
+			if (entity.GetUUID() == id)
+				return entity;
+		}
+		return {};
+	}
+
 	void Scene::DestroyEntity(Entity entity)
 	{
 		m_Registry.destroy(entity);
@@ -225,12 +233,23 @@ namespace Kaidel {
 
 	void Scene::OnRuntimeStart()
 	{
+		//Scripts
+		ScriptEngine::OnRuntimeStart(this);
+		//Instantiate all scripts
+		auto view = m_Registry.view<ScriptComponent>();
+		for (auto e : view) {
+			Entity entity = { e,this };
+			const auto& sc = entity.GetComponent<ScriptComponent>();
+			ScriptEngine::OnCreateEntity(entity);
+		}
 		OnPhysics2DStart();
+
 	}
 
 	void Scene::OnRuntimeStop()
 	{
 		OnPhysics2DStop();
+		ScriptEngine::OnRuntimeStop();
 	}
 	
 	void Scene::OnSimulationStart()
@@ -246,10 +265,9 @@ namespace Kaidel {
 	void Scene::OnUpdateRuntime(Timestep ts)
 	{
 		// Update scripts
-		{
+		/*{
 			m_Registry.view<NativeScriptComponent>().each([=](auto entity, auto& nsc)
 			{
-				// TODO: Move to Scene::OnScenePlay
 				if (!nsc.Instance)
 				{
 					nsc.Instance = nsc.InstantiateScript();
@@ -259,11 +277,16 @@ namespace Kaidel {
 
 				nsc.Instance->OnUpdate(ts);
 			});
-		}
+		}*/
 		//Physics
-
-
 		OnPhysics2DUpdate(ts);
+		//C# Entity OnUpdate
+		auto view = m_Registry.view<ScriptComponent>();
+		for (auto e : view) {
+			Entity entity = { e,this };
+			const auto& sc = entity.GetComponent<ScriptComponent>();
+			ScriptEngine::OnUpdateEntity(entity,ts);
+		}
 
 
 		// Render 2D
@@ -337,5 +360,7 @@ namespace Kaidel {
 	DEF_COMPONENT_ADD(IDComponent)
 	DEF_COMPONENT_ADD(CircleRendererComponent)
 	DEF_COMPONENT_ADD(CircleCollider2DComponent)
+	DEF_COMPONENT_ADD(ScriptComponent)
+
 
 }

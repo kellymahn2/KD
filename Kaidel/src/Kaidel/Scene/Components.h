@@ -82,6 +82,11 @@ namespace Kaidel {
 
 	class ScriptableEntity;
 
+	struct ScriptComponent {
+		std::string Name;
+		ScriptComponent() = default;
+		ScriptComponent(const ScriptComponent&) = default;
+	};
 	struct NativeScriptComponent
 	{
 		ScriptableEntity* Instance = nullptr;

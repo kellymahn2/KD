@@ -35,7 +35,7 @@ namespace Kaidel {
 	Application::~Application()
 	{
 		KD_PROFILE_FUNCTION();
-
+		ScriptEngine::Shutdown();
 		Renderer::Shutdown();
 	}
 

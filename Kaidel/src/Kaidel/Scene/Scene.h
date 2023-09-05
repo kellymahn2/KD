@@ -16,6 +16,7 @@ namespace Kaidel {
 
 		Entity CreateEntity(const std::string& name = std::string());
 		Entity CreateEntity(UUID uuid, const std::string& name = std::string());
+		Entity GetEntity(UUID id);
 		void DestroyEntity(Entity entity);
 
 		void OnRuntimeStart();
@@ -44,7 +45,7 @@ namespace Kaidel {
 		}
 	private:
 		template<typename T>
-		void OnComponentAdded(Entity entity, T& component);
+		void OnComponentAdded(Entity entity,T& component);
 
 		void OnPhysics2DStart();
 		void OnPhysics2DUpdate(Timestep& ts);

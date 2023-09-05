@@ -257,7 +257,13 @@ namespace Kaidel {
 
 			out << YAML::EndMap; // CircleCollider2DComponent
 		}
-
+		if (entity.HasComponent<ScriptComponent>()) {
+			out << YAML::Key << "ScriptComponent";
+			out << YAML::BeginMap;//ScriptComponent
+			auto& scriptComponent = entity.GetComponent<ScriptComponent>();
+			out << YAML::Key << "Name" << YAML::Value << scriptComponent.Name;
+			out << YAML::EndMap;//ScriptComponent
+		}
 		out << YAML::EndMap; // Entity
 	}
 
@@ -393,6 +399,10 @@ namespace Kaidel {
 						cc2d.RestitutionThreshold = circleCollider2DComponent["RestitutionThreshold"].as<float>();
 					}
 				);
+				DeserializeComponent<ScriptComponent>(deserializedEntity, "ScriptComponent", entity,
+					[](auto& sc, auto& entity, auto& scriptComponent) {
+						sc.Name = scriptComponent["Name"].as<std::string>();
+					});
 			}
 		}
 

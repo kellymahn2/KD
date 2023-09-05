@@ -1,134 +1,288 @@
 #include "KDpch.h"
 #include "ScriptEngine.h"
+#include "ScriptRegistry.h"
+#include "Kaidel/Scene/Scene.h"
+#include "Kaidel/Scene/Entity.h"
 #include "mono/jit/jit.h"
 #include "mono/metadata/assembly.h"
-#include "Kaidel/Core/Timer.h"
+#include "mono/metadata/object.h"
+#include <glm/glm.hpp>
 namespace Kaidel {
-	static void PrintAssemblyTypes(MonoAssembly* assembly)
-	{
-		MonoImage* image = mono_assembly_get_image(assembly);
-		{
-			const MonoTableInfo* typeDefinitionsTable = mono_image_get_table_info(image, MONO_TABLE_TYPEDEF);
-			int32_t numTypes = mono_table_info_get_rows(typeDefinitionsTable);
+	
+#pragma region Utils
+	namespace Utils {
 
-			for (int32_t i = 0; i < numTypes; i++)
+		static char* ReadBytes(const std::string& filepath, uint32_t* outSize)
+		{
+			std::ifstream stream(filepath, std::ios::binary | std::ios::ate);
+
+			if (!stream)
 			{
-				uint32_t cols[MONO_TYPEDEF_SIZE];
-				mono_metadata_decode_row(typeDefinitionsTable, i, cols, MONO_TYPEDEF_SIZE);
-				const char* nameSpace = mono_metadata_string_heap(image, cols[MONO_TYPEDEF_NAMESPACE]);
-				const char* name = mono_metadata_string_heap(image, cols[MONO_TYPEDEF_NAME]);
-				const char* methodName= mono_metadata_string_heap(image, cols[MONO_TYPEDEF_NAME]);
-
-				printf("%s.%s.%s\n", nameSpace, name,methodName);
+				// Failed to open the file
+				return nullptr;
 			}
-		}
-	}
-	char* ReadBytes(const std::string& filepath, uint32_t* outSize)
-	{
-		std::ifstream stream(filepath, std::ios::binary | std::ios::ate);
 
-		if (!stream)
-		{
-			// Failed to open the file
-			return nullptr;
-		}
+			std::streampos end = stream.tellg();
+			stream.seekg(0, std::ios::beg);
+			uint32_t size = end - stream.tellg();
 
-		std::streampos end = stream.tellg();
-		stream.seekg(0, std::ios::beg);
-		uint32_t size = end - stream.tellg();
+			if (size == 0)
+			{
+				// File is empty
+				return nullptr;
+			}
 
-		if (size == 0)
-		{
-			// File is empty
-			return nullptr;
+			char* buffer = new char[size];
+			stream.read((char*)buffer, size);
+			stream.close();
+
+			*outSize = size;
+			return buffer;
 		}
 
-		char* buffer = new char[size];
-		stream.read((char*)buffer, size);
-		stream.close();
-
-		*outSize = size;
-		return buffer;
-	}
-	static MonoAssembly* LoadCSharpAssembly(const std::string& assemblyPath)
-	{
-		uint32_t fileSize = 0;
-		char* fileData = ReadBytes(assemblyPath, &fileSize);
-
-		// NOTE: We can't use this image for anything other than loading the assembly because this image doesn't have a reference to the assembly
-		MonoImageOpenStatus status;
-		MonoImage* image = mono_image_open_from_data_full(fileData, fileSize, 1, &status, 0);
-
-		if (status != MONO_IMAGE_OK)
+		static MonoAssembly* LoadMonoAssembly(const std::string& assemblyPath)
 		{
-			const char* errorMessage = mono_image_strerror(status);
+			uint32_t fileSize = 0;
+			char* fileData = ReadBytes(assemblyPath, &fileSize);
+
+			// NOTE: We can't use this image for anything other than loading the assembly because this image doesn't have a reference to the assembly
+			MonoImageOpenStatus status;
+			MonoImage* image = mono_image_open_from_data_full(fileData, fileSize, 1, &status, 0);
+
+			if (status != MONO_IMAGE_OK)
+			{
+				const char* errorMessage = mono_image_strerror(status);
+				// Log some error message using the errorMessage data
+				return nullptr;
+			}
+
+			MonoAssembly* assembly = mono_assembly_load_from_full(image, assemblyPath.c_str(), &status, 0);
+			mono_image_close(image);
+
+			// Don't forget to free the file data
 			delete[] fileData;
-			// Log some error message using the errorMessage data
-			return nullptr;
+
+			return assembly;
 		}
-
-		MonoAssembly* assembly = mono_assembly_load_from_full(image, assemblyPath.c_str(), &status, 0);
-		mono_image_close(image);
-
-		// Don't forget to free the file data
-		delete[] fileData;
-
-		return assembly;
 	}
-	struct ScriptEngineData {
-		MonoDomain* RootDomain;
-		MonoDomain* AppDomain;
+#pragma endregion
+	struct ScriptEngineData
+	{
+		MonoDomain* RootDomain = nullptr;
+		MonoDomain* AppDomain = nullptr;
 
-		MonoAssembly* CoreAssembly;
+		MonoAssembly* CoreAssembly = nullptr;
+		MonoImage* CoreAssemblyImage = nullptr;
+		
+		ScriptClass EntityClass;
+		std::unordered_map<std::string, Ref<ScriptClass>> EntityClasses;
+		std::unordered_map<UUID, Ref<ScriptInstance>> EntityInstances;
+		Scene* SceneContext = nullptr;
 	};
 
-	static ScriptEngineData* s_Data;
-	
-	void ScriptEngine::Init() {
-		s_Data = new ScriptEngineData;
-		Timer t("Total");
+	static ScriptEngineData* s_Data = nullptr;
+	void ScriptEngine::Init()
+	{
+		s_Data = new ScriptEngineData();
+
 		InitMono();
+		LoadAssembly("Resources/Scripts/KaidelCore.dll");
+		LoadAssemblyClasses(s_Data->CoreAssembly);
+		s_Data->EntityClass= ScriptClass("KaidelCore", "Entity");
+		ScriptRegistry::RegisterFunctions();
+		/*for (auto& entityClass : s_Data->EntityClasses) {
+			MonoObject* Instance = entityClass.second->Instantiate();
+			MonoMethod* method = entityClass.second->GetMethod("OnCreate",0);
+			entityClass.second->InvokeMethod(Instance, method);
+		}*/
+		//// 1. create an object (and call constructor)
+		/*MonoObject* instance = s_Data->EntityClass.Instantiate();
+		MonoMethod* printMessageFunc = s_Data->EntityClass.GetMethod("PrintMessage", 0);
+		s_Data->EntityClass.InvokeMethod(instance, printMessageFunc);*/
 	}
 
-	void ScriptEngine::Shutdown() {
+	void ScriptEngine::Shutdown()
+	{
 		ShutdownMono();
 		delete s_Data;
 	}
-	
-	void ScriptEngine::InitMono() {
-		{
 
-			Timer t("Assembly Load");
-			mono_set_assemblies_path("mono/lib");
-		}
-		{
-			Timer t("Domain Creation");
-			MonoDomain* rootDomain = mono_jit_init("JITRuntime");
-			KD_CORE_ASSERT(rootDomain,"Domain could not be created");
+	void ScriptEngine::OnRuntimeStart(Scene* scene)
+	{
+		s_Data->SceneContext = scene;
+	}
 
-			// Store the root domain pointer
-			s_Data->RootDomain = rootDomain;
-		}
-		{
-			Timer t("App Domain Creation");
-			// Create an App Domain
-			s_Data->AppDomain = mono_domain_create_appdomain("KaidelDomain", nullptr);
-			mono_domain_set(s_Data->AppDomain, true);
-		}
-		{
-			Timer t("Core Library Load");
-			s_Data->CoreAssembly=LoadCSharpAssembly("Resources/Scripts/KaidelCore.dll");
-		} 
-		{
-			Timer t("Assembly Print");
-			PrintAssemblyTypes(s_Data->CoreAssembly);
-		}
+	void ScriptEngine::OnRuntimeStop()
+	{
+		s_Data->SceneContext = nullptr;
+		s_Data->EntityInstances.clear();
+	}
 
+	bool ScriptEngine::ClassExists(const std::string& fullName)
+	{
+		return s_Data->EntityClasses.find(fullName) != s_Data->EntityClasses.end();
+	}
+
+	void ScriptEngine::OnCreateEntity(Entity& entity)
+	{
+		const auto& sc= entity.GetComponent<ScriptComponent>();
+		if (ClassExists(sc.Name)) {
+			Ref<ScriptInstance> instance = CreateRef<ScriptInstance>(s_Data->EntityClasses[sc.Name],entity);
+			s_Data->EntityInstances[entity.GetUUID()] = instance;
+			instance->InvokeOnCreate();
+		}
+	}
+
+	void ScriptEngine::OnUpdateEntity(Entity& entity, float ts)
+	{
+		KD_CORE_ASSERT(s_Data->EntityInstances.find(entity.GetUUID()) != s_Data->EntityInstances.end());
+		Ref<ScriptInstance> instance = s_Data->EntityInstances.at(entity.GetUUID());
+		s_Data->EntityInstances[entity.GetUUID()] = instance;
+		instance->InvokeOnUpdate(ts);
+	}
+
+	Scene* ScriptEngine::GetSceneContext()
+	{
+		return s_Data->SceneContext;
+	}
+
+	void ScriptEngine::LoadAssembly(const std::filesystem::path& path)
+	{
+		// Create an App Domain
+		s_Data->AppDomain = mono_domain_create_appdomain("KaidelCoreRuntime", nullptr);
+		mono_domain_set(s_Data->AppDomain, true);
+		// Move this maybe
+		s_Data->CoreAssembly = Utils::LoadMonoAssembly(path.string());
+		s_Data->CoreAssemblyImage = mono_assembly_get_image(s_Data->CoreAssembly);
+		s_Data->EntityClass = ScriptClass("KaidelCore", "Entity");
+	}
+
+	const std::unordered_map<std::string, Ref<ScriptClass>>& ScriptEngine::GetClasses()
+	{
+		return s_Data->EntityClasses;
+	}
+
+	void ScriptEngine::LoadAssemblyClasses(MonoAssembly* assembly)
+	{
+		s_Data->EntityClasses.clear();
+		MonoImage* image = mono_assembly_get_image(assembly);
+		const MonoTableInfo* typeDefinitionsTable = mono_image_get_table_info(image, MONO_TABLE_TYPEDEF);
+		int32_t numTypes = mono_table_info_get_rows(typeDefinitionsTable);
+
+		for (int32_t i = 0; i < numTypes; i++)
+		{
+			uint32_t cols[MONO_TYPEDEF_SIZE];
+			mono_metadata_decode_row(typeDefinitionsTable, i, cols, MONO_TYPEDEF_SIZE);
+
+			const char* nameSpace = mono_metadata_string_heap(image, cols[MONO_TYPEDEF_NAMESPACE]);
+			const char* name = mono_metadata_string_heap(image, cols[MONO_TYPEDEF_NAME]);
+
+			std::string fullName;
+			if (strlen(nameSpace)!=0) {
+				fullName = fmt::format("{}.{}", nameSpace, name);
+			}
+			else {
+				fullName = name;
+			}
+			auto monoClass = mono_class_from_name(image, nameSpace, name);
+			if (monoClass == s_Data->EntityClass.GetClass())
+				continue;
+			bool isEntityDerived = mono_class_is_subclass_of(monoClass, s_Data->EntityClass.GetClass(), false);
+			if (isEntityDerived) {
+				s_Data->EntityClasses[fullName] = CreateRef<ScriptClass>(nameSpace, name);
+			}
+		}
+	}
+
+	void ScriptEngine::InitMono()
+	{
+		mono_set_assemblies_path("mono/lib");
+
+		MonoDomain* rootDomain = mono_jit_init("KaidelRuntime");
+		KD_CORE_ASSERT(rootDomain);
+
+		// Store the root domain pointer
+		s_Data->RootDomain = rootDomain;
+		//auto instance = s_Data->EntityClass.Instantiate();
+		//KD_CORE_ASSERT(false);
+		//// 2. call function
+		
+		//// 3. call function with param
+		//MonoMethod* printIntFunc = mono_class_get_method_from_name(monoClass, "PrintInt", 1);
+		//int value = 5;
+		//void* param = &value;
+		//mono_runtime_invoke(printIntFunc, instance, &param, nullptr);
+		//MonoMethod* printIntsFunc = mono_class_get_method_from_name(monoClass, "PrintInts", 2);
+		//int value2 = 508;
+		//void* params[2] =
+		//{
+		//	&value,
+		//	&value2
+		//};
+		//mono_runtime_invoke(printIntsFunc, instance, params, nullptr);
+		//MonoString* monoString = mono_string_new(s_Data->AppDomain, "Hello World from C++!");
+		//MonoMethod* printCustomMessageFunc = mono_class_get_method_from_name(monoClass, "PrintCustomMessage", 1);
+		//void* stringParam = monoString;
+		//mono_runtime_invoke(printCustomMessageFunc, instance, &stringParam, nullptr);
 	}
 
 	void ScriptEngine::ShutdownMono()
 	{
 
+		//mono_domain_unload(s_Data->AppDomain);
+		s_Data->AppDomain = nullptr;
+
+		// mono_jit_cleanup(s_Data->RootDomain);
+		s_Data->RootDomain = nullptr;
+	}
+	MonoObject* ScriptEngine::InstantiateClass(MonoClass* monoClass) {
+		MonoObject* instance = mono_object_new(s_Data->AppDomain, monoClass);
+		mono_runtime_object_init(instance);
+		return instance;
+	}
+
+	ScriptClass::ScriptClass(const std::string& classNamespace, const std::string& className)
+		:m_Namespace(classNamespace), m_ClassName(className)
+	{
+		m_MonoClass = mono_class_from_name(s_Data->CoreAssemblyImage, classNamespace.c_str(), className.c_str());
+	}
+
+	MonoObject* ScriptClass::Instantiate()
+	{
+		return ScriptEngine::InstantiateClass(m_MonoClass);
+	}
+
+	MonoMethod* ScriptClass::GetMethod(const std::string& name, size_t parameterCount)
+	{
+		return mono_class_get_method_from_name(m_MonoClass, name.c_str(), parameterCount);
+	}
+
+	MonoObject* ScriptClass::InvokeMethod(MonoObject* instance,MonoMethod* method, void** params)
+	{
+		return mono_runtime_invoke(method, instance, params,nullptr);
+	}
+
+	ScriptInstance::ScriptInstance(Ref<ScriptClass> scriptClass,Entity entity)
+		:m_ScriptClass(scriptClass)
+	{
+		m_Instance = m_ScriptClass->Instantiate();
+		m_Constructor = s_Data->EntityClass.GetMethod(".ctor", 1);
+		m_OnCreateMethod = m_ScriptClass->GetMethod("OnCreate", 0);
+		m_OnUpdateMethod = m_ScriptClass->GetMethod("OnUpdate", 1);
+		UUID id = entity.GetUUID();
+		void* params = &id;
+		m_ScriptClass->InvokeMethod(m_Instance, m_Constructor, &params);
+	}
+
+	void ScriptInstance::InvokeOnCreate()
+	{
+		m_ScriptClass->InvokeMethod(m_Instance, m_OnCreateMethod);
+	}
+
+	void ScriptInstance::InvokeOnUpdate(float ts)
+	{
+		void* params = &ts;
+		m_ScriptClass->InvokeMethod(m_Instance, m_OnUpdateMethod,&params);
 	}
 
 }
