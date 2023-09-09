@@ -10,11 +10,13 @@ namespace Kaidel {
 	class Input
 	{
 	public:
-		static bool IsKeyPressed(KeyCode key);
-
-		static bool IsMouseButtonPressed(MouseCode button);
+		static bool IsKeyDown(KeyCode key);
+		static bool IsMouseButtonDown(MouseCode button);
 		static glm::vec2 GetMousePosition();
 		static float GetMouseX();
 		static float GetMouseY();
+	protected:
+		static bool s_HeldKeysMap[348];
+		static bool s_HeldButtonsMap[7];
 	};
 }

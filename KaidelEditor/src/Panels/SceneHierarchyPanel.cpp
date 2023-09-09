@@ -30,7 +30,7 @@ namespace Kaidel {
 
 	void SceneHierarchyPanel::OnImGuiRender()
 	{
-		ImGui::Begin("Scene Hierarchy");
+		ImGui::Begin("Scene Hierarchy",nullptr,ImGuiWindowFlags_NoNavInputs);
 
 		m_Context->m_Registry.each([&](auto entityID)
 			{

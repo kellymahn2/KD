@@ -16,6 +16,8 @@
 #include <functional>
 
 #include <string>
+#include <string_view>
+#include <fstream>
 #include <sstream>
 #include <array>
 #include <vector>

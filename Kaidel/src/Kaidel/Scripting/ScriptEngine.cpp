@@ -74,6 +74,8 @@ namespace Kaidel {
 		MonoAssembly* CoreAssembly = nullptr;
 		MonoImage* CoreAssemblyImage = nullptr;
 		
+		MonoAssembly* AppAssembly = nullptr;
+		MonoImage* AppAssemblyImage = nullptr;
 		ScriptClass EntityClass;
 		std::unordered_map<std::string, Ref<ScriptClass>> EntityClasses;
 		std::unordered_map<UUID, Ref<ScriptInstance>> EntityInstances;
@@ -87,8 +89,9 @@ namespace Kaidel {
 
 		InitMono();
 		LoadAssembly("Resources/Scripts/KaidelCore.dll");
-		LoadAssemblyClasses(s_Data->CoreAssembly);
-		s_Data->EntityClass= ScriptClass("KaidelCore", "Entity");
+		LoadAppAssembly("SandboxProject/assets/scripts/Binaries/Sandbox.dll");
+		LoadAssemblyClasses(s_Data->AppAssembly);
+		ScriptRegistry::RegisterComponents();
 		ScriptRegistry::RegisterFunctions();
 		/*for (auto& entityClass : s_Data->EntityClasses) {
 			MonoObject* Instance = entityClass.second->Instantiate();
@@ -154,7 +157,14 @@ namespace Kaidel {
 		// Move this maybe
 		s_Data->CoreAssembly = Utils::LoadMonoAssembly(path.string());
 		s_Data->CoreAssemblyImage = mono_assembly_get_image(s_Data->CoreAssembly);
-		s_Data->EntityClass = ScriptClass("KaidelCore", "Entity");
+		s_Data->EntityClass = ScriptClass("KaidelCore", "Entity",s_Data->CoreAssemblyImage);
+	}
+
+	void ScriptEngine::LoadAppAssembly(const std::filesystem::path& path)
+	{
+		// Move this maybe
+		s_Data->AppAssembly = Utils::LoadMonoAssembly(path.string());
+		s_Data->AppAssemblyImage = mono_assembly_get_image(s_Data->AppAssembly);
 	}
 
 	const std::unordered_map<std::string, Ref<ScriptClass>>& ScriptEngine::GetClasses()
@@ -203,27 +213,6 @@ namespace Kaidel {
 
 		// Store the root domain pointer
 		s_Data->RootDomain = rootDomain;
-		//auto instance = s_Data->EntityClass.Instantiate();
-		//KD_CORE_ASSERT(false);
-		//// 2. call function
-		
-		//// 3. call function with param
-		//MonoMethod* printIntFunc = mono_class_get_method_from_name(monoClass, "PrintInt", 1);
-		//int value = 5;
-		//void* param = &value;
-		//mono_runtime_invoke(printIntFunc, instance, &param, nullptr);
-		//MonoMethod* printIntsFunc = mono_class_get_method_from_name(monoClass, "PrintInts", 2);
-		//int value2 = 508;
-		//void* params[2] =
-		//{
-		//	&value,
-		//	&value2
-		//};
-		//mono_runtime_invoke(printIntsFunc, instance, params, nullptr);
-		//MonoString* monoString = mono_string_new(s_Data->AppDomain, "Hello World from C++!");
-		//MonoMethod* printCustomMessageFunc = mono_class_get_method_from_name(monoClass, "PrintCustomMessage", 1);
-		//void* stringParam = monoString;
-		//mono_runtime_invoke(printCustomMessageFunc, instance, &stringParam, nullptr);
 	}
 
 	void ScriptEngine::ShutdownMono()
@@ -235,16 +224,23 @@ namespace Kaidel {
 		// mono_jit_cleanup(s_Data->RootDomain);
 		s_Data->RootDomain = nullptr;
 	}
+
+	MonoImage* ScriptEngine::GetCoreAssemblyImage()
+	{
+		KD_CORE_ASSERT(s_Data->CoreAssemblyImage, "Core Assembly not Loaded");
+		return s_Data->CoreAssemblyImage;
+	}
+
 	MonoObject* ScriptEngine::InstantiateClass(MonoClass* monoClass) {
 		MonoObject* instance = mono_object_new(s_Data->AppDomain, monoClass);
 		mono_runtime_object_init(instance);
 		return instance;
 	}
 
-	ScriptClass::ScriptClass(const std::string& classNamespace, const std::string& className)
+	ScriptClass::ScriptClass(const std::string& classNamespace, const std::string& className,MonoImage* image)
 		:m_Namespace(classNamespace), m_ClassName(className)
 	{
-		m_MonoClass = mono_class_from_name(s_Data->CoreAssemblyImage, classNamespace.c_str(), className.c_str());
+		m_MonoClass = mono_class_from_name(image?image:s_Data->AppAssemblyImage, classNamespace.c_str(), className.c_str());
 	}
 
 	MonoObject* ScriptClass::Instantiate()

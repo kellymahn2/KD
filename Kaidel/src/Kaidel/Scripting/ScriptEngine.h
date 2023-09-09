@@ -16,7 +16,7 @@ namespace Kaidel {
 	class ScriptClass {
 	public:
 		ScriptClass() = default;
-		ScriptClass(const std::string& classNamespace, const std::string& className);
+		ScriptClass(const std::string& classNamespace, const std::string& className,MonoImage* image = nullptr);
 		MonoObject* Instantiate();
 		MonoMethod* GetMethod(const std::string& name, size_t parameterCount);
 		MonoObject* InvokeMethod(MonoObject* instance, MonoMethod* method, void** params = nullptr);
@@ -43,15 +43,16 @@ namespace Kaidel {
 		static void Init();
 		static void Shutdown();
 		static void LoadAssembly(const std::filesystem::path& path);
+		static void LoadAppAssembly(const std::filesystem::path& path);
 		static const std::unordered_map<std::string, Ref<ScriptClass>>& GetClasses();
 		static MonoObject* InstantiateClass(MonoClass* monoClass);
 		static void OnRuntimeStart(Scene* scene);
 		static void OnRuntimeStop();
-
 		static bool ClassExists(const std::string& fullName);
 		static void OnCreateEntity(Entity& entity);
 		static void OnUpdateEntity(Entity& entity, float ts);
 		static Scene* GetSceneContext();
+		static MonoImage* GetCoreAssemblyImage();
 	private:
 		static void LoadAssemblyClasses(MonoAssembly* assembly);
 		static void InitMono();

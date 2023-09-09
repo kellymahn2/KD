@@ -116,6 +116,7 @@ namespace Kaidel {
 	{
 		KD_PROFILE_FUNCTION();
 
+		
 		// Resize
 		if (FramebufferSpecification spec = m_Framebuffer->GetSpecification();
 			m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f && // zero sized framebuffer is invalid
@@ -391,7 +392,7 @@ namespace Kaidel {
 			glm::mat4 transform = tc.GetTransform();
 
 			// Snapping
-			bool snap = Input::IsKeyPressed(Key::LeftControl);
+			bool snap = Input::IsKeyDown(Key::LeftControl);
 			float snapValue = 0.5f; // Snap to 0.5m for translation/scale
 			// Snap to 45 degrees for rotation
 			if (m_GizmoType == ImGuizmo::OPERATION::ROTATE)
@@ -436,17 +437,19 @@ namespace Kaidel {
 		ImGui::End();
 
 	}
-
-	void EditorLayer::ShowViewport()
-	{
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0, 0 });
-		ImGui::Begin("Viewport");
+	static void UpdateBounds(glm::vec2 bounds[2]) {
 		auto viewportMinRegion = ImGui::GetWindowContentRegionMin();
 		auto viewportMaxRegion = ImGui::GetWindowContentRegionMax();
 		auto viewportOffset = ImGui::GetWindowPos();
-		m_ViewportBounds[0] = { viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y };
-		m_ViewportBounds[1] = { viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y };
-
+		bounds[0] = { viewportMinRegion.x + viewportOffset.x, viewportMinRegion.y + viewportOffset.y };
+		bounds[1] = { viewportMaxRegion.x + viewportOffset.x, viewportMaxRegion.y + viewportOffset.y };
+	}
+	void EditorLayer::ShowViewport()
+	{
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0, 0 });
+		ImGui::Begin("Viewport",nullptr,0|ImGuiWindowFlags_NoTitleBar);
+		
+		UpdateBounds(m_ViewportBounds);
 		m_ViewportFocused = ImGui::IsWindowFocused();
 		m_ViewportHovered = ImGui::IsWindowHovered();
 		Application::Get().GetImGuiLayer()->BlockEvents(!m_ViewportFocused && !m_ViewportHovered);
@@ -480,7 +483,9 @@ namespace Kaidel {
 			| ImGuiWindowFlags_NoScrollWithMouse
 			| ImGuiWindowFlags_NoResize
 			| ImGuiWindowFlags_NoMove
-			| ImGuiWindowFlags_NoCollapse;
+			| ImGuiWindowFlags_NoCollapse
+			|ImGuiWindowFlags_NoBringToFrontOnFocus
+			|ImGuiWindowFlags_NoTitleBar;
 		auto& colors = ImGui::GetStyle().Colors;
 		const auto& buttonHovered = colors[ImGuiCol_ButtonHovered];
 		const auto& buttonActive = colors[ImGuiCol_ButtonActive];
@@ -490,8 +495,8 @@ namespace Kaidel {
 		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { buttonHovered.x,buttonHovered.y,buttonHovered.z,.5f });
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, { buttonActive.x,buttonActive.y,buttonActive.z,.5f });
 
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,0);
 		ImGui::Begin("##toolbar", nullptr, windowFlags);
-
 
 		float size = ImGui::GetWindowHeight() - 4.0f;
 
@@ -527,7 +532,7 @@ namespace Kaidel {
 		}
 
 		ImGui::End();
-		ImGui::PopStyleVar(2);
+		ImGui::PopStyleVar(3);
 		ImGui::PopStyleColor(3);
 	}
 
@@ -553,8 +558,8 @@ namespace Kaidel {
 		if (e.GetRepeatCount() > 0)
 			return false;
 
-		bool control = Input::IsKeyPressed(Key::LeftControl) || Input::IsKeyPressed(Key::RightControl);
-		bool shift = Input::IsKeyPressed(Key::LeftShift) || Input::IsKeyPressed(Key::RightShift);
+		bool control = Input::IsKeyDown(Key::LeftControl) || Input::IsKeyDown(Key::RightControl);
+		bool shift = Input::IsKeyDown(Key::LeftShift) || Input::IsKeyDown(Key::RightShift);
 
 		switch (e.GetKeyCode())
 		{
@@ -593,36 +598,38 @@ namespace Kaidel {
 			// Gizmos
 			case Key::Q:
 			{
-				if (!ImGuizmo::IsUsing())
+
+				if (!ImGuizmo::IsUsing() && m_SceneState != SceneState::Play)
 					m_GizmoType = -1;
 				break;
 			}
 			case Key::W:
 			{
-				if (!ImGuizmo::IsUsing())
+				if (!ImGuizmo::IsUsing() && m_SceneState != SceneState::Play)
 					m_GizmoType = ImGuizmo::OPERATION::TRANSLATE;
 				break;
 			}
 			case Key::E:
 			{
-				if (!ImGuizmo::IsUsing())
+				if (!ImGuizmo::IsUsing() && m_SceneState != SceneState::Play)
 					m_GizmoType = ImGuizmo::OPERATION::ROTATE;
 				break;
 			}
 			case Key::R:
 			{
-				if (!ImGuizmo::IsUsing())
+				if (!ImGuizmo::IsUsing() && m_SceneState != SceneState::Play)
 					m_GizmoType = ImGuizmo::OPERATION::SCALE;
 				break;
 			}
 		}
+		return false;
 	}
 
 	bool EditorLayer::OnMouseButtonPressed(MouseButtonPressedEvent& e)
 	{
 		if (e.GetMouseButton() == Mouse::ButtonLeft)
 		{
-			if (m_ViewportHovered && !ImGuizmo::IsOver() && !Input::IsKeyPressed(Key::LeftAlt))
+			if (m_ViewportHovered && !ImGuizmo::IsOver() && !Input::IsKeyDown(Key::LeftAlt))
 				m_SceneHierarchyPanel.SetSelectedEntity(m_HoveredEntity);
 		}
 		return false;

@@ -14,6 +14,8 @@
 #include <box2d/b2_fixture.h>
 #include <box2d/b2_polygon_shape.h>
 #include <box2d/b2_circle_shape.h>
+
+
 #define DEF_COMPONENT_ADD(Component) template<>\
 void Scene::OnComponentAdded<##Component>(Entity entity, ##Component& component){}
 
@@ -75,6 +77,7 @@ namespace Kaidel {
 				BoxCollider2DComponent, Rigidbody2DComponent,
 				NativeScriptComponent, ScriptComponent>
 				(entity, srcReg, e); });
+		newScene->m_IDMap = rhs->m_IDMap;
 		return newScene;
 	}
 
@@ -92,8 +95,8 @@ namespace Kaidel {
 			bodyDef.type = Rigidbody2DTypeToBox2DBodyType(rb2d.Type);
 			bodyDef.position.Set(transform.Translation.x, transform.Translation.y);
 			bodyDef.angle = transform.Rotation.z;
-
 			b2Body* body = m_PhysicsWorld->CreateBody(&bodyDef);
+		
 			body->SetFixedRotation(rb2d.FixedRotation);
 			rb2d.RuntimeBody = body;
 
@@ -138,16 +141,15 @@ namespace Kaidel {
 		{
 			const int32_t velocityIterations = 6;
 			const int32_t positionIterations = 2;
-			m_PhysicsWorld->Step(ts, velocityIterations, positionIterations);
 			auto view = m_Registry.view<Rigidbody2DComponent>();
-
+			m_PhysicsWorld->Step(ts, velocityIterations, positionIterations);
 			for (auto e : view)
 			{
 				Entity entity{ e,this };
 				auto& transform = entity.GetComponent<TransformComponent>();
 				auto& rb2d = entity.GetComponent<Rigidbody2DComponent>();
 
-				b2Body* body = (b2Body*)rb2d.RuntimeBody;
+				b2Body* body = (b2Body*)rb2d.RuntimeBody; 
 				const auto& position = body->GetPosition();
 				transform.Translation.x = position.x;
 				transform.Translation.y = position.y;
@@ -212,18 +214,14 @@ namespace Kaidel {
 		entity.AddComponent<IDComponent>(uuid);
 		auto& tag = entity.AddComponent<TagComponent>();
 		tag.Tag = name.empty() ? "Entity" : name;
+		m_IDMap[uuid] = entity.operator entt::entity();
 		return entity;
 	}
 
 	Entity Scene::GetEntity(UUID id)
 	{
-		auto view = m_Registry.view<IDComponent>();
-		for (auto e : view) {
-			Entity entity = { e,this };
-			if (entity.GetUUID() == id)
-				return entity;
-		}
-		return {};
+		KD_CORE_ASSERT(m_IDMap.find(id) != m_IDMap.end());
+		return { m_IDMap.at(id),this };
 	}
 
 	void Scene::DestroyEntity(Entity entity)
@@ -243,7 +241,6 @@ namespace Kaidel {
 			ScriptEngine::OnCreateEntity(entity);
 		}
 		OnPhysics2DStart();
-
 	}
 
 	void Scene::OnRuntimeStop()

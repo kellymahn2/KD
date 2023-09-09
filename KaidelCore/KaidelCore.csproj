@@ -12,7 +12,6 @@
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
     <PlatformTarget>x64</PlatformTarget>
@@ -22,10 +21,9 @@
     <OutputPath>..\KaidelEditor\Resources\Scripts\</OutputPath>
     <BaseIntermediateOutputPath>..\KaidelEditor\Resources\Scripts\Intermediates\Debug\</BaseIntermediateOutputPath>
     <IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>
-    <DefineConstants>
-    </DefineConstants>
+    <DefineConstants></DefineConstants>
     <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>0</WarningLevel>
+    <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
     <PlatformTarget>x64</PlatformTarget>
@@ -35,8 +33,7 @@
     <OutputPath>..\KaidelEditor\Resources\Scripts\</OutputPath>
     <BaseIntermediateOutputPath>..\KaidelEditor\Resources\Scripts\Intermediates\Release\</BaseIntermediateOutputPath>
     <IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>
-    <DefineConstants>
-    </DefineConstants>
+    <DefineConstants></DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -48,8 +45,7 @@
     <OutputPath>..\KaidelEditor\Resources\Scripts\</OutputPath>
     <BaseIntermediateOutputPath>..\KaidelEditor\Resources\Scripts\Intermediates\Dist\</BaseIntermediateOutputPath>
     <IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>
-    <DefineConstants>
-    </DefineConstants>
+    <DefineConstants></DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -60,12 +56,12 @@
   <ItemGroup Condition=" '$(Configuration)|$(Platform)' == 'Dist|x64' ">
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Source\Input.cs" />
-    <Compile Include="Source\Internals.cs" />
-    <Compile Include="Source\Entity.cs" />
-    <Compile Include="Source\Math.cs" />
-    <Compile Include="Source\Player.cs" />
-    <Compile Include="Source\Vector.cs" />
+    <Compile Include="Source\Kaidel\Components.cs" />
+    <Compile Include="Source\Kaidel\Entity.cs" />
+    <Compile Include="Source\Kaidel\Input.cs" />
+    <Compile Include="Source\Kaidel\Internals.cs" />
+    <Compile Include="Source\Kaidel\Math\Math.cs" />
+    <Compile Include="Source\Kaidel\Math\Vector.cs" />
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>
