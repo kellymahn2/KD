@@ -10,6 +10,7 @@ namespace Sandbox
 	{
 		public float Speed = 0.5f;
 		public float Speed2 = 0.5f;
+		public Vector2 speed = new Vector2(1.0f,1.0f);
 		public int X = 0;
 		public int Y = 5;
 
@@ -21,7 +22,6 @@ namespace Sandbox
 		public override void OnUpdate(float ts)
 		{
 			Vector3 velocity = new Vector3();
-			float speed = Speed;
 			if (Input.IsKeyDown(KeyCode.A))
 				velocity.x = -4.0f;
 			if (Input.IsKeyDown(KeyCode.D))
@@ -46,7 +46,7 @@ namespace Sandbox
 				m_SpriteRenderer.Color = new Vector4(0.0f, 0.0f, 1.0f, 1.0f);
 			}
 			Vector3 translation = Position;
-			translation = translation + velocity*speed * ts;
+			translation = translation + velocity*new Vector3(speed.x,speed.y,1.0f) * ts;
 			Position = translation;
 		}
 	}

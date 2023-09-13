@@ -81,9 +81,8 @@ namespace Kaidel {
 		Ref<ScriptClass> GetScriptClass() { return m_ScriptClass; }
 		template<typename T>
 		T GetFieldValue(const ScriptField& field) {
-			MemoryBuffer<T> buffer;
-			GetFieldValueImpl(field, buffer.GetBlock());
-			return *buffer;
+			GetFieldValueImpl(field, s_MemoryBuffer);
+			return *static_cast<T*>(s_MemoryBuffer);
 		}
 		template<typename T>
 		void SetFieldValue(const ScriptField& field, const T& value) {
@@ -98,6 +97,7 @@ namespace Kaidel {
 		MonoMethod* m_Constructor= nullptr;
 		MonoMethod* m_OnCreateMethod = nullptr;
 		MonoMethod* m_OnUpdateMethod = nullptr;
+		static inline char s_MemoryBuffer[512] = { 0 };
 	};
 	class ScriptEngine {
 	public:

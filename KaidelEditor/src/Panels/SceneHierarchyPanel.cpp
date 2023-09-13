@@ -56,7 +56,24 @@ namespace Kaidel {
 		//RegisterFieldRenderer(ScriptFieldType::String);
 		//RegisterFieldRenderer(ScriptFieldType::Bool);
 		//RegisterFieldRenderer(ScriptFieldType::Entity);
-		//RegisterFieldRenderer(ScriptFieldType::Vector2);
+		RegisterFieldRenderer(ScriptFieldType::Vector2, [](auto& name, auto& field, auto& instance) {
+			glm::vec2 data = instance->GetFieldValue<glm::vec2>(field);
+			if (ImGui::DragFloat2(name.c_str(), glm::value_ptr(data))) {
+				instance->SetFieldValue(field,data);
+			}
+		});
+		RegisterFieldRenderer(ScriptFieldType::Vector3, [](auto& name, auto& field, auto& instance) {
+			glm::vec3 data = instance->GetFieldValue<glm::vec3>(field);
+			if (ImGui::DragFloat3(name.c_str(), glm::value_ptr(data))) {
+				instance->SetFieldValue(field, data);
+			}
+		});
+		RegisterFieldRenderer(ScriptFieldType::Vector4, [](auto& name, auto& field, auto& instance) {
+			glm::vec4 data = instance->GetFieldValue<glm::vec4>(field);
+			if (ImGui::DragFloat4(name.c_str(), glm::value_ptr(data))) {
+				instance->SetFieldValue(field, data);
+			}
+		});
 		//RegisterFieldRenderer(ScriptFieldType::Vector3);
 		//RegisterFieldRenderer(ScriptFieldType::Vector4);
 
