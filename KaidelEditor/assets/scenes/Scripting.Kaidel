@@ -1,15 +1,27 @@
 Scene: Untitled
 Entities:
-  - Entity: 3763047841734771413
+  - Entity: 9907935741980920423
     TagComponent:
       Tag: Scripted Entity2
     TransformComponent:
-      Translation: [2.5, 0, 0]
+      Translation: [1.10000002, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     SpriteRendererComponent:
       Color: [1, 1, 1, 1]
       TilingFactor: 1
+  - Entity: 6678127126232339938
+    TagComponent:
+      Tag: Scripted Entity
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      TilingFactor: 1
+    ScriptComponent:
+      Name: Sandbox.Player
   - Entity: 4240456701348918736
     TagComponent:
       Tag: Camera
@@ -28,33 +40,11 @@ Entities:
         OrthographicFar: 1
       Primary: true
       FixedAspectRatio: false
-  - Entity: 6678127126232339938
-    TagComponent:
-      Tag: Scripted Entity
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    SpriteRendererComponent:
-      Color: [1, 1, 1, 1]
-      TilingFactor: 1
-    Rigidbody2DComponent:
-      BodyType: Dynamic
-      FixedRotation: false
-    BoxCollider2DComponent:
-      Offset: [0, 0]
-      Size: [0.5, 0.5]
-      Density: 1
-      Friction: 0.5
-      Restitution: 0
-      RestitutionThreshold: 0.5
-    ScriptComponent:
-      Name: Sandbox.Player
-  - Entity: 9907935741980920423
+  - Entity: 3763047841734771413
     TagComponent:
       Tag: Scripted Entity2
     TransformComponent:
-      Translation: [1.10000002, 0, 0]
+      Translation: [2.5, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     SpriteRendererComponent:

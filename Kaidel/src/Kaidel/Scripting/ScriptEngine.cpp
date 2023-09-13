@@ -6,12 +6,36 @@
 #include "mono/jit/jit.h"
 #include "mono/metadata/assembly.h"
 #include "mono/metadata/object.h"
+#include "mono/metadata/tabledefs.h"
 #include <glm/glm.hpp>
 namespace Kaidel {
 	
 #pragma region Utils
 	namespace Utils {
+#define MapType(X,Y) {#X,ScriptFieldType::##Y},
+#define InternalMapType(X) MapType(KaidelCore.##X,X)
+#define InBuiltMapType(X,Y) MapType(System.##X,Y)
+		static std::unordered_map< std::string, ScriptFieldType> s_ScriptFieldType = {
+			InBuiltMapType(Single,Float)
+			InBuiltMapType(Double,Double)
+			InBuiltMapType(Int16,Short)
+			InBuiltMapType(UInt16,UShort)
+			InBuiltMapType(Int32,Int)
+			InBuiltMapType(UInt32,UInt)
+			InBuiltMapType(Int64,Long)
+			InBuiltMapType(UInt64,ULong)
+			InBuiltMapType(Byte,Byte)
+			InBuiltMapType(SByte,SByte)
+			InBuiltMapType(Char,Char)
+			InBuiltMapType(String,String)
+			InBuiltMapType(Boolean,Bool)
 
+			InternalMapType(Entity,Entity)
+			InternalMapType(Vector2,Vector2)
+			InternalMapType(Vector3,Vector3)
+			InternalMapType(Vector4,Vector4)
+
+		};
 		static char* ReadBytes(const std::string& filepath, uint32_t* outSize)
 		{
 			std::ifstream stream(filepath, std::ios::binary | std::ios::ate);
@@ -64,13 +88,45 @@ namespace Kaidel {
 
 			return assembly;
 		}
+
+		ScriptFieldType MonoTypeToScriptFieldType(MonoType* type) {
+			const char* typeName = mono_type_get_name(type);
+			if (s_ScriptFieldType.find(typeName) == s_ScriptFieldType.end())
+				return ScriptFieldType::None;
+			return s_ScriptFieldType.at(typeName);
+		}
+		const char* ScriptFieldTypeToString(ScriptFieldType fieldType) {
+#define Switch(Type) case Kaidel::ScriptFieldType::##Type: return #Type
+			switch (fieldType)
+			{
+				case Kaidel::ScriptFieldType::None:return "<Invalid>";
+				Switch(Float);
+				Switch(Double);
+				Switch(Short);
+				Switch(UShort);
+				Switch(Int);
+				Switch(UInt);
+				Switch(Long);
+				Switch(ULong);
+				Switch(Byte);
+				Switch(SByte);
+				Switch(Char);
+				Switch(String);
+				Switch(Bool);
+
+
+				Switch(Entity);
+				Switch(Vector2);
+				Switch(Vector3);
+				Switch(Vector4);
+			}
+		}
 	}
 #pragma endregion
 	struct ScriptEngineData
 	{
 		MonoDomain* RootDomain = nullptr;
 		MonoDomain* AppDomain = nullptr;
-
 		MonoAssembly* CoreAssembly = nullptr;
 		MonoImage* CoreAssemblyImage = nullptr;
 		
@@ -83,6 +139,7 @@ namespace Kaidel {
 	};
 
 	static ScriptEngineData* s_Data = nullptr;
+
 	void ScriptEngine::Init()
 	{
 		s_Data = new ScriptEngineData();
@@ -93,15 +150,6 @@ namespace Kaidel {
 		LoadAssemblyClasses(s_Data->AppAssembly);
 		ScriptRegistry::RegisterComponents();
 		ScriptRegistry::RegisterFunctions();
-		/*for (auto& entityClass : s_Data->EntityClasses) {
-			MonoObject* Instance = entityClass.second->Instantiate();
-			MonoMethod* method = entityClass.second->GetMethod("OnCreate",0);
-			entityClass.second->InvokeMethod(Instance, method);
-		}*/
-		//// 1. create an object (and call constructor)
-		/*MonoObject* instance = s_Data->EntityClass.Instantiate();
-		MonoMethod* printMessageFunc = s_Data->EntityClass.GetMethod("PrintMessage", 0);
-		s_Data->EntityClass.InvokeMethod(instance, printMessageFunc);*/
 	}
 
 	void ScriptEngine::Shutdown()
@@ -171,7 +219,6 @@ namespace Kaidel {
 	{
 		return s_Data->EntityClasses;
 	}
-
 	void ScriptEngine::LoadAssemblyClasses(MonoAssembly* assembly)
 	{
 		s_Data->EntityClasses.clear();
@@ -188,20 +235,33 @@ namespace Kaidel {
 			const char* name = mono_metadata_string_heap(image, cols[MONO_TYPEDEF_NAME]);
 
 			std::string fullName;
-			if (strlen(nameSpace)!=0) {
+			if (strlen(nameSpace) != 0) {
 				fullName = fmt::format("{}.{}", nameSpace, name);
 			}
 			else {
 				fullName = name;
 			}
-			auto monoClass = mono_class_from_name(image, nameSpace, name);
+			MonoClass* monoClass = mono_class_from_name(image, nameSpace, name);
 			if (monoClass == s_Data->EntityClass.GetClass())
 				continue;
 			bool isEntityDerived = mono_class_is_subclass_of(monoClass, s_Data->EntityClass.GetClass(), false);
-			if (isEntityDerived) {
-				s_Data->EntityClasses[fullName] = CreateRef<ScriptClass>(nameSpace, name);
+			if (!isEntityDerived)
+				continue;
+			Ref<ScriptClass> scriptClass = CreateRef<ScriptClass>(nameSpace, name);
+			s_Data->EntityClasses[fullName] =scriptClass;
+			void* iterator = nullptr;
+			while (MonoClassField* field = mono_class_get_fields(monoClass, &iterator)) {
+				std::string name = mono_field_get_name(field);
+				uint32_t flags = mono_field_get_flags(field);
+				if (flags & FIELD_ATTRIBUTE_PUBLIC) {
+					MonoType* fieldType = mono_field_get_type(field);
+					const char* typeName = Utils::ScriptFieldTypeToString(Utils::MonoTypeToScriptFieldType(fieldType));
+					KD_CORE_INFO("{} {}", typeName, name);
+					scriptClass->m_Fields[name] = { name,Utils::MonoTypeToScriptFieldType(fieldType) ,field};
+				}
 			}
 		}
+		auto& entityClasses = s_Data->EntityClasses;
 	}
 
 	void ScriptEngine::InitMono()
@@ -237,13 +297,20 @@ namespace Kaidel {
 		return instance;
 	}
 
+	Ref<ScriptInstance> ScriptEngine::GetEntityScriptInstance(UUID entityID)
+	{
+		auto it = s_Data->EntityInstances.find(entityID);
+		if (it == s_Data->EntityInstances.end())
+			return nullptr;
+		return it->second;
+	}
+
 	ScriptClass::ScriptClass(const std::string& classNamespace, const std::string& className,MonoImage* image)
 		:m_Namespace(classNamespace), m_ClassName(className)
 	{
 		m_MonoClass = mono_class_from_name(image?image:s_Data->AppAssemblyImage, classNamespace.c_str(), className.c_str());
 	}
-
-	MonoObject* ScriptClass::Instantiate()
+MonoObject* ScriptClass::Instantiate()
 	{
 		return ScriptEngine::InstantiateClass(m_MonoClass);
 	}
@@ -279,6 +346,16 @@ namespace Kaidel {
 	{
 		void* params = &ts;
 		m_ScriptClass->InvokeMethod(m_Instance, m_OnUpdateMethod,&params);
+	}
+
+	void ScriptInstance::GetFieldValueImpl(const ScriptField& field,void* block)
+	{
+		mono_field_get_value(m_Instance, field.Field, block);
+	}
+
+	void ScriptInstance::SetFieldValueImpl(const ScriptField& field, const void* value)
+	{
+		mono_field_set_value(m_Instance, field.Field, (void*)value);
 	}
 
 }

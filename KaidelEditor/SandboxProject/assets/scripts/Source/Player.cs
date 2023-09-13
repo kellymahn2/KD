@@ -8,22 +8,20 @@ namespace Sandbox
 {
 	public class Player : Entity
 	{
-		static bool x = true;
+		public float Speed = 0.5f;
+		public float Speed2 = 0.5f;
+		public int X = 0;
+		public int Y = 5;
+
 		private SpriteRendererComponent m_SpriteRenderer;
-		private Rigidbody2DComponent m_RigidBody;
 		public override void OnCreate()
 		{
 			m_SpriteRenderer = GetComponent<SpriteRendererComponent>();
-			m_RigidBody = GetComponent<Rigidbody2DComponent>();
-			if (m_RigidBody == null)
-			{
-				Debug.Log("Was Null");
-			}
 		}
 		public override void OnUpdate(float ts)
 		{
 			Vector3 velocity = new Vector3();
-
+			float speed = Speed;
 			if (Input.IsKeyDown(KeyCode.A))
 				velocity.x = -4.0f;
 			if (Input.IsKeyDown(KeyCode.D))
@@ -32,7 +30,7 @@ namespace Sandbox
 				velocity.y = -4.0f;
 			if (Input.IsKeyDown(KeyCode.W))
 			{
-				velocity.y = 9.80f;
+				velocity.y = 4.0f;
 				//Debug.Log("W Pressed");
 			}
 			if (Input.IsKeyDown(KeyCode.R))
@@ -47,12 +45,8 @@ namespace Sandbox
 			{
 				m_SpriteRenderer.Color = new Vector4(0.0f, 0.0f, 1.0f, 1.0f);
 			}
-			if (Input.IsKeyDown(KeyCode.Space))
-			{
-				m_RigidBody.ApplyForce(new Vector2(0.0f, 80.0f),new  Vector2(0.0f, 0.0f),true);
-			}
 			Vector3 translation = Position;
-			translation = translation + velocity * ts;
+			translation = translation + velocity*speed * ts;
 			Position = translation;
 		}
 	}

@@ -91,6 +91,7 @@ namespace Kaidel {
 #endif
 
 		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+		m_SceneHierarchyPanel.RegisterFieldRenderers();
 	}
 
 	void EditorLayer::OnDetach()

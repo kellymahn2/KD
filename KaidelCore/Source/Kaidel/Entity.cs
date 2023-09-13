@@ -70,19 +70,19 @@ namespace KaidelCore
 		public T GetComponent<T>() where T : Component ,new(){
 			if (!HasComponent<T>())
 			{
-				Debug.Log("Tried to call GetComponent<T> where entity doesn't have a component called T");
+				//Debug.Log("Tried to call GetComponent<T> where entity doesn't have a component called T");
 				return null;
 			}
-			if (!Entity.s_Storage.ContainsKey(this))
-			{
-				Dictionary<Type,Component>componentMap =  new Dictionary<Type, Component>();
-				Entity.s_Storage.Add(this, componentMap);
-			}
-			if (Entity.s_Storage [this] != null && !Entity.s_Storage[this].ContainsKey(typeof(T)))
-			{
-				Entity.s_Storage[this].Add(typeof(T), new T() { Entity = this });
-			}
-			return (T)Entity.s_Storage[this][typeof(T)];
+			//if (!Entity.s_Storage.ContainsKey(this))
+			//{
+			//	Dictionary<Type,Component>componentMap =  new Dictionary<Type, Component>();
+			//	Entity.s_Storage.Add(this, componentMap);
+			//}
+			//if (Entity.s_Storage [this] != null && !Entity.s_Storage[this].ContainsKey(typeof(T)))
+			//{
+			//	Entity.s_Storage[this].Add(typeof(T), new T() { Entity = this });
+			//}
+			//return (T)Entity.s_Storage[this][typeof(T)];
 			return new T() { Entity = this };
 		}
 	

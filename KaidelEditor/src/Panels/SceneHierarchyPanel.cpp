@@ -17,6 +17,51 @@
 
 namespace Kaidel {
 
+	std::unordered_map <ScriptFieldType, std::function<void(const std::string&,const ScriptField&,Ref<ScriptInstance>)>> s_FieldRenderers;
+	void RegisterFieldRenderer(ScriptFieldType type, std::function<void(const std::string&, const ScriptField&,Ref<ScriptInstance>)>&& func) {		
+		s_FieldRenderers[type] = func;
+	}
+	void SceneHierarchyPanel::RegisterFieldRenderers() {
+		RegisterFieldRenderer(ScriptFieldType::Float, [](auto& name, auto& field, auto& instance) {
+			float data = instance->GetFieldValue<float>(field);
+			if (ImGui::DragFloat(name.c_str(), &data)) {
+				instance->SetFieldValue(field, data);
+			}
+		});
+		/*RegisterFieldRenderer(ScriptFieldType::Double, [](auto& name, auto& field, auto& instance) {
+			double data = instance->GetFieldValue<double>(field);
+			if (ImGui::DragFloat(name.c_str(), (float*) & data)) {
+				instance->SetFieldValue(field, data);
+			}
+		});*/
+		//RegisterFieldRenderer(ScriptFieldType::Short);
+		//RegisterFieldRenderer(ScriptFieldType::UShort);
+		RegisterFieldRenderer(ScriptFieldType::Int, [](auto& name, auto& field, auto& instance) {
+			int data = instance->GetFieldValue<int>(field);
+			if (ImGui::DragInt(name.c_str(), &data)) {
+				instance->SetFieldValue(field, data);
+			}
+		});
+		RegisterFieldRenderer(ScriptFieldType::UInt, [](auto& name, auto& field, auto& instance) {
+			uint32_t data = instance->GetFieldValue<uint32_t>(field);
+			if (ImGui::DragInt(name.c_str(), (int*) & data)) {
+				instance->SetFieldValue(field, data);
+			}
+		});
+		//RegisterFieldRenderer(ScriptFieldType::Long);
+		//RegisterFieldRenderer(ScriptFieldType::ULong);
+		//RegisterFieldRenderer(ScriptFieldType::Byte);
+		//RegisterFieldRenderer(ScriptFieldType::SByte);
+		//RegisterFieldRenderer(ScriptFieldType::Char);
+		//RegisterFieldRenderer(ScriptFieldType::String);
+		//RegisterFieldRenderer(ScriptFieldType::Bool);
+		//RegisterFieldRenderer(ScriptFieldType::Entity);
+		//RegisterFieldRenderer(ScriptFieldType::Vector2);
+		//RegisterFieldRenderer(ScriptFieldType::Vector3);
+		//RegisterFieldRenderer(ScriptFieldType::Vector4);
+
+		
+	}
 	SceneHierarchyPanel::SceneHierarchyPanel(const Ref<Scene>& context)
 	{
 		SetContext(context);
@@ -388,9 +433,13 @@ namespace Kaidel {
 
 			});
 		
-		DrawComponent<ScriptComponent>("Script Component", entity, [](auto& component) {
-
+		DrawComponent<ScriptComponent>("Script Component", entity, [&entity](ScriptComponent& component) {
+			
 			bool scriptExists = ScriptEngine::ClassExists(component.Name);
+
+
+
+
 			static char buffer[64] = { 0 };
 			strcpy(buffer, component.Name.c_str());
 			if(!scriptExists)
@@ -398,6 +447,16 @@ namespace Kaidel {
 			if (ImGui::InputText("##Script", buffer, sizeof(buffer))) {
 				component.Name = buffer;
 			}
+			//Fields
+
+			Ref<ScriptInstance> instance = ScriptEngine::GetEntityScriptInstance(entity.GetUUID());
+			if (instance) {
+				const auto& fields = instance->GetScriptClass()->GetFields();
+				for (const auto& [name, field] : fields) {
+					s_FieldRenderers.at(field.Type)(name, field, instance);
+				}
+			}
+
 			if (!scriptExists)
 				ImGui::PopStyleColor();
 			});
