@@ -162,36 +162,44 @@ namespace Kaidel {
 			}
 		}
 
+		
 
 		if (m_Debug) {
 			OnOverlayRender();
 		}
 		
-		if (Entity selectedEntity = m_SceneHierarchyPanel.GetSelectedEntity();selectedEntity&&m_SceneState==SceneState::Edit)
+		if (Entity selectedEntity = m_SceneHierarchyPanel.GetSelectedEntity(); selectedEntity && m_SceneState == SceneState::Edit)
 		{
-
 			Renderer2D::BeginScene(m_EditorCamera);
-			Renderer2D::SetLineWidth(4.0f);
-			auto& tc= selectedEntity.GetComponent<TransformComponent>();
+			//Renderer2D::SetLineWidth(4.0f);
+			auto& tc = selectedEntity.GetComponent<TransformComponent>();
 			if (selectedEntity.HasComponent<SpriteRendererComponent>()) {
-				auto pos = tc.GetTransform();
-				auto& col=selectedEntity.GetComponent<SpriteRendererComponent>().Color;
 
-				if(col==glm::vec4{ 1,0,0,1 })
-					Renderer2D::DrawRect(pos,glm::vec4{1});
-				else 
-					Renderer2D::DrawRect(pos, glm::vec4{ 1,0,0,1 });
+				auto& pos = tc.Translation;
+				auto& rot = glm::toMat4(glm::quat(tc.Rotation));
+				auto& scale = tc.Scale + .01f;
+				auto& col = selectedEntity.GetComponent<SpriteRendererComponent>().Color;
+				auto transform = glm::translate(glm::mat4(1.0f), pos) * rot * glm::scale(glm::mat4(1.0f), scale);
+				if (col == glm::vec4{ 1,0,0,1 })
+					Renderer2D::DrawRect(transform, glm::vec4{ 1 });
+				else
+					Renderer2D::DrawRect(transform, glm::vec4{ 1,0,0,1 });
 			}
 			else if (selectedEntity.HasComponent<CircleRendererComponent>()) {
-				auto pos = glm::scale(tc.GetTransform(), glm::vec3(1.02f, 1.02f, 1.0f));
+				auto& crc = selectedEntity.GetComponent<CircleRendererComponent>();
+
+				auto scale = tc.Scale;
+				auto transform = glm::translate(glm::mat4(1.0f), tc.Translation)
+					* glm::scale(glm::mat4(1.0f), scale+0.01f);
 				auto& col = selectedEntity.GetComponent<CircleRendererComponent>().Color;
-				if(col==glm::vec4(1, 0, 0, 1))
-					Renderer2D::DrawCircle(pos, glm::vec4{1}, .02f);
-				else 
-					Renderer2D::DrawCircle(pos, glm::vec4{ 1,0,0,1 }, .02f);
+				if (col == glm::vec4(1, 0, 0, 1))
+					Renderer2D::DrawCircle(transform, glm::vec4{ 1 }, .02f);
+				else
+					Renderer2D::DrawCircle(transform, glm::vec4{ 1,0,0,1 }, .02f);
 			}
 			Renderer2D::EndScene();
 		}
+
 		int pixelData = GetCurrentPixelData(m_ViewportBounds,m_Framebuffer);
 		m_HoveredEntity = pixelData == -1 ? Entity() : Entity((entt::entity)pixelData, m_ActiveScene.get());
 
@@ -209,10 +217,13 @@ namespace Kaidel {
 		}
 		{
 			auto view = m_ActiveScene->GetAllComponentsWith<TransformComponent, CircleCollider2DComponent>();
-			for (auto e : view) {
-				auto [tc, cc2d] = view.get<TransformComponent, CircleCollider2DComponent>(e);
-				auto pos = glm::scale(tc.GetTransform(), glm::vec3(1.02f, 1.02f, 1.0f));
-				Renderer2D::DrawCircle(pos, { .2f,.9f,.3f,1.0f }, .02f);
+			for (auto e : view) {				
+				auto [tc, bc2d] = view.get<TransformComponent, CircleCollider2DComponent>(e);
+				auto scale = tc.Scale * glm::vec3(bc2d.Radius * 2.0f, bc2d.Radius * 2.0f, 1.0f);
+				auto transform = glm::translate(glm::mat4(1.0f), tc.Translation)
+					* glm::translate(glm::mat4(1.0f), glm::vec3(bc2d.Offset, 0.0f))
+					* glm::scale(glm::mat4(1.0f), scale+0.01f);
+				Renderer2D::DrawCircle(transform, { .2f,.9f,.3f,1.0f }, .02f);
 			}
 		}
 		{
@@ -222,8 +233,8 @@ namespace Kaidel {
 				auto scale = tc.Scale * glm::vec3(bc2d.Size*2.0f, 1.0f);
 				auto transform = glm::translate(glm::mat4(1.0f), tc.Translation)
 					* glm::rotate(glm::mat4(1.0f), tc.Rotation.z, glm::vec3(0.0f, 0.0f, 1.0f))
-					*glm::translate(glm::mat4(1.0f),glm::vec3(bc2d.Offset,0.001f))
-					* glm::scale(glm::mat4(1.0f), scale);
+					*glm::translate(glm::mat4(1.0f),glm::vec3(bc2d.Offset,0.0f))
+					* glm::scale(glm::mat4(1.0f), scale+.01f);
 				Renderer2D::DrawRect(transform, {.2f,.9f,.3f,1.0f});
 			}
 		}

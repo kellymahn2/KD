@@ -43,6 +43,8 @@ namespace Kaidel {
 		decltype(auto) GetAllComponentsWith() {
 			return m_Registry.view<Components...>();
 		}
+
+		bool IsRunning()const { return m_SceneIsRunning; }
 	private:
 		template<typename T>
 		void OnComponentAdded(Entity entity,T& component);
@@ -56,6 +58,7 @@ namespace Kaidel {
 		uint32_t m_ViewportWidth = 0, m_ViewportHeight = 0;
 		b2World* m_PhysicsWorld = nullptr;
 		std::string m_Path;
+		bool m_SceneIsRunning=false;
 		friend class Entity;
 		friend class SceneSerializer;
 		friend class SceneHierarchyPanel;

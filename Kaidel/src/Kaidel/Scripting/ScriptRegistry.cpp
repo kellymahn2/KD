@@ -230,9 +230,6 @@ namespace Kaidel {
 		RegisterComponent<SpriteRendererComponent>();
 		RegisterComponent<Rigidbody2DComponent>();
 		//RegisterComponent<BoxCollider2DComponent>();
-		/*RegisterComponent<TransformComponent>();
-		RegisterComponent<TransformComponent>();
-		RegisterComponent<TransformComponent>();*/
 	}
 	
 	void ScriptRegistry::RegisterFunctions()

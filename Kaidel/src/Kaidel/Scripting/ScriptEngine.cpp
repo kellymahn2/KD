@@ -23,7 +23,7 @@ namespace Kaidel {
 			InBuiltMapType(Int32,Int)
 			InBuiltMapType(UInt32,UInt)
 			InBuiltMapType(Int64,Long)
-			InBuiltMapType(UInt64,ULong)
+			InBuiltMapType(UInt64,ULong)	
 			InBuiltMapType(Byte,Byte)
 			InBuiltMapType(SByte,SByte)
 			InBuiltMapType(Char,Char)
@@ -135,6 +135,7 @@ namespace Kaidel {
 		ScriptClass EntityClass;
 		std::unordered_map<std::string, Ref<ScriptClass>> EntityClasses;
 		std::unordered_map<UUID, Ref<ScriptInstance>> EntityInstances;
+		std::unordered_map<UUID, ScriptFieldMap >	EntityScriptFields;
 		Scene* SceneContext = nullptr;
 	};
 
@@ -161,6 +162,7 @@ namespace Kaidel {
 	void ScriptEngine::OnRuntimeStart(Scene* scene)
 	{
 		s_Data->SceneContext = scene;
+
 	}
 
 	void ScriptEngine::OnRuntimeStop()
@@ -176,10 +178,22 @@ namespace Kaidel {
 
 	void ScriptEngine::OnCreateEntity(Entity& entity)
 	{
-		const auto& sc= entity.GetComponent<ScriptComponent>();
-		if (ClassExists(sc.Name)) {
-			Ref<ScriptInstance> instance = CreateRef<ScriptInstance>(s_Data->EntityClasses[sc.Name],entity);
-			s_Data->EntityInstances[entity.GetUUID()] = instance;
+		const auto& sc = entity.GetComponent<ScriptComponent>();
+		if (ScriptEngine::ClassExists(sc.Name))
+		{
+			UUID entityID = entity.GetUUID();
+
+			Ref<ScriptInstance> instance = CreateRef<ScriptInstance>(s_Data->EntityClasses[sc.Name], entity);
+			s_Data->EntityInstances[entityID] = instance;
+
+			// Copy field values
+			if (s_Data->EntityScriptFields.find(entityID) != s_Data->EntityScriptFields.end())
+			{
+				const ScriptFieldMap& fieldMap = s_Data->EntityScriptFields.at(entityID);
+				for (const auto& [name, fieldInstance] : fieldMap)
+					instance->SetFieldValueImpl(fieldInstance.Field, fieldInstance.m_Data);
+			}
+
 			instance->InvokeOnCreate();
 		}
 	}
@@ -267,7 +281,6 @@ namespace Kaidel {
 	void ScriptEngine::InitMono()
 	{
 		mono_set_assemblies_path("mono/lib");
-
 		MonoDomain* rootDomain = mono_jit_init("KaidelRuntime");
 		KD_CORE_ASSERT(rootDomain);
 
@@ -305,6 +318,18 @@ namespace Kaidel {
 		return it->second;
 	}
 
+	 ScriptFieldMap& ScriptEngine::GetScriptFieldMap(UUID entityID)
+	{
+		return s_Data->EntityScriptFields[entityID];
+	}
+
+	Ref<ScriptClass> ScriptEngine::GetEntityClass(const std::string& name)
+	{
+		if (s_Data->EntityClasses.find(name) == s_Data->EntityClasses.end())
+			return nullptr;
+		return s_Data->EntityClasses.at(name);
+	}
+
 	ScriptClass::ScriptClass(const std::string& classNamespace, const std::string& className,MonoImage* image)
 		:m_Namespace(classNamespace), m_ClassName(className)
 	{
@@ -325,7 +350,7 @@ MonoObject* ScriptClass::Instantiate()
 		return mono_runtime_invoke(method, instance, params,nullptr);
 	}
 
-	ScriptInstance::ScriptInstance(Ref<ScriptClass> scriptClass,Entity entity)
+	ScriptInstance::ScriptInstance(Ref<ScriptClass> scriptClass, Entity entity)
 		:m_ScriptClass(scriptClass)
 	{
 		m_Instance = m_ScriptClass->Instantiate();
@@ -345,10 +370,10 @@ MonoObject* ScriptClass::Instantiate()
 	void ScriptInstance::InvokeOnUpdate(float ts)
 	{
 		void* params = &ts;
-		m_ScriptClass->InvokeMethod(m_Instance, m_OnUpdateMethod,&params);
+		m_ScriptClass->InvokeMethod(m_Instance, m_OnUpdateMethod, &params);
 	}
 
-	void ScriptInstance::GetFieldValueImpl(const ScriptField& field,void* block)
+	void ScriptInstance::GetFieldValueImpl(const ScriptField& field, void* block)
 	{
 		mono_field_get_value(m_Instance, field.Field, block);
 	}
@@ -357,5 +382,21 @@ MonoObject* ScriptClass::Instantiate()
 	{
 		mono_field_set_value(m_Instance, field.Field, (void*)value);
 	}
+
+	const char* ScriptInstance::GetStringFieldValueImpl(const ScriptField& field)
+	{
+		MonoString* b = nullptr;
+		//MonoString* b = nullptr;
+		mono_field_get_value(m_Instance, field.Field, &b);
+		const char* s = mono_string_to_utf8(b);
+		return s;
+	}
+
+	void ScriptInstance::SetStringFieldValueImpl(const ScriptField& field, const char* value)
+	{
+		MonoString* str = mono_string_new_len(s_Data->AppDomain, value, strlen(value));
+		mono_field_set_value(m_Instance, field.Field, (void*)str);
+	}
+
 
 }

@@ -231,6 +231,7 @@ namespace Kaidel {
 
 	void Scene::OnRuntimeStart()
 	{
+		m_SceneIsRunning = true;
 		//Scripts
 		ScriptEngine::OnRuntimeStart(this);
 		//Instantiate all scripts
@@ -245,6 +246,7 @@ namespace Kaidel {
 
 	void Scene::OnRuntimeStop()
 	{
+		m_SceneIsRunning = false;
 		OnPhysics2DStop();
 		ScriptEngine::OnRuntimeStop();
 	}

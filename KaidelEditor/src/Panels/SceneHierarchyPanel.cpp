@@ -4,9 +4,10 @@
 #include <imgui/imgui_internal.h>
 
 #include <glm/gtc/type_ptr.hpp>
-
+#include "Kaidel/Core/Timer.h"
 #include "Kaidel/Scene/Components.h"
 #include <cstring>
+#include <sstream>
 #include "Kaidel/Scripting/ScriptEngine.h"
 /* The Microsoft C++ compiler is non-compliant with the C++ standard and needs
  * the following definition to disable a security warning on std::strncpy().
@@ -14,15 +15,15 @@
 #ifdef _MSVC_LANG
   #define _CRT_SECURE_NO_WARNINGS
 #endif
-
 namespace Kaidel {
+	typedef std::function<void(const std::string& name, const ScriptField& field, Ref<ScriptInstance>& instance)> FieldRendererFunction;
 
-	std::unordered_map <ScriptFieldType, std::function<void(const std::string&,const ScriptField&,Ref<ScriptInstance>)>> s_FieldRenderers;
-	void RegisterFieldRenderer(ScriptFieldType type, std::function<void(const std::string&, const ScriptField&,Ref<ScriptInstance>)>&& func) {		
+	std::unordered_map <ScriptFieldType, FieldRendererFunction>s_FieldRenderers;
+	void RegisterFieldRenderer(ScriptFieldType type, FieldRendererFunction&& func) {
 		s_FieldRenderers[type] = func;
 	}
 	void SceneHierarchyPanel::RegisterFieldRenderers() {
-		RegisterFieldRenderer(ScriptFieldType::Float, [](auto& name, auto& field, auto& instance) {
+		RegisterFieldRenderer(ScriptFieldType::Float, [](const std::string& name, const ScriptField& field, Ref<ScriptInstance>& instance) {
 			float data = instance->GetFieldValue<float>(field);
 			if (ImGui::DragFloat(name.c_str(), &data)) {
 				instance->SetFieldValue(field, data);
@@ -51,9 +52,27 @@ namespace Kaidel {
 		//RegisterFieldRenderer(ScriptFieldType::Long);
 		//RegisterFieldRenderer(ScriptFieldType::ULong);
 		//RegisterFieldRenderer(ScriptFieldType::Byte);
-		//RegisterFieldRenderer(ScriptFieldType::SByte);
+		/*RegisterFieldRenderer(ScriptFieldType::SByte, [](auto& name, auto& field, auto& instance) {
+
+			std::string data = instance->GetFieldValue<char*>(field);
+			char buff[256];
+			memcpy(buff, data.data(), data.size() + 1);
+			if (ImGui::InputText(name.c_str(), buff, 256)) {
+				data = buff;
+				instance->SetFieldValue(field, data);
+			}
+
+		});*/
 		//RegisterFieldRenderer(ScriptFieldType::Char);
-		//RegisterFieldRenderer(ScriptFieldType::String);
+		RegisterFieldRenderer(ScriptFieldType::String, [](auto& name, auto& field, auto& instance){
+			std::string data = instance->GetFieldValue<char*>(field);
+			char buff[256];
+			memcpy(buff, data.data(), data.size() + 1);
+			if (ImGui::InputText(name.c_str(), buff, 256)) {
+				data = buff;
+				instance->SetFieldValue(field, data);
+			}
+		});
 		//RegisterFieldRenderer(ScriptFieldType::Bool);
 		//RegisterFieldRenderer(ScriptFieldType::Entity);
 		RegisterFieldRenderer(ScriptFieldType::Vector2, [](auto& name, auto& field, auto& instance) {
@@ -281,6 +300,19 @@ namespace Kaidel {
 			}
 		}
 	}
+	static std::unordered_map < std::string, std::unordered_map < int, std::string>>& GetLookupTable(const std::unordered_map<std::string, Ref<ScriptClass>>& map) {
+		Timer timer;
+		static std::unordered_map < std::string, std::unordered_map < int,std::string>> lookupTable;
+		int index = 0;
+		for (auto& [name, script] : map) {
+			std::size_t loc = name.find_first_of('.');
+			if (loc!=std::string::npos) {
+				lookupTable[name.substr(0,loc)][index]=(name.substr(loc+1));
+			}
+			++index;
+		}
+		return lookupTable;
+	}
 	void SceneHierarchyPanel::DrawComponents(Entity entity)
 	{
 		if (entity.HasComponent<TagComponent>())
@@ -449,34 +481,110 @@ namespace Kaidel {
 			ImGui::DragFloat("Restitution Threshold", &component.RestitutionThreshold, 0.01f, .0f, 1.f);
 
 			});
-		
-		DrawComponent<ScriptComponent>("Script Component", entity, [&entity](ScriptComponent& component) {
-			
-			bool scriptExists = ScriptEngine::ClassExists(component.Name);
+
+		DrawComponent<ScriptComponent>("Script", entity, [entity, scene = m_Context](auto& component) mutable
+			{
+				bool scriptClassExists = ScriptEngine::ClassExists(component.Name);
+				if (!scriptClassExists)
+					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.9f, 0.2f, 0.3f, 1.0f));
+
+				/*static char buffer[64];
+				strcpy_s(buffer, sizeof(buffer), component.Name.c_str());
 
 
-
-
-			static char buffer[64] = { 0 };
-			strcpy(buffer, component.Name.c_str());
-			if(!scriptExists)
-				ImGui::PushStyleColor(ImGuiCol_Text,{.9,.2,.3,1.0});
-			if (ImGui::InputText("##Script", buffer, sizeof(buffer))) {
-				component.Name = buffer;
-			}
-			//Fields
-
-			Ref<ScriptInstance> instance = ScriptEngine::GetEntityScriptInstance(entity.GetUUID());
-			if (instance) {
-				const auto& fields = instance->GetScriptClass()->GetFields();
-				for (const auto& [name, field] : fields) {
-					s_FieldRenderers.at(field.Type)(name, field, instance);
+				if (ImGui::InputText("Class", buffer, sizeof(buffer)))
+					component.Name = buffer;*/
+				static bool IsChoosingScript = false;
+				ImGui::TextDisabled(component.Name.c_str());
+				ImGui::SameLine();
+				IsChoosingScript = ImGui::Button("##ScriptChooser", { 30,0 })||IsChoosingScript;
+				if (IsChoosingScript) {
+					auto& entityScripts = ScriptEngine::GetClasses();
+					ImGui::Begin("Please Choose A Script", &IsChoosingScript);
+					auto& lookupTable = GetLookupTable(entityScripts);
+					for (const auto& [nameSpace, classMap]:lookupTable) {
+						if(ImGui::TreeNode(nameSpace.c_str())) {
+							for (auto& [index, className] : classMap) {
+								if (ImGui::MenuItem(className.c_str())) {
+									component.Name = nameSpace + '.' + className;
+									IsChoosingScript = false;
+								}
+							}
+							ImGui::TreePop();
+						}
+					}
+					ImGui::End();
 				}
-			}
 
-			if (!scriptExists)
-				ImGui::PopStyleColor();
+
+
+
+				// Fields
+				bool sceneRunning = scene->IsRunning();
+				if (sceneRunning)
+				{
+					Ref<ScriptInstance> scriptInstance = ScriptEngine::GetEntityScriptInstance(entity.GetUUID());
+					if (scriptInstance)
+					{
+						const auto& fields = scriptInstance->GetScriptClass()->GetFields();
+						for (const auto& [name, field] : fields)
+						{
+							if (field.Type == ScriptFieldType::Float)
+							{
+								float data = scriptInstance->GetFieldValue<float>(field);
+								if (ImGui::DragFloat(name.c_str(), &data))
+								{
+									scriptInstance->SetFieldValue<float>(field, data);
+								}
+							}
+						}
+					}
+				}
+				else
+				{
+					if (scriptClassExists)
+					{
+						Ref<ScriptClass> entityClass = ScriptEngine::GetEntityClass(component.Name);
+						const auto& fields = entityClass->GetFields();
+
+						auto& entityFields = ScriptEngine::GetScriptFieldMap(entity.GetUUID());
+						for (const auto& [name, field] : fields)
+						{
+							// Field has been set in editor
+							if (entityFields.find(name) != entityFields.end())
+							{
+								const ScriptFieldInstance& scriptField = entityFields.at(name);
+
+								// Display control to set it maybe
+								if (field.Type == ScriptFieldType::Float)
+								{
+									float data = scriptField.GetValue<float>();
+									if (ImGui::DragFloat(name.c_str(), &data))
+										scriptField.SetValue(data);
+								}
+							}
+							else
+							{
+								// Display control to set it maybe
+								if (field.Type == ScriptFieldType::Float)
+								{
+									float data = 0.0f;
+									if (ImGui::DragFloat(name.c_str(), &data))
+									{
+										ScriptFieldInstance& fieldInstance = entityFields[name];
+										fieldInstance.Field = field;
+										fieldInstance.SetValue(data);
+									}
+								}
+							}
+						}
+					}
+				}
+
+				if (!scriptClassExists)
+					ImGui::PopStyleColor();
 			});
+
 	}
 
 }
