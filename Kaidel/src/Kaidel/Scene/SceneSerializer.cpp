@@ -3,7 +3,7 @@
 
 #include "Entity.h"
 #include "Components.h"
-
+#include "Kaidel/Scripting/ScriptEngine.h"
 #include <fstream>
 
 #include <yaml-cpp/yaml.h>
@@ -107,7 +107,53 @@ namespace Kaidel {
 		out << YAML::BeginSeq << v.x << v.y << v.z << v.w << YAML::EndSeq;
 		return out;
 	}
+	static std::string ScriptFieldTypeToString(ScriptFieldType type) {
+		switch (type)
+		{
+		case ScriptFieldType::Float:return "Float";
+		case ScriptFieldType::Double:return "Double";
+		case ScriptFieldType::Short:return "Short";
+		case ScriptFieldType::UShort:return "UShort";
+		case ScriptFieldType::Int:return "Int";
+		case ScriptFieldType::UInt:return "UInt";
+		case ScriptFieldType::Long:return "Long";
+		case ScriptFieldType::ULong:return "ULong";
+		case ScriptFieldType::Byte:return "Byte";
+		case ScriptFieldType::SByte:return "SByte";
+		case ScriptFieldType::Char:return "Char";
+		case ScriptFieldType::String:return "String";
+		case ScriptFieldType::Bool:return "Bool";
+		case ScriptFieldType::Entity:return "Entity";
+		case ScriptFieldType::Vector2:return "Vector2";
+		case ScriptFieldType::Vector3:return "Vector3";
+		case ScriptFieldType::Vector4:return "Vector4";
+		}
+		KD_CORE_ASSERT(false, "Not a valid field type");
+		return "";
+	}
+	static ScriptFieldType ScriptFieldTypeFromString(std::string_view type) {
+#define Temp(T) if(type==#T) return ScriptFieldType::T;
 
+		Temp(Float);
+		Temp(Double);
+		Temp(Short);
+		Temp(UShort);
+		Temp(Int);
+		Temp(UInt);
+		Temp(Long);
+		Temp(ULong);
+		Temp(Byte);
+		Temp(SByte);
+		Temp(Char);
+		Temp(String);
+		Temp(Bool);
+		Temp(Entity);
+		Temp(Vector2);
+		Temp(Vector3);
+		Temp(Vector4);
+		KD_CORE_ASSERT(false, "Type does not exist");
+		return ScriptFieldType::None;
+	}
 	static std::string RigidBody2DBodyTypeToString(Rigidbody2DComponent::BodyType bodyType) {
 		switch (bodyType)
 		{
@@ -262,6 +308,30 @@ namespace Kaidel {
 			out << YAML::BeginMap;//ScriptComponent
 			auto& scriptComponent = entity.GetComponent<ScriptComponent>();
 			out << YAML::Key << "Name" << YAML::Value << scriptComponent.Name;
+
+			//Fields
+			Ref<ScriptClass> entityClass = ScriptEngine::GetEntityClass(scriptComponent.Name);
+			const auto& fields = entityClass->GetFields();
+			if (!fields.empty()) {
+				out << YAML::Key << "ScriptFields"<<YAML::Value;
+				const auto& entityFields = ScriptEngine::GetScriptFieldMap(entity.GetUUID());
+				out << YAML::BeginSeq;
+				for (const auto& [fieldName, field] : entityFields) {
+					out << YAML::BeginMap;//ScriptFields
+					out << YAML::Key << "Name" << YAML::Value << fieldName;
+					out << YAML::Key << "Type" << YAML::Value << ScriptFieldTypeToString(field.Field.Type);
+					out << YAML::Key << "Data" << YAML::Value;
+					// Field has been set in editor
+					switch (field.Field.Type)
+					{
+					case ScriptFieldType::Float:
+						out<< field.GetValue<float>();
+						break;
+					}
+					out << YAML::EndMap;//ScriptFields
+				}
+				out << YAML::EndSeq;
+			}
 			out << YAML::EndMap;//ScriptComponent
 		}
 		out << YAML::EndMap; // Entity
@@ -315,8 +385,8 @@ namespace Kaidel {
 		{
 			for (auto entity : entities)
 			{
-				UUID uuid = entity["Entity"].as<uint64_t>(); // TODO
-
+				UUID uuid = entity["Entity"].as<uint64_t>(); 
+				auto& entityFields = ScriptEngine::GetScriptFieldMap(uuid);
 				std::string name;
 				auto tagComponent = entity["TagComponent"];
 				if (tagComponent)
@@ -340,7 +410,6 @@ namespace Kaidel {
 				DeserializeComponent<CameraComponent>(deserializedEntity, "CameraComponent", entity,
 					[](auto& cc, auto& entity, auto& cameraComponent) {
 						auto& cameraProps = cameraComponent["Camera"];
-						cc.Camera.SetProjectionType((SceneCamera::ProjectionType)cameraProps["ProjectionType"].as<int>());
 
 						cc.Camera.SetPerspectiveVerticalFOV(cameraProps["PerspectiveFOV"].as<float>());
 						cc.Camera.SetPerspectiveNearClip(cameraProps["PerspectiveNear"].as<float>());
@@ -352,6 +421,7 @@ namespace Kaidel {
 
 						cc.Primary = cameraComponent["Primary"].as<bool>();
 						cc.FixedAspectRatio = cameraComponent["FixedAspectRatio"].as<bool>();
+						cc.Camera.SetProjectionType((SceneCamera::ProjectionType)cameraProps["ProjectionType"].as<int>());
 					}
 				);
 
@@ -400,8 +470,29 @@ namespace Kaidel {
 					}
 				);
 				DeserializeComponent<ScriptComponent>(deserializedEntity, "ScriptComponent", entity,
-					[](auto& sc, auto& entity, auto& scriptComponent) {
+					[&entityFields](auto& sc, auto& entity, YAML::Node& scriptComponent) {
 						sc.Name = scriptComponent["Name"].as<std::string>();
+						if (scriptComponent["ScriptFields"]) {
+							Ref<ScriptClass> scriptClass = ScriptEngine::GetEntityClass(sc.Name);
+							if (!scriptClass)
+								return;
+							for (auto v : scriptComponent["ScriptFields"]) {
+								auto name = v["Name"].as<std::string>();
+								if (scriptClass->GetFields().find(name) == scriptClass->GetFields().end())
+									continue;
+								auto type = ScriptFieldTypeFromString(v["Type"].as<std::string>());
+#define FIELD_DATA_SERILIZATION(T,Type) \
+case ScriptFieldType::##T:\
+	ScriptEngine::AddSerializedField<Type>(entity.GetUUID(), name,\
+		type, ScriptEngine::GetEntityClass(sc.Name), v["Data"].as<Type>());\
+	break
+								switch (type)
+								{
+									FIELD_DATA_SERILIZATION(Float,float);
+								}
+								
+							}
+						}
 					});
 			}
 		}

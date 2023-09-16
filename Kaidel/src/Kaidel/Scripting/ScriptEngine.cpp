@@ -270,7 +270,6 @@ namespace Kaidel {
 				if (flags & FIELD_ATTRIBUTE_PUBLIC) {
 					MonoType* fieldType = mono_field_get_type(field);
 					const char* typeName = Utils::ScriptFieldTypeToString(Utils::MonoTypeToScriptFieldType(fieldType));
-					KD_CORE_INFO("{} {}", typeName, name);
 					scriptClass->m_Fields[name] = { name,Utils::MonoTypeToScriptFieldType(fieldType) ,field};
 				}
 			}
@@ -328,6 +327,12 @@ namespace Kaidel {
 		if (s_Data->EntityClasses.find(name) == s_Data->EntityClasses.end())
 			return nullptr;
 		return s_Data->EntityClasses.at(name);
+	}
+
+	ScriptFieldInstance& ScriptEngine::AddScriptFieldInstance(UUID entityID, const std::string& name, ScriptFieldType type,Ref<ScriptClass>scriptClass)
+	{
+		s_Data->EntityScriptFields[entityID][name].Field = scriptClass->GetFields().at(name);
+		return s_Data->EntityScriptFields[entityID][name];
 	}
 
 	ScriptClass::ScriptClass(const std::string& classNamespace, const std::string& className,MonoImage* image)

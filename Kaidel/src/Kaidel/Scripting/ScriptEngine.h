@@ -56,11 +56,18 @@ namespace Kaidel {
 		static void OnUpdateEntity(Entity& entity, float ts);
 		static Scene* GetSceneContext();
 		static MonoImage* GetCoreAssemblyImage();
+		template<typename T>
+		static void AddSerializedField(UUID entityID, const std::string& name, ScriptFieldType type, Ref<ScriptClass> scriptClass,const T& data) {
+			ScriptFieldInstance& sfi = AddScriptFieldInstance(entityID, name, type, scriptClass);
+			sfi.SetValue<T>(data);
+		}
 	private:
+		static ScriptFieldInstance& AddScriptFieldInstance(UUID entityID, const std::string& name, ScriptFieldType type,Ref<ScriptClass> scriptClass);
 		static void LoadAssemblyClasses(MonoAssembly* assembly);
 		static void InitMono();
 		static void ShutdownMono();
 	};
-	
+
+
 
 }

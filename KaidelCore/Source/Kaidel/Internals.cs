@@ -17,6 +17,9 @@ namespace KaidelCore
 		internal extern static bool Entity_HasComponent(ulong id,Type componentType);
 
 		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static void Entity_AddComponent(ulong id, Type componentType);
+
+		[MethodImpl(MethodImplOptions.InternalCall)]
 		internal extern static void TransformComponent_GetPosition(ulong id, out Vector3 position);
 		[MethodImpl(MethodImplOptions.InternalCall)]
 		internal extern static void TransformComponent_SetPosition(ulong id, ref Vector3 position);
@@ -32,19 +35,6 @@ namespace KaidelCore
 		[MethodImpl(MethodImplOptions.InternalCall)]
 		internal extern static void TransformComponent_SetScale(ulong id, ref Vector3 scale);
 
-
-		[MethodImpl(MethodImplOptions.InternalCall)]
-		internal extern static void SpriteRendererComponent_GetColor(ulong id, out Vector4 color);
-		[MethodImpl(MethodImplOptions.InternalCall)]
-		internal extern static void SpriteRendererComponent_SetColor(ulong id, ref Vector4 color);
-
-
-
-
-		[MethodImpl(MethodImplOptions.InternalCall)]
-		internal extern static void Rigidbody2DComponent_ApplyLinearImpulse(ulong id,ref Vector2 impulse, ref Vector2 point,bool wake);
-		[MethodImpl(MethodImplOptions.InternalCall)]
-		internal extern static void Rigidbody2DComponent_ApplyForce(ulong id, ref Vector2 force, ref Vector2 point, bool wake);
 
 		[MethodImpl(MethodImplOptions.InternalCall)]
 		internal extern static bool Input_IsKeyDown(ref KeyCode keyCode);

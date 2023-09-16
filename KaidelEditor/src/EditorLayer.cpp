@@ -89,7 +89,11 @@ namespace Kaidel {
 		m_CameraEntity.AddComponent<NativeScriptComponent>().Bind<CameraController>();
 		m_SecondCamera.AddComponent<NativeScriptComponent>().Bind<CameraController>();
 #endif
-
+		auto& commandLineArgs = Application::Get().GetCommandLineArgs();
+		if (commandLineArgs.Count > 1) {
+			auto sceneFilePath = commandLineArgs[1];
+			OpenScene(sceneFilePath);
+		}
 		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 		m_SceneHierarchyPanel.RegisterFieldRenderers();
 	}
@@ -464,7 +468,7 @@ namespace Kaidel {
 		UpdateBounds(m_ViewportBounds);
 		m_ViewportFocused = ImGui::IsWindowFocused();
 		m_ViewportHovered = ImGui::IsWindowHovered();
-		Application::Get().GetImGuiLayer()->BlockEvents(!m_ViewportFocused && !m_ViewportHovered);
+		Application::Get().GetImGuiLayer()->BlockEvents(!m_ViewportHovered);
 
 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 		m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };

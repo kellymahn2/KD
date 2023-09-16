@@ -17,84 +17,83 @@
 #endif
 namespace Kaidel {
 	typedef std::function<void(const std::string& name, const ScriptField& field, Ref<ScriptInstance>& instance)> FieldRendererFunction;
-
 	std::unordered_map <ScriptFieldType, FieldRendererFunction>s_FieldRenderers;
 	void RegisterFieldRenderer(ScriptFieldType type, FieldRendererFunction&& func) {
 		s_FieldRenderers[type] = func;
 	}
 	void SceneHierarchyPanel::RegisterFieldRenderers() {
-		RegisterFieldRenderer(ScriptFieldType::Float, [](const std::string& name, const ScriptField& field, Ref<ScriptInstance>& instance) {
-			float data = instance->GetFieldValue<float>(field);
-			if (ImGui::DragFloat(name.c_str(), &data)) {
-				instance->SetFieldValue(field, data);
-			}
-		});
-		/*RegisterFieldRenderer(ScriptFieldType::Double, [](auto& name, auto& field, auto& instance) {
-			double data = instance->GetFieldValue<double>(field);
-			if (ImGui::DragFloat(name.c_str(), (float*) & data)) {
-				instance->SetFieldValue(field, data);
-			}
-		});*/
-		//RegisterFieldRenderer(ScriptFieldType::Short);
-		//RegisterFieldRenderer(ScriptFieldType::UShort);
-		RegisterFieldRenderer(ScriptFieldType::Int, [](auto& name, auto& field, auto& instance) {
-			int data = instance->GetFieldValue<int>(field);
-			if (ImGui::DragInt(name.c_str(), &data)) {
-				instance->SetFieldValue(field, data);
-			}
-		});
-		RegisterFieldRenderer(ScriptFieldType::UInt, [](auto& name, auto& field, auto& instance) {
-			uint32_t data = instance->GetFieldValue<uint32_t>(field);
-			if (ImGui::DragInt(name.c_str(), (int*) & data)) {
-				instance->SetFieldValue(field, data);
-			}
-		});
-		//RegisterFieldRenderer(ScriptFieldType::Long);
-		//RegisterFieldRenderer(ScriptFieldType::ULong);
-		//RegisterFieldRenderer(ScriptFieldType::Byte);
-		/*RegisterFieldRenderer(ScriptFieldType::SByte, [](auto& name, auto& field, auto& instance) {
+		//RegisterFieldRenderer(ScriptFieldType::Float, [](const std::string& name, const ScriptField& field, Ref<ScriptInstance>& instance) {
+		//	float data = instance->GetFieldValue<float>(field);
+		//	if (ImGui::DragFloat(name.c_str(), &data)) {
+		//		instance->SetFieldValue(field, data);
+		//	}
+		//});
+		///*RegisterFieldRenderer(ScriptFieldType::Double, [](auto& name, auto& field, auto& instance) {
+		//	double data = instance->GetFieldValue<double>(field);
+		//	if (ImGui::DragFloat(name.c_str(), (float*) & data)) {
+		//		instance->SetFieldValue(field, data);
+		//	}
+		//});*/
+		////RegisterFieldRenderer(ScriptFieldType::Short);
+		////RegisterFieldRenderer(ScriptFieldType::UShort);
+		//RegisterFieldRenderer(ScriptFieldType::Int, [](auto& name, auto& field, auto& instance) {
+		//	int data = instance->GetFieldValue<int>(field);
+		//	if (ImGui::DragInt(name.c_str(), &data)) {
+		//		instance->SetFieldValue(field, data);
+		//	}
+		//});
+		//RegisterFieldRenderer(ScriptFieldType::UInt, [](auto& name, auto& field, auto& instance) {
+		//	uint32_t data = instance->GetFieldValue<uint32_t>(field);
+		//	if (ImGui::DragInt(name.c_str(), (int*) & data)) {
+		//		instance->SetFieldValue(field, data);
+		//	}
+		//});
+		////RegisterFieldRenderer(ScriptFieldType::Long);
+		////RegisterFieldRenderer(ScriptFieldType::ULong);
+		////RegisterFieldRenderer(ScriptFieldType::Byte);
+		///*RegisterFieldRenderer(ScriptFieldType::SByte, [](auto& name, auto& field, auto& instance) {
 
-			std::string data = instance->GetFieldValue<char*>(field);
-			char buff[256];
-			memcpy(buff, data.data(), data.size() + 1);
-			if (ImGui::InputText(name.c_str(), buff, 256)) {
-				data = buff;
-				instance->SetFieldValue(field, data);
-			}
+		//	std::string data = instance->GetFieldValue<char*>(field);
+		//	char buff[256];
+		//	memcpy(buff, data.data(), data.size() + 1);
+		//	if (ImGui::InputText(name.c_str(), buff, 256)) {
+		//		data = buff;
+		//		instance->SetFieldValue(field, data);
+		//	}
 
-		});*/
-		//RegisterFieldRenderer(ScriptFieldType::Char);
-		RegisterFieldRenderer(ScriptFieldType::String, [](auto& name, auto& field, auto& instance){
-			std::string data = instance->GetFieldValue<char*>(field);
-			char buff[256];
-			memcpy(buff, data.data(), data.size() + 1);
-			if (ImGui::InputText(name.c_str(), buff, 256)) {
-				data = buff;
-				instance->SetFieldValue(field, data);
-			}
-		});
-		//RegisterFieldRenderer(ScriptFieldType::Bool);
-		//RegisterFieldRenderer(ScriptFieldType::Entity);
-		RegisterFieldRenderer(ScriptFieldType::Vector2, [](auto& name, auto& field, auto& instance) {
-			glm::vec2 data = instance->GetFieldValue<glm::vec2>(field);
-			if (ImGui::DragFloat2(name.c_str(), glm::value_ptr(data))) {
-				instance->SetFieldValue(field,data);
-			}
-		});
-		RegisterFieldRenderer(ScriptFieldType::Vector3, [](auto& name, auto& field, auto& instance) {
-			glm::vec3 data = instance->GetFieldValue<glm::vec3>(field);
-			if (ImGui::DragFloat3(name.c_str(), glm::value_ptr(data))) {
-				instance->SetFieldValue(field, data);
-			}
-		});
-		RegisterFieldRenderer(ScriptFieldType::Vector4, [](auto& name, auto& field, auto& instance) {
-			glm::vec4 data = instance->GetFieldValue<glm::vec4>(field);
-			if (ImGui::DragFloat4(name.c_str(), glm::value_ptr(data))) {
-				instance->SetFieldValue(field, data);
-			}
-		});
-		//RegisterFieldRenderer(ScriptFieldType::Vector3);
-		//RegisterFieldRenderer(ScriptFieldType::Vector4);
+		//});*/
+		////RegisterFieldRenderer(ScriptFieldType::Char);
+		//RegisterFieldRenderer(ScriptFieldType::String, [](auto& name, auto& field, auto& instance){
+		//	std::string data = instance->GetFieldValue<char*>(field);
+		//	char buff[256];
+		//	memcpy(buff, data.data(), data.size() + 1);
+		//	if (ImGui::InputText(name.c_str(), buff, 256)) {
+		//		data = buff;
+		//		instance->SetFieldValue(field, data);
+		//	}
+		//});
+		////RegisterFieldRenderer(ScriptFieldType::Bool);
+		////RegisterFieldRenderer(ScriptFieldType::Entity);
+		//RegisterFieldRenderer(ScriptFieldType::Vector2, [](auto& name, auto& field, auto& instance) {
+		//	glm::vec2 data = instance->GetFieldValue<glm::vec2>(field);
+		//	if (ImGui::DragFloat2(name.c_str(), glm::value_ptr(data))) {
+		//		instance->SetFieldValue(field,data);
+		//	}
+		//});
+		//RegisterFieldRenderer(ScriptFieldType::Vector3, [](auto& name, auto& field, auto& instance) {
+		//	glm::vec3 data = instance->GetFieldValue<glm::vec3>(field);
+		//	if (ImGui::DragFloat3(name.c_str(), glm::value_ptr(data))) {
+		//		instance->SetFieldValue(field, data);
+		//	}
+		//});
+		//RegisterFieldRenderer(ScriptFieldType::Vector4, [](auto& name, auto& field, auto& instance) {
+		//	glm::vec4 data = instance->GetFieldValue<glm::vec4>(field);
+		//	if (ImGui::DragFloat4(name.c_str(), glm::value_ptr(data))) {
+		//		instance->SetFieldValue(field, data);
+		//	}
+		//});
+		////RegisterFieldRenderer(ScriptFieldType::Vector3);
+		////RegisterFieldRenderer(ScriptFieldType::Vector4);
 
 		
 	}
@@ -300,19 +299,46 @@ namespace Kaidel {
 			}
 		}
 	}
-	static std::unordered_map < std::string, std::unordered_map < int, std::string>>& GetLookupTable(const std::unordered_map<std::string, Ref<ScriptClass>>& map) {
-		Timer timer;
-		static std::unordered_map < std::string, std::unordered_map < int,std::string>> lookupTable;
-		int index = 0;
-		for (auto& [name, script] : map) {
-			std::size_t loc = name.find_first_of('.');
-			if (loc!=std::string::npos) {
-				lookupTable[name.substr(0,loc)][index]=(name.substr(loc+1));
+	class AssetChooserScriptItem {
+	public:
+		AssetChooserScriptItem() = default;
+		AssetChooserScriptItem(const std::unordered_map<std::string,Ref<ScriptClass>>& map) {
+			Timer timer("Construction");
+			for (const auto& [name, field] : map) {
+				AddScript(name);
 			}
-			++index;
 		}
-		return lookupTable;
-	}
+		void AddScript(const std::string& script) {
+			std::size_t loc = script.find_first_of('.');
+			if (loc != std::string::npos) {
+				std::string name = script.substr(0, loc);
+				m_ScriptMap[name].AddScript(script.substr(loc + 1));
+				return;
+			}
+			m_ScriptMap[script];
+		}
+		std::string Draw() {
+			for (auto& [name, acsi] : m_ScriptMap) {
+				if (acsi.m_ScriptMap.empty()) {
+					ImGui::MenuItem(name.c_str());
+					if (ImGui::IsItemHovered()&&ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+						return name;
+					}
+				}
+				else {
+					if (ImGui::TreeNode(name.c_str())) {
+						std::string res = acsi.Draw();
+						ImGui::TreePop();
+						if(!res.empty())
+							return name + '.' + res;
+					}
+				}
+			}
+			return "";
+		}
+	private:
+		std::unordered_map<std::string, AssetChooserScriptItem> m_ScriptMap;
+	};
 	void SceneHierarchyPanel::DrawComponents(Entity entity)
 	{
 		if (entity.HasComponent<TagComponent>())
@@ -416,6 +442,7 @@ namespace Kaidel {
 				}
 			});
 
+		//Renderers
 		DrawComponent<SpriteRendererComponent>("Sprite Renderer", entity, [](auto& component)
 			{
 				ImGui::ColorEdit4("Color", glm::value_ptr(component.Color));
@@ -433,13 +460,14 @@ namespace Kaidel {
 				ImGui::DragFloat("Tiling Float", &component.TilingFactor, .1f, 0, 100.f);
 
 			});
-
 		DrawComponent<CircleRendererComponent>("Circle Renderer", entity, [](CircleRendererComponent& component) {
 			ImGui::ColorEdit4("Color", glm::value_ptr(component.Color));
 			ImGui::DragFloat("Thickness", &component.Thickness, .1f, .0f, 1.f);
 			ImGui::DragFloat("Fade", &component.Fade, .1f, .0f, 1.f);
 
 			});
+
+		//Physics
 		DrawComponent<Rigidbody2DComponent>("Rigidbody 2D", entity, [](auto& component)
 			{
 				const char* bodyTypeStrings[] = { "Static", "Dynamic","Kinematic" };
@@ -482,11 +510,12 @@ namespace Kaidel {
 
 			});
 
+		//Scripts
 		DrawComponent<ScriptComponent>("Script", entity, [entity, scene = m_Context](auto& component) mutable
 			{
 				bool scriptClassExists = ScriptEngine::ClassExists(component.Name);
 				if (!scriptClassExists)
-					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.9f, 0.2f, 0.3f, 1.0f));
+					ImGui::PushStyleColor(ImGuiCol_TextDisabled, ImVec4(0.9f, 0.2f, 0.3f, 1.0f));
 
 				/*static char buffer[64];
 				strcpy_s(buffer, sizeof(buffer), component.Name.c_str());
@@ -494,23 +523,19 @@ namespace Kaidel {
 
 				if (ImGui::InputText("Class", buffer, sizeof(buffer)))
 					component.Name = buffer;*/
+				auto& entityScripts = ScriptEngine::GetClasses();
 				static bool IsChoosingScript = false;
 				ImGui::TextDisabled(component.Name.c_str());
 				ImGui::SameLine();
-				IsChoosingScript = ImGui::Button("##ScriptChooser", { 30,0 })||IsChoosingScript;
+				IsChoosingScript = !entityScripts.empty() && (ImGui::Button("##ScriptChooser", { 15,0 }) || IsChoosingScript);
 				if (IsChoosingScript) {
-					auto& entityScripts = ScriptEngine::GetClasses();
+					AssetChooserScriptItem acsi(entityScripts);
 					ImGui::Begin("Please Choose A Script", &IsChoosingScript);
-					auto& lookupTable = GetLookupTable(entityScripts);
-					for (const auto& [nameSpace, classMap]:lookupTable) {
-						if(ImGui::TreeNode(nameSpace.c_str())) {
-							for (auto& [index, className] : classMap) {
-								if (ImGui::MenuItem(className.c_str())) {
-									component.Name = nameSpace + '.' + className;
-									IsChoosingScript = false;
-								}
-							}
-							ImGui::TreePop();
+					{
+						std::string res = acsi.Draw();
+						if (!res.empty()) {
+							component.Name = res;
+							IsChoosingScript = false;
 						}
 					}
 					ImGui::End();
@@ -584,7 +609,5 @@ namespace Kaidel {
 				if (!scriptClassExists)
 					ImGui::PopStyleColor();
 			});
-
 	}
-
 }
