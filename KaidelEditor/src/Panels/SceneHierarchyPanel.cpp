@@ -114,12 +114,17 @@ namespace Kaidel {
 
 		m_Context->m_Registry.each([&](auto entityID)
 			{
-				Entity entity{ entityID , m_Context.get() };
+				
+				Entity entity{entityID , m_Context.get()};
+				if (entity.HasComponent<ChildComponent>())
+					return;
 				DrawEntityNode(entity);
 			});
 
-		if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered())
-			m_SelectionContext = {};
+		if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered()) {
+			//if((m_SelectionContext&&!(m_SelectionContext.HasComponent<ParentComponent>() && !m_SelectionContext.GetComponent<ParentComponent>().Children.empty())))
+				m_SelectionContext = {};
+		}
 
 		// Right-click on blank space
 		if (ImGui::BeginPopupContextWindow(0, 1|ImGuiPopupFlags_NoOpenOverItems))
@@ -149,15 +154,45 @@ namespace Kaidel {
 	void SceneHierarchyPanel::DrawEntityNode(Entity entity)
 	{
 		auto& tag = entity.GetComponent<TagComponent>().Tag;
-
-		ImGuiTreeNodeFlags flags = ((m_SelectionContext == entity) ? ImGuiTreeNodeFlags_Selected : 0) | ImGuiTreeNodeFlags_OpenOnArrow;
-		flags |= ImGuiTreeNodeFlags_SpanAvailWidth;
-		bool opened = ImGui::TreeNodeEx((void*)(uint64_t)(uint32_t)entity, flags, tag.c_str());
-		if (ImGui::IsItemClicked())
-		{
-			m_SelectionContext = entity;
+		auto currContext = m_SelectionContext;
+		ImGui::PushStyleColor(ImGuiCol_HeaderHovered, { 0,0,0,0 });
+		ImGui::PushStyleColor(ImGuiCol_HeaderActive, { 0,0,0,0 });
+		ImGui::PushStyleColor(ImGuiCol_Header, { 0,0,0,0 });
+		static float defFont = ImGui::GetFont()->FontSize;
+		if (currContext == entity) {
+			ImGui::GetFont()->FontSize -= .8f;
 		}
-
+		else
+			ImGui::GetFont()->FontSize = defFont;
+		ImGuiTreeNodeFlags flags = ((m_SelectionContext == entity) ? ImGuiTreeNodeFlags_Selected : 0) | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+		flags |= ImGuiTreeNodeFlags_SpanAvailWidth;
+		bool opened = false;
+		if (entity.HasComponent<ParentComponent>()&&!entity.GetComponent<ParentComponent>().Children.empty()) {
+			opened = ImGui::TreeNodeEx((void*)(uint64_t)entity.GetUUID(), flags, tag.c_str());
+			if (ImGui::IsItemClicked())
+			{
+				m_SelectionContext = entity;
+			}
+			if (opened) {
+				for (auto& child : entity.GetComponent<ParentComponent>().Children) {
+					DrawEntityNode(m_Context->GetEntity(child));
+				}
+				ImGui::TreePop();
+			}
+		}
+		else {
+			flags |= ImGuiTreeNodeFlags_Leaf| ImGuiTreeNodeFlags_NoTreePushOnOpen;
+			ImGui::PushID((uint64_t)entity.GetUUID());
+			opened = ImGui::TreeNodeEx(tag.c_str(),flags);
+			if (ImGui::IsItemClicked()) {
+				m_SelectionContext = entity;
+			}
+			
+			ImGui::PopID();
+		}
+		if (currContext == entity)
+			ImGui::GetFont()->FontSize =defFont;
+		ImGui::PopStyleColor(3);
 		bool entityDeleted = false;
 		if (ImGui::BeginPopupContextItem())
 		{
@@ -167,14 +202,14 @@ namespace Kaidel {
 			ImGui::EndPopup();
 		}
 
-		if (opened)
+		/*if (opened)
 		{
 			ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
 			bool opened = ImGui::TreeNodeEx((void*)9817239, flags, tag.c_str());
 			if (opened)
 				ImGui::TreePop();
 			ImGui::TreePop();
-		}
+		}*/
 
 		if (entityDeleted)
 		{
@@ -369,6 +404,8 @@ namespace Kaidel {
 			DrawAddComponentItems<Rigidbody2DComponent>(m_SelectionContext, "Rigidbody 2D");
 			DrawAddComponentItems<BoxCollider2DComponent>(m_SelectionContext, "Box Collider 2D");
 			DrawAddComponentItems<CircleCollider2DComponent>(m_SelectionContext, "Circle Collider 2D");
+			DrawAddComponentItems<ParentComponent>(m_SelectionContext, "Parent");
+			DrawAddComponentItems<ChildComponent>(m_SelectionContext, "Child");
 			ImGui::EndPopup();
 		}
 

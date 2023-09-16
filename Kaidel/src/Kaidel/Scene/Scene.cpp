@@ -360,6 +360,8 @@ namespace Kaidel {
 	DEF_COMPONENT_ADD(CircleRendererComponent)
 	DEF_COMPONENT_ADD(CircleCollider2DComponent)
 	DEF_COMPONENT_ADD(ScriptComponent)
+	DEF_COMPONENT_ADD(ParentComponent)
+	DEF_COMPONENT_ADD(ChildComponent)
 
 
 }

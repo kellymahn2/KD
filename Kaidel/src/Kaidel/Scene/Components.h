@@ -18,7 +18,12 @@ namespace Kaidel {
 		IDComponent() = default;
 		IDComponent(const IDComponent&) = default;
 	};
-
+	struct ParentComponent {
+		std::vector<UUID> Children;
+	};
+	struct ChildComponent {
+		UUID Parent;
+	};
 	struct TagComponent
 	{
 		std::string Tag;

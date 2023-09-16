@@ -38,64 +38,22 @@ namespace Kaidel {
 		m_ActiveScene = CreateRef<Scene>();
 
 		m_EditorCamera = EditorCamera(30.0f, 1.778f, 0.1f, 1000.0f);
-
-#if 0
-		// Entity
-		auto square = m_ActiveScene->CreateEntity("Green Square");
-		square.AddComponent<SpriteRendererComponent>(glm::vec4{0.0f, 1.0f, 0.0f, 1.0f});
-
-		auto redSquare = m_ActiveScene->CreateEntity("Red Square");
-		redSquare.AddComponent<SpriteRendererComponent>(glm::vec4{ 1.0f, 0.0f, 0.0f, 1.0f });
-
-		m_SquareEntity = square;
-
-		m_CameraEntity = m_ActiveScene->CreateEntity("Camera A");
-		m_CameraEntity.AddComponent<CameraComponent>();
-
-		m_SecondCamera = m_ActiveScene->CreateEntity("Camera B");
-		auto& cc = m_SecondCamera.AddComponent<CameraComponent>();
-		cc.Primary = false;
-
-		class CameraController : public ScriptableEntity
-		{
-		public:
-			virtual void OnCreate() override
-			{
-				auto& translation = GetComponent<TransformComponent>().Translation;
-				translation.x = rand() % 10 - 5.0f;
-			}
-
-			virtual void OnDestroy() override
-			{
-			}
-
-			virtual void OnUpdate(Timestep ts) override
-			{
-				auto& translation = GetComponent<TransformComponent>().Translation;
-
-				float speed = 5.0f;
-
-				if (Input::IsKeyPressed(Key::A))
-					translation.x -= speed * ts;
-				if (Input::IsKeyPressed(Key::D))
-					translation.x += speed * ts;
-				if (Input::IsKeyPressed(Key::W))
-					translation.y += speed * ts;
-				if (Input::IsKeyPressed(Key::S))
-					translation.y -= speed * ts;
-			}
-		};
-
-		m_CameraEntity.AddComponent<NativeScriptComponent>().Bind<CameraController>();
-		m_SecondCamera.AddComponent<NativeScriptComponent>().Bind<CameraController>();
-#endif
-		auto& commandLineArgs = Application::Get().GetCommandLineArgs();
+		/*auto& commandLineArgs = Application::Get().GetCommandLineArgs();
 		if (commandLineArgs.Count > 1) {
 			auto sceneFilePath = commandLineArgs[1];
 			OpenScene(sceneFilePath);
-		}
+		}*/
 		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 		m_SceneHierarchyPanel.RegisterFieldRenderers();
+		auto parent = m_ActiveScene->CreateEntity("Parent");
+		auto child = m_ActiveScene->CreateEntity("Child");
+		parent.AddComponent<ParentComponent>();
+		child.AddComponent<ChildComponent>().Parent = parent.GetUUID();
+		child.AddComponent<ParentComponent>();
+		auto child2 = m_ActiveScene->CreateEntity("Child 2");
+		child2.AddComponent<ChildComponent>().Parent = child.GetUUID();
+		child.AddChild(child2.GetUUID());
+		parent.AddChild(child.GetUUID());
 	}
 
 	void EditorLayer::OnDetach()
@@ -436,6 +394,9 @@ namespace Kaidel {
 
 	void EditorLayer::ShowDebugWindow()
 	{
+		ImGui::Begin("Styler");
+		ImGui::ShowStyleEditor();
+		ImGui::End();
 		ImGui::Begin("Stats");
 
 		std::string name = "None";
@@ -450,6 +411,7 @@ namespace Kaidel {
 		ImGui::Text("Vertices: %d", stats.GetTotalVertexCount());
 		ImGui::Text("Indices: %d", stats.GetTotalIndexCount());
 		ImGui::Text("Frame Rate: %.3f", ImGui::GetIO().Framerate);
+		ImGui::Text("Selected Entity: %d", m_SceneHierarchyPanel.GetSelectedEntity().operator entt::entity());
 		ImGui::End();
 
 	}
