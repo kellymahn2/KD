@@ -59,6 +59,8 @@
   <ItemGroup Condition=" '$(Configuration)|$(Platform)' == 'Dist|x64' ">
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Source\Kaidel\Child\Internals\ChildInternals.cs" />
+    <Compile Include="Source\Kaidel\Child\Types\ChildTypes.cs" />
     <Compile Include="Source\Kaidel\Components\Components.cs" />
     <Compile Include="Source\Kaidel\Components\Physics\Internals\PhysicsInternals.cs" />
     <Compile Include="Source\Kaidel\Components\Physics\Types\PhysicsTypes.cs" />

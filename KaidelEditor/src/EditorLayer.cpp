@@ -52,8 +52,12 @@ namespace Kaidel {
 		child.AddComponent<ParentComponent>();
 		auto child2 = m_ActiveScene->CreateEntity("Child 2");
 		child2.AddComponent<ChildComponent>().Parent = child.GetUUID();
+		parent.AddComponent<SpriteRendererComponent>();
+		child.AddComponent<SpriteRendererComponent>();
+		child2.AddComponent<SpriteRendererComponent>();
 		child.AddChild(child2.GetUUID());
 		parent.AddChild(child.GetUUID());
+		auto example = m_ActiveScene->CreateEntity("Example");
 	}
 
 	void EditorLayer::OnDetach()
@@ -299,7 +303,7 @@ namespace Kaidel {
 	}
 
 	void EditorLayer::OnScenePlay(){
-		if (!m_EditorScene)
+		if (!m_EditorScene||!m_ActiveScene->GetPrimaryCameraEntity())
 			return;
 		m_SceneState = SceneState::Play;
 		m_RuntimeScene =Scene::Copy(m_EditorScene);
@@ -336,10 +340,33 @@ namespace Kaidel {
 		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 	}
 
+	
+	EditorLayer::GizmoCamera EditorLayer::GetCurrentCameraViewProjection()
+	{
+		if (m_SceneState == SceneState::Edit)
+			return { m_EditorCamera.GetViewMatrix(),m_EditorCamera.GetProjection()};
+		else if (m_SceneState == SceneState::Play)
+		{
+			auto cameraEntity = m_ActiveScene->GetPrimaryCameraEntity();
+			const auto& camera = cameraEntity.GetComponent<CameraComponent>().Camera;
+			return { glm::inverse(cameraEntity.GetComponent<TransformComponent>().GetTransform()),camera.GetProjection()};
+		}
+	}
 
-
+	void EditorLayer::MoveChildren(Entity curr, const glm::vec3& deltaTranslation, const glm::vec3& deltaRotation, Entity parent ) {
+		auto& tc = curr.GetComponent<TransformComponent>();
+		if (curr.HasComponent<ParentComponent>()) {
+			for (auto& child : curr.GetComponent<ParentComponent>().Children) {
+				auto entity = m_ActiveScene->GetEntity(child);
+				MoveChildren(entity, deltaTranslation, deltaRotation,curr);
+			}
+		}
+		tc.Translation += deltaTranslation;
+		tc.Rotation += deltaRotation;
+	}
 	void EditorLayer::DrawGizmos()
 	{
+
 		Entity selectedEntity = m_SceneHierarchyPanel.GetSelectedEntity();
 		if (selectedEntity && m_GizmoType != -1)
 		{
@@ -351,16 +378,7 @@ namespace Kaidel {
 			// Camera
 
 			// Runtime camera from entity
-			auto cameraEntity = m_ActiveScene->GetPrimaryCameraEntity();
-			const auto& camera = cameraEntity.GetComponent<CameraComponent>().Camera;
-			//const glm::mat4& cameraProjection = camera.GetProjection();
-			//glm::mat4 cameraView = glm::inverse(cameraEntity.GetComponent<TransformComponent>().GetTransform());
-
-			// Editor camera
-			const glm::mat4& cameraProjection = m_SceneState == SceneState::Edit ? m_EditorCamera.GetProjection() : camera.GetProjection();
-
-			glm::mat4 cameraView = m_SceneState == SceneState::Edit ? m_EditorCamera.GetViewMatrix() : glm::inverse(cameraEntity.GetComponent<TransformComponent>().GetTransform());
-
+			auto gizmoCamera = GetCurrentCameraViewProjection();
 			// Entity transform
 			auto& tc = selectedEntity.GetComponent<TransformComponent>();
 			glm::mat4 transform = tc.GetTransform();
@@ -374,7 +392,7 @@ namespace Kaidel {
 
 			float snapValues[3] = { snapValue, snapValue, snapValue };
 
-			ImGuizmo::Manipulate(glm::value_ptr(cameraView), glm::value_ptr(cameraProjection),
+			ImGuizmo::Manipulate(glm::value_ptr(gizmoCamera.View), glm::value_ptr(gizmoCamera.Projection),
 				(ImGuizmo::OPERATION)m_GizmoType, ImGuizmo::LOCAL, glm::value_ptr(transform),
 				nullptr, snap ? snapValues : nullptr);
 
@@ -382,10 +400,11 @@ namespace Kaidel {
 			{
 				glm::vec3 translation, rotation, scale;
 				Math::DecomposeTransform(transform, translation, rotation, scale);
-
 				glm::vec3 deltaRotation = rotation - tc.Rotation;
-				tc.Translation = translation;
-				tc.Rotation += deltaRotation;
+				if (selectedEntity.HasComponent<ParentComponent>()) {
+					glm::vec3 deltaTranslation = translation - tc.Translation;
+					MoveChildren(selectedEntity, deltaTranslation, deltaRotation);
+				}
 				tc.Scale = scale;
 			}
 		}

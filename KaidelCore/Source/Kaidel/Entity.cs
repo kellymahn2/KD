@@ -78,7 +78,18 @@ namespace KaidelCore
 			Internals.Entity_AddComponent(ID, componentType);
 			return new T() { Entity = this };
 		}
-	
-
+		Entity GetParent()
+		{
+			if (!Internals.Entity_HasParent(ID))
+				return null;
+			ulong parentID = Internals.Entity_GetParentID(ID);
+			return new Entity(parentID);
+		}
+		ChildNode GetChildren()
+		{
+			if (!Internals.Entity_HasChildren(ID))
+				return null;
+			return new ChildNode() { m_ID = ID } ;
+		}
 	}
 }

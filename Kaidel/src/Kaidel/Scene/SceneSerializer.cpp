@@ -182,7 +182,7 @@ namespace Kaidel {
 	{
 		KD_CORE_ASSERT(entity.HasComponent<IDComponent>());
 		out << YAML::BeginMap; // Entity
-		out << YAML::Key << "Entity" << YAML::Value << entity.GetUUID(); // TODO: Entity ID goes here
+		out << YAML::Key << "Entity" << YAML::Value << (uint64_t)entity.GetUUID();
 
 		if (entity.HasComponent<TagComponent>())
 		{

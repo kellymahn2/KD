@@ -31,6 +31,16 @@ namespace Kaidel {
 		mono_free(cstr);
 		KD_CORE_INFO("{}", s);
 	}
+	static bool Entity_HasParent(UUID id) {
+		Scene* scene = ScriptEngine::GetSceneContext();
+		auto entity = scene->GetEntity(id);
+		return entity.HasComponent<ChildComponent>();
+	}
+	static bool Entity_HasChildren(UUID id) {
+		Scene* scene = ScriptEngine::GetSceneContext();
+		auto entity =scene->GetEntity(id);
+		return entity.HasComponent<ParentComponent>()&&!entity.GetComponent<ParentComponent>().Children.empty();
+	}
 	static MonoString* Entity_GetName(UUID id) {
 		Scene* scene = ScriptEngine::GetSceneContext();
 		Entity entity = scene->GetEntity(id);
@@ -54,54 +64,60 @@ namespace Kaidel {
 		KD_CORE_ASSERT(s_AddComponentFuncs.find(managedType) != s_AddComponentFuncs.end(), "Component Is not Managed");
 		return s_AddComponentFuncs.at(managedType)(entity);
 	}
+	static UUID Entity_GetParentID(UUID ID)
+	{
+		auto& cc=GetComponent<ChildComponent>(ID);
+		return cc.Parent;
+	}
+	static UUID Entity_GetChildEntityIDWithIndex(UUID ID, uint32_t index)
+	{
+		auto& pc = GetComponent<ParentComponent>(ID);
+		return pc.Children[index];
+	}
+	static UUID Entity_GetChildEntityIDWithName(UUID ID, MonoString* name)
+	{
+		const char* str = mono_string_to_utf8(name);
+		KD_CORE_ASSERT(str&&strlen(str)>0);
+		auto& pc = GetComponent<ParentComponent>(ID);
+		for (auto& entity : pc.Children) {
+			if (GetComponent<TagComponent>(entity).Tag == str)
+				return entity;
+		}
+		KD_CORE_ASSERT(false);
+		return { 0 };
+	}
 	static void TransformComponent_GetPosition(UUID id, glm::vec3* outPos) {
-		Scene* scene = ScriptEngine::GetSceneContext();
-		Entity entity = scene->GetEntity(id);
-		auto& pos = entity.GetComponent<TransformComponent>().Translation;
+		auto& pos = GetComponent<TransformComponent>(id).Translation;
 		memcpy(outPos, &pos, sizeof(glm::vec3));
 	}
 	static void TransformComponent_SetPosition(UUID id, glm::vec3* setPos) {
-		Scene* scene = ScriptEngine::GetSceneContext();
-		Entity entity = scene->GetEntity(id);
-		auto& pos = entity.GetComponent<TransformComponent>().Translation;
+		auto& pos = GetComponent<TransformComponent>(id).Translation;
 		memcpy(&pos, setPos, sizeof(glm::vec3));
 	}
 
 	static void TransformComponent_GetRotation(UUID id, glm::vec3* outRos) {
-		Scene* scene = ScriptEngine::GetSceneContext();
-		Entity entity = scene->GetEntity(id);
-		auto& rot = entity.GetComponent<TransformComponent>().Rotation;
+		auto& rot = GetComponent<TransformComponent>(id).Rotation;
 		memcpy(outRos, &rot, sizeof(glm::vec3));
 	}
 	static void TransformComponent_SetRotation(UUID id, glm::vec3* setRot) {
-		Scene* scene = ScriptEngine::GetSceneContext();
-		Entity entity = scene->GetEntity(id);
-		auto& rot = entity.GetComponent<TransformComponent>().Rotation;
+		auto& rot =GetComponent<TransformComponent>(id).Rotation;
 		memcpy(&rot, setRot, sizeof(glm::vec3));
 	}
 
 	static void TransformComponent_GetScale(UUID id, glm::vec3* outScale) {
-		Scene* scene = ScriptEngine::GetSceneContext();
-		Entity entity = scene->GetEntity(id);
-		auto& scale = entity.GetComponent<TransformComponent>().Scale;
+		auto& scale = GetComponent<TransformComponent>(id).Scale;
 		memcpy(outScale, &scale, sizeof(glm::vec3));
 	}
 	static void TransformComponent_SetScale(UUID id, glm::vec3* setScale) {
-		Scene* scene = ScriptEngine::GetSceneContext();
-		Entity entity = scene->GetEntity(id);
-		auto& scale = entity.GetComponent<TransformComponent>().Scale;
+		auto& scale = GetComponent<TransformComponent>(id).Scale;
 		memcpy(&scale, setScale, sizeof(glm::vec3));
 	}
 	static void SpriteRendererComponent_GetColor(UUID id, glm::vec4* outColor) {
-		Scene* scene = ScriptEngine::GetSceneContext();
-		Entity entity = scene->GetEntity(id);
-		auto& color = entity.GetComponent<SpriteRendererComponent>().Color;
+		auto& color = GetComponent<SpriteRendererComponent>(id).Color;
 		memcpy(outColor, &color,sizeof(glm::vec4));
 	}
 	static void SpriteRendererComponent_SetColor(UUID id,glm::vec4* setColor){
-		Scene* scene = ScriptEngine::GetSceneContext();
-		Entity entity = scene->GetEntity(id);
-		auto& color = entity.GetComponent<SpriteRendererComponent>().Color;
+		auto& color = GetComponent<SpriteRendererComponent>(id).Color;
 		memcpy(&color, setColor, sizeof(glm::vec4));
 	}
 
@@ -133,16 +149,12 @@ namespace Kaidel {
 
 
 	static void Rigidbody2DComponent_ApplyLinearImpulse(UUID id, glm::vec2* impulse,glm::vec2* point,bool wake) {
-		Scene* scene = ScriptEngine::GetSceneContext();
-		Entity entity = scene->GetEntity(id);
-		auto& rb2d= entity.GetComponent<Rigidbody2DComponent>();
+		auto& rb2d = GetComponent<Rigidbody2DComponent>(id);
 		auto body = (b2Body*)rb2d.RuntimeBody;
 		body->ApplyLinearImpulse(*(b2Vec2*)impulse, *(b2Vec2*)point,wake);
 	}
 	static void Rigidbody2DComponent_ApplyForce(UUID id, glm::vec2* force, glm::vec2* point, bool wake) {
-		Scene* scene = ScriptEngine::GetSceneContext();
-		Entity entity = scene->GetEntity(id);
-		auto& rb2d = entity.GetComponent<Rigidbody2DComponent>();
+		auto& rb2d = GetComponent<Rigidbody2DComponent>(id);
 		auto body = (b2Body*)rb2d.RuntimeBody;
 		body->ApplyForce(*(b2Vec2*)force, *(b2Vec2*)point, wake);
 	}
@@ -390,31 +402,47 @@ namespace Kaidel {
 	
 	void ScriptRegistry::RegisterFunctions()
 	{
-		KD_ADD_INTERNAL(NativeLog);
-
+		#pragma region Entity
+		KD_ADD_INTERNAL(Entity_HasParent);
+		KD_ADD_INTERNAL(Entity_HasChildren);
 		KD_ADD_INTERNAL(Entity_GetName);
 		KD_ADD_INTERNAL(Entity_HasComponent);
 		KD_ADD_INTERNAL(Entity_AddComponent);
+		KD_ADD_INTERNAL(Entity_GetParentID);
+		KD_ADD_INTERNAL(Entity_GetChildEntityIDWithIndex);
+		KD_ADD_INTERNAL(Entity_GetChildEntityIDWithName);
+#pragma endregion
+		#pragma region Components
+	#pragma region TransformComponent
 		KD_ADD_INTERNAL(TransformComponent_GetPosition);
 		KD_ADD_INTERNAL(TransformComponent_SetPosition);
 		KD_ADD_INTERNAL(TransformComponent_GetRotation);
 		KD_ADD_INTERNAL(TransformComponent_SetRotation);
 		KD_ADD_INTERNAL(TransformComponent_GetScale);
 		KD_ADD_INTERNAL(TransformComponent_SetScale);
+#pragma endregion
+	#pragma region SpriteRendererComponent
 		KD_ADD_INTERNAL(SpriteRendererComponent_GetColor);
 		KD_ADD_INTERNAL(SpriteRendererComponent_SetColor);
+#pragma endregion
+	#pragma region CircleRendererComponent
 		KD_ADD_INTERNAL(CircleRendererComponent_GetColor);
 		KD_ADD_INTERNAL(CircleRendererComponent_SetColor);
 		KD_ADD_INTERNAL(CircleRendererComponent_GetThickness);
 		KD_ADD_INTERNAL(CircleRendererComponent_SetThickness);
 		KD_ADD_INTERNAL(CircleRendererComponent_GetFade);
 		KD_ADD_INTERNAL(CircleRendererComponent_SetFade);
-		//Physics
+#pragma endregion
+#pragma endregion
+		#pragma region Physics
+#pragma region Rigidbody2DComponent
 		KD_ADD_INTERNAL(Rigidbody2DComponent_ApplyLinearImpulse);
 		KD_ADD_INTERNAL(Rigidbody2DComponent_ApplyForce);
 		KD_ADD_INTERNAL(Rigidbody2DComponent_GetBodyType);
 		KD_ADD_INTERNAL(Rigidbody2DComponent_GetFixedRotation);
 		KD_ADD_INTERNAL(Rigidbody2DComponent_SetFixedRotation);
+#pragma endregion
+#pragma region BoxCollider2DComponent
 		KD_ADD_INTERNAL(BoxCollider2DComponent_GetOffset);
 		KD_ADD_INTERNAL(BoxCollider2DComponent_SetOffset);
 		KD_ADD_INTERNAL(BoxCollider2DComponent_GetSize);
@@ -427,6 +455,8 @@ namespace Kaidel {
 		KD_ADD_INTERNAL(BoxCollider2DComponent_SetRestitution);
 		KD_ADD_INTERNAL(BoxCollider2DComponent_GetRestitutionThreshold);
 		KD_ADD_INTERNAL(BoxCollider2DComponent_SetRestitutionThreshold);
+#pragma endregion
+#pragma region CircleCollider2DComponent
 		KD_ADD_INTERNAL(CircleCollider2DComponent_GetOffset);
 		KD_ADD_INTERNAL(CircleCollider2DComponent_SetOffset);
 		KD_ADD_INTERNAL(CircleCollider2DComponent_GetRadius);
@@ -439,12 +469,10 @@ namespace Kaidel {
 		KD_ADD_INTERNAL(CircleCollider2DComponent_SetRestitution);
 		KD_ADD_INTERNAL(CircleCollider2DComponent_GetRestitutionThreshold);
 		KD_ADD_INTERNAL(CircleCollider2DComponent_SetRestitutionThreshold);
-
-
-
-		KD_ADD_INTERNAL(Input_IsKeyDown);
-
-
+#pragma endregion
+#pragma endregion
+		#pragma region Math
+#pragma region Vector2
 		KD_ADD_INTERNAL(Vector2_AddVec);
 		KD_ADD_INTERNAL(Vector2_SubtractVec);
 		KD_ADD_INTERNAL(Vector2_AddNum);
@@ -455,7 +483,8 @@ namespace Kaidel {
 		KD_ADD_INTERNAL(Vector2_DivVec);
 		KD_ADD_INTERNAL(Vector2_DotVec);
 		KD_ADD_INTERNAL(Vector2_LengthVec);
-
+#pragma endregion
+#pragma region Vector3
 		KD_ADD_INTERNAL(Vector3_AddVec);
 		KD_ADD_INTERNAL(Vector3_SubtractVec);
 		KD_ADD_INTERNAL(Vector3_AddNum);
@@ -467,7 +496,8 @@ namespace Kaidel {
 		KD_ADD_INTERNAL(Vector3_DotVec);
 		KD_ADD_INTERNAL(Vector3_CrossVec);
 		KD_ADD_INTERNAL(Vector3_LengthVec);
-
+#pragma endregion
+#pragma region Vector4
 		KD_ADD_INTERNAL(Vector4_AddVec);
 		KD_ADD_INTERNAL(Vector4_SubtractVec);
 		KD_ADD_INTERNAL(Vector4_AddNum);
@@ -478,6 +508,11 @@ namespace Kaidel {
 		KD_ADD_INTERNAL(Vector4_DivVec);
 		KD_ADD_INTERNAL(Vector4_DotVec);
 		KD_ADD_INTERNAL(Vector4_LengthVec);
-
+#pragma endregion
+#pragma endregion
+		#pragma region Misc.
+		KD_ADD_INTERNAL(NativeLog);
+		KD_ADD_INTERNAL(Input_IsKeyDown);
+#pragma endregion
 	}
 }

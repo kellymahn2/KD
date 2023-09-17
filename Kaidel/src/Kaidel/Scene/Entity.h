@@ -50,6 +50,12 @@ namespace Kaidel {
 			auto& pc=GetComponent<ParentComponent>();
 			pc.Children.push_back(childId);
 		}
+		void AddParent(UUID parentID) {
+			if (!HasComponent<ChildComponent>())
+				AddComponent<ChildComponent>();
+			auto& cc = GetComponent<ChildComponent>();
+			cc.Parent = parentID;
+		}
 		inline UUID GetUUID() { return GetComponent<IDComponent>().ID; }
 		operator bool() const { return m_EntityHandle != entt::null&&(int)m_EntityHandle!=-1; }
 		operator entt::entity() const { return m_EntityHandle; }

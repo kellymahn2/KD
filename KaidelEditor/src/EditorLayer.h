@@ -35,8 +35,13 @@ namespace Kaidel {
 		void OnSceneSimulateStop();
 
 		void UI_Toolbar();
+		void MoveChildren(Entity curr, const glm::vec3& deltaTranslation, const glm::vec3& deltaRotation,Entity parent = {});
 		void DrawGizmos();
-
+		struct GizmoCamera {
+			glm::mat4 View;
+			const glm::mat4& Projection;
+		};
+		GizmoCamera GetCurrentCameraViewProjection();
 		void OnOverlayRender();
 
 		void ShowDebugWindow();

@@ -169,6 +169,30 @@ namespace Kaidel {
 		bool opened = false;
 		if (entity.HasComponent<ParentComponent>()&&!entity.GetComponent<ParentComponent>().Children.empty()) {
 			opened = ImGui::TreeNodeEx((void*)(uint64_t)entity.GetUUID(), flags, tag.c_str());
+			if (ImGui::BeginDragDropSource()) {
+				ImGui::SetDragDropPayload("ENTITY_PARENT", &entity.GetComponent<IDComponent>(), sizeof(uint64_t));
+				ImGui::EndDragDropSource();
+			}
+			if (ImGui::BeginDragDropTarget()) {
+				if (auto payload = ImGui::AcceptDragDropPayload("ENTITY_PARENT")) {
+					auto childEntityID = (*(IDComponent*)payload->Data).ID;
+
+					entity.AddChild(childEntityID);
+
+					auto childEntity = m_Context->GetEntity(childEntityID);
+					if (childEntity.HasComponent<ChildComponent>()) {
+						auto& cc = childEntity.GetComponent<ChildComponent>();
+						auto oldParent = m_Context->GetEntity(cc.Parent);
+						auto& oldpc = oldParent.GetComponent<ParentComponent>();
+						auto it = std::find(oldpc.Children.begin(), oldpc.Children.end(), childEntityID);
+						if (it != oldpc.Children.end())
+							oldpc.Children.erase(it, it + 1);
+					}
+					else {
+						childEntity.AddComponent<ChildComponent>(entity.GetUUID());
+					}
+				}
+			}
 			if (ImGui::IsItemClicked())
 			{
 				m_SelectionContext = entity;
@@ -184,6 +208,30 @@ namespace Kaidel {
 			flags |= ImGuiTreeNodeFlags_Leaf| ImGuiTreeNodeFlags_NoTreePushOnOpen;
 			ImGui::PushID((uint64_t)entity.GetUUID());
 			opened = ImGui::TreeNodeEx(tag.c_str(),flags);
+			if (ImGui::BeginDragDropSource()) {
+				ImGui::SetDragDropPayload("ENTITY_PARENT", &entity.GetComponent<IDComponent>(), sizeof(uint64_t));
+				ImGui::EndDragDropSource();
+			}
+			if (ImGui::BeginDragDropTarget()) {
+				if (auto payload = ImGui::AcceptDragDropPayload("ENTITY_PARENT")) {
+					auto childEntityID= (*(IDComponent*)payload->Data).ID;
+
+					entity.AddChild(childEntityID);
+
+					auto childEntity = m_Context->GetEntity(childEntityID);
+					if (childEntity.HasComponent<ChildComponent>()) {
+						auto& cc = childEntity.GetComponent<ChildComponent>();
+						auto oldParent = m_Context->GetEntity(cc.Parent);
+						auto& oldpc = oldParent.GetComponent<ParentComponent>();
+						auto it = std::find(oldpc.Children.begin(), oldpc.Children.end(), childEntityID);
+						if (it != oldpc.Children.end())
+							oldpc.Children.erase(it, it + 1);
+					}
+					else {
+						childEntity.AddComponent<ChildComponent>(entity.GetUUID());
+					}
+				}
+			}
 			if (ImGui::IsItemClicked()) {
 				m_SelectionContext = entity;
 			}
