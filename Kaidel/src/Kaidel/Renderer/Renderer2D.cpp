@@ -412,6 +412,56 @@ namespace Kaidel {
 			DrawQuad(transform, src.Color, entityID);
 	}
 
+	void Renderer2D::DrawSprite(const glm::mat4& transform, Ref<TextureAtlas2D> texture, Ref<SubTexture2D> subTexture, int entityID)
+	{
+		KD_PROFILE_FUNCTION();
+
+		constexpr size_t quadVertexCount = 4;
+		constexpr glm::vec2 textureCoords[] = { { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f }, { 0.0f, 1.0f } };
+
+		if (s_Data.QuadIndexCount >= Renderer2DData::MaxIndices || s_Data.QuadVertexBufferIndex == s_Data.MaxVertices)
+			NextBatch();
+
+		while (s_Data.QuadVertexBufferArray.size() != s_Data.MaxVertices && s_Data.QuadVertexBufferArray.size() <= s_Data.QuadVertexBufferIndex + 4) {
+
+			size_t s = s_Data.QuadVertexBufferArray.size() * 1.5f;
+			s_Data.QuadVertexBufferArray.resize(s < s_Data.MaxVertices ? s : s_Data.MaxVertices);
+		}
+		float textureIndex = 0.0f;
+		for (uint32_t i = 1; i < s_Data.TextureSlotIndex; i++)
+		{
+			if (*s_Data.TextureSlots[i] == *texture)
+			{
+				textureIndex = (float)i;
+				break;
+			}
+		}
+
+		if (textureIndex == 0.0f)
+		{
+			if (s_Data.TextureSlotIndex >= Renderer2DData::MaxTextureSlots)
+				NextBatch();
+
+			textureIndex = (float)s_Data.TextureSlotIndex;
+			s_Data.TextureSlots[s_Data.TextureSlotIndex] = texture;
+			s_Data.TextureSlotIndex++;
+		}
+
+		for (size_t i = 0; i < quadVertexCount; i++)
+		{
+			s_Data.QuadVertexBufferArray[s_Data.QuadVertexBufferIndex].Position = transform * s_Data.QuadVertexPositions[i];
+			s_Data.QuadVertexBufferArray[s_Data.QuadVertexBufferIndex].Color = { 1,1,1,1 };
+			s_Data.QuadVertexBufferArray[s_Data.QuadVertexBufferIndex].TexCoord = *(glm::vec2*)(subTexture->GetTextureCoordinates(i));
+			s_Data.QuadVertexBufferArray[s_Data.QuadVertexBufferIndex].TexIndex = textureIndex;
+			s_Data.QuadVertexBufferArray[s_Data.QuadVertexBufferIndex].TilingFactor = 1.0f;
+			s_Data.QuadVertexBufferArray[s_Data.QuadVertexBufferIndex].EntityID = entityID;
+			s_Data.QuadVertexBufferIndex++;
+		}
+		s_Data.QuadIndexCount += 6;
+
+		s_Data.Stats.QuadCount++;
+	}
+
 	void Renderer2D::DrawLine(const glm::vec3& p0, const glm::vec3& p1, const glm::vec4& color, int entityID/*=-1*/)
 	{
 		s_Data.LineVertexBufferPtr->Position = p0;

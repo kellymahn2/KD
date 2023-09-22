@@ -17,3 +17,6 @@ KaidelEditor/Resources/Scripts
 KaidelEditor/mono
 Libs
 Kaidel/vendor/mono
+KaidelEditor/assets/textures/Spritesheet
+KaidelEditor/assets/textures/PNG
+KaidelEditor/assets/textures/Vector

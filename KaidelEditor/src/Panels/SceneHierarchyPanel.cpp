@@ -111,7 +111,6 @@ namespace Kaidel {
 	void SceneHierarchyPanel::OnImGuiRender()
 	{
 		ImGui::Begin("Scene Hierarchy",nullptr,ImGuiWindowFlags_NoNavInputs);
-
 		m_Context->m_Registry.each([&](auto entityID)
 			{
 				
@@ -131,7 +130,6 @@ namespace Kaidel {
 		{
 			if (ImGui::MenuItem("Create Empty Entity"))
 				m_Context->CreateEntity("Empty Entity");
-
 			ImGui::EndPopup();
 		}
 
@@ -158,6 +156,7 @@ namespace Kaidel {
 		ImGui::PushStyleColor(ImGuiCol_HeaderHovered, { 0,0,0,0 });
 		ImGui::PushStyleColor(ImGuiCol_HeaderActive, { 0,0,0,0 });
 		ImGui::PushStyleColor(ImGuiCol_Header, { 0,0,0,0 });
+		bool popped = false;
 		static float defFont = ImGui::GetFont()->FontSize;
 		if (currContext == entity) {
 			ImGui::GetFont()->FontSize -= .8f;
@@ -170,16 +169,23 @@ namespace Kaidel {
 		if (entity.HasComponent<ParentComponent>()&&!entity.GetComponent<ParentComponent>().Children.empty()) {
 			opened = ImGui::TreeNodeEx((void*)(uint64_t)entity.GetUUID(), flags, tag.c_str());
 			if (ImGui::BeginDragDropSource()) {
-				ImGui::SetDragDropPayload("ENTITY_PARENT", &entity.GetComponent<IDComponent>(), sizeof(uint64_t));
+				ImGui::SetDragDropPayload("ENTITY_PARENT", &entity.GetComponent<IDComponent>(), sizeof(IDComponent));
 				ImGui::EndDragDropSource();
 			}
 			if (ImGui::BeginDragDropTarget()) {
 				if (auto payload = ImGui::AcceptDragDropPayload("ENTITY_PARENT")) {
-					auto childEntityID = (*(IDComponent*)payload->Data).ID;
+					auto childEntityID= (*(IDComponent*)payload->Data).ID;
+					auto childEntity = m_Context->GetEntity(childEntityID);
 
+					if ((childEntity.HasChildren()&& childEntity.IsParentOf(entity.GetUUID()))||entity.IsParentOf(childEntityID)){
+						if(opened)
+							ImGui::TreePop();
+						ImGui::PopStyleColor(3);
+						ImGui::GetFont()->FontSize = defFont;
+						return;
+					}
 					entity.AddChild(childEntityID);
 
-					auto childEntity = m_Context->GetEntity(childEntityID);
 					if (childEntity.HasComponent<ChildComponent>()) {
 						auto& cc = childEntity.GetComponent<ChildComponent>();
 						auto oldParent = m_Context->GetEntity(cc.Parent);
@@ -187,11 +193,13 @@ namespace Kaidel {
 						auto it = std::find(oldpc.Children.begin(), oldpc.Children.end(), childEntityID);
 						if (it != oldpc.Children.end())
 							oldpc.Children.erase(it, it + 1);
+						cc.Parent = entity.GetUUID();
 					}
 					else {
 						childEntity.AddComponent<ChildComponent>(entity.GetUUID());
 					}
 				}
+				ImGui::EndDragDropTarget();
 			}
 			if (ImGui::IsItemClicked())
 			{
@@ -203,6 +211,7 @@ namespace Kaidel {
 				}
 				ImGui::TreePop();
 			}
+			ImGui::GetFont()->FontSize = defFont;
 		}
 		else {
 			flags |= ImGuiTreeNodeFlags_Leaf| ImGuiTreeNodeFlags_NoTreePushOnOpen;
@@ -215,10 +224,18 @@ namespace Kaidel {
 			if (ImGui::BeginDragDropTarget()) {
 				if (auto payload = ImGui::AcceptDragDropPayload("ENTITY_PARENT")) {
 					auto childEntityID= (*(IDComponent*)payload->Data).ID;
+					auto childEntity = m_Context->GetEntity(childEntityID);
+
+					if ((childEntity.HasChildren() && childEntity.IsParentOf(entity.GetUUID()))) {
+						if (opened)
+							ImGui::TreePop();
+						ImGui::PopStyleColor(3);
+						ImGui::GetFont()->FontSize = defFont;
+						return;
+					}
 
 					entity.AddChild(childEntityID);
 
-					auto childEntity = m_Context->GetEntity(childEntityID);
 					if (childEntity.HasComponent<ChildComponent>()) {
 						auto& cc = childEntity.GetComponent<ChildComponent>();
 						auto oldParent = m_Context->GetEntity(cc.Parent);
@@ -226,11 +243,14 @@ namespace Kaidel {
 						auto it = std::find(oldpc.Children.begin(), oldpc.Children.end(), childEntityID);
 						if (it != oldpc.Children.end())
 							oldpc.Children.erase(it, it + 1);
+						cc.Parent = entity.GetUUID();
+
 					}
 					else {
 						childEntity.AddComponent<ChildComponent>(entity.GetUUID());
 					}
 				}
+				ImGui::EndDragDropTarget();
 			}
 			if (ImGui::IsItemClicked()) {
 				m_SelectionContext = entity;
@@ -246,7 +266,9 @@ namespace Kaidel {
 		{
 			if (ImGui::MenuItem("Delete Entity"))
 				entityDeleted = true;
-
+			if (ImGui::MenuItem("Remove Parent", nullptr, nullptr, entity.HasParent())) {
+				//TODO: Remove Parent
+			}
 			ImGui::EndPopup();
 		}
 
@@ -261,6 +283,8 @@ namespace Kaidel {
 
 		if (entityDeleted)
 		{
+
+			//TODO: Remove Parent
 			m_Context->DestroyEntity(entity);
 			if (m_SelectionContext == entity)
 				m_SelectionContext = {};
@@ -359,7 +383,7 @@ namespace Kaidel {
 			{
 				if (ImGui::MenuItem("Remove component"))
 					removeComponent = true;
-
+				
 				ImGui::EndPopup();
 			}
 
