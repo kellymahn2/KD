@@ -1,9 +1,9 @@
 #include "KDpch.h"
 #include "Math.h"
-#include "Kaidel/Scene/Entity.h"
 #include <glm/gtc/matrix_transform.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/matrix_decompose.hpp>
+
 namespace Math {
 
 	bool DecomposeTransform(const glm::mat4& transform, glm::vec3& translation, glm::vec3& rotation, glm::vec3& scale)
@@ -76,81 +76,6 @@ namespace Math {
 
 
 		return true;
-	}
-	static glm::mat4 Multiply(const glm::mat4& lhs, const glm::mat4& rhs) {
-		glm::mat4 ret;
-
-		for (int i = 0; i < 4; ++i) {
-			for (int j = 0; j < 4; ++j) {
-				ret[i][j] = glm::dot(lhs[i], rhs[j]);
-			}
-		}
-
-		return ret;
-	}
-	static void Print(const glm::mat4& m) {
-		for (int i = 0; i < 4; ++i) {
-			KD_CORE_INFO("{},{},{},{}", m[i][0], m[i][1], m[i][2], m[i][3]);
-		}
-	}
-	void Rotate(Kaidel::Entity other, Kaidel::Entity origin, const glm::vec3& rotationVector)
-	{
-		using namespace Kaidel;
-		using namespace glm;
-		auto& oTC = origin.GetComponent<TransformComponent>();
-		auto x = oTC.Translation.x;
-		auto y = oTC.Translation.y;
-		auto z = oTC.Translation.z;
-
-		float a = sin(rotationVector.x);
-		float b = cos(rotationVector.x);
-		float c = sin(rotationVector.y);
-		float D = cos(rotationVector.y);
-		float e = sin(rotationVector.z);
-		float f = cos(rotationVector.z);
-		if (epsilonEqual(a, 0.0f, epsilon<float>()))
-			a = 0.0f;
-		if (epsilonEqual(b, 0.0f, epsilon<float>()))
-			b = 0.0f;
-		if (epsilonEqual(c, 0.0f, epsilon<float>()))
-			c = 0.0f;
-		if (epsilonEqual(D, 0.0f, epsilon<float>()))
-			D = 0.0f;
-		if (epsilonEqual(e, 0.0f, epsilon<float>()))
-			e = 0.0f;
-		if (epsilonEqual(f, 0.0f, epsilon<float>()))
-			f = 0.0f;
-		glm::mat4 mat;
-		mat[0][0] = D * f;
-		mat[0][1] = a * c * f -e * b;
-		mat[0][2] = e * a + b * c * f;
-		mat[0][3] = -y * (a * c * f - e * b) - z*(e * a + b * c * f) - D * f * x + x;
-
-		mat[1][0] = e * D;
-		mat[1][1] = a * c * e + f * b;
-		mat[1][2] = b * e * c - f * a  ;
-		mat[1][3] = -y * (a * c * e + f * b) - z * (b * c * e - f * a) + e*(-D) * x + y;
-
-		mat[2][0] = -c;
-		mat[2][1] = a*D;
-		mat[2][2] = b*D;
-		mat[2][3] = -a*D*y-b*D*z+c*x*z;
-
-		mat[3][0] = 0;
-		mat[3][1] = 0;
-		mat[3][2] = 0;
-		mat[3][3] = 1;
-		for (int i = 0; i < 4; ++i) {
-			for (int j = 0; j < 4; ++j) {
-				if (epsilonEqual(mat[i][j], 0.0f, epsilon<float>()))
-				mat[i][j] = 0.0f;
-			}
-		}
-		auto& otherTC = other.GetComponent<TransformComponent>();
-		//Row major
-		mat = glm::transpose(mat)*otherTC.GetTransform();
-		DecomposeTransform(mat,otherTC.Translation,otherTC.Rotation,otherTC.Scale);
-
 	}
 
 }

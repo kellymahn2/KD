@@ -3,7 +3,7 @@
 #include "Kaidel/Renderer/OrthographicCamera.h"
 
 #include "Kaidel/Renderer/Texture.h"
-#include "Kaidel/Renderer/TextureAtlas.h"
+
 #include "Kaidel/Renderer/Camera.h"
 #include "Kaidel/Renderer/EditorCamera.h"
 
@@ -41,7 +41,6 @@ namespace Kaidel {
 		static void DrawCircle(const glm::mat4& transform, const glm::vec4& color, float Thickness = 1.0f,float fade = .005f,int entityID = -1);
 
 		static void DrawSprite(const glm::mat4& transform, SpriteRendererComponent& src, int entityID);
-		static void DrawSprite(const glm::mat4& transform,Ref<TextureAtlas2D> texture, Ref<SubTexture2D> subTexture, int entityID);
 		
 		static void DrawLine(const glm::vec3& p0, const glm::vec3& p1, const glm::vec4& color,int entityID=-1);
 		static void DrawRect(const glm::vec3& position, const glm::vec2& size, const glm::vec4& color, int entityID = -1);

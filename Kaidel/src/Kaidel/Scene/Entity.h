@@ -60,16 +60,7 @@ namespace Kaidel {
 		operator bool() const { return m_EntityHandle != entt::null&&(int)m_EntityHandle!=-1; }
 		operator entt::entity() const { return m_EntityHandle; }
 		operator uint32_t() const { return (uint32_t)m_EntityHandle; }
-		inline bool HasChildren() {
-			return HasComponent<ParentComponent>() && !GetComponent<ParentComponent>().Children.empty();
-		}
-		inline bool HasParent() {
-			return HasComponent<ChildComponent>();
-		}
-		inline bool IsParentOf(UUID id) {
-			auto& pc = GetComponent<ParentComponent>();
-			return std::find(pc.Children.begin(), pc.Children.end(), id)!=pc.Children.end();
-		}
+
 		bool operator==(const Entity& other) const
 		{
 			return m_EntityHandle == other.m_EntityHandle && m_Scene == other.m_Scene;

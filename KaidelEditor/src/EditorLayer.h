@@ -49,20 +49,23 @@ namespace Kaidel {
 		void ShowViewport();
 	private:
 		Kaidel::OrthographicCameraController m_CameraController;
-		int x = 0, y = 0;
+
 		// Temp
 		Ref<VertexArray> m_SquareVA;
 		Ref<Shader> m_FlatColorShader;
 		Ref<Framebuffer> m_Framebuffer;
 		Ref<Scene> m_ActiveScene;
 		Ref<Scene> m_EditorScene, m_RuntimeScene,m_SimulationScene;
+		Entity m_SquareEntity;
+		Entity m_CameraEntity;
+		Entity m_SecondCamera;
+		
 		Entity m_HoveredEntity;
 
 		bool m_PrimaryCamera = true;
 
 		bool m_Debug = false;
 
-		Ref<TextureAtlas2D> m_TextureAtlas;
 		EditorCamera m_EditorCamera;
 
 		Ref<Texture2D> m_CheckerboardTexture;

@@ -27,7 +27,9 @@ namespace Kaidel {
 		}
 
 
+
 		const std::string& GetPath() const override;
+
 	private:
 		std::string m_Path;
 		uint32_t m_Width, m_Height;

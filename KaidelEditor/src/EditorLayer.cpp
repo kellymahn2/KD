@@ -13,7 +13,6 @@
 #include "Kaidel/Math/Math.h"
 #include "Kaidel/Core/Timer.h"
 
-
 namespace Kaidel {
 
 	EditorLayer::EditorLayer()
@@ -46,28 +45,19 @@ namespace Kaidel {
 		}*/
 		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 		m_SceneHierarchyPanel.RegisterFieldRenderers();
-		/*auto parent = m_ActiveScene->CreateEntity("Parent");
+		auto parent = m_ActiveScene->CreateEntity("Parent");
 		auto child = m_ActiveScene->CreateEntity("Child");
-		auto child2 = m_ActiveScene->CreateEntity("Child2");
 		parent.AddComponent<ParentComponent>();
 		child.AddComponent<ChildComponent>().Parent = parent.GetUUID();
 		child.AddComponent<ParentComponent>();
+		auto child2 = m_ActiveScene->CreateEntity("Child 2");
+		child2.AddComponent<ChildComponent>().Parent = child.GetUUID();
 		parent.AddComponent<SpriteRendererComponent>();
 		child.AddComponent<SpriteRendererComponent>();
 		child2.AddComponent<SpriteRendererComponent>();
+		child.AddChild(child2.GetUUID());
 		parent.AddChild(child.GetUUID());
-		child2.AddParent(child.GetUUID());
-		child.AddChild(child2.GetUUID());*/
-		
-
-		/*auto a = m_ActiveScene->CreateEntity();
-		auto origin = m_ActiveScene->CreateEntity();
-		a.GetComponent<TransformComponent>().Translation = { 5,5,0 };
-		origin.GetComponent<TransformComponent>().Translation = { 3,5,0 };
-		Math::Rotate(a, origin, glm::vec3(0, 0, glm::radians(90.0f)));
-		auto & pos = a.GetComponent<TransformComponent>().Translation;*/
-		m_TextureAtlas = TextureAtlas2D::Create("C:\\dev\\Engines\\KD\\KaidelEditor\\assets\\textures\\Spritesheet\\tiles_packed.png");
-
+		auto example = m_ActiveScene->CreateEntity("Example");
 	}
 
 	void EditorLayer::OnDetach()
@@ -175,8 +165,6 @@ namespace Kaidel {
 			}
 			Renderer2D::EndScene();
 		}
-
-
 
 		int pixelData = GetCurrentPixelData(m_ViewportBounds,m_Framebuffer);
 		m_HoveredEntity = pixelData == -1 ? Entity() : Entity((entt::entity)pixelData, m_ActiveScene.get());
@@ -365,22 +353,16 @@ namespace Kaidel {
 		}
 	}
 
-	void EditorLayer::MoveChildren(Entity curr, const glm::vec3& deltaTranslation, const glm::vec3& deltaRotation, Entity parent) {
+	void EditorLayer::MoveChildren(Entity curr, const glm::vec3& deltaTranslation, const glm::vec3& deltaRotation, Entity parent ) {
 		auto& tc = curr.GetComponent<TransformComponent>();
 		if (curr.HasComponent<ParentComponent>()) {
 			for (auto& child : curr.GetComponent<ParentComponent>().Children) {
 				auto entity = m_ActiveScene->GetEntity(child);
-				MoveChildren(entity, deltaTranslation, deltaRotation,parent?parent:curr);
+				MoveChildren(entity, deltaTranslation, deltaRotation,curr);
 			}
 		}
-		if(parent&&(deltaRotation.x|| deltaRotation.y|| deltaRotation.z))
-			Math::Rotate(curr, parent, deltaRotation);
-		else {
-			tc.Rotation += deltaRotation;
-		}
 		tc.Translation += deltaTranslation;
-		//tc.Translation += deltaTranslation;
-		//tc.Rotation += deltaRotation;
+		tc.Rotation += deltaRotation;
 	}
 	void EditorLayer::DrawGizmos()
 	{
@@ -418,14 +400,10 @@ namespace Kaidel {
 			{
 				glm::vec3 translation, rotation, scale;
 				Math::DecomposeTransform(transform, translation, rotation, scale);
-				glm::vec3 deltaTranslation = translation - tc.Translation;
 				glm::vec3 deltaRotation = rotation - tc.Rotation;
-				if (selectedEntity.HasChildren()) {
+				if (selectedEntity.HasComponent<ParentComponent>()) {
+					glm::vec3 deltaTranslation = translation - tc.Translation;
 					MoveChildren(selectedEntity, deltaTranslation, deltaRotation);
-				}
-				else {
-					tc.Rotation +=deltaRotation;
-					tc.Translation = translation;
 				}
 				tc.Scale = scale;
 			}
@@ -453,8 +431,6 @@ namespace Kaidel {
 		ImGui::Text("Indices: %d", stats.GetTotalIndexCount());
 		ImGui::Text("Frame Rate: %.3f", ImGui::GetIO().Framerate);
 		ImGui::Text("Selected Entity: %d", m_SceneHierarchyPanel.GetSelectedEntity().operator entt::entity());
-		ImGui::DragInt("X", &x);
-		ImGui::DragInt("Y", &y);
 		ImGui::End();
 
 	}

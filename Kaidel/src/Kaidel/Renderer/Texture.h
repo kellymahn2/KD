@@ -5,30 +5,28 @@
 #include "Kaidel/Core/Base.h"
 
 namespace Kaidel {
+
 	class Texture
 	{
 	public:
 		virtual ~Texture() = default;
 
-
-		virtual void SetData(void* data, uint32_t size) = 0;
 		virtual uint32_t GetWidth() const = 0;
 		virtual uint32_t GetHeight() const = 0;
 		virtual uint32_t GetRendererID() const = 0;
+
+		virtual void SetData(void* data, uint32_t size) = 0;
 		virtual const std::string& GetPath()const = 0;
 		virtual void Bind(uint32_t slot = 0) const = 0;
+
 		virtual bool operator==(const Texture& other) const = 0;
 	};
-	struct SubTexture2D {
-		virtual void SetTextureCoordinates(float texCoords[4][2]) = 0;
-		virtual float* GetTextureCoordinates(uint32_t index)const = 0;
-	};
+
 	class Texture2D : public Texture
 	{
 	public:
 		static Ref<Texture2D> Create(uint32_t width, uint32_t height);
 		static Ref<Texture2D> Create(const std::string& path);
-		static Ref<SubTexture2D> CreateSubTexture();
 	protected:
 		static std::unordered_map < std::string , Ref<Texture2D>> s_Map;
 	};
