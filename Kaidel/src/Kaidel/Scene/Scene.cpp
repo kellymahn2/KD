@@ -224,6 +224,17 @@ namespace Kaidel {
 		return { m_IDMap.at(id),this };
 	}
 
+	Entity Scene::FindEntityByName(std::string_view name)
+	{
+		auto view = m_Registry.view<TagComponent>();
+		for (auto e : view) {
+			const auto& tc = view.get<TagComponent>(e);
+			if (tc.Tag == name)
+				return { e,this };
+		}
+		return {};
+	}
+
 	void Scene::DestroyEntity(Entity entity)
 	{
 		m_Registry.destroy(entity);

@@ -3,57 +3,58 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+
 using KaidelCore;
- namespace K{
- 	class Z:Entity{
- 	}
- }
- namespace Sandbox
- {
 
- 	public class Player : Entity
- {
+namespace Sandbox
+{
+	public class Player : Entity
+	{
+		public float Speed;
+		
 
- 		public float Speed = 0.5f;
- 		public float Speed2 = 0.5f;
- 		public int X = 0;
- 		public int Y = 5;
- 		public string Hey = "Hello, How Are You?";
+		public override void OnCreate()
+		{
+            Debug.Log("playerEntity");
+			
+		}
 
- 		private SpriteRendererComponent m_SpriteRenderer;
- 		public override void OnCreate()
- 		{
- 			m_SpriteRenderer = GetComponent<SpriteRendererComponent>();
- 		}
- 		public override void OnUpdate(float ts)
- 		{
+		public override void OnUpdate(float ts)
+		{
+			
+			float speed = Speed;
+			Vector3 velocity = new Vector3(0,0,0);
+			if (Input.IsKeyDown(KeyCode.W))
+				velocity.y = 1.0f;
+			else if (Input.IsKeyDown(KeyCode.S))
+				velocity.y = -1.0f;
 
+			if (Input.IsKeyDown(KeyCode.A))
+				velocity.x = -1.0f;
+			else if (Input.IsKeyDown(KeyCode.D))
+				velocity.x = 1.0f;
 
- 			Vector3 velocity = new Vector3();
- 			if (Input.IsKeyDown(KeyCode.A))
- 				velocity.x = -4.0f;
- 			if (Input.IsKeyDown(KeyCode.D))
- 				velocity.x = 4.0f;
- 			if (Input.IsKeyDown(KeyCode.S))
- 				velocity.y = -4.0f;
- 			if (Input.IsKeyDown(KeyCode.W))
- 			{
- 				velocity.y = 4.0f;
- 				//Debug.Log("W Pressed");
- 			}
- 			if (Input.IsKeyDown(KeyCode.R))
- 			{
- 				m_SpriteRenderer.Color = new Vector4(1.0f,0.0f,0.0f,1.0f);
- 			}
- 			else if (Input.IsKeyDown(KeyCode.G))
- 			{
- 				m_SpriteRenderer.Color = new Vector4(0.0f, 1.0f, 0.0f, 1.0f);
- 			}
- 			else if (Input.IsKeyDown(KeyCode.B))
- 			{
- 				m_SpriteRenderer.Color = new Vector4(0.0f, 0.0f, 1.0f, 1.0f);
- 			}
- 			Position +=  velocity*Speed* ts;
- 		}
- 	}
- }
+			Entity cameraEntity = FindEntityByName("Camera");
+
+			if (cameraEntity != null)
+			{
+				Debug.Log("Not Null");
+				Camera camera = cameraEntity.As<Camera>();
+
+				if (Input.IsKeyDown(KeyCode.Q))
+					camera.DistanceFromPlayer += speed * 2.0f * ts;
+				else if (Input.IsKeyDown(KeyCode.E))
+					camera.DistanceFromPlayer -= speed * 2.0f * ts;
+			}
+			else 
+				Debug.Log("Null");
+
+			velocity *= speed * ts;
+
+			// m_Rigidbody.ApplyLinearImpulse(velocity.XY, true);
+
+			Position += velocity;
+		}
+
+	}
+}

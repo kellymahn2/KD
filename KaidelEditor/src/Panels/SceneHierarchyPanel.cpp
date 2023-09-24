@@ -386,7 +386,6 @@ namespace Kaidel {
 	public:
 		AssetChooserScriptItem() = default;
 		AssetChooserScriptItem(const std::unordered_map<std::string,Ref<ScriptClass>>& map) {
-			Timer timer("Construction");
 			for (const auto& [name, field] : map) {
 				AddScript(name);
 			}
@@ -458,7 +457,7 @@ namespace Kaidel {
 		}
 
 		ImGui::PopItemWidth();
-
+		ImGui::Text(std::to_string(m_SelectionContext.GetUUID().operator uint64_t()).c_str());
 		DrawComponent<TransformComponent>("Transform", entity, [](auto& component)
 			{
 				DrawVec3Control("Translation", component.Translation);

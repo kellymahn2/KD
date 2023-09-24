@@ -38,12 +38,12 @@ namespace Kaidel {
 		m_ActiveScene = CreateRef<Scene>();
 
 		m_EditorCamera = EditorCamera(30.0f, 1.778f, 0.1f, 1000.0f);
-		/*auto& commandLineArgs = Application::Get().GetCommandLineArgs();
+		auto& commandLineArgs = Application::Get().GetCommandLineArgs();
 		if (commandLineArgs.Count > 1) {
 			auto sceneFilePath = commandLineArgs[1];
 			OpenScene(sceneFilePath);
-		}*/
-		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+		}
+		/*m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 		m_SceneHierarchyPanel.RegisterFieldRenderers();
 		auto parent = m_ActiveScene->CreateEntity("Parent");
 		auto child = m_ActiveScene->CreateEntity("Child");
@@ -57,7 +57,7 @@ namespace Kaidel {
 		child2.AddComponent<SpriteRendererComponent>();
 		child.AddChild(child2.GetUUID());
 		parent.AddChild(child.GetUUID());
-		auto example = m_ActiveScene->CreateEntity("Example");
+		auto example = m_ActiveScene->CreateEntity("Example");*/
 	}
 
 	void EditorLayer::OnDetach()

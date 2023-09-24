@@ -17,6 +17,7 @@ namespace Kaidel {
 		Entity CreateEntity(const std::string& name = std::string());
 		Entity CreateEntity(UUID uuid, const std::string& name = std::string());
 		Entity GetEntity(UUID id);
+		Entity FindEntityByName(std::string_view name);
 		void DestroyEntity(Entity entity);
 
 		void OnRuntimeStart();
@@ -34,7 +35,7 @@ namespace Kaidel {
 		void OnViewportResize(uint32_t width, uint32_t height);
 
 		Entity GetPrimaryCameraEntity();
-
+		
 		static Ref<Scene> Copy(const Ref<Scene>& rhs);
 
 		void SetPath(const std::string& path) { m_Path = path; }

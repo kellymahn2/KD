@@ -20,6 +20,9 @@ namespace KaidelCore
 		internal extern static void Entity_AddComponent(ulong id, Type componentType);
 
 		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static ulong Entity_FindEntityByName(string name);
+
+		[MethodImpl(MethodImplOptions.InternalCall)]
 		internal extern static void TransformComponent_GetPosition(ulong id, out Vector3 position);
 		[MethodImpl(MethodImplOptions.InternalCall)]
 		internal extern static void TransformComponent_SetPosition(ulong id, ref Vector3 position);
@@ -40,6 +43,9 @@ namespace KaidelCore
 		internal extern static bool Input_IsKeyDown(ref KeyCode keyCode);
 		[MethodImpl(MethodImplOptions.InternalCall)]
 		internal extern static bool Input_IsMouseDown(ref MouseCode mouseCode);
+
+		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static object Instance_GetScriptInstance(ulong id);
 	}
 	public static class Debug
 	{

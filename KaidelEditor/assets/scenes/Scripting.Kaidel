@@ -1,34 +1,5 @@
 Scene: Untitled
 Entities:
-  - Entity: 9907935741980920423
-    TagComponent:
-      Tag: Scripted Entity2
-    TransformComponent:
-      Translation: [1.10000002, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    SpriteRendererComponent:
-      Color: [1, 1, 1, 1]
-      TilingFactor: 1
-  - Entity: 6678127126232339938
-    TagComponent:
-      Tag: Scripted Entity
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    SpriteRendererComponent:
-      Color: [1, 1, 1, 1]
-      TilingFactor: 1
-    ScriptComponent:
-      Name: Sandbox.Player
-      ScriptFields:
-        - Name: Speed
-          Type: Float
-          Data: 1
-        - Name: Speed2
-          Type: Float
-          Data: 2
   - Entity: 4240456701348918736
     TagComponent:
       Tag: Camera
@@ -47,3 +18,35 @@ Entities:
         OrthographicFar: 1
       Primary: true
       FixedAspectRatio: false
+    ScriptComponent:
+      Name: Sandbox.Camera
+      ScriptFields:
+        - Name: DistanceFromPlayer
+          Type: Float
+          Data: 18
+  - Entity: 6678127126232339938
+    TagComponent:
+      Tag: Player
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      TilingFactor: 1
+    ScriptComponent:
+      Name: Sandbox.Player
+      ScriptFields:
+        - Name: Speed
+          Type: Float
+          Data: 1
+  - Entity: 9907935741980920423
+    TagComponent:
+      Tag: Scripted Entity2
+    TransformComponent:
+      Translation: [1.10000002, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      TilingFactor: 1

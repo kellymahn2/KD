@@ -78,18 +78,32 @@ namespace KaidelCore
 			Internals.Entity_AddComponent(ID, componentType);
 			return new T() { Entity = this };
 		}
-		Entity GetParent()
+		public Entity GetParent()
 		{
 			if (!Internals.Entity_HasParent(ID))
 				return null;
 			ulong parentID = Internals.Entity_GetParentID(ID);
 			return new Entity(parentID);
 		}
-		ChildNode GetChildren()
+		public ChildNode GetChildren()
 		{
 			if (!Internals.Entity_HasChildren(ID))
 				return null;
 			return new ChildNode() { m_ID = ID } ;
 		}
+
+		public Entity FindEntityByName(string name)
+		{
+			ulong entityID = Internals.Entity_FindEntityByName(name);
+			if(entityID==0)
+				return null;
+			return new Entity(entityID);
+		}
+
+		public T As<T>()where T : Entity ,new(){
+			object instance = Internals.Instance_GetScriptInstance(ID);
+			return instance as T;
+		}
+
 	}
 }

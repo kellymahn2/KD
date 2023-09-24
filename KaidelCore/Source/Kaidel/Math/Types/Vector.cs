@@ -29,7 +29,8 @@ namespace KaidelCore
 		}
 		public Vector2(float x, float y)
 		{
-			this = new Vector2(x, y);
+			m_X= x;
+			m_Y = y;
 		}
 		public float x
 		{
@@ -150,7 +151,9 @@ namespace KaidelCore
 		}
 		public Vector3(float x, float y, float z)
 		{
-			this = new Vector3(x, y, z);
+			m_X = x;
+			m_Y = y;
+			m_Z = z;
 		}
 		
 	
@@ -303,7 +306,10 @@ namespace KaidelCore
 		}
 		public Vector4(float x, float y, float z,float w)
 		{
-			this = new Vector4(x, y, z,w);
+			m_X = x;
+			m_Y = y;
+			m_Z = z;
+			m_W = w;
 		}
 		public float x
 		{

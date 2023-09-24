@@ -76,8 +76,9 @@ namespace Kaidel {
 	}
 	static UUID Entity_GetChildEntityIDWithName(UUID ID, MonoString* name)
 	{
-		const char* str = mono_string_to_utf8(name);
-		KD_CORE_ASSERT(str&&strlen(str)>0);
+		char* cStr = mono_string_to_utf8(name);
+		std::string str(cStr);
+		mono_free(cStr);
 		auto& pc = GetComponent<ParentComponent>(ID);
 		for (auto& entity : pc.Children) {
 			if (GetComponent<TagComponent>(entity).Tag == str)
@@ -85,6 +86,15 @@ namespace Kaidel {
 		}
 		KD_CORE_ASSERT(false);
 		return { 0 };
+	}
+	static uint64_t Entity_FindEntityByName(MonoString* name) {
+		char* nameCStr = mono_string_to_utf8(name);
+		Scene* scene = ScriptEngine::GetSceneContext();;
+		auto entity = scene->FindEntityByName(nameCStr);
+		mono_free(nameCStr);
+		if (!entity)
+			return 0;
+		return (uint64_t)entity.GetUUID();
 	}
 	static void TransformComponent_GetPosition(UUID id, glm::vec3* outPos) {
 		auto& pos = GetComponent<TransformComponent>(id).Translation;
@@ -277,6 +287,9 @@ namespace Kaidel {
 		return Input::IsMouseButtonDown(*mouseCode);
 	}
 
+	static MonoObject* Instance_GetScriptInstance(UUID id) {
+		return ScriptEngine::GetEntityScriptInstance(id)->GetInstance();
+	}
 #pragma region Vector2
 
 	static void Vector2_AddVec(glm::vec2* a, glm::vec2* b, glm::vec2* outRes) {
@@ -411,6 +424,7 @@ namespace Kaidel {
 		KD_ADD_INTERNAL(Entity_GetParentID);
 		KD_ADD_INTERNAL(Entity_GetChildEntityIDWithIndex);
 		KD_ADD_INTERNAL(Entity_GetChildEntityIDWithName);
+		KD_ADD_INTERNAL(Entity_FindEntityByName);
 #pragma endregion
 		#pragma region Components
 	#pragma region TransformComponent
@@ -513,6 +527,7 @@ namespace Kaidel {
 		#pragma region Misc.
 		KD_ADD_INTERNAL(NativeLog);
 		KD_ADD_INTERNAL(Input_IsKeyDown);
+		KD_ADD_INTERNAL(Instance_GetScriptInstance);
 #pragma endregion
 	}
 }
