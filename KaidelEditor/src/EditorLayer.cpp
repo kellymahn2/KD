@@ -8,6 +8,8 @@
 
 #include "Kaidel/Utils/PlatformUtils.h"
 
+#include "Kaidel/Scripting/ScriptEngine.h"
+
 #include "imguizmo/ImGuizmo.h"
 
 #include "Kaidel/Math/Math.h"
@@ -289,6 +291,13 @@ namespace Kaidel {
 
 				ImGui::EndMenu();
 			}
+			if (ImGui::BeginMenu("Scrit")) {
+				if (ImGui::MenuItem("Reload Assembly"))
+					ScriptEngine::ReloadAssembly();
+
+				ImGui::EndMenu();
+			}
+
 
 			ImGui::EndMenuBar();
 		}

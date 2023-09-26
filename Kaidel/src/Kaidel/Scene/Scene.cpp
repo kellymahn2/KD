@@ -274,7 +274,7 @@ namespace Kaidel {
 
 	void Scene::OnUpdateRuntime(Timestep ts)
 	{
-		// Update scripts
+		// Update native scripts
 		/*{
 			m_Registry.view<NativeScriptComponent>().each([=](auto entity, auto& nsc)
 			{

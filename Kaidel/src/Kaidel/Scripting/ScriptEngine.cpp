@@ -3,10 +3,16 @@
 #include "ScriptRegistry.h"
 #include "Kaidel/Scene/Scene.h"
 #include "Kaidel/Scene/Entity.h"
-#include "mono/jit/jit.h"
-#include "mono/metadata/assembly.h"
-#include "mono/metadata/object.h"
-#include "mono/metadata/tabledefs.h"
+#include "Kaidel/Core/Timer.h"
+
+
+#include <future>
+
+
+#include <mono/jit/jit.h>
+#include <mono/metadata/assembly.h>
+#include <mono/metadata/object.h>
+#include <mono/metadata/tabledefs.h>
 #include <glm/glm.hpp>
 namespace Kaidel {
 	
@@ -113,14 +119,13 @@ namespace Kaidel {
 				Switch(Char);
 				Switch(String);
 				Switch(Bool);
-
-
 				Switch(Entity);
 				Switch(Vector2);
 				Switch(Vector3);
 				Switch(Vector4);
 			}
 		}
+#undef Switch
 	}
 #pragma endregion
 	struct ScriptEngineData
@@ -136,6 +141,9 @@ namespace Kaidel {
 		std::unordered_map<std::string, Ref<ScriptClass>> EntityClasses;
 		std::unordered_map<UUID, Ref<ScriptInstance>> EntityInstances;
 		std::unordered_map<UUID, ScriptFieldMap >	EntityScriptFields;
+		std::filesystem::path CoreAssemblyFilePath;
+		std::filesystem::path AppAssemblyFilePath;
+
 		Scene* SceneContext = nullptr;
 	};
 
@@ -144,7 +152,6 @@ namespace Kaidel {
 	void ScriptEngine::Init()
 	{
 		s_Data = new ScriptEngineData();
-
 		InitMono();
 		LoadAssembly("Resources/Scripts/KaidelCore.dll");
 		LoadAppAssembly("SandboxProject/assets/scripts/Binaries/Sandbox.dll");
@@ -213,18 +220,18 @@ namespace Kaidel {
 
 	void ScriptEngine::LoadAssembly(const std::filesystem::path& path)
 	{
-		// Create an App Domain
+		s_Data->CoreAssemblyFilePath = path;
 		s_Data->AppDomain = mono_domain_create_appdomain("KaidelCoreRuntime", nullptr);
 		mono_domain_set(s_Data->AppDomain, true);
 		// Move this maybe
 		s_Data->CoreAssembly = Utils::LoadMonoAssembly(path.string());
 		s_Data->CoreAssemblyImage = mono_assembly_get_image(s_Data->CoreAssembly);
-		s_Data->EntityClass = ScriptClass("KaidelCore", "Entity",s_Data->CoreAssemblyImage);
+		s_Data->EntityClass = ScriptClass("KaidelCore", "Entity", s_Data->CoreAssemblyImage);
 	}
 
 	void ScriptEngine::LoadAppAssembly(const std::filesystem::path& path)
 	{
-		// Move this maybe
+		s_Data->AppAssemblyFilePath = path;
 		s_Data->AppAssembly = Utils::LoadMonoAssembly(path.string());
 		s_Data->AppAssemblyImage = mono_assembly_get_image(s_Data->AppAssembly);
 	}
@@ -289,12 +296,9 @@ namespace Kaidel {
 
 	void ScriptEngine::ShutdownMono()
 	{
-
-		//mono_domain_unload(s_Data->AppDomain);
-		s_Data->AppDomain = nullptr;
-
-		// mono_jit_cleanup(s_Data->RootDomain);
-		s_Data->RootDomain = nullptr;
+		mono_domain_set(mono_get_root_domain(), false);
+		mono_domain_unload(s_Data->AppDomain);
+		mono_jit_cleanup(s_Data->RootDomain);
 	}
 
 	MonoImage* ScriptEngine::GetCoreAssemblyImage()
@@ -333,6 +337,27 @@ namespace Kaidel {
 	{
 		s_Data->EntityScriptFields[entityID][name].Field = scriptClass->GetFields().at(name);
 		return s_Data->EntityScriptFields[entityID][name];
+	}
+
+	void ScriptEngine::ReloadAssembly()
+	{
+
+		mono_domain_set(mono_get_root_domain(), false);
+		mono_domain_unload(s_Data->AppDomain);
+		//mono_domain_free(s_Data->AppDomain, true);
+		{
+			Timer timer("Reloading");
+			{
+				LoadAssembly(s_Data->CoreAssemblyFilePath);
+			}
+			{
+				LoadAppAssembly(s_Data->AppAssemblyFilePath);
+			}
+			{
+				LoadAssemblyClasses(s_Data->AppAssembly);
+			}
+		}
+		s_Data->EntityClass = ScriptClass("KaidelCore", "Entity", s_Data->CoreAssemblyImage);
 	}
 
 	ScriptClass::ScriptClass(const std::string& classNamespace, const std::string& className,MonoImage* image)

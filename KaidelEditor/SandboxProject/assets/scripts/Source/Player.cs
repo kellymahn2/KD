@@ -11,8 +11,8 @@ namespace Sandbox
 	public class Player : Entity
 	{
 		public float Speed;
-		
-
+		public float X;
+		public float Fuck;
 		public override void OnCreate()
 		{
             Debug.Log("playerEntity");

@@ -43,6 +43,7 @@ namespace Kaidel {
 		static void Init();
 		static void Shutdown();
 		static void LoadAssembly(const std::filesystem::path& path);
+		static void ReloadAssembly();
 		static void LoadAppAssembly(const std::filesystem::path& path);
 		static const std::unordered_map<std::string, Ref<ScriptClass>>& GetClasses();
 		static Ref<ScriptClass> GetEntityClass(const std::string& name);
