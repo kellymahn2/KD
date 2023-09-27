@@ -51,10 +51,15 @@ namespace Kaidel {
 		static Application& Get() { return *s_Instance; }
 
 		ApplicationCommandLineArgs GetCommandLineArgs() const { return m_Specification.CommandLineArgs; }
+
+		void SubmitToMainThread(const std::function<void()>& func);
 	private:
 		void Run();
 		bool OnWindowClose(WindowCloseEvent& e);
 		bool OnWindowResize(WindowResizeEvent& e);
+
+
+		void ExecuteMainThreadQueue();
 	private:
 		ApplicationSpecification m_Specification;
 		Scope<Window> m_Window;
@@ -63,6 +68,8 @@ namespace Kaidel {
 		bool m_Minimized = false;
 		LayerStack m_LayerStack;
 		float m_LastFrameTime = 0.0f;
+		std::mutex m_AppThreadQueueMutex;
+		std::vector<std::function<void()>>m_AppThreadQueue;
 	private:
 		static Application* s_Instance;
 		friend int ::main(int argc, char** argv);

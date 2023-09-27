@@ -301,7 +301,6 @@ namespace Kaidel {
 
 			ImGui::EndMenuBar();
 		}
-
 		m_SceneHierarchyPanel.OnImGuiRender();
 		m_ContentBrowserPanel.OnImGuiRender();
 

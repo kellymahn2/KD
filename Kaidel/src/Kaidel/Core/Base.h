@@ -4,6 +4,10 @@
 
 #include "Kaidel/Core/PlatformDetection.h"
 
+#pragma warning( disable : 4006 )
+#pragma warning( disable : 4099 )
+#pragma warning( disable : 26498 )
+
 #ifdef KD_DEBUG
 	#if defined(KD_PLATFORM_WINDOWS)
 		#define KD_DEBUGBREAK() __debugbreak()

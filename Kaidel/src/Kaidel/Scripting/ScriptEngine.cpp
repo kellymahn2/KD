@@ -4,16 +4,15 @@
 #include "Kaidel/Scene/Scene.h"
 #include "Kaidel/Scene/Entity.h"
 #include "Kaidel/Core/Timer.h"
-
-
-#include <future>
-
+#include "Kaidel/Core/Application.h"
 
 #include <mono/jit/jit.h>
 #include <mono/metadata/assembly.h>
 #include <mono/metadata/object.h>
 #include <mono/metadata/tabledefs.h>
 #include <glm/glm.hpp>
+#include <FileWatch.h>
+
 namespace Kaidel {
 	
 #pragma region Utils
@@ -144,6 +143,10 @@ namespace Kaidel {
 		std::filesystem::path CoreAssemblyFilePath;
 		std::filesystem::path AppAssemblyFilePath;
 
+		Scope<filewatch::FileWatch<std::string>> AppAssemblyFileWatcher;
+		bool AssemblyReloadPending = false;
+
+
 		Scene* SceneContext = nullptr;
 	};
 
@@ -158,6 +161,12 @@ namespace Kaidel {
 		LoadAssemblyClasses(s_Data->AppAssembly);
 		ScriptRegistry::RegisterComponents();
 		ScriptRegistry::RegisterFunctions();
+
+
+
+
+
+
 	}
 
 	void ScriptEngine::Shutdown()
@@ -169,7 +178,6 @@ namespace Kaidel {
 	void ScriptEngine::OnRuntimeStart(Scene* scene)
 	{
 		s_Data->SceneContext = scene;
-
 	}
 
 	void ScriptEngine::OnRuntimeStop()
@@ -228,12 +236,26 @@ namespace Kaidel {
 		s_Data->CoreAssemblyImage = mono_assembly_get_image(s_Data->CoreAssembly);
 		s_Data->EntityClass = ScriptClass("KaidelCore", "Entity", s_Data->CoreAssemblyImage);
 	}
-
+	static void OnAppAssemblyEvent(const std::string& path, const filewatch::Event eventType) {
+		if (!s_Data->AssemblyReloadPending&&eventType == filewatch::Event::modified) {
+			s_Data->AssemblyReloadPending = true;
+			using namespace std::chrono_literals;
+			std::this_thread::sleep_for(500ms);
+			Application::Get().SubmitToMainThread([]() {
+				s_Data->AppAssemblyFileWatcher.reset();
+				ScriptEngine::ReloadAssembly(); 
+				});
+		}
+	}
 	void ScriptEngine::LoadAppAssembly(const std::filesystem::path& path)
 	{
 		s_Data->AppAssemblyFilePath = path;
 		s_Data->AppAssembly = Utils::LoadMonoAssembly(path.string());
 		s_Data->AppAssemblyImage = mono_assembly_get_image(s_Data->AppAssembly);
+
+
+		s_Data->AppAssemblyFileWatcher = CreateScope<filewatch::FileWatch<std::string>>(path.string(),&OnAppAssemblyEvent);
+		s_Data->AssemblyReloadPending = false;
 	}
 
 	const std::unordered_map<std::string, Ref<ScriptClass>>& ScriptEngine::GetClasses()

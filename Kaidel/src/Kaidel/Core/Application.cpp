@@ -60,6 +60,13 @@ namespace Kaidel {
 		m_Running = false;
 	}
 
+	void Application::SubmitToMainThread(const std::function<void()>& func)
+	{
+		std::scoped_lock<std::mutex> lock(m_AppThreadQueueMutex);
+		
+		m_AppThreadQueue.push_back(func);
+	}
+
 	void Application::OnEvent(Event& e)
 	{
 		KD_PROFILE_FUNCTION();
@@ -90,6 +97,8 @@ namespace Kaidel {
 
 			if (!m_Minimized)
 			{
+				ExecuteMainThreadQueue();
+
 				{
 					KD_PROFILE_SCOPE("LayerStack OnUpdate");
 
@@ -131,6 +140,14 @@ namespace Kaidel {
 		Renderer::OnWindowResize(e.GetWidth(), e.GetHeight());
 
 		return false;
+	}
+
+	void Application::ExecuteMainThreadQueue()
+	{
+		std::scoped_lock<std::mutex> lock(m_AppThreadQueueMutex);
+		for (auto& func : m_AppThreadQueue)
+			func();
+		m_AppThreadQueue.clear();
 	}
 
 }

@@ -71,6 +71,7 @@
     <Compile Include="Source\Kaidel\Internals.cs" />
     <Compile Include="Source\Kaidel\Math\Internals\MathInternals.cs" />
     <Compile Include="Source\Kaidel\Math\Types\Vector.cs" />
+    <Compile Include="Source\Kaidel\Misc\Timer.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Source\Kaidel\Math\Operations\" />
