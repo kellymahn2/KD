@@ -29,6 +29,18 @@ namespace KaidelCore
 				Internals.TransformComponent_SetPosition(ID,ref value);
 			}
 		}
+		public Vector3 LocalPosition
+		{
+			get
+			{
+				Internals.TransformComponent_GetLocalPosition(ID, out Vector3 localPosition);
+				return localPosition;
+			}
+			set
+			{
+				Internals.TransformComponent_SetLocalPosition(ID,ref value);
+			}
+		}
 		public Vector3 Rotation
 		{
 			get

@@ -50,6 +50,9 @@ namespace Kaidel {
 	private:
 		Kaidel::OrthographicCameraController m_CameraController;
 
+
+
+		Console m_DebugConsole;
 		// Temp
 		Ref<VertexArray> m_SquareVA;
 		Ref<Shader> m_FlatColorShader;
@@ -85,6 +88,7 @@ namespace Kaidel {
 
 		struct Icons {
 			Ref<Texture2D> IconPlay;
+			Ref<Texture2D> IconPause;
 			Ref<Texture2D> IconSimulateStart;
 			Ref<Texture2D> IconSimulateStop;
 			Ref<Texture2D> IconStop;

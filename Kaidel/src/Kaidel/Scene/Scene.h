@@ -46,6 +46,8 @@ namespace Kaidel {
 		}
 
 		bool IsRunning()const { return m_SceneIsRunning; }
+		bool IsPaused()const { return m_IsPaused; }
+		void ChangePauseState() { m_IsPaused = !m_IsPaused; }
 	private:
 		template<typename T>
 		void OnComponentAdded(Entity entity,T& component);
@@ -60,6 +62,7 @@ namespace Kaidel {
 		b2World* m_PhysicsWorld = nullptr;
 		std::string m_Path;
 		bool m_SceneIsRunning=false;
+		bool m_IsPaused = false;
 		friend class Entity;
 		friend class SceneSerializer;
 		friend class SceneHierarchyPanel;

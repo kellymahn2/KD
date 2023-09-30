@@ -27,9 +27,15 @@ namespace Kaidel {
 		KD_PROFILE_FUNCTION();
 		m_CheckerboardTexture = Texture2D::Create("assets/textures/Checkerboard.png");
 		m_Icons.IconPlay = Texture2D::Create("Resources/Icons/PlayButton.png");
+		KD_INFO("Loaded Play Button");
+		m_Icons.IconPause = Texture2D::Create("Resources/Icons/PauseButton.png");
+		KD_INFO("Loaded Pause Button");
 		m_Icons.IconSimulateStart = Texture2D::Create("Resources/Icons/SimulateButtonStart.png");
+		KD_INFO("Loaded Simulation Play Button");
 		m_Icons.IconSimulateStop = Texture2D::Create("Resources/Icons/SimulateButtonStop.png");
+		KD_INFO("Loaded Simulation Stop Button");
 		m_Icons.IconStop = Texture2D::Create("Resources/Icons/StopButton.png");
+		KD_INFO("Loaded Stop Button");
 
 		FramebufferSpecification fbSpec;
 		fbSpec.Attachments = { FramebufferTextureFormat::RGBA8, FramebufferTextureFormat::RED_INTEGER, FramebufferTextureFormat::Depth };
@@ -98,7 +104,8 @@ namespace Kaidel {
 		}
 
 		// Update
-		m_EditorCamera.OnUpdate(ts);
+		if(m_SceneState==SceneState::Edit)
+			m_EditorCamera.OnUpdate(ts);
 
 		// Render
 		Renderer2D::ResetStats();
@@ -308,6 +315,72 @@ namespace Kaidel {
 		ShowViewport();
 		UI_Toolbar();
 		ImGui::End();
+
+		static bool consoleOpen = true;
+		if (consoleOpen) {
+			ImGui::Begin("Debug Console", &consoleOpen);
+			static bool core = true;
+			static bool client = true;
+			ImGui::Checkbox("Core", &core);
+			ImGui::Checkbox("Client", &client);
+			if(core){
+				for (auto& message : ::Log::GetCoreLogger()->GetMessages()) {
+
+					ImVec4 messageColor{ 1,1,1,1 };
+					switch (message.Level)
+					{
+					case MessageLevel::Info:
+					{
+						messageColor = { .24f,.71f,.78f,1.0f };
+					}
+					break;
+					case MessageLevel::Warn:
+					{
+						messageColor = { .79f,.78f,.32f,1.0f };
+					}
+					break;
+					case MessageLevel::Error:
+					{
+						messageColor = { .65f,.31f,.29f,1.0f };
+					}
+					break;
+					default:
+						break;
+					}
+					ImGui::TextColored(messageColor, "Engine : %s", message.Text.c_str());
+				}
+			}
+			if (client) {
+				for (auto& message : ::Log::GetClientLogger()->GetMessages()) {
+
+					ImVec4 messageColor{ 1,1,1,1 };
+					switch (message.Level)
+					{
+					case MessageLevel::Info:
+					{
+						messageColor = { .24f,.71f,.78f,1.0f };
+					}
+					break;
+					case MessageLevel::Warn:
+					{
+						messageColor = { .79f,.78f,.32f,1.0f };
+					}
+					break;
+					case MessageLevel::Error:
+					{
+						messageColor = { .65f,.31f,.29f,1.0f };
+					}
+					break;
+					default:
+						break;
+					}
+					ImGui::TextColored(messageColor, "Editor : %s", message.Text.c_str());
+				}
+			}
+
+
+			ImGui::End();
+		}
 	}
 
 	void EditorLayer::OnScenePlay(){
@@ -452,8 +525,8 @@ namespace Kaidel {
 	void EditorLayer::ShowViewport()
 	{
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0, 0 });
-		ImGui::Begin("Viewport",nullptr,0|ImGuiWindowFlags_NoTitleBar);
-		
+		ImGui::Begin("Viewport", nullptr, 0 | ImGuiWindowFlags_NoTitleBar);
+
 		UpdateBounds(m_ViewportBounds);
 		m_ViewportFocused = ImGui::IsWindowFocused();
 		m_ViewportHovered = ImGui::IsWindowHovered();
@@ -489,8 +562,8 @@ namespace Kaidel {
 			| ImGuiWindowFlags_NoResize
 			| ImGuiWindowFlags_NoMove
 			| ImGuiWindowFlags_NoCollapse
-			|ImGuiWindowFlags_NoBringToFrontOnFocus
-			|ImGuiWindowFlags_NoTitleBar;
+			| ImGuiWindowFlags_NoBringToFrontOnFocus
+			| ImGuiWindowFlags_NoTitleBar;
 		auto& colors = ImGui::GetStyle().Colors;
 		const auto& buttonHovered = colors[ImGuiCol_ButtonHovered];
 		const auto& buttonActive = colors[ImGuiCol_ButtonActive];
@@ -500,7 +573,7 @@ namespace Kaidel {
 		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { buttonHovered.x,buttonHovered.y,buttonHovered.z,.5f });
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, { buttonActive.x,buttonActive.y,buttonActive.z,.5f });
 
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,0);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
 		ImGui::Begin("##toolbar", nullptr, windowFlags);
 
 		float size = ImGui::GetWindowHeight() - 4.0f;
@@ -513,13 +586,25 @@ namespace Kaidel {
 			if (m_SceneState == SceneState::Play)
 				icon = m_Icons.IconStop;
 			if (ImGui::ImageButton((ImTextureID)icon->GetRendererID(), { size,size }, { 0,0 }, { 1,1 }, 0)) {
-				if (m_SceneState == SceneState::Edit)
+				if (m_SceneState == SceneState::Edit) {
 					OnScenePlay();
-				else if (m_SceneState == SceneState::Play)
+				}
+				else if (m_SceneState == SceneState::Play) {
 					OnSceneStop();
+				}
 				else if (m_SceneState == SceneState::Simulate) {
 					OnSceneSimulateStop();
 					OnScenePlay();
+				}
+			}
+		}
+		{
+			if (m_SceneState == SceneState::Play) {
+				ImGui::SameLine();
+				Ref<Texture2D> icon = m_Icons.IconPause;
+				if (ImGui::ImageButton((ImTextureID)icon->GetRendererID(), { size,size }, { 0,0 }, { 1,1 }, 0)){
+					m_ActiveScene->ChangePauseState();
+
 				}
 			}
 		}

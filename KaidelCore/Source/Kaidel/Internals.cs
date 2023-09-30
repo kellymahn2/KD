@@ -37,6 +37,10 @@ namespace KaidelCore
 		internal extern static void TransformComponent_GetScale(ulong id, out Vector3 scale);
 		[MethodImpl(MethodImplOptions.InternalCall)]
 		internal extern static void TransformComponent_SetScale(ulong id, ref Vector3 scale);
+		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static void TransformComponent_GetLocalPosition(ulong id, out Vector3 localPosition);
+		[MethodImpl(MethodImplOptions.InternalCall)]	  
+		internal extern static void TransformComponent_SetLocalPosition(ulong id, ref Vector3 localPosition);
 
 
 		[MethodImpl(MethodImplOptions.InternalCall)]

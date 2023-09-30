@@ -258,6 +258,7 @@ namespace Kaidel {
 	void Scene::OnRuntimeStop()
 	{
 		m_SceneIsRunning = false;
+		m_IsPaused = false;
 		OnPhysics2DStop();
 		ScriptEngine::OnRuntimeStop();
 	}
@@ -288,15 +289,18 @@ namespace Kaidel {
 				nsc.Instance->OnUpdate(ts);
 			});
 		}*/
-		//Physics
-		OnPhysics2DUpdate(ts);
-		//C# Entity OnUpdate
-		auto view = m_Registry.view<ScriptComponent>();
-		for (auto e : view) {
-			Entity entity = { e,this };
-			const auto& sc = entity.GetComponent<ScriptComponent>();
-			ScriptEngine::OnUpdateEntity(entity,ts);
+		if (!m_IsPaused) {
+			//Physics
+			OnPhysics2DUpdate(ts);
+			//C# Entity OnUpdate
+			auto view = m_Registry.view<ScriptComponent>();
+			for (auto e : view) {
+				Entity entity = { e,this };
+				const auto& sc = entity.GetComponent<ScriptComponent>();
+				ScriptEngine::OnUpdateEntity(entity,ts);
+			}
 		}
+	
 
 
 		// Render 2D

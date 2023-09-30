@@ -122,6 +122,32 @@ namespace Kaidel {
 		auto& scale = GetComponent<TransformComponent>(id).Scale;
 		memcpy(&scale, setScale, sizeof(glm::vec3));
 	}
+
+	static void TransformComponent_GetLocalPosition(UUID id, glm::vec3* outLocalPosition) {
+		Scene* scene = ScriptEngine::GetSceneContext();
+		auto child = scene->GetEntity(id);
+		if (child.HasComponent<ChildComponent>()) {
+			auto parent = scene->GetEntity(child.GetComponent<ChildComponent>().Parent);
+			auto& parentTC = parent.GetComponent<TransformComponent>();
+			auto& childTC = child.GetComponent<TransformComponent>();
+			glm::vec3 res = childTC.Translation - parentTC.Translation;
+			memcpy(outLocalPosition, &res, sizeof(glm::vec3));
+			return;
+		}
+		memset(outLocalPosition, 0, sizeof(outLocalPosition));
+	}
+	static void TransformComponent_SetLocalPosition(UUID id, glm::vec3* setLocalPosition) {
+
+		Scene* scene = ScriptEngine::GetSceneContext();
+		auto child = scene->GetEntity(id);
+		if (child.HasComponent<ChildComponent>()) {
+			auto parent = scene->GetEntity(child.GetComponent<ChildComponent>().Parent);
+			auto& parentTC = parent.GetComponent<TransformComponent>();
+			auto& childTC = child.GetComponent<TransformComponent>();
+			glm::vec3 res = *setLocalPosition+ parentTC.Translation;
+			memcpy(&childTC.Translation, &res, sizeof(glm::vec3));
+		}
+	}
 	static void SpriteRendererComponent_GetColor(UUID id, glm::vec4* outColor) {
 		auto& color = GetComponent<SpriteRendererComponent>(id).Color;
 		memcpy(outColor, &color,sizeof(glm::vec4));
@@ -427,19 +453,21 @@ namespace Kaidel {
 		KD_ADD_INTERNAL(Entity_FindEntityByName);
 #pragma endregion
 		#pragma region Components
-	#pragma region TransformComponent
+		#pragma region TransformComponent
 		KD_ADD_INTERNAL(TransformComponent_GetPosition);
 		KD_ADD_INTERNAL(TransformComponent_SetPosition);
 		KD_ADD_INTERNAL(TransformComponent_GetRotation);
 		KD_ADD_INTERNAL(TransformComponent_SetRotation);
 		KD_ADD_INTERNAL(TransformComponent_GetScale);
 		KD_ADD_INTERNAL(TransformComponent_SetScale);
+		KD_ADD_INTERNAL(TransformComponent_GetLocalPosition);
+		KD_ADD_INTERNAL(TransformComponent_SetLocalPosition);
 #pragma endregion
-	#pragma region SpriteRendererComponent
+		#pragma region SpriteRendererComponent
 		KD_ADD_INTERNAL(SpriteRendererComponent_GetColor);
 		KD_ADD_INTERNAL(SpriteRendererComponent_SetColor);
 #pragma endregion
-	#pragma region CircleRendererComponent
+		#pragma region CircleRendererComponent
 		KD_ADD_INTERNAL(CircleRendererComponent_GetColor);
 		KD_ADD_INTERNAL(CircleRendererComponent_SetColor);
 		KD_ADD_INTERNAL(CircleRendererComponent_GetThickness);
@@ -447,16 +475,16 @@ namespace Kaidel {
 		KD_ADD_INTERNAL(CircleRendererComponent_GetFade);
 		KD_ADD_INTERNAL(CircleRendererComponent_SetFade);
 #pragma endregion
-#pragma endregion
+		#pragma endregion
 		#pragma region Physics
-#pragma region Rigidbody2DComponent
+		#pragma region Rigidbody2DComponent
 		KD_ADD_INTERNAL(Rigidbody2DComponent_ApplyLinearImpulse);
 		KD_ADD_INTERNAL(Rigidbody2DComponent_ApplyForce);
 		KD_ADD_INTERNAL(Rigidbody2DComponent_GetBodyType);
 		KD_ADD_INTERNAL(Rigidbody2DComponent_GetFixedRotation);
 		KD_ADD_INTERNAL(Rigidbody2DComponent_SetFixedRotation);
 #pragma endregion
-#pragma region BoxCollider2DComponent
+		#pragma region BoxCollider2DComponent
 		KD_ADD_INTERNAL(BoxCollider2DComponent_GetOffset);
 		KD_ADD_INTERNAL(BoxCollider2DComponent_SetOffset);
 		KD_ADD_INTERNAL(BoxCollider2DComponent_GetSize);
@@ -470,7 +498,7 @@ namespace Kaidel {
 		KD_ADD_INTERNAL(BoxCollider2DComponent_GetRestitutionThreshold);
 		KD_ADD_INTERNAL(BoxCollider2DComponent_SetRestitutionThreshold);
 #pragma endregion
-#pragma region CircleCollider2DComponent
+		#pragma region CircleCollider2DComponent
 		KD_ADD_INTERNAL(CircleCollider2DComponent_GetOffset);
 		KD_ADD_INTERNAL(CircleCollider2DComponent_SetOffset);
 		KD_ADD_INTERNAL(CircleCollider2DComponent_GetRadius);
@@ -484,9 +512,9 @@ namespace Kaidel {
 		KD_ADD_INTERNAL(CircleCollider2DComponent_GetRestitutionThreshold);
 		KD_ADD_INTERNAL(CircleCollider2DComponent_SetRestitutionThreshold);
 #pragma endregion
-#pragma endregion
+		#pragma endregion
 		#pragma region Math
-#pragma region Vector2
+		#pragma region Vector2
 		KD_ADD_INTERNAL(Vector2_AddVec);
 		KD_ADD_INTERNAL(Vector2_SubtractVec);
 		KD_ADD_INTERNAL(Vector2_AddNum);
@@ -498,7 +526,7 @@ namespace Kaidel {
 		KD_ADD_INTERNAL(Vector2_DotVec);
 		KD_ADD_INTERNAL(Vector2_LengthVec);
 #pragma endregion
-#pragma region Vector3
+		#pragma region Vector3
 		KD_ADD_INTERNAL(Vector3_AddVec);
 		KD_ADD_INTERNAL(Vector3_SubtractVec);
 		KD_ADD_INTERNAL(Vector3_AddNum);
@@ -511,7 +539,7 @@ namespace Kaidel {
 		KD_ADD_INTERNAL(Vector3_CrossVec);
 		KD_ADD_INTERNAL(Vector3_LengthVec);
 #pragma endregion
-#pragma region Vector4
+		#pragma region Vector4
 		KD_ADD_INTERNAL(Vector4_AddVec);
 		KD_ADD_INTERNAL(Vector4_SubtractVec);
 		KD_ADD_INTERNAL(Vector4_AddNum);
@@ -523,7 +551,7 @@ namespace Kaidel {
 		KD_ADD_INTERNAL(Vector4_DotVec);
 		KD_ADD_INTERNAL(Vector4_LengthVec);
 #pragma endregion
-#pragma endregion
+		#pragma endregion
 		#pragma region Misc.
 		KD_ADD_INTERNAL(NativeLog);
 		KD_ADD_INTERNAL(Input_IsKeyDown);
