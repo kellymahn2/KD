@@ -2,6 +2,8 @@
 #include "Kaidel/Core/UUID.h"
 #include "Kaidel/Scene/Entity.h"
 #include "Kaidel/Scene/Scene.h"
+#include "Kaidel/Core/Console.h"
+#include "Kaidel/Math/Math.h"
 #include "ScriptEngine.h"
 #include "ScriptRegistry.h"
 #include "Kaidel/Core/Input.h"
@@ -14,12 +16,61 @@
 #include <box2d/b2_polygon_shape.h>
 #include <box2d/b2_circle_shape.h>
 
+namespace std {
+	template<>
+	struct hash<glm::vec2>
+	{
+		size_t operator()(const glm::vec2& _Keyval) const {
+			size_t hash = 17;
+			hash = hash * 23 + std::hash<float>()(_Keyval.x);
+			hash = hash * 23 + std::hash<float>()(_Keyval.y);
+			return hash;
+		}
+	};
+	template<>
+	struct hash<glm::vec3>
+	{
+		size_t operator()(const glm::vec3& _Keyval) const {
+			size_t hash = 17;
+			hash = hash * 23 + std::hash<float>()(_Keyval.x);
+			hash = hash * 23 + std::hash<float>()(_Keyval.y);
+			hash = hash * 23 + std::hash<float>()(_Keyval.z);
+			return hash;
+		}
+	};
+	template<>
+	struct hash<glm::vec4>
+	{
+		size_t operator()(const glm::vec4& _Keyval) const {
+			size_t hash = 17;
+			hash = hash * 23 + std::hash<float>()(_Keyval.x);
+			hash = hash * 23 + std::hash<float>()(_Keyval.y);
+			hash = hash * 23 + std::hash<float>()(_Keyval.z);
+			hash = hash * 23 + std::hash<float>()(_Keyval.w);
+			return hash;
+		}
+	};
+}
 namespace Kaidel {
 	std::unordered_map<MonoType*, std::function<bool(Entity)>> s_HasComponentFuncs;
 	std::unordered_map<MonoType*, std::function<void(Entity)>> s_AddComponentFuncs;
+
+
+
+	struct ScriptMaps {
+
+		std::unordered_map<glm::vec2,float> Vector2LengthMap;
+		std::unordered_map<glm::vec3,float> Vector3LengthMap;
+		std::unordered_map<glm::vec4,float> Vector4LengthMap;
+	};
+
+
+	static ScriptMaps s_ScriptMaps;
+
+
 #define KD_ADD_INTERNAL(Name) mono_add_internal_call("KaidelCore.Internals::"#Name,&Name)
 	template<typename T>
-	static T& GetComponent(UUID id){
+	static T& GetComponent(UUID id) {
 		Scene* scene = ScriptEngine::GetSceneContext();
 		Entity entity = scene->GetEntity(id);
 		return entity.GetComponent<T>();
@@ -38,8 +89,8 @@ namespace Kaidel {
 	}
 	static bool Entity_HasChildren(UUID id) {
 		Scene* scene = ScriptEngine::GetSceneContext();
-		auto entity =scene->GetEntity(id);
-		return entity.HasComponent<ParentComponent>()&&!entity.GetComponent<ParentComponent>().Children.empty();
+		auto entity = scene->GetEntity(id);
+		return entity.HasComponent<ParentComponent>() && !entity.GetComponent<ParentComponent>().Children.empty();
 	}
 	static MonoString* Entity_GetName(UUID id) {
 		Scene* scene = ScriptEngine::GetSceneContext();
@@ -66,7 +117,7 @@ namespace Kaidel {
 	}
 	static UUID Entity_GetParentID(UUID ID)
 	{
-		auto& cc=GetComponent<ChildComponent>(ID);
+		auto& cc = GetComponent<ChildComponent>(ID);
 		return cc.Parent;
 	}
 	static UUID Entity_GetChildEntityIDWithIndex(UUID ID, uint32_t index)
@@ -110,7 +161,7 @@ namespace Kaidel {
 		memcpy(outRos, &rot, sizeof(glm::vec3));
 	}
 	static void TransformComponent_SetRotation(UUID id, glm::vec3* setRot) {
-		auto& rot =GetComponent<TransformComponent>(id).Rotation;
+		auto& rot = GetComponent<TransformComponent>(id).Rotation;
 		memcpy(&rot, setRot, sizeof(glm::vec3));
 	}
 
@@ -144,166 +195,166 @@ namespace Kaidel {
 			auto parent = scene->GetEntity(child.GetComponent<ChildComponent>().Parent);
 			auto& parentTC = parent.GetComponent<TransformComponent>();
 			auto& childTC = child.GetComponent<TransformComponent>();
-			glm::vec3 res = *setLocalPosition+ parentTC.Translation;
+			glm::vec3 res = *setLocalPosition + parentTC.Translation;
 			memcpy(&childTC.Translation, &res, sizeof(glm::vec3));
 		}
 	}
+	static void TransformComponent_RotateAround(UUID id, UUID parentID, glm::vec3* rotation) {
+		Scene* scene = ScriptEngine::GetSceneContext();
+		Math::Rotate(scene->GetEntity(id), scene->GetEntity(parentID), *rotation);
+	}
 	static void SpriteRendererComponent_GetColor(UUID id, glm::vec4* outColor) {
 		auto& color = GetComponent<SpriteRendererComponent>(id).Color;
-		memcpy(outColor, &color,sizeof(glm::vec4));
+		memcpy(outColor, &color, sizeof(glm::vec4));
 	}
-	static void SpriteRendererComponent_SetColor(UUID id,glm::vec4* setColor){
+	static void SpriteRendererComponent_SetColor(UUID id, glm::vec4* setColor) {
 		auto& color = GetComponent<SpriteRendererComponent>(id).Color;
 		memcpy(&color, setColor, sizeof(glm::vec4));
 	}
-
-	static void CircleRendererComponent_GetColor(UUID id, glm::vec4* outColor){
+	static void CircleRendererComponent_GetColor(UUID id, glm::vec4* outColor) {
 		auto& crc = GetComponent<CircleRendererComponent>(id);
-		memcpy(outColor,&crc.Color,sizeof(glm::vec4));
+		memcpy(outColor, &crc.Color, sizeof(glm::vec4));
 	}
-	static void CircleRendererComponent_SetColor(UUID id, glm::vec4* setColor){
+	static void CircleRendererComponent_SetColor(UUID id, glm::vec4* setColor) {
 		auto& crc = GetComponent<CircleRendererComponent>(id);
-		memcpy(&crc.Color,setColor,sizeof(glm::vec4));
+		memcpy(&crc.Color, setColor, sizeof(glm::vec4));
 	}
-	static float CircleRendererComponent_GetThickness(UUID id){
+	static float CircleRendererComponent_GetThickness(UUID id) {
 		auto& crc = GetComponent<CircleRendererComponent>(id);
 		return crc.Thickness;
 	}
-	static void CircleRendererComponent_SetThickness(UUID id,float setThickness){
+	static void CircleRendererComponent_SetThickness(UUID id, float setThickness) {
 		auto& crc = GetComponent<CircleRendererComponent>(id);
 		crc.Thickness = setThickness;
 	}
-	static float CircleRendererComponent_GetFade(UUID id){
+	static float CircleRendererComponent_GetFade(UUID id) {
 		auto& crc = GetComponent<CircleRendererComponent>(id);
 		return crc.Fade;
 	}
-	static void CircleRendererComponent_SetFade(UUID id, float setFade){
+	static void CircleRendererComponent_SetFade(UUID id, float setFade) {
 		auto& crc = GetComponent<CircleRendererComponent>(id);
 		crc.Fade = setFade;
 	}
-	
-
-
-	static void Rigidbody2DComponent_ApplyLinearImpulse(UUID id, glm::vec2* impulse,glm::vec2* point,bool wake) {
+	static void Rigidbody2DComponent_ApplyLinearImpulse(UUID id, glm::vec2* impulse, glm::vec2* point, bool wake) {
 		auto& rb2d = GetComponent<Rigidbody2DComponent>(id);
 		auto body = (b2Body*)rb2d.RuntimeBody;
-		body->ApplyLinearImpulse(*(b2Vec2*)impulse, *(b2Vec2*)point,wake);
+		body->ApplyLinearImpulse(*(b2Vec2*)impulse, *(b2Vec2*)point, wake);
 	}
 	static void Rigidbody2DComponent_ApplyForce(UUID id, glm::vec2* force, glm::vec2* point, bool wake) {
 		auto& rb2d = GetComponent<Rigidbody2DComponent>(id);
 		auto body = (b2Body*)rb2d.RuntimeBody;
 		body->ApplyForce(*(b2Vec2*)force, *(b2Vec2*)point, wake);
 	}
-	static int Rigidbody2DComponent_GetBodyType(UUID id){
+	static int Rigidbody2DComponent_GetBodyType(UUID id) {
 		auto& rb2d = GetComponent<Rigidbody2DComponent>(id);
 		return (int)rb2d.Type;
 	}
-	static bool Rigidbody2DComponent_GetFixedRotation(UUID id){
+	static bool Rigidbody2DComponent_GetFixedRotation(UUID id) {
 		auto& rb2d = GetComponent<Rigidbody2DComponent>(id);
 		return rb2d.FixedRotation;
 	}
-	static void Rigidbody2DComponent_SetFixedRotation(UUID id,bool value){
+	static void Rigidbody2DComponent_SetFixedRotation(UUID id, bool value) {
 		auto& rb2d = GetComponent<Rigidbody2DComponent>(id);
 		rb2d.FixedRotation = value;
 	}
-	static void BoxCollider2DComponent_GetOffset(UUID id,glm::vec2* outOffset){
+	static void BoxCollider2DComponent_GetOffset(UUID id, glm::vec2* outOffset) {
 		auto& bc2d = GetComponent<BoxCollider2DComponent>(id);
-		memcpy(outOffset,&bc2d.Offset,sizeof(glm::vec2));
+		memcpy(outOffset, &bc2d.Offset, sizeof(glm::vec2));
 	}
-	static void BoxCollider2DComponent_SetOffset(UUID id,glm::vec2* setOffset){
+	static void BoxCollider2DComponent_SetOffset(UUID id, glm::vec2* setOffset) {
 		auto& bc2d = GetComponent<BoxCollider2DComponent>(id);
-		memcpy(&bc2d.Offset,setOffset,sizeof(glm::vec2));
+		memcpy(&bc2d.Offset, setOffset, sizeof(glm::vec2));
 	}
-	static void BoxCollider2DComponent_GetSize(UUID id,glm::vec2* outSize){
+	static void BoxCollider2DComponent_GetSize(UUID id, glm::vec2* outSize) {
 		auto& bc2d = GetComponent<BoxCollider2DComponent>(id);
-		memcpy(outSize,&bc2d.Size,sizeof(glm::vec2));
+		memcpy(outSize, &bc2d.Size, sizeof(glm::vec2));
 	}
-	static void BoxCollider2DComponent_SetSize(UUID id,glm::vec2* setSize){
+	static void BoxCollider2DComponent_SetSize(UUID id, glm::vec2* setSize) {
 		auto& bc2d = GetComponent<BoxCollider2DComponent>(id);
-		memcpy(&bc2d.Size,setSize,sizeof(glm::vec2));
+		memcpy(&bc2d.Size, setSize, sizeof(glm::vec2));
 	}
-	static float BoxCollider2DComponent_GetDensity(UUID id){
+	static float BoxCollider2DComponent_GetDensity(UUID id) {
 		auto& bc2d = GetComponent<BoxCollider2DComponent>(id);
 		return bc2d.Density;
 	}
-	static void BoxCollider2DComponent_SetDensity(UUID id,float setDensity){
+	static void BoxCollider2DComponent_SetDensity(UUID id, float setDensity) {
 		auto& bc2d = GetComponent<BoxCollider2DComponent>(id);
 		bc2d.Density = setDensity;
 	}
-	static float BoxCollider2DComponent_GetFriction(UUID id){
+	static float BoxCollider2DComponent_GetFriction(UUID id) {
 		auto& bc2d = GetComponent<BoxCollider2DComponent>(id);
 		return bc2d.Friction;
 	}
-	static void BoxCollider2DComponent_SetFriction(UUID id,float setFriction){
+	static void BoxCollider2DComponent_SetFriction(UUID id, float setFriction) {
 		auto& bc2d = GetComponent<BoxCollider2DComponent>(id);
 		bc2d.Friction = setFriction;
 	}
-	static float BoxCollider2DComponent_GetRestitution(UUID id){
+	static float BoxCollider2DComponent_GetRestitution(UUID id) {
 		auto& bc2d = GetComponent<BoxCollider2DComponent>(id);
 		return bc2d.Restitution;
 	}
-	static void BoxCollider2DComponent_SetRestitution(UUID id,float setRestitution){
+	static void BoxCollider2DComponent_SetRestitution(UUID id, float setRestitution) {
 		auto& bc2d = GetComponent<BoxCollider2DComponent>(id);
 		bc2d.Restitution = setRestitution;
 	}
-	static float BoxCollider2DComponent_GetRestitutionThreshold(UUID id){
+	static float BoxCollider2DComponent_GetRestitutionThreshold(UUID id) {
 		auto& bc2d = GetComponent<BoxCollider2DComponent>(id);
 		return bc2d.RestitutionThreshold;
 	}
-	static void BoxCollider2DComponent_SetRestitutionThreshold(UUID id,float setRestitutionThreshold){
+	static void BoxCollider2DComponent_SetRestitutionThreshold(UUID id, float setRestitutionThreshold) {
 		auto& bc2d = GetComponent<BoxCollider2DComponent>(id);
 		bc2d.RestitutionThreshold = setRestitutionThreshold;
 	}
-	static void CircleCollider2DComponent_GetOffset(UUID id,glm::vec2* outOffset){
+	static void CircleCollider2DComponent_GetOffset(UUID id, glm::vec2* outOffset) {
 		auto& cc2D = GetComponent<CircleCollider2DComponent>(id);
-		memcpy(outOffset,&cc2D.Offset,sizeof(glm::vec2));
+		memcpy(outOffset, &cc2D.Offset, sizeof(glm::vec2));
 	}
-	static void CircleCollider2DComponent_SetOffset(UUID id,glm::vec2* setOffset){
+	static void CircleCollider2DComponent_SetOffset(UUID id, glm::vec2* setOffset) {
 		auto& cc2d = GetComponent<CircleCollider2DComponent>(id);
-		memcpy(&cc2d.Offset,setOffset,sizeof(glm::vec2));
+		memcpy(&cc2d.Offset, setOffset, sizeof(glm::vec2));
 	}
-	static float CircleCollider2DComponent_GetRadius(UUID id){
-		auto&cc2d = GetComponent<CircleCollider2DComponent>(id);
+	static float CircleCollider2DComponent_GetRadius(UUID id) {
+		auto& cc2d = GetComponent<CircleCollider2DComponent>(id);
 		return cc2d.Radius;
 	}
-	static void CircleCollider2DComponent_SetRadius(UUID id, float setRadius){
-		auto&cc2d = GetComponent<CircleCollider2DComponent>(id);
+	static void CircleCollider2DComponent_SetRadius(UUID id, float setRadius) {
+		auto& cc2d = GetComponent<CircleCollider2DComponent>(id);
 		cc2d.Radius = setRadius;
 	}
-	static float CircleCollider2DComponent_GetDensity(UUID id){
-		auto&cc2d = GetComponent<CircleCollider2DComponent>(id);
+	static float CircleCollider2DComponent_GetDensity(UUID id) {
+		auto& cc2d = GetComponent<CircleCollider2DComponent>(id);
 		return cc2d.Density;
 	}
-	static void CircleCollider2DComponent_SetDensity(UUID id, float setDensity){
-		auto&cc2d = GetComponent<CircleCollider2DComponent>(id);
+	static void CircleCollider2DComponent_SetDensity(UUID id, float setDensity) {
+		auto& cc2d = GetComponent<CircleCollider2DComponent>(id);
 		cc2d.Density = setDensity;
 	}
-	static float CircleCollider2DComponent_GetFriction(UUID id){
-		auto&cc2d = GetComponent<CircleCollider2DComponent>(id);
+	static float CircleCollider2DComponent_GetFriction(UUID id) {
+		auto& cc2d = GetComponent<CircleCollider2DComponent>(id);
 		return cc2d.Friction;
 	}
-	static void CircleCollider2DComponent_SetFriction(UUID id,float setFriction){
-		auto&cc2d = GetComponent<CircleCollider2DComponent>(id);
+	static void CircleCollider2DComponent_SetFriction(UUID id, float setFriction) {
+		auto& cc2d = GetComponent<CircleCollider2DComponent>(id);
 		cc2d.Friction = setFriction;
 	}
-	static float CircleCollider2DComponent_GetRestitution(UUID id){
-		auto&cc2d = GetComponent<CircleCollider2DComponent>(id);
+	static float CircleCollider2DComponent_GetRestitution(UUID id) {
+		auto& cc2d = GetComponent<CircleCollider2DComponent>(id);
 		return cc2d.Restitution;
 	}
-	static void CircleCollider2DComponent_SetRestitution(UUID id,float setRestitution){
-		auto&cc2d = GetComponent<CircleCollider2DComponent>(id);
+	static void CircleCollider2DComponent_SetRestitution(UUID id, float setRestitution) {
+		auto& cc2d = GetComponent<CircleCollider2DComponent>(id);
 		cc2d.Restitution = setRestitution;
 	}
-	
-	static float CircleCollider2DComponent_GetRestitutionThreshold(UUID id){
-		auto&cc2d = GetComponent<CircleCollider2DComponent>(id);
+
+	static float CircleCollider2DComponent_GetRestitutionThreshold(UUID id) {
+		auto& cc2d = GetComponent<CircleCollider2DComponent>(id);
 		return cc2d.RestitutionThreshold;
 	}
-	static void CircleCollider2DComponent_SetRestitutionThreshold(UUID id,float setRestitutionThreshold){
-		auto&cc2d = GetComponent<CircleCollider2DComponent>(id);
+	static void CircleCollider2DComponent_SetRestitutionThreshold(UUID id, float setRestitutionThreshold) {
+		auto& cc2d = GetComponent<CircleCollider2DComponent>(id);
 		cc2d.RestitutionThreshold = setRestitutionThreshold;
 	}
-	
+
 
 
 	static bool Input_IsKeyDown(KeyCode* keyCode) {
@@ -347,14 +398,20 @@ namespace Kaidel {
 		return glm::dot(*a, *b);
 	}
 	static float Vector2_LengthVec(glm::vec2* v) {
-		return v->length();
+		glm::vec2& vector = *v;
+		auto it = s_ScriptMaps.Vector2LengthMap.find(vector);
+		if (it != s_ScriptMaps.Vector2LengthMap.end())
+		{
+			return static_cast<float>(it->second);
+		}
+		return s_ScriptMaps.Vector2LengthMap[vector] = glm::length(vector);
 	}
 #pragma endregion
 #pragma region Vector3
 	static void Vector3_AddVec(glm::vec3* a, glm::vec3* b, glm::vec3* outRes) {
 		*outRes = *a + *b;
 	}
-	static void Vector3_SubtractVec(glm::vec3* a, glm::vec3*b, glm::vec3* outRes) {
+	static void Vector3_SubtractVec(glm::vec3* a, glm::vec3* b, glm::vec3* outRes) {
 		*outRes = *a - *b;
 	}
 	static void Vector3_AddNum(glm::vec3* a, float b, glm::vec3* outRes) {
@@ -383,7 +440,17 @@ namespace Kaidel {
 		*outRes = glm::cross(*a, *b);
 	}
 	static float Vector3_LengthVec(glm::vec3* v) {
-		return v->length();
+		glm::vec3& vector = *v;
+		auto it = s_ScriptMaps.Vector3LengthMap.find(vector);
+		if (it != s_ScriptMaps.Vector3LengthMap.end())
+		{
+			return static_cast<float>(it->second);
+		}
+		return s_ScriptMaps.Vector3LengthMap[vector] = glm::length(vector);
+	}
+	static void Vector3_RotateAround(glm::vec3* a, glm::vec3* origin, glm::vec3* angle, glm::vec3* outRes) {
+		glm::vec4 res = Math::Rotate(*origin, glm::radians(*angle))*(glm::vec4(*a,1.0f));
+		memcpy(outRes, &res, sizeof(glm::vec3));
 	}
 #pragma endregion
 #pragma region Vector4
@@ -417,9 +484,88 @@ namespace Kaidel {
 		return glm::dot(*a, *b);
 	}
 	static float Vector4_LengthVec(glm::vec4* v) {
-		return v->length();
+		glm::vec4& vector = *v;
+		auto it = s_ScriptMaps.Vector4LengthMap.find(vector);
+		if (it != s_ScriptMaps.Vector4LengthMap.end())
+		{
+			return static_cast<float>(it->second);
+		}
+		return s_ScriptMaps.Vector4LengthMap[vector] = glm::length(vector);
 	}
 #pragma endregion
+	
+	static std::unordered_map<UUID, Console> s_ConsolesMap;
+	static uint64_t Console_InitNewConsole()
+	{
+		UUID id;
+		s_ConsolesMap.insert({ id,Console{} });
+		return (uint64_t)id;
+	}
+	static void Console_DestroyConsole(UUID id)
+	{
+		s_ConsolesMap.erase(id);
+	}
+	static void Console_MessageLog(UUID id, MonoString* s)
+	{
+		KD_CORE_ASSERT(s_ConsolesMap.find(id) != s_ConsolesMap.end());
+		char* cstr = mono_string_to_utf8(s);
+		std::string string(cstr);
+		mono_free(cstr);
+		s_ConsolesMap.at(id).Log(Message{cstr,MessageLevel::Log});
+	}
+	static void Console_MessageStaticLog(MonoString* s)
+	{
+		char* cstr = mono_string_to_utf8(s);
+		std::string string(cstr);
+		mono_free(cstr);
+		KD_TRACE(string);
+	}
+	static void Console_MessageInfo(UUID id, MonoString* s)
+	{
+		KD_CORE_ASSERT(s_ConsolesMap.find(id) != s_ConsolesMap.end());
+		char* cstr = mono_string_to_utf8(s);
+		std::string string(cstr);
+		mono_free(cstr);
+		s_ConsolesMap.at(id).Log(Message{ cstr,MessageLevel::Info });
+
+	}
+	static void Console_MessageStaticInfo(MonoString* s)
+	{
+		char* cstr = mono_string_to_utf8(s);
+		std::string string(cstr);
+		mono_free(cstr);
+		KD_INFO(string);
+	}
+	static void Console_MessageWarn(UUID id, MonoString* s)
+	{
+		KD_CORE_ASSERT(s_ConsolesMap.find(id) != s_ConsolesMap.end());
+		char* cstr = mono_string_to_utf8(s);
+		std::string string(cstr);
+		mono_free(cstr);
+		s_ConsolesMap.at(id).Log(Message{ cstr,MessageLevel::Warn });
+	}
+	static void Console_MessageStaticWarn(MonoString* s)
+	{
+		char* cstr = mono_string_to_utf8(s);
+		std::string string(cstr);
+		mono_free(cstr);
+		KD_WARN(string);
+	}
+	static void Console_MessageError(UUID id, MonoString* s)
+	{
+		KD_CORE_ASSERT(s_ConsolesMap.find(id) != s_ConsolesMap.end());
+		char* cstr = mono_string_to_utf8(s);
+		std::string string(cstr);
+		mono_free(cstr);
+		s_ConsolesMap.at(id).Log(Message{ cstr,MessageLevel::Error });
+	}
+	static void Console_MessageStaticError(MonoString* s)
+	{
+		char* cstr = mono_string_to_utf8(s);
+		std::string string(cstr);
+		mono_free(cstr);
+		KD_ERROR(string);
+	}
 
 	template<typename Component>
 	static void RegisterComponent() {
@@ -538,6 +684,7 @@ namespace Kaidel {
 		KD_ADD_INTERNAL(Vector3_DotVec);
 		KD_ADD_INTERNAL(Vector3_CrossVec);
 		KD_ADD_INTERNAL(Vector3_LengthVec);
+		KD_ADD_INTERNAL(Vector3_RotateAround);
 #pragma endregion
 		#pragma region Vector4
 		KD_ADD_INTERNAL(Vector4_AddVec);
@@ -556,6 +703,16 @@ namespace Kaidel {
 		KD_ADD_INTERNAL(NativeLog);
 		KD_ADD_INTERNAL(Input_IsKeyDown);
 		KD_ADD_INTERNAL(Instance_GetScriptInstance);
+		KD_ADD_INTERNAL(Console_InitNewConsole);
+		KD_ADD_INTERNAL(Console_DestroyConsole);
+		KD_ADD_INTERNAL(Console_MessageLog);
+		KD_ADD_INTERNAL(Console_MessageStaticLog);
+		KD_ADD_INTERNAL(Console_MessageInfo);
+		KD_ADD_INTERNAL(Console_MessageStaticInfo);
+		KD_ADD_INTERNAL(Console_MessageWarn);
+		KD_ADD_INTERNAL(Console_MessageStaticWarn);
+		KD_ADD_INTERNAL(Console_MessageError);
+		KD_ADD_INTERNAL(Console_MessageStaticError);
 #pragma endregion
 	}
 }

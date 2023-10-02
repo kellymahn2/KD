@@ -1,5 +1,6 @@
 #include "KDpch.h"
 #include "Console.h"
+#include <datetimeapi.h>
 namespace Kaidel {
 
 
@@ -24,7 +25,9 @@ namespace Kaidel {
 	Message::Message(const std::string& text, MessageLevel level)
 		:Text(text),Level(level)
 	{
-
+		Time = std::chrono::system_clock::now();
+			
+		
 	}
 
 }

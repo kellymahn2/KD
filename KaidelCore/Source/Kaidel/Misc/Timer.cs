@@ -24,7 +24,7 @@ namespace KaidelCore
 
 		~Timer()
 		{
-			Debug.Log(DateTime.Now - m_Now);
+			Debug.Log("It took {}",DateTime.Now - m_Now);
 		}
 
 		private DateTime m_Now;

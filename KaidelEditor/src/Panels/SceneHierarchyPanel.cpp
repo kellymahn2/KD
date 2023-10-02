@@ -111,7 +111,6 @@ namespace Kaidel {
 	void SceneHierarchyPanel::OnImGuiRender()
 	{
 		ImGui::Begin("Scene Hierarchy",nullptr,ImGuiWindowFlags_NoNavInputs);
-
 		m_Context->m_Registry.each([&](auto entityID)
 			{
 				
@@ -136,7 +135,6 @@ namespace Kaidel {
 		}
 
 		ImGui::End();
-
 		ImGui::Begin("Properties");
 		if (m_SelectionContext)
 		{

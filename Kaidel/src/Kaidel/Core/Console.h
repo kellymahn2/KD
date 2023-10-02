@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <string>
+#include <chrono>
 namespace Kaidel {
 
 	enum class MessageLevel : uint8_t{
@@ -13,6 +14,7 @@ namespace Kaidel {
 	struct Message {
 		std::string Text;
 		MessageLevel Level;
+		std::chrono::system_clock::time_point Time;
 		Message(const std::string& text, MessageLevel level);
 	};
 	class Console {

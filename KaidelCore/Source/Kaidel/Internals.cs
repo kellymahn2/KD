@@ -41,6 +41,8 @@ namespace KaidelCore
 		internal extern static void TransformComponent_GetLocalPosition(ulong id, out Vector3 localPosition);
 		[MethodImpl(MethodImplOptions.InternalCall)]	  
 		internal extern static void TransformComponent_SetLocalPosition(ulong id, ref Vector3 localPosition);
+		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static void TransformComponent_RotateAround(ulong id, ulong parentID, ref Vector3 rotation);
 
 
 		[MethodImpl(MethodImplOptions.InternalCall)]
@@ -50,12 +52,48 @@ namespace KaidelCore
 
 		[MethodImpl(MethodImplOptions.InternalCall)]
 		internal extern static object Instance_GetScriptInstance(ulong id);
+		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static ulong Console_InitNewConsole();
+		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static void Console_DestroyConsole(ulong id);
+		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static void Console_MessageLog(ulong id, string s);
+		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static void Console_MessageStaticLog( string s);
+		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static void Console_MessageInfo(ulong id,  string s);
+		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static void Console_MessageStaticInfo( string s);
+		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static void Console_MessageWarn(ulong id,  string s);
+		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static void Console_MessageStaticWarn( string s);
+		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static void Console_MessageError(ulong id,  string s);
+		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static void Console_MessageStaticError( string s);
 	}
 	public static class Debug
 	{
-		public static void Log<T>(T component) 
+		public static void Log(string fmt,params object[] objects)
 		{
-			Internals.NativeLog(component.ToString());
+			fmt = String.Format(fmt, objects);
+			Internals.Console_MessageStaticLog( fmt);
+		}
+		public static void Info(string fmt, params object[] objects)
+		{
+			fmt = String.Format(fmt, objects);
+			Internals.Console_MessageStaticInfo( fmt);
+		}
+		public static void Warn(string fmt, params object[] objects)
+		{
+			fmt = String.Format(fmt, objects);
+			Internals.Console_MessageStaticWarn( fmt);
+		}
+		public static void Error(string fmt, params object[] objects)
+		{
+			fmt = String.Format(fmt, objects);
+			Internals.Console_MessageStaticError( fmt);
 		}
 	}
 }

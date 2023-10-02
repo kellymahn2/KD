@@ -14,8 +14,10 @@ namespace Sandbox
 		public float X;
 		public override void OnCreate()
 		{
-            Debug.Log("playerEntity");
-			
+			Vector3 a = new Vector3(3,3,0);
+			Vector3 b = new Vector3(5,3,0);
+			Vector3 res = b.RotateAround(a,new Vector3(0,0,90.0f));
+			Debug.Log("<{0},{1},{2}>",res.x,res.y,res.z);
 		}
 
 		public override void OnUpdate(float ts)
@@ -37,17 +39,12 @@ namespace Sandbox
 
 			if (cameraEntity != null)
 			{
-				Debug.Log("Not Null");
 				Camera camera = cameraEntity.As<Camera>();
-
 				if (Input.IsKeyDown(KeyCode.Q))
 					camera.DistanceFromPlayer += speed * 2.0f * ts;
 				else if (Input.IsKeyDown(KeyCode.E))
 					camera.DistanceFromPlayer -= speed * 2.0f * ts;
 			}
-			else 
-				Debug.Log("Null");
-
 			velocity *= speed * ts;
 
 			// m_Rigidbody.ApplyLinearImpulse(velocity.XY, true);

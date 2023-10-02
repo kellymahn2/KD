@@ -145,7 +145,7 @@ namespace Kaidel {
 
 		Scope<filewatch::FileWatch<std::string>> AppAssemblyFileWatcher;
 		bool AssemblyReloadPending = false;
-
+		bool ReloadClassFields = false;
 
 		Scene* SceneContext = nullptr;
 	};
@@ -161,12 +161,6 @@ namespace Kaidel {
 		LoadAssemblyClasses(s_Data->AppAssembly);
 		ScriptRegistry::RegisterComponents();
 		ScriptRegistry::RegisterFunctions();
-
-
-
-
-
-
 	}
 
 	void ScriptEngine::Shutdown()
@@ -178,6 +172,33 @@ namespace Kaidel {
 	void ScriptEngine::OnRuntimeStart(Scene* scene)
 	{
 		s_Data->SceneContext = scene;
+		if (s_Data->ReloadClassFields) {
+			std::vector<UUID> deletedIDs;
+			for (auto& [id, field] : s_Data->EntityScriptFields) {
+
+				auto entity = s_Data->SceneContext->GetEntity(id);
+				if (!entity)
+				{
+					deletedIDs.push_back(id);
+					continue;
+				}
+				auto scriptClass = GetEntityClass(entity.GetComponent<ScriptComponent>().Name);
+				auto cpy = field;
+				for (auto& [name, f] : field) {
+					if (scriptClass->m_Fields.find(name) != scriptClass->m_Fields.end()) {
+						cpy.at(name).Field = scriptClass->m_Fields.at(name);
+					}
+					else {
+						cpy.erase(name);
+					}
+				}
+				field = std::move(cpy);
+			}
+			for (auto& id : deletedIDs) {
+				s_Data->EntityScriptFields.erase(id);
+			}
+			s_Data->ReloadClassFields = false;
+		}
 	}
 
 	void ScriptEngine::OnRuntimeStop()
@@ -240,7 +261,6 @@ namespace Kaidel {
 		if (!s_Data->AssemblyReloadPending&&eventType == filewatch::Event::modified) {
 			s_Data->AssemblyReloadPending = true;
 			using namespace std::chrono_literals;
-			std::this_thread::sleep_for(500ms);
 			Application::Get().SubmitToMainThread([]() {
 				s_Data->AppAssemblyFileWatcher.reset();
 				ScriptEngine::ReloadAssembly(); 
@@ -303,7 +323,6 @@ namespace Kaidel {
 				}
 			}
 		}
-		auto& entityClasses = s_Data->EntityClasses;
 	}
 
 	void ScriptEngine::InitMono()
@@ -368,7 +387,6 @@ namespace Kaidel {
 		mono_domain_unload(s_Data->AppDomain);
 		//mono_domain_free(s_Data->AppDomain, true);
 		{
-			Timer timer("Reloading");
 			{
 				LoadAssembly(s_Data->CoreAssemblyFilePath);
 			}
@@ -380,6 +398,7 @@ namespace Kaidel {
 			}
 		}
 		s_Data->EntityClass = ScriptClass("KaidelCore", "Entity", s_Data->CoreAssemblyImage);
+		s_Data->ReloadClassFields = true;
 	}
 
 	ScriptClass::ScriptClass(const std::string& classNamespace, const std::string& className,MonoImage* image)

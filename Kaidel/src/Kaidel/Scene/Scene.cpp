@@ -220,8 +220,9 @@ namespace Kaidel {
 
 	Entity Scene::GetEntity(UUID id)
 	{
-		KD_CORE_ASSERT(m_IDMap.find(id) != m_IDMap.end());
-		return { m_IDMap.at(id),this };
+		if (m_IDMap.find(id) != m_IDMap.end())
+			return { m_IDMap.at(id),this };
+		return Entity{};
 	}
 
 	Entity Scene::FindEntityByName(std::string_view name)

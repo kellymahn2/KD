@@ -70,12 +70,14 @@
     <Compile Include="Source\Kaidel\Input.cs" />
     <Compile Include="Source\Kaidel\Internals.cs" />
     <Compile Include="Source\Kaidel\Math\Internals\MathInternals.cs" />
+    <Compile Include="Source\Kaidel\Math\Operations\Conversions.cs" />
+    <Compile Include="Source\Kaidel\Math\Operations\Methods.cs" />
+    <Compile Include="Source\Kaidel\Math\Types\Constants.cs" />
     <Compile Include="Source\Kaidel\Math\Types\Vector.cs" />
+    <Compile Include="Source\Kaidel\Misc\Console.cs" />
     <Compile Include="Source\Kaidel\Misc\Timer.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Source\Kaidel\Math\Operations\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it.
        Other similar extension points exist, see Microsoft.Common.targets.

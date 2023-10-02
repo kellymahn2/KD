@@ -1,11 +1,12 @@
 #include "KDpch.h"
 #include "Math.h"
+#include "Kaidel/Scene/Entity.h"
 #include <glm/gtc/matrix_transform.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/matrix_decompose.hpp>
 
 namespace Math {
-
+	
 	bool DecomposeTransform(const glm::mat4& transform, glm::vec3& translation, glm::vec3& rotation, glm::vec3& scale)
 	{
 		// From glm::decompose in matrix_decompose.inl
@@ -76,6 +77,65 @@ namespace Math {
 
 
 		return true;
+	}
+
+	static glm::mat4 Multiply(const glm::mat4& lhs, const glm::mat4& rhs) {
+		glm::mat4 ret;
+
+		for (int i = 0; i < 4; ++i) {
+			for (int j = 0; j < 4; ++j) {
+				ret[i][j] = glm::dot(lhs[i], rhs[j]);
+			}
+		}
+
+		return ret;
+	}
+	static void Print(const glm::mat4& m) {
+		for (int i = 0; i < 4; ++i) {
+			std::cout<<fmt::format("{},{},{},{}", m[i][0], m[i][1], m[i][2], m[i][3])<<std::endl;
+		}
+	}
+
+	static glm::mat4 mult(const glm::mat4& a, const glm::mat4& b){
+		glm::mat4 res;
+
+		for (int i = 0; i < 4; ++i) {
+			for (int j = 0; j < 4; ++j) {
+				res[j][i] = glm::dot({ a[0][i],a[1][i] ,a[2][i] ,a[3][i] }, b[j]);
+			}
+		}
+
+		return res;
+	}
+	glm::mat4 Rotate(const glm::vec3& pos, const glm::vec3& rotationVector) {
+		glm::mat4 mat;
+		using namespace glm;
+		mat = mult(glm::transpose(glm::translate(glm::mat4(1.0f), -pos)),glm::transpose(glm::rotate(glm::mat4(1.0f), rotationVector.x, glm::vec3(1.0f, 0, 0))));
+		mat = mult(mat, glm::transpose( glm::rotate(glm::mat4(1.0f), rotationVector.y, glm::vec3(0, 1.0f, 0))));
+		mat = mult(mat, glm::transpose(glm::rotate(glm::mat4(1.0f), rotationVector.z, glm::vec3(0, 0, 1.0f))));
+		mat = mult(mat, glm::transpose(glm::translate(glm::mat4(1.0f), pos)));
+		for (int i = 0; i < 4; ++i) {
+			for (int j = 0; j < 4; ++j) {
+				if (epsilonEqual(mat[i][j], 0.0f, epsilon<float>()))
+					mat[i][j] = 0.0f;
+			}
+		}
+		return glm::transpose(mat);
+
+	}
+	void Rotate(Kaidel::Entity other, Kaidel::Entity origin, const glm::vec3& rotationVector)
+	{
+		using namespace Kaidel;
+		auto& otherTC = other.GetComponent<TransformComponent>();
+		DecomposeTransform((Rotate(origin.GetComponent<TransformComponent>().Translation, rotationVector)) * otherTC.GetTransform()
+			, otherTC.Translation, otherTC.Rotation, otherTC.Scale);
+
+	}
+
+
+	glm::vec3 Rotate(const glm::mat4& a, const glm::mat4& origin, const glm::vec3& rotationVector)
+	{
+		return glm::vec3{};
 	}
 
 }

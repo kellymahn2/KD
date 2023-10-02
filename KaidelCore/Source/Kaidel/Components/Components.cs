@@ -8,11 +8,13 @@ namespace KaidelCore
 {
 	public abstract class Component
 	{
+		internal Component() { }
 		internal Entity Entity { get; set; }
 	}
 
 	public class TransformComponent : Component
 	{
+		internal TransformComponent() { }
 		public Vector3 Position
 		{
 			get
@@ -46,6 +48,11 @@ namespace KaidelCore
 				Entity.Scale = value;
 			}
 		}
+		void RotateAround(TransformComponent origin,Vector3 rotation)
+		{
+			Internals.TransformComponent_RotateAround(Entity.ID, origin.Entity.ID, ref rotation);
+		}
+
 	}
 
 

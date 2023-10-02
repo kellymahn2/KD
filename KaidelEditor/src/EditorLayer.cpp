@@ -18,14 +18,13 @@
 namespace Kaidel {
 
 	EditorLayer::EditorLayer()
-		: Layer("EditorLayer"), m_CameraController(1280.0f / 720.0f), m_SquareColor({ 0.2f, 0.3f, 0.8f, 1.0f })
+		: Layer("EditorLayer")
 	{
 	}
 
 	void EditorLayer::OnAttach()
 	{
 		KD_PROFILE_FUNCTION();
-		m_CheckerboardTexture = Texture2D::Create("assets/textures/Checkerboard.png");
 		m_Icons.IconPlay = Texture2D::Create("Resources/Icons/PlayButton.png");
 		KD_INFO("Loaded Play Button");
 		m_Icons.IconPause = Texture2D::Create("Resources/Icons/PauseButton.png");
@@ -51,6 +50,16 @@ namespace Kaidel {
 			auto sceneFilePath = commandLineArgs[1];
 			OpenScene(sceneFilePath);
 		}
+
+		KD_WARN("Warn");
+		KD_ERROR("Error");
+		KD_INFO("Info");
+		KD_TRACE("Trace");
+		KD_CORE_WARN("Warn");
+		KD_CORE_ERROR("Error");
+		KD_CORE_INFO("Info");
+		KD_CORE_TRACE("Trace");
+
 		/*m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 		m_SceneHierarchyPanel.RegisterFieldRenderers();
 		auto parent = m_ActiveScene->CreateEntity("Parent");
@@ -66,6 +75,12 @@ namespace Kaidel {
 		child.AddChild(child2.GetUUID());
 		parent.AddChild(child.GetUUID());
 		auto example = m_ActiveScene->CreateEntity("Example");*/
+		/*auto parent = m_ActiveScene->CreateEntity("Parent");
+		auto child = m_ActiveScene->CreateEntity("Child");
+		parent.GetComponent<TransformComponent>().Translation = { 3,3,0 };
+		child.GetComponent<TransformComponent>().Translation = { 5,3,0 };
+		Math::Rotate(child, parent, glm::vec3(0, 0, glm::radians(90.0f)));*/
+		m_ConsolePanel.SetContext(::Log::GetClientLogger());
 	}
 
 	void EditorLayer::OnDetach()
@@ -98,7 +113,6 @@ namespace Kaidel {
 			(spec.Width != m_ViewportSize.x || spec.Height != m_ViewportSize.y))
 		{
 			m_Framebuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
-			m_CameraController.OnResize(m_ViewportSize.x, m_ViewportSize.y);
 			m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);
 			m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 		}
@@ -239,7 +253,7 @@ namespace Kaidel {
 			ImGui::SetNextWindowViewport(viewport->ID);
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-			window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+			window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove;
 			window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 		}
 
@@ -263,7 +277,7 @@ namespace Kaidel {
 		ImGuiIO& io = ImGui::GetIO();
 		ImGuiStyle& style = ImGui::GetStyle();
 		float minWinSizeX = style.WindowMinSize.x;
-		style.WindowMinSize.x = 370.0f;
+		style.WindowMinSize.x = 200.0f;
 		if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
 		{
 			ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
@@ -298,7 +312,7 @@ namespace Kaidel {
 
 				ImGui::EndMenu();
 			}
-			if (ImGui::BeginMenu("Scrit")) {
+			if (ImGui::BeginMenu("Script")) {
 				if (ImGui::MenuItem("Reload Assembly"))
 					ScriptEngine::ReloadAssembly();
 
@@ -310,15 +324,14 @@ namespace Kaidel {
 		}
 		m_SceneHierarchyPanel.OnImGuiRender();
 		m_ContentBrowserPanel.OnImGuiRender();
-
+		m_ConsolePanel.OnImGuiRender();
 		ShowDebugWindow();
 		ShowViewport();
 		UI_Toolbar();
 		ImGui::End();
 
-		static bool consoleOpen = true;
-		if (consoleOpen) {
-			ImGui::Begin("Debug Console", &consoleOpen);
+		if (m_ConsoleOpen) {
+			ImGui::Begin("Debug Console", &m_ConsoleOpen);
 			static bool core = true;
 			static bool client = true;
 			ImGui::Checkbox("Core", &core);
@@ -345,9 +358,12 @@ namespace Kaidel {
 					}
 					break;
 					default:
-						break;
-					}
-					ImGui::TextColored(messageColor, "Engine : %s", message.Text.c_str());
+						break;					}
+					std::time_t time = std::chrono::system_clock::to_time_t(message.Time);
+					std::tm tm = *std::localtime(&time);
+					char buf[80] = { 0 };
+					std::strftime(buf, sizeof(buf), "%d/%m/%Y-%H:%M:%S", &tm);
+					ImGui::TextColored(messageColor, "Engine [%s] : %s",buf, message.Text.c_str());
 				}
 			}
 			if (client) {
@@ -374,11 +390,13 @@ namespace Kaidel {
 					default:
 						break;
 					}
-					ImGui::TextColored(messageColor, "Editor : %s", message.Text.c_str());
+					std::time_t time = std::chrono::system_clock::to_time_t(message.Time);
+					std::tm tm = *std::localtime(&time);
+					char buf[80] = { 0 };
+					std::strftime(buf, sizeof(buf), "%d/%m/%Y-%H:%M:%S", &tm);
+					ImGui::TextColored(messageColor, "Editor [%s] : %s",buf ,message.Text.c_str());
 				}
 			}
-
-
 			ImGui::End();
 		}
 	}
@@ -634,7 +652,6 @@ namespace Kaidel {
 
 	void EditorLayer::OnEvent(Event& e)
 	{
-		m_CameraController.OnEvent(e);
 		m_EditorCamera.OnEvent(e);
 
 		EventDispatcher dispatcher(e);
@@ -710,6 +727,12 @@ namespace Kaidel {
 				if (!ImGuizmo::IsUsing() && m_SceneState != SceneState::Play)
 					m_GizmoType = ImGuizmo::OPERATION::SCALE;
 				break;
+			}
+			case Key::GraveAccent:
+			{
+				if (control) {
+					m_ConsoleOpen = !m_ConsoleOpen;
+				}
 			}
 		}
 		return false;

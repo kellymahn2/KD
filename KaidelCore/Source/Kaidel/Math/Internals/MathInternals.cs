@@ -50,6 +50,8 @@ namespace KaidelCore
 		internal extern static float Vector3_CrossVec(ref Vector3 a, ref Vector3 b,out Vector3 res);
 		[MethodImpl(MethodImplOptions.InternalCall)]
 		internal extern static float Vector3_LengthVec(ref Vector3 a);
+		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static void Vector3_RotateAround(ref Vector3 a, ref Vector3 origin,ref Vector3 angle,out Vector3 res);
 		#endregion
 
 		#region Vector4
