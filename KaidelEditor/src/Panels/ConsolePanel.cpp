@@ -110,6 +110,8 @@ namespace Kaidel {
 	}
 	void ConsolePanel::OnImGuiRender()
 	{
+		static float maxScroll=0.0f;
+		ImGui::SetNextWindowScroll({ 0,maxScroll });
 		ImGui::Begin("Console",nullptr, ImGuiWindowFlags_MenuBar);
 		if (!m_ConsoleContext)
 			ImGui::BeginDisabled();
@@ -183,6 +185,7 @@ namespace Kaidel {
 				ImGui::PopStyleColor();
 			}
 		}
+		maxScroll = ImGui::GetScrollMaxY();
 		ImGui::End();
 	}
 

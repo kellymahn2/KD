@@ -4,7 +4,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/matrix_decompose.hpp>
-
 namespace Math {
 	
 	bool DecomposeTransform(const glm::mat4& transform, glm::vec3& translation, glm::vec3& rotation, glm::vec3& scale)
@@ -108,19 +107,16 @@ namespace Math {
 		return res;
 	}
 	glm::mat4 Rotate(const glm::vec3& pos, const glm::vec3& rotationVector) {
-		glm::mat4 mat;
 		using namespace glm;
-		mat = mult(glm::transpose(glm::translate(glm::mat4(1.0f), -pos)),glm::transpose(glm::rotate(glm::mat4(1.0f), rotationVector.x, glm::vec3(1.0f, 0, 0))));
-		mat = mult(mat, glm::transpose( glm::rotate(glm::mat4(1.0f), rotationVector.y, glm::vec3(0, 1.0f, 0))));
-		mat = mult(mat, glm::transpose(glm::rotate(glm::mat4(1.0f), rotationVector.z, glm::vec3(0, 0, 1.0f))));
-		mat = mult(mat, glm::transpose(glm::translate(glm::mat4(1.0f), pos)));
-		for (int i = 0; i < 4; ++i) {
-			for (int j = 0; j < 4; ++j) {
-				if (epsilonEqual(mat[i][j], 0.0f, epsilon<float>()))
-					mat[i][j] = 0.0f;
-			}
-		}
-		return glm::transpose(mat);
+		glm::mat4 mat2;
+		mat2 = glm::translate(glm::mat4(1.0f), pos)* glm::toMat4(glm::quat(rotationVector))/*glm::rotate(glm::mat4(1.0f), rotationVector.z, glm::vec3(0, 0, 1.0f))*glm::rotate(glm::mat4(1.0f), rotationVector.y, glm::vec3(0, 1.0f, 0))*
+			glm::rotate(glm::mat4(1.0f), rotationVector.x, glm::vec3(1.0f, 0, 0)) */*glm::translate(glm::mat4(1.0f), -pos);
+		Print(mat2);
+		//glm::mat4 mat;
+		//mat = glm::translate(glm::mat4(1.0f), pos) * glm::rotate(glm::mat4(1.0f), rotationVector.z, glm::vec3(0, 0, 1.0f))*glm::rotate(glm::mat4(1.0f), rotationVector.y, glm::vec3(0, 1.0f, 0))*
+		//	glm::rotate(glm::mat4(1.0f), rotationVector.x, glm::vec3(1.0f, 0, 0)) * glm::translate(glm::mat4(1.0f), -pos);
+		//Print(mat);
+		return mat2;
 
 	}
 	void Rotate(Kaidel::Entity other, Kaidel::Entity origin, const glm::vec3& rotationVector)

@@ -51,15 +51,6 @@ namespace Kaidel {
 			OpenScene(sceneFilePath);
 		}
 
-		KD_WARN("Warn");
-		KD_ERROR("Error");
-		KD_INFO("Info");
-		KD_TRACE("Trace");
-		KD_CORE_WARN("Warn");
-		KD_CORE_ERROR("Error");
-		KD_CORE_INFO("Info");
-		KD_CORE_TRACE("Trace");
-
 		/*m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 		m_SceneHierarchyPanel.RegisterFieldRenderers();
 		auto parent = m_ActiveScene->CreateEntity("Parent");
@@ -80,6 +71,9 @@ namespace Kaidel {
 		parent.GetComponent<TransformComponent>().Translation = { 3,3,0 };
 		child.GetComponent<TransformComponent>().Translation = { 5,3,0 };
 		Math::Rotate(child, parent, glm::vec3(0, 0, glm::radians(90.0f)));*/
+		//Math::Rotate({ 3,3,0 }, { 0,0,glm::radians(90.0f) });
+
+
 		m_ConsolePanel.SetContext(::Log::GetClientLogger());
 	}
 
@@ -116,7 +110,6 @@ namespace Kaidel {
 			m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);
 			m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 		}
-
 		// Update
 		if(m_SceneState==SceneState::Edit)
 			m_EditorCamera.OnUpdate(ts);
@@ -150,8 +143,6 @@ namespace Kaidel {
 				break;
 			}
 		}
-
-		
 
 		if (m_Debug) {
 			OnOverlayRender();
@@ -235,12 +226,11 @@ namespace Kaidel {
 	{
 		KD_PROFILE_FUNCTION();
 
-
 		// Note: Switch this to true to enable dockspace
 		static bool dockspaceOpen = true;
 		static bool opt_fullscreen_persistant = true;
 		bool opt_fullscreen = opt_fullscreen_persistant;
-		static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
+		static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_AutoHideTabBar | ImGuiDockNodeFlags_PassthruCentralNode;
 
 		// We are using the ImGuiWindowFlags_NoDocking flag to make the parent window not dockable into,
 		// because it would be confusing to have two docking targets within each others.
@@ -269,7 +259,6 @@ namespace Kaidel {
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 		ImGui::Begin("DockSpace Demo", &dockspaceOpen, window_flags);
 		ImGui::PopStyleVar();
-
 		if (opt_fullscreen)
 			ImGui::PopStyleVar(2);
 
@@ -331,7 +320,7 @@ namespace Kaidel {
 		ImGui::End();
 
 		if (m_ConsoleOpen) {
-			ImGui::Begin("Debug Console", &m_ConsoleOpen);
+			ImGui::Begin("Debug Console", &m_ConsoleOpen,ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoNavFocus);
 			static bool core = true;
 			static bool client = true;
 			ImGui::Checkbox("Core", &core);

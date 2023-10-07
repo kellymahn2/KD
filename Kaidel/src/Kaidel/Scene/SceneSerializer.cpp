@@ -386,7 +386,6 @@ namespace Kaidel {
 			for (auto entity : entities)
 			{
 				UUID uuid = entity["Entity"].as<uint64_t>(); 
-				auto& entityFields = ScriptEngine::GetScriptFieldMap(uuid);
 				std::string name;
 				auto tagComponent = entity["TagComponent"];
 				if (tagComponent)
@@ -470,12 +469,16 @@ namespace Kaidel {
 					}
 				);
 				DeserializeComponent<ScriptComponent>(deserializedEntity, "ScriptComponent", entity,
-					[&entityFields](auto& sc, auto& entity, YAML::Node& scriptComponent) {
+					[&uuid](auto& sc, auto& entity, YAML::Node& scriptComponent) {
+						auto& entityFields = ScriptEngine::GetScriptFieldMap(uuid);
 						sc.Name = scriptComponent["Name"].as<std::string>();
+						if (!ScriptEngine::ClassExists(sc.Name))
+						{
+							KD_ERROR("Entity Script Class {} Could not be found.", sc.Name);
+							return;
+						}
 						if (scriptComponent["ScriptFields"]) {
 							Ref<ScriptClass> scriptClass = ScriptEngine::GetEntityClass(sc.Name);
-							if (!scriptClass)
-								return;
 							for (auto v : scriptComponent["ScriptFields"]) {
 								auto name = v["Name"].as<std::string>();
 								if (scriptClass->GetFields().find(name) == scriptClass->GetFields().end())

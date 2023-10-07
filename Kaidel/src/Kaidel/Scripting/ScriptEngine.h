@@ -62,9 +62,9 @@ namespace Kaidel {
 			ScriptFieldInstance& sfi = AddScriptFieldInstance(entityID, name, type, scriptClass);
 			sfi.SetValue<T>(data);
 		}
+		static void LoadAssemblyClasses(MonoAssembly* assembly);
 	private:
 		static ScriptFieldInstance& AddScriptFieldInstance(UUID entityID, const std::string& name, ScriptFieldType type,Ref<ScriptClass> scriptClass);
-		static void LoadAssemblyClasses(MonoAssembly* assembly);
 		static void InitMono();
 		static void ShutdownMono();
 	};

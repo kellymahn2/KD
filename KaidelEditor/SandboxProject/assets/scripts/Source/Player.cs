@@ -17,12 +17,11 @@ namespace Sandbox
 			Vector3 a = new Vector3(3,3,0);
 			Vector3 b = new Vector3(5,3,0);
 			Vector3 res = b.RotateAround(a,new Vector3(0,0,90.0f));
-			Debug.Log("<{0},{1},{2}>",res.x,res.y,res.z);
 		}
 
 		public override void OnUpdate(float ts)
 		{
-			
+			Debug.Info("It Works!");
 			float speed = Speed;
 			Vector3 velocity = new Vector3(0,0,0);
 			if (Input.IsKeyDown(KeyCode.W))

@@ -5,6 +5,8 @@
 #include "Kaidel/Scene/Entity.h"
 #include "Kaidel/Core/Timer.h"
 #include "Kaidel/Core/Application.h"
+#include "Kaidel/Core/Buffer.h"
+
 
 #include <mono/jit/jit.h>
 #include <mono/metadata/assembly.h>
@@ -152,6 +154,7 @@ namespace Kaidel {
 
 	static ScriptEngineData* s_Data = nullptr;
 
+
 	void ScriptEngine::Init()
 	{
 		s_Data = new ScriptEngineData();
@@ -177,11 +180,13 @@ namespace Kaidel {
 			for (auto& [id, field] : s_Data->EntityScriptFields) {
 
 				auto entity = s_Data->SceneContext->GetEntity(id);
+
 				if (!entity)
 				{
 					deletedIDs.push_back(id);
 					continue;
 				}
+				const auto& n = entity.GetComponent<TagComponent>();
 				auto scriptClass = GetEntityClass(entity.GetComponent<ScriptComponent>().Name);
 				auto cpy = field;
 				for (auto& [name, f] : field) {
@@ -205,6 +210,12 @@ namespace Kaidel {
 	{
 		s_Data->SceneContext = nullptr;
 		s_Data->EntityInstances.clear();
+		if (s_Data->AssemblyReloadPending) {
+			Application::Get().SubmitToMainThread([]() {
+				s_Data->AppAssemblyFileWatcher.reset();
+				ScriptEngine::ReloadAssembly();
+				});
+		}
 	}
 
 	bool ScriptEngine::ClassExists(const std::string& fullName)
@@ -258,6 +269,10 @@ namespace Kaidel {
 		s_Data->EntityClass = ScriptClass("KaidelCore", "Entity", s_Data->CoreAssemblyImage);
 	}
 	static void OnAppAssemblyEvent(const std::string& path, const filewatch::Event eventType) {
+		if (s_Data->SceneContext->IsRunning()) {
+			s_Data->AssemblyReloadPending = eventType == filewatch::Event::modified;
+			return;
+		}
 		if (!s_Data->AssemblyReloadPending&&eventType == filewatch::Event::modified) {
 			s_Data->AssemblyReloadPending = true;
 			using namespace std::chrono_literals;
@@ -272,8 +287,6 @@ namespace Kaidel {
 		s_Data->AppAssemblyFilePath = path;
 		s_Data->AppAssembly = Utils::LoadMonoAssembly(path.string());
 		s_Data->AppAssemblyImage = mono_assembly_get_image(s_Data->AppAssembly);
-
-
 		s_Data->AppAssemblyFileWatcher = CreateScope<filewatch::FileWatch<std::string>>(path.string(),&OnAppAssemblyEvent);
 		s_Data->AssemblyReloadPending = false;
 	}
