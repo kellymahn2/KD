@@ -111,7 +111,6 @@ namespace Math {
 		glm::mat4 mat2;
 		mat2 = glm::translate(glm::mat4(1.0f), pos)* glm::toMat4(glm::quat(rotationVector))/*glm::rotate(glm::mat4(1.0f), rotationVector.z, glm::vec3(0, 0, 1.0f))*glm::rotate(glm::mat4(1.0f), rotationVector.y, glm::vec3(0, 1.0f, 0))*
 			glm::rotate(glm::mat4(1.0f), rotationVector.x, glm::vec3(1.0f, 0, 0)) */*glm::translate(glm::mat4(1.0f), -pos);
-		Print(mat2);
 		//glm::mat4 mat;
 		//mat = glm::translate(glm::mat4(1.0f), pos) * glm::rotate(glm::mat4(1.0f), rotationVector.z, glm::vec3(0, 0, 1.0f))*glm::rotate(glm::mat4(1.0f), rotationVector.y, glm::vec3(0, 1.0f, 0))*
 		//	glm::rotate(glm::mat4(1.0f), rotationVector.x, glm::vec3(1.0f, 0, 0)) * glm::translate(glm::mat4(1.0f), -pos);

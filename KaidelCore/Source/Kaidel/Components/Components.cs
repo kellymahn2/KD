@@ -48,6 +48,17 @@ namespace KaidelCore
 				Entity.Scale = value;
 			}
 		}
+		public Vector3 LocalPosition
+		{
+			get
+			{
+				return Entity.LocalPosition;
+			}
+			set
+			{
+				Entity.LocalPosition = value;
+			}
+		}
 		void RotateAround(TransformComponent origin,Vector3 rotation)
 		{
 			Internals.TransformComponent_RotateAround(Entity.ID, origin.Entity.ID, ref rotation);

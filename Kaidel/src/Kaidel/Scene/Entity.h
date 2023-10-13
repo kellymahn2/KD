@@ -56,6 +56,12 @@ namespace Kaidel {
 			auto& cc = GetComponent<ChildComponent>();
 			cc.Parent = parentID;
 		}
+		Entity GetParent() {
+			return m_Scene->GetEntity(GetComponent<ChildComponent>().Parent);
+		}
+		bool HasChildren() {
+			return HasComponent<ParentComponent>() && !GetComponent<ParentComponent>().Children.empty();
+		}
 		inline UUID GetUUID() { return GetComponent<IDComponent>().ID; }
 		operator bool() const { return m_EntityHandle != entt::null&&(int)m_EntityHandle!=-1; }
 		operator entt::entity() const { return m_EntityHandle; }
@@ -74,5 +80,8 @@ namespace Kaidel {
 		entt::entity m_EntityHandle{ entt::null };
 		Scene* m_Scene = nullptr;
 	};
-
+	glm::mat4 GetLocalTransform(Entity entity);
+	void RotateEntity(Entity entity, Scene* scene, const glm::vec3& delta, Entity top = {});
+	void TranslateEntity(Entity entity, Scene* scene, const glm::vec3& delta, Entity top = {});
+	void MoveEntity(Entity entity, Scene* scene, const glm::vec3& deltaT, const glm::vec3& deltaR);
 }

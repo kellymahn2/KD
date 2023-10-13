@@ -75,7 +75,7 @@ namespace Kaidel {
 				CircleRendererComponent ,CircleCollider2DComponent,
 				CameraComponent,
 				BoxCollider2DComponent, Rigidbody2DComponent,
-				NativeScriptComponent, ScriptComponent>
+				NativeScriptComponent, ScriptComponent,ParentComponent,ChildComponent>
 				(entity, srcReg, e); });
 		newScene->m_IDMap = rhs->m_IDMap;
 		return newScene;

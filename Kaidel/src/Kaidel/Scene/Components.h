@@ -23,6 +23,12 @@ namespace Kaidel {
 	};
 	struct ChildComponent {
 		UUID Parent;
+		glm::vec3 LocalPosition = {0,0,0};
+		glm::vec3 LocalRotation = {0,0,0};
+
+		ChildComponent() = default;
+		ChildComponent(UUID parent):Parent(parent) {
+		}
 	};
 	struct TagComponent
 	{

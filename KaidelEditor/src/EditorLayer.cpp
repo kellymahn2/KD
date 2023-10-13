@@ -1,6 +1,12 @@
 #include "EditorLayer.h"
-#include <imgui/imgui.h>
 
+
+#include "Kaidel/Math/Math.h"
+#include "Kaidel/Core/Timer.h"
+
+
+#include <imgui/imgui.h>
+#include <imgui/imgui_internal.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -12,8 +18,6 @@
 
 #include "imguizmo/ImGuizmo.h"
 
-#include "Kaidel/Math/Math.h"
-#include "Kaidel/Core/Timer.h"
 
 namespace Kaidel {
 
@@ -43,34 +47,35 @@ namespace Kaidel {
 		fbSpec.Samples = 1;
 		m_Framebuffer = Framebuffer::Create(fbSpec);
 		m_ActiveScene = CreateRef<Scene>();
-
+		m_EditorScene = m_ActiveScene;
 		m_EditorCamera = EditorCamera(30.0f, 1.778f, 0.1f, 1000.0f);
-		auto& commandLineArgs = Application::Get().GetCommandLineArgs();
+		/*auto& commandLineArgs = Application::Get().GetCommandLineArgs();
 		if (commandLineArgs.Count > 1) {
 			auto sceneFilePath = commandLineArgs[1];
 			OpenScene(sceneFilePath);
-		}
+		}*/
 
-		/*m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 		m_SceneHierarchyPanel.RegisterFieldRenderers();
-		auto parent = m_ActiveScene->CreateEntity("Parent");
+
+
+		/*auto parent = m_ActiveScene->CreateEntity("Parent");
 		auto child = m_ActiveScene->CreateEntity("Child");
 		parent.AddComponent<ParentComponent>();
 		child.AddComponent<ChildComponent>().Parent = parent.GetUUID();
 		child.AddComponent<ParentComponent>();
-		auto child2 = m_ActiveScene->CreateEntity("Child 2");
-		child2.AddComponent<ChildComponent>().Parent = child.GetUUID();
-		parent.AddComponent<SpriteRendererComponent>();
-		child.AddComponent<SpriteRendererComponent>();
-		child2.AddComponent<SpriteRendererComponent>();
-		child.AddChild(child2.GetUUID());
 		parent.AddChild(child.GetUUID());
-		auto example = m_ActiveScene->CreateEntity("Example");*/
-		/*auto parent = m_ActiveScene->CreateEntity("Parent");
-		auto child = m_ActiveScene->CreateEntity("Child");
+		auto& parentTC = parent.GetComponent<TransformComponent>();
+		auto& childTC = child.GetComponent<TransformComponent>();
+
 		parent.GetComponent<TransformComponent>().Translation = { 3,3,0 };
+		parentTC.Rotation.z = glm::radians(90.f);
 		child.GetComponent<TransformComponent>().Translation = { 5,3,0 };
-		Math::Rotate(child, parent, glm::vec3(0, 0, glm::radians(90.0f)));*/
+		Math::Rotate(child, parent, glm::vec3(0, 0, glm::radians(90.0f)));
+
+		auto original = GetLocalTransform(child);
+		glm::vec3 pos, rot, scl;
+		Math::DecomposeTransform(original, pos, rot, scl);*/
 		//Math::Rotate({ 3,3,0 }, { 0,0,glm::radians(90.0f) });
 
 
@@ -220,12 +225,13 @@ namespace Kaidel {
 		}
 		Renderer2D::EndScene();
 	}
+	
 
 
 	void EditorLayer::OnImGuiRender()
 	{
 		KD_PROFILE_FUNCTION();
-
+		
 		// Note: Switch this to true to enable dockspace
 		static bool dockspaceOpen = true;
 		static bool opt_fullscreen_persistant = true;
@@ -446,12 +452,19 @@ namespace Kaidel {
 		if (curr.HasComponent<ParentComponent>()) {
 			for (auto& child : curr.GetComponent<ParentComponent>().Children) {
 				auto entity = m_ActiveScene->GetEntity(child);
-				MoveChildren(entity, deltaTranslation, deltaRotation,curr);
+				MoveChildren(entity, deltaTranslation, deltaRotation, parent ? parent : curr);
 			}
 		}
+		if (parent && (deltaRotation.x || deltaRotation.y || deltaRotation.z)) {
+			Math::Rotate(curr, parent, deltaRotation);
+		}
+		else {
+			if(parent)
+			tc.Rotation += deltaRotation;
+		}
 		tc.Translation += deltaTranslation;
-		tc.Rotation += deltaRotation;
 	}
+	
 	void EditorLayer::DrawGizmos()
 	{
 
@@ -488,11 +501,19 @@ namespace Kaidel {
 			{
 				glm::vec3 translation, rotation, scale;
 				Math::DecomposeTransform(transform, translation, rotation, scale);
+				glm::vec3 deltaTranslation = translation - tc.Translation;
 				glm::vec3 deltaRotation = rotation - tc.Rotation;
-				if (selectedEntity.HasComponent<ParentComponent>()) {
-					glm::vec3 deltaTranslation = translation - tc.Translation;
-					MoveChildren(selectedEntity, deltaTranslation, deltaRotation);
+				for (int i = 0; i < 3; ++i) {
+					if (glm::epsilonEqual(deltaRotation[i], 0.0f, glm::epsilon<float>())) {
+						deltaRotation[i] = 0.0f;
+					}
 				}
+				for (int i = 0; i < 3; ++i) {
+					if (glm::epsilonEqual(deltaTranslation[i], 0.0f, glm::epsilon<float>())) {
+						deltaTranslation[i] = 0.0f;
+					}
+				}
+				MoveEntity(selectedEntity, m_ActiveScene.get(), deltaTranslation, deltaRotation);
 				tc.Scale = scale;
 			}
 		}

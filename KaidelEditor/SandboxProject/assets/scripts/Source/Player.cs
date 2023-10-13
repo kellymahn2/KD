@@ -14,9 +14,6 @@ namespace Sandbox
 		public float X;
 		public override void OnCreate()
 		{
-			Vector3 a = new Vector3(3,3,0);
-			Vector3 b = new Vector3(5,3,0);
-			Vector3 res = b.RotateAround(a,new Vector3(0,0,90.0f));
 		}
 
 		public override void OnUpdate(float ts)
@@ -34,21 +31,21 @@ namespace Sandbox
 			else if (Input.IsKeyDown(KeyCode.D))
 				velocity.x = 1.0f;
 
-			Entity cameraEntity = FindEntityByName("Camera");
+			// Entity cameraEntity = FindEntityByName("Camera");
 
-			if (cameraEntity != null)
-			{
-				Camera camera = cameraEntity.As<Camera>();
-				if (Input.IsKeyDown(KeyCode.Q))
-					camera.DistanceFromPlayer += speed * 2.0f * ts;
-				else if (Input.IsKeyDown(KeyCode.E))
-					camera.DistanceFromPlayer -= speed * 2.0f * ts;
-			}
+			// if (cameraEntity != null)
+			// {
+			// 	Camera camera = cameraEntity.As<Camera>();
+			// 	if (Input.IsKeyDown(KeyCode.Q))
+			// 		camera.DistanceFromPlayer += speed * 2.0f * ts;
+			// 	else if (Input.IsKeyDown(KeyCode.E))
+			// 		camera.DistanceFromPlayer -= speed * 2.0f * ts;
+			// }
 			velocity *= speed * ts;
 
 			// m_Rigidbody.ApplyLinearImpulse(velocity.XY, true);
 
-			Position += velocity;
+			LocalPosition += velocity;
 		}
 
 	}

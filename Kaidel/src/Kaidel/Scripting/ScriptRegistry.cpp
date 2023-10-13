@@ -16,6 +16,10 @@
 #include <box2d/b2_polygon_shape.h>
 #include <box2d/b2_circle_shape.h>
 
+//TODO : Add local Rotation.
+//TODO : Add active/inactive entities.
+//TODO : Add visible/hidden entities.
+
 namespace std {
 	template<>
 	struct hash<glm::vec2>
@@ -69,11 +73,14 @@ namespace Kaidel {
 
 
 #define KD_ADD_INTERNAL(Name) mono_add_internal_call("KaidelCore.Internals::"#Name,&Name)
+	static Entity GetEntity(UUID id) {
+		Scene* scene = ScriptEngine::GetSceneContext();
+		return scene->GetEntity(id);
+	}
+
 	template<typename T>
 	static T& GetComponent(UUID id) {
-		Scene* scene = ScriptEngine::GetSceneContext();
-		Entity entity = scene->GetEntity(id);
-		return entity.GetComponent<T>();
+		return GetEntity(id).GetComponent<T>();
 	}
 
 	static void NativeLog(MonoString* string) {
@@ -173,31 +180,26 @@ namespace Kaidel {
 		auto& scale = GetComponent<TransformComponent>(id).Scale;
 		memcpy(&scale, setScale, sizeof(glm::vec3));
 	}
-
 	static void TransformComponent_GetLocalPosition(UUID id, glm::vec3* outLocalPosition) {
-		Scene* scene = ScriptEngine::GetSceneContext();
-		auto child = scene->GetEntity(id);
-		if (child.HasComponent<ChildComponent>()) {
-			auto parent = scene->GetEntity(child.GetComponent<ChildComponent>().Parent);
-			auto& parentTC = parent.GetComponent<TransformComponent>();
-			auto& childTC = child.GetComponent<TransformComponent>();
-			glm::vec3 res = childTC.Translation - parentTC.Translation;
-			memcpy(outLocalPosition, &res, sizeof(glm::vec3));
+		Entity entity = GetEntity(id);
+		if (!entity.HasComponent<ChildComponent>()) {
+			auto& pos = entity.GetComponent<TransformComponent>().Translation;
+			memcpy(outLocalPosition, &pos, sizeof(glm::vec3));
 			return;
 		}
-		memset(outLocalPosition, 0, sizeof(outLocalPosition));
+		auto& localPosition = entity.GetComponent<ChildComponent>().LocalPosition;
+		memcpy(outLocalPosition, &localPosition, sizeof(glm::vec3));
 	}
 	static void TransformComponent_SetLocalPosition(UUID id, glm::vec3* setLocalPosition) {
-
-		Scene* scene = ScriptEngine::GetSceneContext();
-		auto child = scene->GetEntity(id);
-		if (child.HasComponent<ChildComponent>()) {
-			auto parent = scene->GetEntity(child.GetComponent<ChildComponent>().Parent);
-			auto& parentTC = parent.GetComponent<TransformComponent>();
-			auto& childTC = child.GetComponent<TransformComponent>();
-			glm::vec3 res = *setLocalPosition + parentTC.Translation;
-			memcpy(&childTC.Translation, &res, sizeof(glm::vec3));
+		Entity entity = GetEntity(id);
+		if (!entity.HasComponent<ChildComponent>()) {
+			auto& pos = entity.GetComponent<TransformComponent>().Translation;
+			MoveEntity(entity,ScriptEngine::GetSceneContext(), *setLocalPosition - pos,{0,0,0});
+			return;
 		}
+		auto& localPosition = entity.GetComponent<ChildComponent>().LocalPosition;
+		glm::vec3 delta = *setLocalPosition - localPosition;
+		MoveEntity(entity, ScriptEngine::GetSceneContext(), delta, { 0,0,0 });
 	}
 	static void TransformComponent_RotateAround(UUID id, UUID parentID, glm::vec3* rotation) {
 		Scene* scene = ScriptEngine::GetSceneContext();

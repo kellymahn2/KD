@@ -194,7 +194,17 @@ namespace Kaidel {
 
 			out << YAML::EndMap; // TagComponent
 		}
+		if (entity.HasComponent<ChildComponent>()) {
+			out << YAML::Key << "ChildComponent";
+			out << YAML::BeginMap; // ChildComponent
 
+			auto& cc = entity.GetComponent<ChildComponent>();
+			out << YAML::Key << "Parent" << YAML::Value << (uint64_t)cc.Parent;
+			out << YAML::Key << "LocalPosition" << YAML::Value << cc.LocalPosition;
+			out << YAML::Key << "LocalRotation" << YAML::Value << cc.LocalRotation;
+
+			out << YAML::EndMap; // ChildComponent
+		}
 		if (entity.HasComponent<TransformComponent>())
 		{
 			out << YAML::Key << "TransformComponent";
@@ -405,7 +415,16 @@ namespace Kaidel {
 					tc.Scale = transformComponent["Scale"].as<glm::vec3>();
 				}
 
-
+				DeserializeComponent<ChildComponent>(deserializedEntity, "ChildComponent", entity,
+					[](auto& cc, auto& entity, auto& childComponent) {
+						cc.Parent = childComponent["Parent"].as<uint64_t>();
+						if (childComponent["LocalPosition"]) {
+							cc.LocalPosition = childComponent["LocalPosition"].as<glm::vec3>();
+						}
+						if (childComponent["LocalRotation"]) {
+							cc.LocalRotation= childComponent["LocalRotation"].as<glm::vec3>();
+						}
+					});
 				DeserializeComponent<CameraComponent>(deserializedEntity, "CameraComponent", entity,
 					[](auto& cc, auto& entity, auto& cameraComponent) {
 						auto& cameraProps = cameraComponent["Camera"];
@@ -497,9 +516,16 @@ case ScriptFieldType::##T:\
 							}
 						}
 					});
+
 			}
 		}
 
+		auto view = m_Scene->m_Registry.view<ChildComponent>();
+		for (auto e : view) {
+			Entity childEntity{ e,m_Scene.get() };
+			auto& parentID = childEntity.GetComponent<ChildComponent>().Parent;
+			m_Scene->GetEntity(parentID).AddChild(childEntity.GetUUID());
+		}
 		return true;
 	}
 
