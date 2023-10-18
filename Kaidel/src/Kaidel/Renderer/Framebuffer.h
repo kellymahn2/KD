@@ -22,10 +22,11 @@ namespace Kaidel {
 	struct FramebufferTextureSpecification
 	{
 		FramebufferTextureSpecification() = default;
-		FramebufferTextureSpecification(FramebufferTextureFormat format)
-			: TextureFormat(format) {}
+		FramebufferTextureSpecification(FramebufferTextureFormat format,bool isReadable = false)
+			: TextureFormat(format),Readable(isReadable) {}
 
 		FramebufferTextureFormat TextureFormat = FramebufferTextureFormat::None;
+		bool Readable;
 		// TODO: filtering/wrap
 	};
 
@@ -59,8 +60,10 @@ namespace Kaidel {
 		virtual int ReadPixel(uint32_t attachmentIndex, int x, int y) = 0;
 
 		virtual void ClearAttachment(uint32_t attachmentIndex, int value) = 0;
+		virtual void ClearAttachment(uint32_t attachmentIndex, const float* colors) = 0;
 
 		virtual uint32_t GetColorAttachmentRendererID(uint32_t index = 0) const = 0;
+		virtual uint64_t GetColorAttachmentView(uint32_t index = 0) const;
 
 		virtual const FramebufferSpecification& GetSpecification() const = 0;
 

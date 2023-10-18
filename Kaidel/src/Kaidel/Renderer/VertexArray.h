@@ -2,7 +2,7 @@
 
 #include <memory>
 #include "Kaidel/Renderer/Buffer.h"
-
+#include "Kaidel/Renderer/Shader.h"
 namespace Kaidel {
 
 	class VertexArray
@@ -20,6 +20,7 @@ namespace Kaidel {
 		virtual const Ref<IndexBuffer>& GetIndexBuffer() const = 0;
 
 		static Ref<VertexArray> Create();
+		static Ref<VertexArray> Create(Ref<Shader> shader);
 	};
 
 }

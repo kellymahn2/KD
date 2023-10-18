@@ -5,7 +5,7 @@
 #include "Panels/ContentBrowserPanel.h"
 #include "Panels/ConsolePanel.h"
 #include "Kaidel/Renderer/EditorCamera.h"
-
+#include "Kaidel\Renderer\UniformBuffer.h"
 namespace Kaidel {
 
 	class EditorLayer : public Layer
@@ -49,6 +49,14 @@ namespace Kaidel {
 
 		void ShowViewport();
 	private:
+
+
+		Ref<VertexBuffer> vb;
+		Ref<VertexArray> va;
+		Ref<Shader> s;
+		Ref<IndexBuffer> ib;
+		Ref<UniformBuffer> ub;
+
 
 
 		Console m_DebugConsole;

@@ -48,6 +48,7 @@ namespace Kaidel {
 		static Statistics GetStats();
 		static float GetLineWidth();
 		static void SetLineWidth(float width);
+		static Ref<Texture2D> GetWhite();
 	private:
 		static void SetVertexBufferValues(uint32_t vertexCount, const glm::mat4& transform, const glm::vec4& tintColor, const glm::vec2* textureCoords, float textureIndex, float tilingFactor, int entityID);
 		static void StartBatch();

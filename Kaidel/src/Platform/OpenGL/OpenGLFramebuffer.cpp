@@ -203,7 +203,7 @@ namespace Kaidel {
 	{
 		if (width == 0 || height == 0 || width > s_MaxFramebufferSize || height > s_MaxFramebufferSize)
 		{
-			KD_CORE_WARN("Attempted to rezize framebuffer to {0}, {1}", width, height);
+			KD_CORE_WARN("Attempted to resize framebuffer to {0}, {1}", width, height);
 			return;
 		}
 		m_Specification.Width = width;
@@ -230,6 +230,11 @@ namespace Kaidel {
 		auto& spec = m_ColorAttachmentSpecifications[attachmentIndex];
 		glClearTexImage(m_ColorAttachments[attachmentIndex], 0,
 			Utils::KaidelFBTextureFormatToGL(spec.TextureFormat), GL_INT, &value);
+	}
+
+	void OpenGLFramebuffer::ClearAttachment(uint32_t attachmentIndex, const float* colors)
+	{
+		KD_CORE_ASSERT(attachmentIndex < m_ColorAttachments.size());
 	}
 
 }

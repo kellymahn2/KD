@@ -107,7 +107,38 @@ namespace Kaidel {
 	void Renderer2D::Init()
 	{
 		KD_PROFILE_FUNCTION();
-		s_Data.QuadVertexArray = VertexArray::Create();
+		//TODO : Make the other shaders.
+		switch (RendererAPI::GetAPI()) {
+		case RendererAPI::API::OpenGL:
+		{
+			s_Data.LineShader = Shader::Create("assets/shaders/Line.glsl");
+			s_Data.QuadShader = Shader::Create("assets/shaders/Quad.glsl");
+			s_Data.CircleShader = Shader::Create("assets/shaders/Circle.glsl");
+			break;
+		}
+		case RendererAPI::API::DirectX:
+		{
+
+			s_Data.LineShader = Shader::Create("assets/shaders/Line.kdShader");
+			s_Data.QuadShader = Shader::Create("assets/shaders/Quad.kdShader");
+			s_Data.CircleShader = Shader::Create("assets/shaders/Circle.kdShader");
+			break;
+		}
+		}
+		
+		switch (RendererAPI::GetAPI()) {
+		case RendererAPI::API::OpenGL:
+		{
+			s_Data.QuadVertexArray = VertexArray::Create();
+			break;
+		}
+		case RendererAPI::API::DirectX:
+		{
+
+			s_Data.QuadVertexArray = VertexArray::Create(s_Data.QuadShader);
+			break;
+		}
+		}
 		s_Data.QuadVertexBufferArray = std::vector<QuadVertex>(100, QuadVertex{});
 		s_Data.QuadVertexBuffer = VertexBuffer::Create(0);
 		s_Data.QuadVertexBuffer->SetLayout({
@@ -131,7 +162,19 @@ namespace Kaidel {
 
 		//Circles
 
-		s_Data.CircleVertexArray = VertexArray::Create();
+		switch (RendererAPI::GetAPI()) {
+		case RendererAPI::API::OpenGL:
+		{
+			s_Data.CircleVertexArray = VertexArray::Create();
+			break;
+		}
+		case RendererAPI::API::DirectX:
+		{
+
+			s_Data.CircleVertexArray = VertexArray::Create(s_Data.CircleShader);
+			break;
+		}
+		}
 
 		s_Data.CircleVertexBuffer = VertexBuffer::Create(s_Data.MaxVertices * sizeof(CircleVertex));
 		s_Data.CircleVertexBuffer->SetLayout({
@@ -148,7 +191,19 @@ namespace Kaidel {
 		s_Data.CircleVertexBufferBase = new CircleVertex[s_Data.MaxVertices];
 
 
-		s_Data.LineVertexArray = VertexArray::Create();
+		switch (RendererAPI::GetAPI()) {
+		case RendererAPI::API::OpenGL:
+		{
+			s_Data.LineVertexArray = VertexArray::Create();
+			break;
+		}
+		case RendererAPI::API::DirectX:
+		{
+
+			s_Data.LineVertexArray = VertexArray::Create(s_Data.LineShader);
+			break;
+		}
+		}
 
 		s_Data.LineVertexBuffer = VertexBuffer::Create(s_Data.MaxVertices * sizeof(LineVertex));
 		s_Data.LineVertexBuffer->SetLayout({
@@ -171,9 +226,7 @@ namespace Kaidel {
 
 
 
-		s_Data.QuadShader = Shader::Create("assets/shaders/Quad.glsl");
-		s_Data.CircleShader = Shader::Create("assets/shaders/Circle.glsl");
-		s_Data.LineShader = Shader::Create("assets/shaders/Line.glsl");
+		
 
 		// Set first texture slot to 0
 		s_Data.TextureSlots[0] = s_Data.WhiteTexture;
@@ -222,7 +275,6 @@ namespace Kaidel {
 		KD_PROFILE_FUNCTION();
 
 
-		s_Data.QuadShader->Bind();
 		s_Data.CameraBuffer.ViewProjection = camera.GetViewProjection();
 		s_Data.CameraUniformBuffer->SetData(&s_Data.CameraBuffer, sizeof(Renderer2DData::CameraData));
 
@@ -269,14 +321,16 @@ namespace Kaidel {
 	{
 		if(s_Data.QuadIndexCount){
 			//uint32_t dataSize = (uint32_t)((uint8_t*)s_Data.QuadVertexBufferPtr - (uint8_t*)s_Data.QuadVertexBufferBase);
-
-			//s_Data.QuadVertexBuffer->SetData(s_Data.QuadVertexBufferBase, dataSize);
 			s_Data.QuadVertexBuffer->SetData(s_Data.QuadVertexBufferArray.data(), s_Data.QuadVertexBufferIndex * sizeof(QuadVertex));
-
+			s_Data.QuadVertexBuffer->Bind();
+			//s_Data.QuadVertexBuffer->SetData(s_Data.QuadVertexBufferBase, dataSize);
+			s_Data.QuadVertexArray->GetIndexBuffer()->Bind();
+			s_Data.CameraUniformBuffer->Bind();
+			s_Data.QuadVertexArray->Bind();
+			s_Data.QuadShader->Bind();
 			// Bind textures
 			for (uint32_t i = 0; i < s_Data.TextureSlotIndex; i++)
 				s_Data.TextureSlots[i]->Bind(i);
-			s_Data.QuadShader->Bind();
 			RenderCommand::DrawIndexed(s_Data.QuadVertexArray, s_Data.QuadIndexCount);
 			s_Data.Stats.DrawCalls++;
 		}
@@ -286,6 +340,7 @@ namespace Kaidel {
 			s_Data.CircleVertexBuffer->SetData(s_Data.CircleVertexBufferBase, dataSize);
 
 			s_Data.CircleShader->Bind();
+			s_Data.CameraUniformBuffer->Bind();
 			RenderCommand::DrawIndexed(s_Data.CircleVertexArray, s_Data.CircleIndexCount);
 			s_Data.Stats.DrawCalls++;
 
@@ -295,6 +350,7 @@ namespace Kaidel {
 			s_Data.LineVertexBuffer->SetData(s_Data.LineVertexBufferBase, dataSize);
 
 			s_Data.LineShader->Bind();
+			s_Data.CameraUniformBuffer->Bind();
 			RenderCommand::DrawLines(s_Data.LineVertexArray, s_Data.LineVertexCount);
 			s_Data.Stats.DrawCalls++;
 		}
@@ -484,5 +540,8 @@ namespace Kaidel {
 	void Renderer2D::SetLineWidth(float width){
 		s_Data.LineWidth = width;
 		RenderCommand::SetLineWidth(width);
+	}
+	Ref<Texture2D> Renderer2D::GetWhite() {
+		return s_Data.WhiteTexture;
 	}
 }

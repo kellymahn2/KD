@@ -38,6 +38,7 @@ project "Kaidel"
 		"%{IncludeDir.Glad}",
 		"%{IncludeDir.ImGui}",
 		"%{IncludeDir.glm}",
+		"C:/Program Files (x86)/Microsoft DirectX SDK (June 2010)/Include",
 		"%{IncludeDir.stb_image}",
 		"%{IncludeDir.entt}",
 		"%{IncludeDir.mono}",
@@ -55,7 +56,9 @@ project "Kaidel"
 		"ImGui",
 		"yaml-cpp",
 		"opengl32.lib",
-
+		"C:/Program Files (x86)/Microsoft DirectX SDK (June 2010)/Lib/x64/d3d11.lib",
+		"C:/Program Files (x86)/Microsoft DirectX SDK (June 2010)/Lib/x64/d3dx11.lib",
+		"C:/Program Files (x86)/Microsoft DirectX SDK (June 2010)/Lib/x64/d3dx10.lib",
 		"%{Library.mono}",
 	}
 

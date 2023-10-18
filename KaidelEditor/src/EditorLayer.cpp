@@ -41,7 +41,7 @@ namespace Kaidel {
 		KD_INFO("Loaded Stop Button");
 
 		FramebufferSpecification fbSpec;
-		fbSpec.Attachments = { FramebufferTextureFormat::RGBA8, FramebufferTextureFormat::RED_INTEGER, FramebufferTextureFormat::Depth };
+		fbSpec.Attachments = { FramebufferTextureFormat::RGBA8,{FramebufferTextureFormat::RED_INTEGER,true}, FramebufferTextureFormat::Depth };
 		fbSpec.Width = 1280;
 		fbSpec.Height = 720;
 		fbSpec.Samples = 1;
@@ -57,29 +57,8 @@ namespace Kaidel {
 
 		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 		m_SceneHierarchyPanel.RegisterFieldRenderers();
-
-
-		/*auto parent = m_ActiveScene->CreateEntity("Parent");
-		auto child = m_ActiveScene->CreateEntity("Child");
-		parent.AddComponent<ParentComponent>();
-		child.AddComponent<ChildComponent>().Parent = parent.GetUUID();
-		child.AddComponent<ParentComponent>();
-		parent.AddChild(child.GetUUID());
-		auto& parentTC = parent.GetComponent<TransformComponent>();
-		auto& childTC = child.GetComponent<TransformComponent>();
-
-		parent.GetComponent<TransformComponent>().Translation = { 3,3,0 };
-		parentTC.Rotation.z = glm::radians(90.f);
-		child.GetComponent<TransformComponent>().Translation = { 5,3,0 };
-		Math::Rotate(child, parent, glm::vec3(0, 0, glm::radians(90.0f)));
-
-		auto original = GetLocalTransform(child);
-		glm::vec3 pos, rot, scl;
-		Math::DecomposeTransform(original, pos, rot, scl);*/
-		//Math::Rotate({ 3,3,0 }, { 0,0,glm::radians(90.0f) });
-
-
 		m_ConsolePanel.SetContext(::Log::GetClientLogger());
+
 	}
 
 	void EditorLayer::OnDetach()
@@ -92,11 +71,12 @@ namespace Kaidel {
 		mx -= viewportBounds[0].x;
 		my -= viewportBounds[0].y;
 		glm::vec2 viewportSize = viewportBounds[1] - viewportBounds[0];
-		my = viewportSize.y - my;
+		//my = viewportSize.y - my;
 		int mouseX = (int)mx;
 		int mouseY = (int)my;
 		if (mouseX >= 0 && mouseY >= 0 && mouseX < (int)viewportSize.x && mouseY < (int)viewportSize.y)
 		{
+			KD_INFO("{},{}", mouseX, mouseY);
 			return fb->ReadPixel(1, mouseX, mouseY);
 		}
 		return -1;
@@ -122,14 +102,32 @@ namespace Kaidel {
 		// Render
 		Renderer2D::ResetStats();
 		m_Framebuffer->Bind();
-
-		RenderCommand::SetClearColor({ 0.1f, 0.1f, 0.1f, 1 });
-		RenderCommand::Clear();
+		float c[4] = { 0.1f, 0.1f, 0.1f, 1 };
+		/*RenderCommand::SetClearColor({ 0.1f, 0.1f, 0.1f, 1 });
+		RenderCommand::Clear();*/
 		// Clear our entity ID attachment to -1
+		m_Framebuffer->ClearAttachment(0, c);
 		m_Framebuffer->ClearAttachment(1, -1);
 
-
-		// Update scene
+		//Renderer2D::BeginScene(m_EditorCamera);
+		//Renderer2D::DrawQuad(glm::mat4(1.0f), { 0.6f,.8f,.5f,1.0f }, 0);
+		//Renderer2D::EndScene();
+		//glm::mat4 r = m_EditorCamera.GetProjection()* m_EditorCamera.GetViewMatrix();
+		//ub->SetData(&r[0][0], sizeof(glm::mat4));
+		//float p[] = {
+		//	0.f, 0.5f, 0.0f,	.0f,.0f,1.0f,1.0f,
+		//	0.5f, -0.5f, 0.0f,	1.0f,.0f,.0f,1.0f,
+		//	-0.5f, -0.5f, 0.0f, .0f,1.0f,.0f,1.0f,
+		//};
+		//vb->SetData(p, sizeof(p));
+		//vb->Bind();
+		////s_Data.QuadVertexBuffer->SetData(s_Data.QuadVertexBufferBase, dataSize);
+		//ib->Bind();
+		//ub->Bind();
+		//va->Bind();
+		//s->Bind();
+		//RenderCommand::DrawIndexed(va, 3);
+		//// Update scene
 		switch (m_SceneState)
 		{
 			case SceneState::Edit:
@@ -148,7 +146,7 @@ namespace Kaidel {
 				break;
 			}
 		}
-
+		
 		if (m_Debug) {
 			OnOverlayRender();
 		}
@@ -159,7 +157,7 @@ namespace Kaidel {
 			//Renderer2D::SetLineWidth(4.0f);
 			auto& tc = selectedEntity.GetComponent<TransformComponent>();
 			if (selectedEntity.HasComponent<SpriteRendererComponent>()) {
-
+		
 				auto& pos = tc.Translation;
 				auto& rot = glm::toMat4(glm::quat(tc.Rotation));
 				auto& scale = tc.Scale + .01f;
@@ -172,7 +170,7 @@ namespace Kaidel {
 			}
 			else if (selectedEntity.HasComponent<CircleRendererComponent>()) {
 				auto& crc = selectedEntity.GetComponent<CircleRendererComponent>();
-
+		
 				auto scale = tc.Scale;
 				auto transform = glm::translate(glm::mat4(1.0f), tc.Translation)
 					* glm::scale(glm::mat4(1.0f), scale+0.01f);
@@ -184,10 +182,9 @@ namespace Kaidel {
 			}
 			Renderer2D::EndScene();
 		}
-
+		
 		int pixelData = GetCurrentPixelData(m_ViewportBounds,m_Framebuffer);
 		m_HoveredEntity = pixelData == -1 ? Entity() : Entity((entt::entity)pixelData, m_ActiveScene.get());
-
 		m_Framebuffer->Unbind();
 	}
 
@@ -528,8 +525,8 @@ namespace Kaidel {
 		ImGui::Begin("Stats");
 
 		std::string name = "None";
-		if (m_HoveredEntity)
-			name = m_HoveredEntity.GetComponent<TagComponent>().Tag;
+		//if (m_HoveredEntity)
+			//name = m_HoveredEntity.GetComponent<TagComponent>().Tag;
 		ImGui::Text("Hovered Entity: %s, %d", name.c_str(),m_HoveredEntity.operator entt::id_type());
 		ImGui::Text("Gizmo Mode : %d", m_GizmoType);
 		auto stats = Renderer2D::GetStats();
@@ -540,6 +537,17 @@ namespace Kaidel {
 		ImGui::Text("Indices: %d", stats.GetTotalIndexCount());
 		ImGui::Text("Frame Rate: %.3f", ImGui::GetIO().Framerate);
 		ImGui::Text("Selected Entity: %d", m_SceneHierarchyPanel.GetSelectedEntity().operator entt::entity());
+		ImGui::Text("%f,%f", ImGui::GetMousePos().x - m_ViewportBounds[0].x, ImGui::GetMousePos().y - m_ViewportBounds[0].y);
+		auto d= m_EditorCamera.GetViewMatrix() * m_EditorCamera.GetProjection();
+		ImGui::Text("c1 : %.3f,%.3f,%.3f,%.3f",d[0][0],d[0][1],d[0][2],d[0][3]);
+		ImGui::Text("c2 : %.3f,%.3f,%.3f,%.3f",d[1][0],d[1][1],d[1][2],d[1][3]);
+		ImGui::Text("c3 : %.3f,%.3f,%.3f,%.3f",d[2][0],d[2][1],d[2][2],d[2][3]);
+		ImGui::Text("c4 : %.3f,%.3f,%.3f,%.3f",d[3][0],d[3][1],d[3][2],d[3][3]);
+
+		auto t = Renderer2D::GetWhite();
+		ImGui::Image((void*)t->GetRendererID(),ImVec2{(float)100,(float)100});
+		t = m_Icons.IconStop;
+		ImGui::Image((void*)t->GetRendererID(), ImVec2{ (float)t->GetWidth(),(float)t->GetHeight() });
 		ImGui::End();
 
 	}
@@ -563,8 +571,8 @@ namespace Kaidel {
 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 		m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };
 
-		uint64_t textureID = m_Framebuffer->GetColorAttachmentRendererID();
-		ImGui::Image(reinterpret_cast<void*>(textureID), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, ImVec2{ 0, 1 }, ImVec2{ 1, 0 });
+		auto textureID = m_Framebuffer->GetColorAttachmentView();
+		ImGui::Image(reinterpret_cast<void*>(textureID), ImVec2{ m_ViewportSize.x, m_ViewportSize.y });
 		if (ImGui::BeginDragDropTarget()) {
 			if (auto payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
 				const wchar_t* path = (const wchar_t*)payload->Data;

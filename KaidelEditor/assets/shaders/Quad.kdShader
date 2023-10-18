@@ -1,0 +1,64 @@
+#type vertex
+
+struct VertexInput
+{
+	float3 a_Position : POSITION;
+	float4 a_Color : COLOR;
+	float2 a_TexCoord : TEXCOORD0;
+	float a_TexIndex : TEXCOORD1;
+	float a_TilingFactor : TEXCOORD2;
+	int a_EntityID : TEXCOORD3;
+};
+
+cbuffer Camera : register(b0)
+{
+    matrix u_ViewProjection;
+};
+
+struct VertexOutput
+{
+	float4 Pos : SV_Position;
+	float4 Color : COLOR;
+	float2 TexCoord : TEXCOORD0;
+	float TilingFactor : TEXCOORD1;
+	float TexIndex : TEXCOORD2;
+	nointerpolation int EntityID : TEXCOORD3;
+};
+
+VertexOutput main(VertexInput input)
+{
+    VertexOutput output;
+	output.Pos = mul(u_ViewProjection,float4(input.a_Position,1.0f));
+    output.Color = input.a_Color;
+	output.TexCoord = input.a_TexCoord;
+	output.TilingFactor = input.a_TilingFactor;
+	output.TexIndex = input.a_TexIndex;
+	output.EntityID = input.a_EntityID;
+    return output;
+}
+
+#type fragment
+
+struct VertexOutput 
+{
+	float4 Pos : SV_Position;
+	float4 Color : COLOR;
+	float2 TexCoord : TEXCOORD0;
+	float TilingFactor : TEXCOORD1;
+	float TexIndex : TEXCOORD2;
+	nointerpolation int EntityID : TEXCOORD3;
+};
+
+struct PSOutput
+{
+	float4 Color : SV_Target0;
+	int EntityID : SV_Target1;
+};
+
+PSOutput main(VertexOutput input)
+{
+	PSOutput output;
+	output.Color = input.Color;
+	output.EntityID = input.EntityID;
+	return output;
+}

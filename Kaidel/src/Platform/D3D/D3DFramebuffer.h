@@ -2,13 +2,17 @@
 
 #include "Kaidel/Renderer/Framebuffer.h"
 
+#include <d3d11.h>
+#include <d3dx11.h>
+#include <d3dx10.h>
+
 namespace Kaidel {
 
-	class OpenGLFramebuffer : public Framebuffer
+	class D3DFrameBuffer : public Framebuffer
 	{
 	public:
-		OpenGLFramebuffer(const FramebufferSpecification& spec);
-		virtual ~OpenGLFramebuffer();
+		D3DFrameBuffer(const FramebufferSpecification& spec);
+		virtual ~D3DFrameBuffer();
 
 		void Invalidate();
 
@@ -20,22 +24,36 @@ namespace Kaidel {
 
 		virtual void ClearAttachment(uint32_t attachmentIndex, int value) override;
 
-		virtual uint32_t GetColorAttachmentRendererID(uint32_t index = 0) const override { KD_CORE_ASSERT(index < m_ColorAttachments.size()); return m_ColorAttachments[index]; }
+		virtual uint32_t GetColorAttachmentRendererID(uint32_t index = 0) const override { KD_CORE_ASSERT(false); return 0; }
 
 		virtual const FramebufferSpecification& GetSpecification() const override { return m_Specification; }
+
+		struct FrameBufferTextureTarget {
+			ID3D11Texture2D* Texture = nullptr;
+			ID3D11RenderTargetView* RenderTargetView = nullptr;
+			ID3D11Texture2D* StagingTexture = nullptr;
+			ID3D11ShaderResourceView* SRV = nullptr;
+		};
+		struct FrameBufferDepthTarget {
+			ID3D11Texture2D* Texture = nullptr;
+			ID3D11DepthStencilView* DepthStencilView = nullptr;
+		};
+
+		uint64_t GetColorAttachmentView(uint32_t index = 0) const override;
 
 
 		void ClearAttachment(uint32_t attachmentIndex, const float* colors) override;
 
 	private:
+
 		uint32_t m_RendererID = 0;
 		FramebufferSpecification m_Specification;
 
 		std::vector<FramebufferTextureSpecification> m_ColorAttachmentSpecifications;
 		FramebufferTextureSpecification m_DepthAttachmentSpecification = FramebufferTextureFormat::None;
 
-		std::vector<uint32_t> m_ColorAttachments;
-		uint32_t m_DepthAttachment = 0;
+		std::vector<FrameBufferTextureTarget> m_ColorAttachments;
+		FrameBufferDepthTarget m_DepthAttachment{};
 	};
 
 }

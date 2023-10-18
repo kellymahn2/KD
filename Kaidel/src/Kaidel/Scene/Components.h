@@ -39,7 +39,7 @@ namespace Kaidel {
 		TagComponent(const std::string& tag)
 			: Tag(tag) {}
 	};
-
+	glm::mat4 _GetTransform(const glm::vec3& pos, const glm::vec3&rot, const glm::vec3& scl);
 	struct TransformComponent
 	{
 		glm::vec3 Translation = { 0.0f, 0.0f, 0.0f };
@@ -53,11 +53,7 @@ namespace Kaidel {
 
 		glm::mat4 GetTransform() const
 		{
-			glm::mat4 rotation = glm::toMat4(glm::quat(Rotation));
-
-			return glm::translate(glm::mat4(1.0f), Translation)
-				* rotation
-				* glm::scale(glm::mat4(1.0f), Scale);
+			return _GetTransform(Translation, Rotation, Scale);
 		}
 	};
 
