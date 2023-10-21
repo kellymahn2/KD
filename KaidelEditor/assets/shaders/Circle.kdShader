@@ -28,7 +28,7 @@ struct VertexOutput
 VertexOutput main(VertexInput input)
 {
     VertexOutput output;
-	output.Position = mul(float4(input.a_Position,1.0f),u_ViewProjection);
+	output.Position = mul(u_ViewProjection,float4(input.a_Position,1.0f));
     output.LocalPosition = input.a_LocalPosition;
     output.Color = input.a_Color;
     output.Thickness = input.a_Thickness;
@@ -42,6 +42,7 @@ VertexOutput main(VertexInput input)
 
 struct VertexOutput
 {
+	float4 Position : SV_Position;
     float3 LocalPosition : POSITION;
     float4 Color : COLOR;
     float Thickness : TEXCOORD0;

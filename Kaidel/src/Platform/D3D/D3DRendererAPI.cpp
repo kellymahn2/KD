@@ -58,5 +58,6 @@ namespace Kaidel {
 		d3dContext->GetDeviceContext()->Draw(vertexCount,0);
 	}
 	void D3DRendererAPI::SetLineWidth(float width) {
+
 	}
 }

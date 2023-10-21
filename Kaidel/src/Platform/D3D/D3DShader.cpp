@@ -167,7 +167,7 @@ VertexOutput main(VertexInput input)
 	void D3DShader::Unbind() const
 	{
 		auto d3dContext = D3DContext::Get();
-		d3dContext->GetDeviceContext()->PSSetShader(nullptr,nullptr,0);
+		d3dContext->GetDeviceContext()->PSSetShader(nullptr, nullptr, 0);
 		d3dContext->GetDeviceContext()->PSSetShader(nullptr, nullptr, 0);
 	}
 

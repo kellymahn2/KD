@@ -13,6 +13,7 @@ namespace Kaidel {
 	};
 	struct Message {
 		std::string Text;
+		std::string TimeText;
 		MessageLevel Level;
 		std::chrono::system_clock::time_point Time;
 		Message(const std::string& text, MessageLevel level);

@@ -16,7 +16,6 @@ namespace Kaidel {
 		bd.StructureByteStride = 0;
 		auto d3dContext = D3DContext::Get();
 		D3DASSERT(d3dContext->GetDevice()->CreateBuffer(&bd, nullptr, &m_UniformBuffer));
-		Bind();
 	}
 
 	D3DUniformBuffer::~D3DUniformBuffer()
@@ -33,6 +32,7 @@ namespace Kaidel {
 		D3DASSERT(d3dContext->GetDeviceContext()->Map(m_UniformBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedUB));
 		memcpy((void*)((uint64_t)mappedUB.pData+(uint64_t)offset), data, size);
 		d3dContext->GetDeviceContext()->Unmap(m_UniformBuffer, 0);
+
 	}
 
 	void D3DUniformBuffer::Bind(uint32_t binding)

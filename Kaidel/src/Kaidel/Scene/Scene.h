@@ -3,6 +3,7 @@
 #include "Kaidel/Core/Timestep.h"
 #include "Kaidel/Renderer/EditorCamera.h"
 #include "Kaidel/Core/UUID.h"
+#include "SceneRenderer.h"
 #include "entt.hpp"
 class b2World;
 
@@ -66,6 +67,8 @@ namespace Kaidel {
 		friend class Entity;
 		friend class SceneSerializer;
 		friend class SceneHierarchyPanel;
+		friend class SceneRenderer;
+		SceneRenderer m_SceneRenderer;
 		std::unordered_map<UUID, entt::entity> m_IDMap;
 	};
 

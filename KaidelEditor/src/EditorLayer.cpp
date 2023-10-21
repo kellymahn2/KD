@@ -20,7 +20,7 @@
 
 
 namespace Kaidel {
-
+	glm::vec4 _GetUVs();
 	EditorLayer::EditorLayer()
 		: Layer("EditorLayer")
 	{
@@ -49,11 +49,11 @@ namespace Kaidel {
 		m_ActiveScene = CreateRef<Scene>();
 		m_EditorScene = m_ActiveScene;
 		m_EditorCamera = EditorCamera(30.0f, 1.778f, 0.1f, 1000.0f);
-		/*auto& commandLineArgs = Application::Get().GetCommandLineArgs();
+		auto& commandLineArgs = Application::Get().GetCommandLineArgs();
 		if (commandLineArgs.Count > 1) {
 			auto sceneFilePath = commandLineArgs[1];
 			OpenScene(sceneFilePath);
-		}*/
+		}
 
 		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 		m_SceneHierarchyPanel.RegisterFieldRenderers();
@@ -71,12 +71,16 @@ namespace Kaidel {
 		mx -= viewportBounds[0].x;
 		my -= viewportBounds[0].y;
 		glm::vec2 viewportSize = viewportBounds[1] - viewportBounds[0];
-		//my = viewportSize.y - my;
+		switch (RendererAPI::GetAPI()) {
+		case RendererAPI::API::OpenGL:
+			my = viewportSize.y - my; break;
+		default:
+			break;
+		}
 		int mouseX = (int)mx;
 		int mouseY = (int)my;
 		if (mouseX >= 0 && mouseY >= 0 && mouseX < (int)viewportSize.x && mouseY < (int)viewportSize.y)
 		{
-			KD_INFO("{},{}", mouseX, mouseY);
 			return fb->ReadPixel(1, mouseX, mouseY);
 		}
 		return -1;
@@ -107,7 +111,8 @@ namespace Kaidel {
 		RenderCommand::Clear();*/
 		// Clear our entity ID attachment to -1
 		m_Framebuffer->ClearAttachment(0, c);
-		m_Framebuffer->ClearAttachment(1, -1);
+		float d[4] = { -1,-1,-1,-1 };
+		m_Framebuffer->ClearAttachment(1, d);
 
 		//Renderer2D::BeginScene(m_EditorCamera);
 		//Renderer2D::DrawQuad(glm::mat4(1.0f), { 0.6f,.8f,.5f,1.0f }, 0);
@@ -160,7 +165,7 @@ namespace Kaidel {
 		
 				auto& pos = tc.Translation;
 				auto& rot = glm::toMat4(glm::quat(tc.Rotation));
-				auto& scale = tc.Scale + .01f;
+				auto& scale = tc.Scale + .02f;
 				auto& col = selectedEntity.GetComponent<SpriteRendererComponent>().Color;
 				auto transform = glm::translate(glm::mat4(1.0f), pos) * rot * glm::scale(glm::mat4(1.0f), scale);
 				if (col == glm::vec4{ 1,0,0,1 })
@@ -183,8 +188,8 @@ namespace Kaidel {
 			Renderer2D::EndScene();
 		}
 		
-		int pixelData = GetCurrentPixelData(m_ViewportBounds,m_Framebuffer);
-		m_HoveredEntity = pixelData == -1 ? Entity() : Entity((entt::entity)pixelData, m_ActiveScene.get());
+		//int pixelData = GetCurrentPixelData(m_ViewportBounds,m_Framebuffer);
+		//m_HoveredEntity = pixelData == -1 ? Entity() : Entity((entt::entity)pixelData, m_ActiveScene.get());
 		m_Framebuffer->Unbind();
 	}
 
@@ -571,8 +576,9 @@ namespace Kaidel {
 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 		m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };
 
-		auto textureID = m_Framebuffer->GetColorAttachmentView();
-		ImGui::Image(reinterpret_cast<void*>(textureID), ImVec2{ m_ViewportSize.x, m_ViewportSize.y });
+		auto textureID = m_Framebuffer->GetColorAttachmentRendererID();
+		glm::vec4 uvs = _GetUVs();
+		ImGui::Image(reinterpret_cast<void*>(textureID), ImVec2{ m_ViewportSize.x, m_ViewportSize.y },{uvs.x,uvs.y},{uvs.z,uvs.w});
 		if (ImGui::BeginDragDropTarget()) {
 			if (auto payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
 				const wchar_t* path = (const wchar_t*)payload->Data;
@@ -760,8 +766,12 @@ namespace Kaidel {
 	{
 		if (e.GetMouseButton() == Mouse::ButtonLeft)
 		{
-			if (m_ViewportHovered && !ImGuizmo::IsOver() && !Input::IsKeyDown(Key::LeftAlt))
-				m_SceneHierarchyPanel.SetSelectedEntity(m_HoveredEntity);
+			if (m_ViewportHovered && !ImGuizmo::IsOver() && !Input::IsKeyDown(Key::LeftAlt)) {
+				m_Framebuffer->Bind();
+				int pixel = GetCurrentPixelData(m_ViewportBounds, m_Framebuffer);
+				m_SceneHierarchyPanel.SetSelectedEntity(pixel == -1 ? Entity{} : Entity{(entt::entity) pixel,m_ActiveScene.get() });
+				m_Framebuffer->Unbind();
+			}
 		}
 		return false;
 	}

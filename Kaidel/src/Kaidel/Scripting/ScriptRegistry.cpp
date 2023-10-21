@@ -17,8 +17,6 @@
 #include <box2d/b2_circle_shape.h>
 
 //TODO : Add local Rotation.
-//TODO : Add active/inactive entities.
-//TODO : Add visible/hidden entities.
 
 namespace std {
 	template<>
@@ -99,6 +97,19 @@ namespace Kaidel {
 		auto entity = scene->GetEntity(id);
 		return entity.HasComponent<ParentComponent>() && !entity.GetComponent<ParentComponent>().Children.empty();
 	}
+	static void Entity_SetActive(UUID id, bool isActive) {
+		GetComponent<IDComponent>(id).IsActive = isActive;
+	}
+	static bool Entity_GetActive(UUID id) {
+		return GetComponent<IDComponent>(id).IsActive;
+	}
+	static void Entity_SetVisible(UUID id, bool isVisible) {
+		GetComponent<IDComponent>(id).IsVisible= isVisible;
+	}
+	static bool Entity_GetVisible(UUID id) {
+		return GetComponent<IDComponent>(id).IsVisible;
+	}
+	
 	static MonoString* Entity_GetName(UUID id) {
 		Scene* scene = ScriptEngine::GetSceneContext();
 		Entity entity = scene->GetEntity(id);
@@ -183,8 +194,7 @@ namespace Kaidel {
 	static void TransformComponent_GetLocalPosition(UUID id, glm::vec3* outLocalPosition) {
 		Entity entity = GetEntity(id);
 		if (!entity.HasComponent<ChildComponent>()) {
-			auto& pos = entity.GetComponent<TransformComponent>().Translation;
-			memcpy(outLocalPosition, &pos, sizeof(glm::vec3));
+			*outLocalPosition = { 0,0,0 };
 			return;
 		}
 		auto& localPosition = entity.GetComponent<ChildComponent>().LocalPosition;
@@ -200,6 +210,26 @@ namespace Kaidel {
 		auto& localPosition = entity.GetComponent<ChildComponent>().LocalPosition;
 		glm::vec3 delta = *setLocalPosition - localPosition;
 		MoveEntity(entity, ScriptEngine::GetSceneContext(), delta, { 0,0,0 });
+	}
+	static void TransformComponent_GetLocalRotation(UUID id, glm::vec3* outLocalRotation) {
+		Entity entity = GetEntity(id);
+		if (!entity.HasComponent<ChildComponent>()) {
+			*outLocalRotation = { 0,0,0 };
+			return;
+		}
+		auto& localRotation = entity.GetComponent<ChildComponent>().LocalRotation;
+		memcpy(outLocalRotation, &localRotation, sizeof(glm::vec3));
+	}
+	static void TransformComponent_SetLocalRotation(UUID id, glm::vec3* setLocalRotation) {
+		Entity entity = GetEntity(id);
+		if (!entity.HasComponent<ChildComponent>()) {
+			auto& rot = entity.GetComponent<TransformComponent>().Rotation;
+			MoveEntity(entity, ScriptEngine::GetSceneContext(), { 0,0,0 }, *setLocalRotation - rot);
+			return;
+		}
+		auto& localRotation = entity.GetComponent<ChildComponent>().LocalRotation;
+		glm::vec3 delta = *setLocalRotation - localRotation;
+		MoveEntity(entity, ScriptEngine::GetSceneContext(), { 0,0,0 }, delta);
 	}
 	static void TransformComponent_RotateAround(UUID id, UUID parentID, glm::vec3* rotation) {
 		Scene* scene = ScriptEngine::GetSceneContext();
@@ -599,6 +629,10 @@ namespace Kaidel {
 		KD_ADD_INTERNAL(Entity_GetChildEntityIDWithIndex);
 		KD_ADD_INTERNAL(Entity_GetChildEntityIDWithName);
 		KD_ADD_INTERNAL(Entity_FindEntityByName);
+		KD_ADD_INTERNAL(Entity_SetActive);
+		KD_ADD_INTERNAL(Entity_GetActive);
+		KD_ADD_INTERNAL(Entity_SetVisible);
+		KD_ADD_INTERNAL(Entity_GetVisible);
 #pragma endregion
 		#pragma region Components
 		#pragma region TransformComponent
@@ -610,6 +644,9 @@ namespace Kaidel {
 		KD_ADD_INTERNAL(TransformComponent_SetScale);
 		KD_ADD_INTERNAL(TransformComponent_GetLocalPosition);
 		KD_ADD_INTERNAL(TransformComponent_SetLocalPosition);
+		KD_ADD_INTERNAL(TransformComponent_GetLocalRotation);
+		KD_ADD_INTERNAL(TransformComponent_SetLocalRotation);
+
 #pragma endregion
 		#pragma region SpriteRendererComponent
 		KD_ADD_INTERNAL(SpriteRendererComponent_GetColor);

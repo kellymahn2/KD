@@ -6,6 +6,7 @@
 #include "Kaidel/Renderer/Renderer2D.h"
 #include "ScriptableEntity.h"
 #include "Entity.h"
+#include "SceneRenderer.h"
 #include "Kaidel/Scripting/ScriptEngine.h"
 
 #include <glm/glm.hpp>
@@ -34,6 +35,7 @@ namespace Kaidel {
 	}
 
 	Scene::Scene()
+		:m_SceneRenderer(this)
 	{
 	}
 
@@ -168,25 +170,33 @@ namespace Kaidel {
 	void Scene::RenderScene()
 	{
 		{
-			auto group = m_Registry.group<TransformComponent>(entt::get<SpriteRendererComponent>);
+			m_SceneRenderer.Reset();
+			m_SceneRenderer.Render();
+			/*auto view = m_Registry.view<TransformComponent, SpriteRendererComponent, IDComponent>();
 			KD_PROFILE_SCOPE();
-			for (auto entity : group)
+			for (auto e : view)
 			{
-				auto [transform, sprite] = group.get<TransformComponent, SpriteRendererComponent>(entity);
+				auto& id = view.get<IDComponent>(e);
+				if (!id.IsActive || !id.IsVisible)
+					continue;
+				auto [transform, sprite] = view.get<TransformComponent, SpriteRendererComponent>(e);
 
-				Renderer2D::DrawSprite(transform.GetTransform(), sprite, (int)entity);
-			}
+				Renderer2D::DrawSprite(transform.GetTransform(), sprite, (int)e);
+			}*/
 		}
-		{
+		/*{
 
-			auto view = m_Registry.view<TransformComponent, CircleRendererComponent>();
+			auto view = m_Registry.view<TransformComponent, CircleRendererComponent,IDComponent>();
 			KD_PROFILE_SCOPE();
 			for (auto e : view) {
+				auto& id = view.get<IDComponent>(e);
+				if (!id.IsActive || !id.IsVisible)
+					continue;
 				auto [transform, crc] = view.get<TransformComponent, CircleRendererComponent>(e);
 
 				Renderer2D::DrawCircle(transform.GetTransform(), crc.Color, crc.Thickness, crc.Fade, (int)e);
 			}
-		}
+		}*/
 	}
 
 	void Scene::DuplicateEntity(Entity& entity)
@@ -321,7 +331,6 @@ namespace Kaidel {
 	{
 		Renderer2D::BeginScene(camera);
 		RenderScene();
-		
 		Renderer2D::EndScene();
 	}
 

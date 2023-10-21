@@ -235,6 +235,13 @@ namespace Kaidel {
 	void OpenGLFramebuffer::ClearAttachment(uint32_t attachmentIndex, const float* colors)
 	{
 		KD_CORE_ASSERT(attachmentIndex < m_ColorAttachments.size());
+		auto& i = m_ColorAttachmentSpecifications.at(attachmentIndex);
+		if (i.TextureFormat == FramebufferTextureFormat::RGBA8) {
+			glClearColor(colors[0], colors[1], colors[2], colors[3]);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			return;
+		}
+		ClearAttachment(attachmentIndex, *colors);
 	}
 
 }

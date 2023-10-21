@@ -1,16 +1,17 @@
 #pragma once
 
 #include "Kaidel/Renderer/OrthographicCamera.h"
-
+#include "KDpch.h"
 #include "Kaidel/Renderer/Texture.h"
 
 #include "Kaidel/Renderer/Camera.h"
 #include "Kaidel/Renderer/EditorCamera.h"
 
 #include "Kaidel/Scene/Components.h"
-
+#include <future>
 namespace Kaidel {
 
+	struct QuadVertex;
 	class Renderer2D
 	{
 	public:
@@ -22,8 +23,16 @@ namespace Kaidel {
 		static void BeginScene(const OrthographicCamera& camera); // TODO: Remove
 		static void EndScene();
 		static void Flush();
-
+		static void Flush(std::vector<QuadVertex>&);
 		// Primitives
+
+
+		static void DrawQuad(const glm::mat4& transform, const glm::vec4& color, uint64_t QuadIndex, int entityID=-1);
+
+
+
+
+
 
 		static void DrawQuad(const glm::mat4& transform, const glm::vec4& color, int entityID = -1);
 		static void DrawQuad(const glm::mat4& transform, const Ref<Texture2D>& texture, float tilingFactor = 1.0f, const glm::vec4& tintColor = glm::vec4(1.0f), int entityID = -1);
@@ -35,6 +44,7 @@ namespace Kaidel {
 		static void DrawLine(const glm::vec3& p0, const glm::vec3& p1, const glm::vec4& color,int entityID=-1);
 		static void DrawRect(const glm::vec3& position, const glm::vec2& size, const glm::vec4& color, int entityID = -1);
 		static void DrawRect(const glm::mat4& transform, const glm::vec4& color, int entityID = -1);
+
 		// Stats
 		struct Statistics
 		{
@@ -53,6 +63,11 @@ namespace Kaidel {
 		static void SetVertexBufferValues(uint32_t vertexCount, const glm::mat4& transform, const glm::vec4& tintColor, const glm::vec2* textureCoords, float textureIndex, float tilingFactor, int entityID);
 		static void StartBatch();
 		static void NextBatch();
+		enum class _LaunchType {
+			MT = 1,ST = 2
+		};
+		
+		friend struct Renderer2DData;
 	};
 
 }

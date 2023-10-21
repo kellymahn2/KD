@@ -15,6 +15,8 @@ namespace Kaidel {
 
 	struct IDComponent {
 		UUID ID;
+		bool IsActive = true;
+		bool IsVisible = true;
 		IDComponent() = default;
 		IDComponent(const IDComponent&) = default;
 	};

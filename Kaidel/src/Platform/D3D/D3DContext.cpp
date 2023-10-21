@@ -41,6 +41,10 @@ namespace Kaidel {
 			m_Device->Release();
 		if (m_DeviceContext)
 			m_DeviceContext->Release();
+		if (m_DefferedDeviceContext)
+			m_DefferedDeviceContext->Release();
+		if (m_DefferedContextCommandList)
+			m_DefferedContextCommandList->Release();
 	}
 
 	void D3DContext::Init()
@@ -61,7 +65,7 @@ namespace Kaidel {
 		D3D11CreateDeviceAndSwapChain(NULL,
 			D3D_DRIVER_TYPE_HARDWARE,
 			NULL,
-			D3D11_CREATE_DEVICE_DEBUG,
+			0,
 			NULL,
 			NULL,
 			D3D11_SDK_VERSION,
@@ -104,21 +108,19 @@ namespace Kaidel {
 
 
 
-		D3D11_RASTERIZER_DESC rasterizerDesc = {};
-		rasterizerDesc.CullMode = D3D11_CULL_NONE;
-		rasterizerDesc.FillMode = D3D11_FILL_SOLID;
-		rasterizerDesc.FrontCounterClockwise	= FALSE;
-		rasterizerDesc.DepthBias	= 0;
-		rasterizerDesc.SlopeScaledDepthBias	= 0.0f;
-		rasterizerDesc.DepthBiasClamp	= 0.0f;
-		rasterizerDesc.DepthClipEnable	= TRUE;
-		rasterizerDesc.ScissorEnable	= FALSE;
-		rasterizerDesc.MultisampleEnable	= FALSE;
-		rasterizerDesc.AntialiasedLineEnable = FALSE;
-		D3DASSERT(m_Device->CreateRasterizerState(&rasterizerDesc, &m_RasterizerState));
+		m_Settings.CullMode = D3D11_CULL_NONE;
+		m_Settings.FillMode = D3D11_FILL_SOLID;
+		m_Settings.FrontCounterClockwise	= FALSE;
+		m_Settings.DepthBias	= 0;
+		m_Settings.SlopeScaledDepthBias	= 0.0f;
+		m_Settings.DepthBiasClamp	= 0.0f;
+		m_Settings.DepthClipEnable	= TRUE;
+		m_Settings.ScissorEnable	= FALSE;
+		m_Settings.MultisampleEnable	= FALSE;
+		m_Settings.AntialiasedLineEnable = FALSE;
+		D3DASSERT(m_Device->CreateRasterizerState(&m_Settings, &m_RasterizerState));
 		m_DeviceContext->RSSetState(m_RasterizerState);
 
-		auto d3dContext = D3DContext::Get();
 		D3D11_VIEWPORT viewport;
 		ZeroMemory(&viewport, sizeof(D3D11_VIEWPORT));
 
@@ -127,7 +129,8 @@ namespace Kaidel {
 		viewport.Width = 1280;
 		viewport.Height = 720;
 
-		d3dContext->GetDeviceContext()->RSSetViewports(1, &viewport);
+		m_DeviceContext->RSSetViewports(1, &viewport);
+		D3DASSERT(m_Device->CreateDeferredContext(0, &m_DefferedDeviceContext));
 	}
 
 	void D3DContext::SwapBuffers()

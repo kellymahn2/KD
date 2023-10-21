@@ -24,7 +24,7 @@ namespace Kaidel {
 
 		virtual void ClearAttachment(uint32_t attachmentIndex, int value) override;
 
-		virtual uint32_t GetColorAttachmentRendererID(uint32_t index = 0) const override { KD_CORE_ASSERT(false); return 0; }
+		virtual uint64_t GetColorAttachmentRendererID(uint32_t index = 0) const override {  return (uint64_t)m_ColorAttachments.at(index).SRV; }
 
 		virtual const FramebufferSpecification& GetSpecification() const override { return m_Specification; }
 
@@ -39,7 +39,6 @@ namespace Kaidel {
 			ID3D11DepthStencilView* DepthStencilView = nullptr;
 		};
 
-		uint64_t GetColorAttachmentView(uint32_t index = 0) const override;
 
 
 		void ClearAttachment(uint32_t attachmentIndex, const float* colors) override;

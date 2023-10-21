@@ -62,8 +62,7 @@ namespace Kaidel {
 		virtual void ClearAttachment(uint32_t attachmentIndex, int value) = 0;
 		virtual void ClearAttachment(uint32_t attachmentIndex, const float* colors) = 0;
 
-		virtual uint32_t GetColorAttachmentRendererID(uint32_t index = 0) const = 0;
-		virtual uint64_t GetColorAttachmentView(uint32_t index = 0) const;
+		virtual uint64_t GetColorAttachmentRendererID(uint32_t index = 0) const = 0;
 
 		virtual const FramebufferSpecification& GetSpecification() const = 0;
 

@@ -12,25 +12,23 @@
 
 namespace Kaidel {
 
-	RendererAPI::API RendererAPI::s_API = RendererAPI::API::OpenGL;
+	RendererAPI::API RendererAPI::s_API = RendererAPI::API::DirectX;
 	glm::mat4 _GetTransform(const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& scl) {
+		glm::mat4 rotation = glm::toMat4(glm::quat(rot));
+		return glm::translate(glm::mat4(1.0f), pos)
+			* rotation
+			* glm::scale(glm::mat4(1.0f), scl);
+		KD_CORE_ASSERT(false);
+		return {};
+	}
+	glm::vec4 _GetUVs() {
 		switch (RendererAPI::GetAPI())
 		{
 		case RendererAPI::API::OpenGL: {
-			glm::mat4 rotation = glm::toMat4(glm::quat(rot));
-			return glm::translate(glm::mat4(1.0f), pos)
-				* rotation
-				* glm::scale(glm::mat4(1.0f), scl);
+			return { 0,1,1,0 };
 		}
 		case RendererAPI::API::DirectX: {
-			glm::vec3 nrot = rot;
-			//nrot.z *= -1.0f;
-			glm::mat4 rotation = glm::toMat4(glm::quat(nrot));
-			glm::vec3 npos = pos;
-			//npos.z *= -1.0f;
-			return glm::translate(glm::mat4(1.0f), npos)
-				* rotation
-				* glm::scale(glm::mat4(1.0f), scl);
+			return { 0,0,1,1 };
 		}
 		}
 		KD_CORE_ASSERT(false);

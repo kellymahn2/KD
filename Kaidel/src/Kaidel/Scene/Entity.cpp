@@ -64,7 +64,6 @@ void Kaidel::TranslateEntity(Kaidel::Entity entity, Kaidel::Scene* scene, const 
 
 void Kaidel::MoveEntity(Kaidel::Entity entity, Kaidel::Scene* scene, const glm::vec3& deltaT, const glm::vec3& deltaR) {
 	if (glm::dot(deltaR, deltaR)) {
-		KD_INFO("{} , {} , {}", deltaR.x, deltaR.y, deltaR.z);
 		RotateEntity(entity, scene, deltaR);
 		return;
 	}

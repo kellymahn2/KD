@@ -8,11 +8,6 @@
 
 namespace Kaidel {
 	
-	uint64_t Framebuffer::GetColorAttachmentView(uint32_t index /*= 0*/) const
-	{
-		KD_CORE_ASSERT(false);
-		return 0;
-	}
 
 	Ref<Framebuffer> Framebuffer::Create(const FramebufferSpecification& spec)
 	{

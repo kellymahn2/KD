@@ -314,7 +314,6 @@ namespace Kaidel {
 			window->DrawList->AddRect({bb.Min.x + 1,bb.Min.y + 1}, { bb.Max.x + 1,bb.Max.y + 1 }, GetColorU32(ImGuiCol_BorderShadow), style.FrameRounding, 0, border_size);
 			window->DrawList->AddRect(bb.Min, bb.Max, GetColorU32(ImGuiCol_Border), style.FrameRounding, 0, border_size);
 		}
-		KD_INFO("{}", style.FrameRounding);
 		if (g.LogEnabled)
 			LogSetNextTextDecoration("[", "]");
 		RenderTextClipped({ bb.Min.x + style.FramePadding.x ,bb.Min.y + style.FramePadding.y },
@@ -611,6 +610,9 @@ namespace Kaidel {
 	};
 	void SceneHierarchyPanel::DrawComponents(Entity entity)
 	{
+		auto& id = entity.GetComponent<IDComponent>();
+		ImGui::Checkbox("##Active", &id.IsActive);
+		ImGui::SameLine();
 		if (entity.HasComponent<TagComponent>())
 		{
 			auto& tag = entity.GetComponent<TagComponent>().Tag;
@@ -788,6 +790,7 @@ namespace Kaidel {
 		//Scripts
 		DrawComponent<ScriptComponent>("Script", entity, [entity, scene = m_Context](auto& component) mutable
 			{
+				//TODO: Add functionality for other types
 				bool scriptClassExists = ScriptEngine::ClassExists(component.Name);
 				if (!scriptClassExists)
 					ImGui::PushStyleColor(ImGuiCol_TextDisabled, ImVec4(0.9f, 0.2f, 0.3f, 1.0f));

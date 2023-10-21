@@ -1,7 +1,7 @@
 #include "KDpch.h"
 #include "Platform/D3D/D3DFrameBuffer.h"
 #include "Platform/D3D/D3DContext.h"
-
+#include "Kaidel\Core\Timer.h"
 namespace Kaidel {
 
 	static const uint32_t s_MaxFramebufferSize = 8192;
@@ -145,8 +145,10 @@ namespace Kaidel {
 				D3DASSERT(d3dContext->GetDevice()->CreateTexture2D(&colorBufferDesc, nullptr, &current->Texture));
 				if (colorspec.Readable) {
 					colorBufferDesc.Usage = D3D11_USAGE_STAGING;
-					colorBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
+					colorBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
 					colorBufferDesc.BindFlags = 0;
+					colorBufferDesc.Width = 1;
+					colorBufferDesc.Height = 1;
 					D3DASSERT(d3dContext->GetDevice()->CreateTexture2D(&colorBufferDesc, nullptr, &current->StagingTexture));
 				}
 				D3DASSERT(d3dContext->GetDevice()->CreateShaderResourceView(current->Texture,nullptr, &current->SRV));
@@ -180,17 +182,21 @@ namespace Kaidel {
 	{
 		auto d3dContext = D3DContext::Get();
 		std::vector<ID3D11RenderTargetView*> rtvs(m_ColorAttachments.size(),nullptr);
-		
 		for (size_t i = 0; i < m_ColorAttachments.size();++i)
 			rtvs.at(i) = m_ColorAttachments.at(i).RenderTargetView;
-		d3dContext->GetDeviceContext()->OMSetRenderTargets(rtvs.size(), rtvs.data(), nullptr);
+		d3dContext->GetDeviceContext()->OMSetRenderTargets(rtvs.size(), rtvs.data(), m_DepthAttachment.DepthStencilView);
 	}
 
 	void D3DFrameBuffer::Unbind()
 	{
 		auto d3dContext = D3DContext::Get();
 		auto backBuffer = d3dContext->GetBackBuffer();
-		d3dContext->GetDeviceContext()->OMSetRenderTargets(1, &backBuffer, nullptr);
+		/*ID3D11CommandList* commandList=nullptr;
+		D3DASSERT(d3dContext->GetDefferedDeviceContext()->FinishCommandList(false, &commandList));
+		d3dContext->GetDeviceContext()->ExecuteCommandList(commandList, false);
+		if (commandList)
+			commandList->Release();*/
+		d3dContext->GetDeviceContext()->OMSetRenderTargets(1, &backBuffer, d3dContext->GetDepthStencilView());
 	}
 
 	void D3DFrameBuffer::Resize(uint32_t width, uint32_t height)
@@ -208,22 +214,46 @@ namespace Kaidel {
 	{
 		KD_CORE_ASSERT(attachmentIndex < m_ColorAttachments.size());
 		KD_CORE_ASSERT(m_ColorAttachmentSpecifications.at(attachmentIndex).Readable);
-
 		auto d3dContext = D3DContext::Get();
-		d3dContext->GetDeviceContext()->CopyResource(m_ColorAttachments[attachmentIndex].StagingTexture,
-			m_ColorAttachments[attachmentIndex].Texture
-		);
+		ID3D11Texture2D* texture;
+		D3D11_TEXTURE2D_DESC td{}; {
+			td.Width = 1;
+			td.Height = 1;
+			td.MipLevels = 1;
+			td.ArraySize = 1;
+			td.SampleDesc.Count = 1;
+			td.Usage = D3D11_USAGE_STAGING;
+			td.BindFlags =0;
+			td.Format = DXGI_FORMAT_R32_SINT;
+			td.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+			D3DASSERT(d3dContext->GetDevice()->CreateTexture2D(&td, nullptr, &texture));
+		}
+		D3D11_BOX box{};
+		{
+			box.left = x;
+			box.top = y;
+			box.right = x + 1;
+			box.bottom = y + 1;
+			box.front = 0;
+			box.back = 1;
+			d3dContext->GetDeviceContext()->CopySubresourceRegion(texture,
+				0, 0, 0, 0, m_ColorAttachments.at(attachmentIndex).Texture, 0, &box);
+		}
 		// Map the texture
 		D3D11_MAPPED_SUBRESOURCE mappedResource;
-		D3DASSERT(d3dContext->GetDeviceContext()->Map(m_ColorAttachments[attachmentIndex].StagingTexture, 0, D3D11_MAP_READ, 0, &mappedResource));
+		{
+			D3DASSERT(d3dContext->GetDeviceContext()->Map(texture, 0, D3D11_MAP_READ, 0, &mappedResource));
+		}
 		// Access the pixel data
 		UINT width = m_Specification.Width;  		
 		UINT height = m_Specification.Height;  
-		char* pixel = static_cast<char*>(mappedResource.pData)+ y * mappedResource.RowPitch+ x * 4;
+		char* pixel = static_cast<char*>(mappedResource.pData)/*+ y * mappedResource.RowPitch+ x * 4*/;
 		auto ret = *(int*)pixel;
 
 		// Unmap the texture
-		d3dContext->GetDeviceContext()->Unmap(m_ColorAttachments[attachmentIndex].StagingTexture, 0);
+		d3dContext->GetDeviceContext()->Unmap(texture, 0);
+		if (texture)
+			texture->Release();
 		return ret;
 	}
 
@@ -247,10 +277,5 @@ namespace Kaidel {
 		d3dContext->GetDeviceContext()->ClearDepthStencilView(m_DepthAttachment.DepthStencilView, D3D11_CLEAR_STENCIL | D3D11_CLEAR_DEPTH, 1.0f, 0);
 	}
 
-	uint64_t D3DFrameBuffer::GetColorAttachmentView(uint32_t index /*= 0*/) const
-	{
-		KD_CORE_ASSERT(index < m_ColorAttachments.size());
-		return (uint64_t)m_ColorAttachments.at(index).SRV;
-	}
 
 }

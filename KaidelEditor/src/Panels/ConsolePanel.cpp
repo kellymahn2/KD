@@ -171,17 +171,14 @@ namespace Kaidel {
 				break;
 				default:
 					break;				}
-				std::time_t time = std::chrono::system_clock::to_time_t(message.Time);
-				std::tm tm = *std::localtime(&time);
-				char buf[80] = { 0 };
-				std::strftime(buf, sizeof(buf), "%d/%m/%Y-%H:%M:%S", &tm);
+				
 				if (icon) {
 					ImGui::Image((ImTextureID)icon->GetRendererID(), { (float)icon->GetWidth(),(float)icon->GetHeight() },
 						{ 0,1 }, { 1,0 });
 					ImGui::SameLine();
 				}
 				ImGui::PushStyleColor(ImGuiCol_Text, messageColor);
-				ImGui::TextWrapped("Engine [%s] : %s", buf, message.Text.c_str());
+				ImGui::TextWrapped("Editor [%s] : %s", message.TimeText.c_str(), message.Text.c_str());
 				ImGui::PopStyleColor();
 			}
 		}

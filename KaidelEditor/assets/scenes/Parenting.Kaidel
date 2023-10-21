@@ -1,18 +1,28 @@
 Scene: Untitled
 Entities:
-  - Entity: 11460685780325154093
+  - Entity: 3355929379565460329
     TagComponent:
-      Tag: Child 2
+      Tag: Child
     ChildComponent:
-      Parent: 3355929379565460329
-      LocalPosition: [1.70000005, 0, 0]
+      Parent: 18040238910039502216
+      LocalPosition: [1.5, 0, 0]
       LocalRotation: [0, 0, 0]
     TransformComponent:
-      Translation: [3.20000029, 0, 0]
-      Rotation: [0, 0, 0]
+      Translation: [1.29509342, -0.756792545, 3.29999995]
+      Rotation: [0, -0, -0.528834999]
+      Scale: [0.999995172, 0.999995172, 1]
+    SpriteRendererComponent:
+      Color: [1, 0, 0, 1]
+      TilingFactor: 1
+  - Entity: 18040238910039502216
+    TagComponent:
+      Tag: Parent
+    TransformComponent:
+      Translation: [0, 0, 3.29999995]
+      Rotation: [0, 0, -0.52883476]
       Scale: [1, 1, 1]
     SpriteRendererComponent:
-      Color: [0, 1, 0, 1]
+      Color: [1, 1, 1, 1]
       TilingFactor: 1
   - Entity: 15335043486460802819
     TagComponent:
@@ -32,27 +42,17 @@ Entities:
         OrthographicFar: 1
       Primary: true
       FixedAspectRatio: false
-  - Entity: 18040238910039502216
+  - Entity: 11460685780325154093
     TagComponent:
-      Tag: Parent
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    SpriteRendererComponent:
-      Color: [1, 1, 1, 1]
-      TilingFactor: 1
-  - Entity: 3355929379565460329
-    TagComponent:
-      Tag: Child
+      Tag: Child 2
     ChildComponent:
-      Parent: 18040238910039502216
-      LocalPosition: [1.5, 0, 0]
+      Parent: 3355929379565460329
+      LocalPosition: [1.70000005, 0, 0]
       LocalRotation: [0, 0, 0]
     TransformComponent:
-      Translation: [1.5, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
+      Translation: [2.76286292, -1.61448812, 3.29999995]
+      Rotation: [0, -0, -0.528834999]
+      Scale: [0.999995172, 0.999995172, 1]
     SpriteRendererComponent:
-      Color: [1, 0, 0, 1]
+      Color: [0, 1, 0, 1]
       TilingFactor: 1
