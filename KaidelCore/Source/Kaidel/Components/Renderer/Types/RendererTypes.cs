@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -63,6 +64,58 @@ namespace KaidelCore
 				Internals.CircleRendererComponent_SetFade(Entity.ID, value);
 			}
 		}
+
+	}
+	public class LineRendererComponent : Component
+	{
+
+		public struct Point
+		{
+			Vector3 Position;
+		}
+		public Vector4 Color
+		{
+			get
+			{
+				Internals.LineRendererComponent_GetColor(Entity.ID,out Vector4 res);
+				return res;
+			}
+			set
+			{
+				Internals.LineRendererComponent_SetColor(Entity.ID, ref value);
+			}
+		}
+		public Point this[ulong index]
+		{
+			get
+			{
+				Internals.LineRendererComponent_GetPoint(Entity.ID,index,out  Point res);
+				return res;
+			}
+			set
+			{
+				Internals.LineRendererComponent_SetPoint(Entity.ID, index,ref value);
+			}
+		}
+		public ulong Tesselation
+		{
+			get
+			{
+				return Internals.LineRendererComponent_GetTesselation(Entity.ID);
+			}
+			set
+			{
+				Internals.LineRendererComponent_SetTesselation(Entity.ID,value);
+			}
+		}
+		public ulong Count()
+		{
+			return Internals.LineRendererComponent_GetPointCount(Entity.ID);
+		}
+
+
+
+
 
 	}
 

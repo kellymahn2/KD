@@ -37,6 +37,7 @@ namespace Kaidel {
 		struct FrameBufferDepthTarget {
 			ID3D11Texture2D* Texture = nullptr;
 			ID3D11DepthStencilView* DepthStencilView = nullptr;
+			ID3D11DepthStencilState* DepthStencilState = nullptr;
 		};
 
 
@@ -53,6 +54,9 @@ namespace Kaidel {
 
 		std::vector<FrameBufferTextureTarget> m_ColorAttachments;
 		FrameBufferDepthTarget m_DepthAttachment{};
+		bool cleared = false;
+		ID3D11RasterizerState* m_RasterizerState = nullptr;
+		D3D11_RASTERIZER_DESC m_Settings;
 	};
 
 }

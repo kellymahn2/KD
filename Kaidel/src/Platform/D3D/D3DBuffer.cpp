@@ -132,4 +132,6 @@ namespace Kaidel {
 		auto d3dContext = D3DContext::Get();
 		d3dContext->GetDeviceContext()->IASetIndexBuffer(nullptr, DXGI_FORMAT_R32_UINT, 0);
 	}
+
+
 }

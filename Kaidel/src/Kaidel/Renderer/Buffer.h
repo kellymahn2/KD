@@ -1,5 +1,5 @@
 #pragma once
-
+#include "Kaidel\Core\Buffer.h"
 namespace Kaidel {
 
 	enum class ShaderDataType

@@ -1,7 +1,7 @@
 #include "KDpch.h"
 #include "Platform/D3D/D3DFrameBuffer.h"
 #include "Platform/D3D/D3DContext.h"
-#include "Kaidel\Core\Timer.h"
+
 namespace Kaidel {
 
 	static const uint32_t s_MaxFramebufferSize = 8192;
@@ -13,7 +13,7 @@ namespace Kaidel {
 			return 0;
 		}
 
-		static void CreateTextures(FramebufferSpecification& specs,bool multisampled, D3DFrameBuffer::FrameBufferTextureTarget* textures, uint32_t count)
+		static void CreateTextures(FramebufferSpecification& specs, bool multisampled, D3DFrameBuffer::FrameBufferTextureTarget* textures, uint32_t count)
 		{
 			auto d3dContext = D3DContext::Get();
 			for (int i = 0; i < count; ++i) {
@@ -36,12 +36,12 @@ namespace Kaidel {
 
 		static void AttachColorTexture(uint32_t id, int samples, int internalFormat, int format, uint32_t width, uint32_t height, int index)
 		{
-			
+
 		}
 
 		static void AttachDepthTexture(uint32_t id, int samples, int format, int attachmentType, uint32_t width, uint32_t height)
 		{
-			
+
 		}
 
 		static bool IsDepthFormat(FramebufferTextureFormat format)
@@ -116,8 +116,10 @@ namespace Kaidel {
 			}
 			if (m_DepthAttachment.Texture)
 				m_DepthAttachment.Texture->Release();
+			if (m_DepthAttachment.DepthStencilState)
+				m_DepthAttachment.DepthStencilState->Release();
 		}
-		bool multisample = m_Specification.Samples>1;
+		bool multisample = m_Specification.Samples > 1;
 		auto d3dContext = D3DContext::Get();
 		if (m_ColorAttachmentSpecifications.size()) {
 			m_ColorAttachments.resize(m_ColorAttachmentSpecifications.size());
@@ -125,7 +127,7 @@ namespace Kaidel {
 			for (auto& colorspec : m_ColorAttachmentSpecifications) {
 				D3D11_TEXTURE2D_DESC colorBufferDesc = {};
 				colorBufferDesc.Width = m_Specification.Width;
-				colorBufferDesc.Height =m_Specification.Height;
+				colorBufferDesc.Height = m_Specification.Height;
 				colorBufferDesc.MipLevels = 1;
 				colorBufferDesc.ArraySize = 1;
 				colorBufferDesc.SampleDesc.Count = 1;
@@ -145,33 +147,110 @@ namespace Kaidel {
 				D3DASSERT(d3dContext->GetDevice()->CreateTexture2D(&colorBufferDesc, nullptr, &current->Texture));
 				if (colorspec.Readable) {
 					colorBufferDesc.Usage = D3D11_USAGE_STAGING;
-					colorBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+					colorBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
 					colorBufferDesc.BindFlags = 0;
-					colorBufferDesc.Width = 1;
-					colorBufferDesc.Height = 1;
 					D3DASSERT(d3dContext->GetDevice()->CreateTexture2D(&colorBufferDesc, nullptr, &current->StagingTexture));
 				}
-				D3DASSERT(d3dContext->GetDevice()->CreateShaderResourceView(current->Texture,nullptr, &current->SRV));
+				D3DASSERT(d3dContext->GetDevice()->CreateShaderResourceView(current->Texture, nullptr, &current->SRV));
 				D3DASSERT(d3dContext->GetDevice()->CreateRenderTargetView(current->Texture, nullptr, &current->RenderTargetView));
 				++current;
 			}
 		}
 		if (m_DepthAttachmentSpecification.TextureFormat != FramebufferTextureFormat::None) {
-			D3D11_TEXTURE2D_DESC depthStencilDesc = {};
-			depthStencilDesc.Width =  m_Specification.Width; 
-			depthStencilDesc.Height = m_Specification.Height; 
+
+
+			/*D3D11_TEXTURE2D_DESC depthStencilDesc = {};
+			depthStencilDesc.Width = m_Specification.Width;
+			depthStencilDesc.Height = m_Specification.Height;
 			depthStencilDesc.MipLevels = 1;
 			depthStencilDesc.ArraySize = 1;
-			depthStencilDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+			depthStencilDesc.Format = DXGI_FORMAT_D32_FLOAT;
 			depthStencilDesc.SampleDesc.Count = 1;
 			depthStencilDesc.Usage = D3D11_USAGE_DEFAULT;
 			depthStencilDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+
+
+			D3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc;
+			ZeroMemory(&depthStencilViewDesc, sizeof(depthStencilViewDesc));
+			depthStencilViewDesc.Format = depthStencilDesc.Format;
+			depthStencilViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+			depthStencilViewDesc.Texture2D.MipSlice = 0;
+
 			D3DASSERT(d3dContext->GetDevice()->CreateTexture2D(&depthStencilDesc, nullptr, &m_DepthAttachment.Texture));
-			D3DASSERT(d3dContext->GetDevice()->CreateDepthStencilView(m_DepthAttachment.Texture, nullptr, &m_DepthAttachment.DepthStencilView));
+			D3DASSERT(d3dContext->GetDevice()->CreateDepthStencilView(m_DepthAttachment.Texture, &depthStencilViewDesc, &m_DepthAttachment.DepthStencilView));
+			D3D11_DEPTH_STENCIL_DESC dsd{};
+			dsd.DepthEnable = TRUE;
+			dsd.DepthWriteMask	= D3D11_DEPTH_WRITE_MASK_ALL;
+			dsd.DepthFunc	= D3D11_COMPARISON_LESS;
+			dsd.StencilEnable	= false;
+			dsd.StencilReadMask	= D3D11_DEFAULT_STENCIL_READ_MASK;
+			dsd.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+			dsd.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+			dsd.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+			dsd.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+			dsd.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+			dsd.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+			dsd.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+			dsd.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+			dsd.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+			D3DASSERT(d3dContext->GetDevice()->CreateDepthStencilState(&dsd, &m_DepthAttachment.DepthStencilState));*/
+
+			// create depth stensil state
+			D3D11_DEPTH_STENCIL_DESC dsDesc = {};
+			dsDesc.DepthEnable = TRUE;
+			dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+			dsDesc.DepthFunc = D3D11_COMPARISON_LESS;
+			D3DASSERT(d3dContext->GetDevice()->CreateDepthStencilState(&dsDesc, &m_DepthAttachment.DepthStencilState));
+
+			// bind depth state
+			d3dContext->GetDeviceContext()->OMSetDepthStencilState(m_DepthAttachment.DepthStencilState, 1u);
+
+			// create depth stensil texture
+			D3D11_TEXTURE2D_DESC descDepth = {};
+			descDepth.Width = 800u;
+			descDepth.Height = 600u;
+			descDepth.MipLevels = 1u;
+			descDepth.ArraySize = 1u;
+			descDepth.Format = DXGI_FORMAT_D32_FLOAT;
+			descDepth.SampleDesc.Count = 1u;
+			descDepth.SampleDesc.Quality = 0u;
+			descDepth.Usage = D3D11_USAGE_DEFAULT;
+			descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+			D3DASSERT(d3dContext->GetDevice()->CreateTexture2D(&descDepth, nullptr, &m_DepthAttachment.Texture));
+
+			// create view of depth stensil texture
+			D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
+			descDSV.Format = DXGI_FORMAT_D32_FLOAT;
+			descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+			descDSV.Texture2D.MipSlice = 0u;
+			D3DASSERT(d3dContext->GetDevice()->CreateDepthStencilView(
+				m_DepthAttachment.Texture, &descDSV, &m_DepthAttachment.DepthStencilView
+			));
+
+
 		}
+		m_Settings.CullMode = D3D11_CULL_NONE;
+		m_Settings.FillMode = D3D11_FILL_SOLID;
+		m_Settings.FrontCounterClockwise = true;
+		m_Settings.DepthBias = 0;
+		m_Settings.SlopeScaledDepthBias = 0.0f;
+		m_Settings.DepthBiasClamp = 0.0f;
+		m_Settings.DepthClipEnable = TRUE;
+		m_Settings.ScissorEnable = FALSE;
+		m_Settings.MultisampleEnable = FALSE;
+		m_Settings.AntialiasedLineEnable = FALSE;
+		D3DASSERT(d3dContext->GetDevice()->CreateRasterizerState(&m_Settings, &m_RasterizerState));
+
+
+
+
+
+
+
 		D3D11_VIEWPORT viewport{};
 		viewport.TopLeftX = 0;
 		viewport.TopLeftY = 0;
+		viewport.MaxDepth = 1.0f;
 		viewport.Width = m_Specification.Width;
 		viewport.Height = m_Specification.Height;
 		d3dContext->GetDeviceContext()->RSSetViewports(1, &viewport);
@@ -181,22 +260,22 @@ namespace Kaidel {
 	void D3DFrameBuffer::Bind()
 	{
 		auto d3dContext = D3DContext::Get();
-		std::vector<ID3D11RenderTargetView*> rtvs(m_ColorAttachments.size(),nullptr);
-		for (size_t i = 0; i < m_ColorAttachments.size();++i)
+		std::vector<ID3D11RenderTargetView*> rtvs(m_ColorAttachments.size(), nullptr);
+
+		for (size_t i = 0; i < m_ColorAttachments.size(); ++i)
 			rtvs.at(i) = m_ColorAttachments.at(i).RenderTargetView;
+		d3dContext->GetDeviceContext()->RSSetState(m_RasterizerState);
 		d3dContext->GetDeviceContext()->OMSetRenderTargets(rtvs.size(), rtvs.data(), m_DepthAttachment.DepthStencilView);
+		d3dContext->GetDeviceContext()->OMSetDepthStencilState(m_DepthAttachment.DepthStencilState, 1);
+		cleared = false;
 	}
 
 	void D3DFrameBuffer::Unbind()
 	{
 		auto d3dContext = D3DContext::Get();
 		auto backBuffer = d3dContext->GetBackBuffer();
-		/*ID3D11CommandList* commandList=nullptr;
-		D3DASSERT(d3dContext->GetDefferedDeviceContext()->FinishCommandList(false, &commandList));
-		d3dContext->GetDeviceContext()->ExecuteCommandList(commandList, false);
-		if (commandList)
-			commandList->Release();*/
 		d3dContext->GetDeviceContext()->OMSetRenderTargets(1, &backBuffer, d3dContext->GetDepthStencilView());
+		d3dContext->GetDeviceContext()->OMSetDepthStencilState(nullptr, 0);
 	}
 
 	void D3DFrameBuffer::Resize(uint32_t width, uint32_t height)
@@ -214,46 +293,22 @@ namespace Kaidel {
 	{
 		KD_CORE_ASSERT(attachmentIndex < m_ColorAttachments.size());
 		KD_CORE_ASSERT(m_ColorAttachmentSpecifications.at(attachmentIndex).Readable);
+
 		auto d3dContext = D3DContext::Get();
-		ID3D11Texture2D* texture;
-		D3D11_TEXTURE2D_DESC td{}; {
-			td.Width = 1;
-			td.Height = 1;
-			td.MipLevels = 1;
-			td.ArraySize = 1;
-			td.SampleDesc.Count = 1;
-			td.Usage = D3D11_USAGE_STAGING;
-			td.BindFlags =0;
-			td.Format = DXGI_FORMAT_R32_SINT;
-			td.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-			D3DASSERT(d3dContext->GetDevice()->CreateTexture2D(&td, nullptr, &texture));
-		}
-		D3D11_BOX box{};
-		{
-			box.left = x;
-			box.top = y;
-			box.right = x + 1;
-			box.bottom = y + 1;
-			box.front = 0;
-			box.back = 1;
-			d3dContext->GetDeviceContext()->CopySubresourceRegion(texture,
-				0, 0, 0, 0, m_ColorAttachments.at(attachmentIndex).Texture, 0, &box);
-		}
+		d3dContext->GetDeviceContext()->CopyResource(m_ColorAttachments[attachmentIndex].StagingTexture,
+			m_ColorAttachments[attachmentIndex].Texture
+		);
 		// Map the texture
 		D3D11_MAPPED_SUBRESOURCE mappedResource;
-		{
-			D3DASSERT(d3dContext->GetDeviceContext()->Map(texture, 0, D3D11_MAP_READ, 0, &mappedResource));
-		}
+		D3DASSERT(d3dContext->GetDeviceContext()->Map(m_ColorAttachments[attachmentIndex].StagingTexture, 0, D3D11_MAP_READ, 0, &mappedResource));
 		// Access the pixel data
-		UINT width = m_Specification.Width;  		
-		UINT height = m_Specification.Height;  
-		char* pixel = static_cast<char*>(mappedResource.pData)/*+ y * mappedResource.RowPitch+ x * 4*/;
+		UINT width = m_Specification.Width;
+		UINT height = m_Specification.Height;
+		char* pixel = static_cast<char*>(mappedResource.pData) + y * mappedResource.RowPitch + x * 4;
 		auto ret = *(int*)pixel;
 
 		// Unmap the texture
-		d3dContext->GetDeviceContext()->Unmap(texture, 0);
-		if (texture)
-			texture->Release();
+		d3dContext->GetDeviceContext()->Unmap(m_ColorAttachments[attachmentIndex].StagingTexture, 0);
 		return ret;
 	}
 
@@ -267,14 +322,17 @@ namespace Kaidel {
 		for (uint64_t i = 0; i < numPixels; ++i)
 			colorValue[i] = value;
 		d3dContext->GetDeviceContext()->Unmap(m_ColorAttachments[attachmentIndex].StagingTexture, 0);
-		d3dContext->GetDeviceContext()->CopyResource(m_ColorAttachments[attachmentIndex].Texture,m_ColorAttachments[attachmentIndex].StagingTexture);
+		d3dContext->GetDeviceContext()->CopyResource(m_ColorAttachments[attachmentIndex].Texture, m_ColorAttachments[attachmentIndex].StagingTexture);
 	}
 
 	void D3DFrameBuffer::ClearAttachment(uint32_t attachmentIndex, const float* colors)
 	{
 		auto d3dContext = D3DContext::Get();
 		d3dContext->GetDeviceContext()->ClearRenderTargetView(m_ColorAttachments.at(attachmentIndex).RenderTargetView, colors);
-		d3dContext->GetDeviceContext()->ClearDepthStencilView(m_DepthAttachment.DepthStencilView, D3D11_CLEAR_STENCIL | D3D11_CLEAR_DEPTH, 1.0f, 0);
+		if (!cleared) {
+			d3dContext->GetDeviceContext()->ClearDepthStencilView(m_DepthAttachment.DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+			cleared = true;
+		}
 	}
 
 

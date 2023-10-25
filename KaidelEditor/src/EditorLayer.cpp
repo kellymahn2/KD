@@ -58,7 +58,6 @@ namespace Kaidel {
 		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 		m_SceneHierarchyPanel.RegisterFieldRenderers();
 		m_ConsolePanel.SetContext(::Log::GetClientLogger());
-
 	}
 
 	void EditorLayer::OnDetach()
@@ -114,6 +113,14 @@ namespace Kaidel {
 		float d[4] = { -1,-1,-1,-1 };
 		m_Framebuffer->ClearAttachment(1, d);
 
+
+		/*Renderer2D::BeginScene(m_EditorCamera);
+		Renderer2D::DrawQuad(glm::translate(glm::mat4(1.0f), glm::vec3{ 0,0,0 }), {1,0,0,1}, 4, -1);
+		Renderer2D::DrawQuad(glm::translate(glm::mat4(1.0f), glm::vec3{ .5f,.5f,-.5f }), { 0,1,0,1 }, 0, -1);
+
+		Renderer2D::EndScene();*/
+
+
 		//Renderer2D::BeginScene(m_EditorCamera);
 		//Renderer2D::DrawQuad(glm::mat4(1.0f), { 0.6f,.8f,.5f,1.0f }, 0);
 		//Renderer2D::EndScene();
@@ -132,7 +139,7 @@ namespace Kaidel {
 		//va->Bind();
 		//s->Bind();
 		//RenderCommand::DrawIndexed(va, 3);
-		//// Update scene
+		// Update scene
 		switch (m_SceneState)
 		{
 			case SceneState::Edit:
@@ -187,6 +194,14 @@ namespace Kaidel {
 			}
 			Renderer2D::EndScene();
 		}
+
+
+
+
+
+
+
+
 		
 		//int pixelData = GetCurrentPixelData(m_ViewportBounds,m_Framebuffer);
 		//m_HoveredEntity = pixelData == -1 ? Entity() : Entity((entt::entity)pixelData, m_ActiveScene.get());

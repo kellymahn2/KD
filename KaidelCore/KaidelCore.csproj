@@ -74,6 +74,7 @@
     <Compile Include="Source\Kaidel\Math\Operations\Conversions.cs" />
     <Compile Include="Source\Kaidel\Math\Operations\Methods.cs" />
     <Compile Include="Source\Kaidel\Math\Types\Constants.cs" />
+    <Compile Include="Source\Kaidel\Math\Types\Quaternion.cs" />
     <Compile Include="Source\Kaidel\Math\Types\Vector.cs" />
     <Compile Include="Source\Kaidel\Misc\Console.cs" />
     <Compile Include="Source\Kaidel\Misc\Timer.cs" />

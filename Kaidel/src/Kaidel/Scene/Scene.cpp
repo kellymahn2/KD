@@ -77,7 +77,7 @@ namespace Kaidel {
 				CircleRendererComponent ,CircleCollider2DComponent,
 				CameraComponent,
 				BoxCollider2DComponent, Rigidbody2DComponent,
-				NativeScriptComponent, ScriptComponent,ParentComponent,ChildComponent>
+				NativeScriptComponent, ScriptComponent,ParentComponent,ChildComponent , LineRendererComponent>
 				(entity, srcReg, e); });
 		newScene->m_IDMap = rhs->m_IDMap;
 		return newScene;
@@ -208,7 +208,13 @@ namespace Kaidel {
 			SpriteRendererComponent, CameraComponent,
 			BoxCollider2DComponent, Rigidbody2DComponent,
 			CircleRendererComponent ,CircleCollider2DComponent,
-			NativeScriptComponent,ScriptComponent>(newEntity, m_Registry, entity);
+			NativeScriptComponent,ScriptComponent,LineRendererComponent,ChildComponent>(newEntity, m_Registry, entity);
+
+		if (entity.HasComponent<ChildComponent>()) {
+			auto& parentID = entity.GetComponent<ChildComponent>().Parent;
+			auto parent = GetEntity(parentID);
+			parent.AddChild(newEntity.GetUUID());
+		}
 	}
 
 
@@ -387,6 +393,6 @@ namespace Kaidel {
 	DEF_COMPONENT_ADD(ScriptComponent)
 	DEF_COMPONENT_ADD(ParentComponent)
 	DEF_COMPONENT_ADD(ChildComponent)
-
+	DEF_COMPONENT_ADD(LineRendererComponent)
 
 }

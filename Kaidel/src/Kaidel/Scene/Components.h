@@ -78,6 +78,43 @@ namespace Kaidel {
 		CircleRendererComponent() = default;
 		CircleRendererComponent(const CircleRendererComponent&) = default;
 	};
+	template<typename T, typename _Points>
+	glm::vec3 Bezier(const std::vector<_Points>& controlPoints, T t) {
+		uint32_t n = controlPoints.size() - 1;
+		glm::vec3 result{ 0.0f };
+		T oneMinusT = 1.0f - t;
+		for (uint32_t i = 0; i <= n; ++i) {
+			result += (CalcBinomialCoefficient(n, i) * std::pow(oneMinusT, (T)(n - i)) * std::pow(t, (T)i)) * controlPoints[i].Position;
+		}
+		return result;
+	}
+	struct LineRendererComponent {
+
+		struct Point {
+			glm::vec3 Position{};
+		};
+		uint64_t Tesselation{};
+		std::vector<Point> Points;
+		std::vector<Point> FinalPoints;
+		glm::vec4 Color{};
+		LineRendererComponent() = default;
+		LineRendererComponent(const LineRendererComponent&) = default;
+		LineRendererComponent(std::vector<Point>&& points) 
+			: Points(std::move(points))
+		{
+			RecalculateFinalPoints();
+		}
+		void RecalculateFinalPoints() {
+			float offset = 1.0f / (Tesselation + 1);
+			std::vector<LineRendererComponent::Point> points;
+			points.reserve(Tesselation + 1);
+			for (uint32_t i = 0; i < Tesselation + 1; ++i) {
+				points.push_back({ Bezier(Points, offset * i) });
+			}
+			FinalPoints = std::move(points);
+		}
+
+	};
 
 	struct CameraComponent
 	{

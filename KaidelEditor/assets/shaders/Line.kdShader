@@ -34,14 +34,14 @@ struct VertexOutput
 {
 	float4 Pos : SV_Position;
 	float4 Color : COLOR;
-	nointerpolation int EntityID :TEXCOORD;
+	nointerpolation int EntityID : TEXCOORD;
 };
 
-struct PSOutput
-{
+struct PSOutput{
 	float4 Color : SV_Target0;
 	int EntityID : SV_Target1;
 };
+
 
 PSOutput main(VertexOutput input)
 {

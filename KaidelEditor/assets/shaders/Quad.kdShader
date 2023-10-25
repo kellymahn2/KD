@@ -24,7 +24,6 @@ struct VertexOutput
 	float TexIndex : TEXCOORD2;
 	nointerpolation int EntityID : TEXCOORD3;
 };
-
 VertexOutput main(VertexInput input)
 {
     VertexOutput output;

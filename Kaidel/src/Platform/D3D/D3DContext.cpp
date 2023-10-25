@@ -80,8 +80,7 @@ namespace Kaidel {
 		back->Release();
 
 
-		D3D11_TEXTURE2D_DESC depthStencilDesc;
-		ZeroMemory(&depthStencilDesc, sizeof(depthStencilDesc));
+		D3D11_TEXTURE2D_DESC depthStencilDesc{};
 
 		depthStencilDesc.Width = scd.BufferDesc.Width;
 		depthStencilDesc.Height = scd.BufferDesc.Height;
@@ -95,8 +94,7 @@ namespace Kaidel {
 
 		m_Device->CreateTexture2D(&depthStencilDesc, nullptr, &m_DepthStencilBuffer);
 
-		D3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc;
-		ZeroMemory(&depthStencilViewDesc, sizeof(depthStencilViewDesc));
+		D3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc{};
 		depthStencilViewDesc.Format = depthStencilDesc.Format;
 		depthStencilViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 		depthStencilViewDesc.Texture2D.MipSlice = 0;
@@ -110,13 +108,13 @@ namespace Kaidel {
 
 		m_Settings.CullMode = D3D11_CULL_NONE;
 		m_Settings.FillMode = D3D11_FILL_SOLID;
-		m_Settings.FrontCounterClockwise	= FALSE;
-		m_Settings.DepthBias	= 0;
-		m_Settings.SlopeScaledDepthBias	= 0.0f;
-		m_Settings.DepthBiasClamp	= 0.0f;
-		m_Settings.DepthClipEnable	= TRUE;
-		m_Settings.ScissorEnable	= FALSE;
-		m_Settings.MultisampleEnable	= FALSE;
+		m_Settings.FrontCounterClockwise = true;
+		m_Settings.DepthBias = 0;
+		m_Settings.SlopeScaledDepthBias = 0.0f;
+		m_Settings.DepthBiasClamp = 0.0f;
+		m_Settings.DepthClipEnable = TRUE;
+		m_Settings.ScissorEnable = FALSE;
+		m_Settings.MultisampleEnable = FALSE;
 		m_Settings.AntialiasedLineEnable = FALSE;
 		D3DASSERT(m_Device->CreateRasterizerState(&m_Settings, &m_RasterizerState));
 		m_DeviceContext->RSSetState(m_RasterizerState);
@@ -130,14 +128,13 @@ namespace Kaidel {
 		viewport.Height = 720;
 
 		m_DeviceContext->RSSetViewports(1, &viewport);
-		D3DASSERT(m_Device->CreateDeferredContext(0, &m_DefferedDeviceContext));
 	}
 
 	void D3DContext::SwapBuffers()
 	{
 		KD_PROFILE_FUNCTION();
 		D3DASSERT(m_SwapChain->Present(0, 0));
-
+		m_DeviceContext->ClearDepthStencilView(m_DepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 	}
 
 	void D3DContext::RecreateSwapChain(uint32_t width, uint32_t height)

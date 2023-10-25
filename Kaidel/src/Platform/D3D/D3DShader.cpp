@@ -2,28 +2,27 @@
 #include "Platform/D3D/D3DShader.h"
 #include "Platform/D3D/D3DContext.h"
 #include <fstream>
-#include <glad/glad.h>
 #include "D3Dcompiler.h"
 
 #include <glm/gtc/type_ptr.hpp>
 namespace Kaidel {
 
-	static GLenum ShaderTypeFromString(const std::string& type)
+	static ShaderType ShaderTypeFromString(const std::string& type)
 	{
-		return type == "vertex"?0:1;
+		return type == "vertex"?Shader::ShaderType_Vertex: type=="fragment" ? Shader::ShaderType_Pixel: type=="geometry" ? Shader::ShaderType_Geometry: Shader::ShaderType_Compute;
 	}
 
 	D3DShader::D3DShader(const std::string& filepath)
 	{
 		std::string source = ReadFile(filepath);
-		std::unordered_map<GLenum,std::string> shaderSources = PreProcess(source);
+		std::unordered_map<ShaderType,std::string> shaderSources = PreProcess(source);
 		Compile(shaderSources);
 	}
 
 	D3DShader::D3DShader(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc)
 		: m_Name(name)
 	{
-		Compile({ {0,vertexSrc},{1,fragmentSrc} });
+		Compile({ {ShaderType_Vertex,vertexSrc},{ShaderType_Pixel,fragmentSrc} });
 	}
 
 	D3DShader::~D3DShader()
@@ -32,10 +31,14 @@ namespace Kaidel {
 			m_VertexShader->Release();
 		if (m_PixelShader)
 			m_PixelShader->Release();
+		if (m_GeometryShader)
+			m_GeometryShader->Release();
 		if (m_VSBlob)
 			m_VSBlob->Release();
 		if (m_PSBlob)
 			m_PSBlob->Release();
+		if (m_GSBlob)
+			m_GSBlob->Release();
 	}
 
 	std::string D3DShader::ReadFile(const std::string& filepath)
@@ -65,10 +68,10 @@ namespace Kaidel {
 		return result;
 	}
 
-	std::unordered_map<GLenum, std::string> D3DShader::PreProcess(const std::string& source)
+	std::unordered_map<ShaderType, std::string> D3DShader::PreProcess(const std::string& source)
 	{
 
-		std::unordered_map<GLenum, std::string> shaderSources;
+		std::unordered_map<ShaderType, std::string> shaderSources;
 
 		const char* typeToken = "#type";
 		size_t typeTokenLength = strlen(typeToken);
@@ -91,84 +94,111 @@ namespace Kaidel {
 		return shaderSources;
 	}
 
-	void D3DShader::Compile(const std::unordered_map<GLenum, std::string>& shaderSources)
+	void D3DShader::Compile(const std::unordered_map<ShaderType, std::string>& shaderSources)
 	{
 		auto d3dContext = D3DContext::Get();
-		auto& vbs = shaderSources.at(0);
-		auto& pbs = shaderSources.at(1);
-		const char* v = R"(
-struct VertexInput
-{
-	float3 a_Position : POSITION;
-	float4 a_Color : COLOR;
-	int a_EntityID : TEXCOORD;
-};
+		auto compilationFlags = 0;
+#ifdef KD_DEBUG
+		compilationFlags |= D3DCOMPILE_DEBUG;
+#endif // KD_DEBUG
 
-cbuffer Camera : register(b0)
-{
-    matrix u_ViewProjection;
-};
+		if (shaderSources.find(ShaderType_Vertex)!=shaderSources.end()) {
+			auto& vss = shaderSources.at(ShaderType_Vertex);
+			auto res = D3DCompile(
+				vss.data(),
+				vss.length(),
+				nullptr,
+				nullptr,
+				nullptr,
+				"main",
+				"vs_5_0",
+				compilationFlags, 0,
+				&m_VSBlob, nullptr);
+			D3DASSERT(d3dContext->GetDevice()->CreateVertexShader(m_VSBlob->GetBufferPointer(),
+				m_VSBlob->GetBufferSize(), nullptr, &m_VertexShader));
+			m_ShaderType |= ShaderType_Vertex;
+		}
+		if (shaderSources.find(ShaderType_Pixel) != shaderSources.end()) {
 
-struct VertexOutput
-{
-	float4 Pos : SV_Position;
-	float4 Color : COLOR;
-	int EntityID : TEXCOORD;
-};
+			auto& pss = shaderSources.at(ShaderType_Pixel);
+			D3DASSERT(D3DCompile(
+				pss.data(),
+				pss.length(),
+				nullptr,
+				nullptr,
+				nullptr,
+				"main",
+				"ps_5_0",
+				compilationFlags, 0,
+				&m_PSBlob, nullptr));
+			D3DASSERT(d3dContext->GetDevice()->CreatePixelShader(m_PSBlob->GetBufferPointer(),
+				m_PSBlob->GetBufferSize(), nullptr, &m_PixelShader));
+			m_ShaderType |= ShaderType_Pixel;
+		}
+		if (shaderSources.find(ShaderType_Geometry) != shaderSources.end()) {
+			auto& gss = shaderSources.at(ShaderType_Geometry);
+			D3DASSERT(D3DCompile(
+				gss.data(),
+				gss.length(),
+				nullptr,
+				nullptr,
+				nullptr,
+				"main",
+				"gs_5_0",
+				compilationFlags,
+				0,
+				&m_GSBlob,
+				nullptr));
+			D3DASSERT(d3dContext->GetDevice()->CreateGeometryShader(m_GSBlob->GetBufferPointer(),
+				m_GSBlob->GetBufferSize(), nullptr, &m_GeometryShader));
+			m_ShaderType |= ShaderType_Geometry;
+		}
+		if (shaderSources.find(ShaderType_Compute) != shaderSources.end()) {
+			auto& css = shaderSources.at(ShaderType_Compute);
+			D3DASSERT(D3DCompile(
+				css.data(),
+				css.length(),
+				nullptr,
+				nullptr,
+				nullptr,
+				"main",
+				"cs_5_0",
+				compilationFlags,
+				0,
+				&m_CSBlob,
+				nullptr
+			));
+			D3DASSERT(d3dContext->GetDevice()->CreateComputeShader(m_CSBlob->GetBufferPointer(),
+				m_CSBlob->GetBufferSize(), nullptr, &m_ComputeShader));
+			m_ShaderType |= ShaderType_Compute;
+		}
 
-VertexOutput main(VertexInput input)
-{
-    VertexOutput output;
-	output.Pos = mul(float4(input.a_Position,1.0f),u_ViewProjection);
-    output.Color = input.a_Color;
-	output.EntityID = input.a_EntityID;
-    return output;
-}
-)";
-		ID3DBlob* VSByteCode = nullptr;
-		auto res = D3DCompile(
-			vbs.data(),
-			vbs.length(),
-			nullptr,
-			nullptr,
-			nullptr,
-			"main",
-			"vs_5_0",
-			D3DCOMPILE_DEBUG, 0,
-			&VSByteCode, nullptr);
-
-
-		D3DASSERT(d3dContext->GetDevice()->CreateVertexShader(VSByteCode->GetBufferPointer(),
-			VSByteCode->GetBufferSize(), nullptr, &m_VertexShader));
-		m_VSBlob = VSByteCode;
-		ID3DBlob* PSByteCode = nullptr;
-		res = D3DCompile(
-			pbs.data(),
-			pbs.length(),
-			nullptr,
-			nullptr,
-			nullptr,
-			"main",
-			"ps_5_0",
-			D3DCOMPILE_DEBUG, 0,
-			&PSByteCode, nullptr);
-		D3DASSERT(d3dContext->GetDevice()->CreatePixelShader(PSByteCode->GetBufferPointer(),
-			PSByteCode->GetBufferSize(), nullptr, &m_PixelShader));
-		m_PSBlob = PSByteCode;
 	}
 
 	void D3DShader::Bind() const
 	{
 		auto d3dContext = D3DContext::Get();
-		d3dContext->GetDeviceContext()->VSSetShader(m_VertexShader, nullptr, 0);
+		if(m_ShaderType&ShaderType_Vertex)
+			d3dContext->GetDeviceContext()->VSSetShader(m_VertexShader, nullptr, 0);
+		if (m_ShaderType & ShaderType_Pixel)
 		d3dContext->GetDeviceContext()->PSSetShader(m_PixelShader, nullptr, 0);
+		if (m_ShaderType & ShaderType_Geometry)
+		d3dContext->GetDeviceContext()->GSSetShader(m_GeometryShader, nullptr, 0);
+		if (m_ShaderType & ShaderType_Compute)
+			d3dContext->GetDeviceContext()->CSSetShader(m_ComputeShader, nullptr, 0);
 	}
 
 	void D3DShader::Unbind() const
 	{
 		auto d3dContext = D3DContext::Get();
-		d3dContext->GetDeviceContext()->PSSetShader(nullptr, nullptr, 0);
-		d3dContext->GetDeviceContext()->PSSetShader(nullptr, nullptr, 0);
+		if (m_ShaderType & ShaderType_Vertex)
+			d3dContext->GetDeviceContext()->VSSetShader(nullptr, nullptr, 0);
+		if (m_ShaderType & ShaderType_Pixel)
+			d3dContext->GetDeviceContext()->PSSetShader(nullptr, nullptr, 0);
+		if (m_ShaderType & ShaderType_Geometry)
+			d3dContext->GetDeviceContext()->GSSetShader(nullptr, nullptr, 0);
+		if (m_ShaderType & ShaderType_Compute)
+			d3dContext->GetDeviceContext()->CSSetShader(nullptr, nullptr, 0);
 	}
 
 	void D3DShader::SetInt(const std::string& name, int value)
@@ -245,4 +275,5 @@ VertexOutput main(VertexInput input)
 		
 	}
 
+	
 }

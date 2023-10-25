@@ -1,4 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
+using System.Collections.Generic;
 
 namespace KaidelCore
 {
@@ -76,6 +77,13 @@ namespace KaidelCore
 		[MethodImpl(MethodImplOptions.InternalCall)]
 		internal extern static float Vector4_LengthVec(ref Vector4 a);
 		#endregion
+
+		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static ulong Math_Fact(ulong n);
+		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static void Math_Bezier(List<Vector3> points,float t,out Vector3 res);
+
+
 
 
 		#endregion

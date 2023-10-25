@@ -4,9 +4,10 @@
 
 #include "Kaidel/Core/PlatformDetection.h"
 
-#pragma warning( disable : 4006 )
-#pragma warning( disable : 4099 )
-#pragma warning( disable : 26498 )
+#pragma warning(disable: 4996)
+#pragma warning(disable: 4005)
+#pragma warning(disable: 4002)
+
 
 #ifdef KD_DEBUG
 	#if defined(KD_PLATFORM_WINDOWS)
@@ -46,7 +47,23 @@ namespace Kaidel {
 	{
 		return std::make_shared<T>(std::forward<Args>(args)...);
 	}
+	template<typename T>
+	constexpr T Fact(T n) {
+		if (n == static_cast<T>(0))
+			return static_cast<T>(1);
+		if (n == static_cast<T>(1))
+			return static_cast<T>(1);
+		if (n == static_cast<T>(2))
+			return static_cast<T>(2);
+		return n * Fact<T>(n - 1);
+	}
+	template<typename  T>
+	float CalcBinomialCoefficient(T n, T r) {
+		return (Fact(n)) / (Fact(r) * Fact(n - r));
 
+	}
+	
+	
 }
 
 #include "Kaidel/Core/Log.h"

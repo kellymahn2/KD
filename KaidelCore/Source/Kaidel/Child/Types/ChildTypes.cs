@@ -8,21 +8,26 @@ namespace KaidelCore
 {
 	public class ChildNode{
 		internal ulong m_ID;
+		public Entity Get()
+		{
 
-		public Entity this[uint index]
+			return new Entity(m_ID);
+		}
+		//TODO: Add bool so that we know if entity doesnt have the child.
+		public ChildNode this[uint index]
 		{
 			get
 			{
-				ulong childEntityID = Internals.Entity_GetChildEntityIDWithIndex(m_ID,index);
-				return new Entity(childEntityID);
+				ulong childEntityID = Internals.Entity_GetChildEntityIDWithIndex(m_ID, index);
+				return new ChildNode(){m_ID = childEntityID};
 			}
 		}
-		public Entity this[string name]
+		public ChildNode this[string name]
 		{
 			get
 			{
 				ulong childEntityID = Internals.Entity_GetChildEntityIDWithName(m_ID, name);
-				return new Entity(childEntityID);
+				return new ChildNode() { m_ID = childEntityID };
 			}
 		}
 	}

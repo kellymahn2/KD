@@ -11,7 +11,7 @@ namespace Kaidel {
 		inline bool push_back(const T& item)
 		{
 			bool result = false;
-			std::unique_lock<std::mutex> lock(this->lock);
+			std::scoped_lock<std::mutex> lock(this->lock);
 			size_t next = (head + 1) % capacity;
 			if (next != tail)
 			{
@@ -20,6 +20,7 @@ namespace Kaidel {
 				result = true;
 			}
 			return result;
+
 		}
 
 		// Get an item if there are any
@@ -28,7 +29,7 @@ namespace Kaidel {
 		inline bool pop_front(T& item)
 		{
 			bool result = false;
-			std::unique_lock<std::mutex> lock(this->lock);
+			std::scoped_lock<std::mutex> lock(this->lock);
 			if (tail != head)
 			{
 				item = data[tail];
@@ -36,8 +37,12 @@ namespace Kaidel {
 				result = true;
 			}
 			return result;
+
 		}
-		ThreadSafeRingBuffer() = default;
+		ThreadSafeRingBuffer()
+			:lock{}
+		{
+		}
 	private:
 		T data[capacity];
 		size_t head = 0;
@@ -68,7 +73,7 @@ namespace Kaidel {
 		// Create all our worker threads while immediately starting them:
 		for (uint32_t threadID = 0; threadID < s_Data.numThreads; ++threadID)
 		{
-			std::thread worker([] {
+			std::thread worker ([] {
 
 				std::function<void()> job; // the current job for the thread, it's empty at start.
 
@@ -92,12 +97,17 @@ namespace Kaidel {
 				});
 
 			// *****Here we could do platform specific thread setup...
-
-			worker.detach(); // forget about this thread, let it do it's job in the infinite loop that we created above
+			worker.detach();
 
 		}
 
 	}
+
+	JobSystem::~JobSystem()
+	{
+
+	}
+
 	inline void poll()
 	{
 		s_Data.wakeCondition.notify_one(); // wake one worker thread

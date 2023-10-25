@@ -12,6 +12,8 @@
 namespace Kaidel {
 
 	struct QuadVertex;
+	struct CircleVertex;
+	struct LineVertex;
 	class Renderer2D
 	{
 	public:
@@ -23,13 +25,15 @@ namespace Kaidel {
 		static void BeginScene(const OrthographicCamera& camera); // TODO: Remove
 		static void EndScene();
 		static void Flush();
-		static void Flush(std::vector<QuadVertex>&);
+		static void FlushQuads(const std::vector<QuadVertex>&);
+		static void FlushCircles(const std::vector<CircleVertex>&);
+		static void FlushLines(const std::vector<LineVertex>&);
 		// Primitives
 
 
 		static void DrawQuad(const glm::mat4& transform, const glm::vec4& color, uint64_t QuadIndex, int entityID=-1);
-
-
+		static void DrawCircle(const glm::mat4& transform, const glm::vec4& color, uint64_t insertIndex, float Thickness = 1.0f, float fade = .005f, int entityID = -1);
+		static void DrawLine(const glm::vec3& p0,const glm::vec3& p1, const glm::vec4& color,uint64_t insertIndex, int entityID = -1);
 
 
 
@@ -62,6 +66,9 @@ namespace Kaidel {
 	private:
 		static void SetVertexBufferValues(uint32_t vertexCount, const glm::mat4& transform, const glm::vec4& tintColor, const glm::vec2* textureCoords, float textureIndex, float tilingFactor, int entityID);
 		static void StartBatch();
+		static void StartQuadBatch();
+		static void StartCircleBatch();
+		static void StartLineBatch();
 		static void NextBatch();
 		enum class _LaunchType {
 			MT = 1,ST = 2

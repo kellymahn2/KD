@@ -41,16 +41,26 @@ namespace Kaidel {
 		void UploadUniformMat4(const std::string& name, const glm::mat4& matrix);
 		ID3DBlob* GetVSBlob()const { return m_VSBlob; }
 		ID3DBlob* GetPSBlob()const { return m_PSBlob; }
+
+
+
+	
+
+
 	private:
 		std::string ReadFile(const std::string& filepath);
-		std::unordered_map<GLenum, std::string> PreProcess(const std::string& source);
-		void Compile(const std::unordered_map<GLenum, std::string>& shaderSources);
+		std::unordered_map<ShaderType, std::string> PreProcess(const std::string& source);
+		void Compile(const std::unordered_map<ShaderType, std::string>& shaderSources);
 	private:
 		uint32_t m_RendererID;
-		ID3D11VertexShader* m_VertexShader;
-		ID3D11PixelShader* m_PixelShader;
-		ID3DBlob* m_VSBlob=nullptr;
-		ID3DBlob* m_PSBlob=nullptr;
+		ID3D11VertexShader* m_VertexShader = nullptr;
+		ID3D11PixelShader* m_PixelShader = nullptr;
+		ID3D11GeometryShader* m_GeometryShader = nullptr;
+		ID3D11ComputeShader* m_ComputeShader = nullptr;
+		ID3DBlob* m_VSBlob = nullptr;
+		ID3DBlob* m_PSBlob = nullptr;
+		ID3DBlob* m_GSBlob = nullptr;
+		ID3DBlob* m_CSBlob = nullptr;
 		std::string m_Name;
 	};
 

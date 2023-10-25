@@ -313,6 +313,28 @@ namespace Kaidel {
 
 			out << YAML::EndMap; // CircleCollider2DComponent
 		}
+		if (entity.HasComponent<LineRendererComponent>()) {
+			out << YAML::Key << "LineRendererComponent";
+			out << YAML::BeginMap; // LineRendererComponent
+
+			auto& lineRendererComponent = entity.GetComponent<LineRendererComponent>();
+			out << YAML::Key << "Tesselation" << YAML::Value << lineRendererComponent.Tesselation;
+			out << YAML::Key << "Color" << YAML::Value << lineRendererComponent.Color;
+			out << YAML::Key << "Points";
+			out << YAML::BeginSeq;
+			for (auto& point : lineRendererComponent.Points) {
+				out << point.Position;
+			}
+			out << YAML::EndSeq;
+			out << YAML::EndMap; // LineRendererComponent
+		}
+
+
+
+
+
+
+
 		if (entity.HasComponent<ScriptComponent>()) {
 			out << YAML::Key << "ScriptComponent";
 			out << YAML::BeginMap;//ScriptComponent
@@ -487,6 +509,19 @@ namespace Kaidel {
 						cc2d.RestitutionThreshold = circleCollider2DComponent["RestitutionThreshold"].as<float>();
 					}
 				);
+
+				DeserializeComponent<LineRendererComponent>(deserializedEntity, "LineRendererComponent", entity,
+					[](LineRendererComponent& lrc, auto& entity, YAML::Node& lineRendererComponent) {
+						lrc.Tesselation = lineRendererComponent["Tesselation"].as<uint32_t>();
+						lrc.Color = lineRendererComponent["Color"].as<glm::vec4>();
+						YAML::Node points = lineRendererComponent["Points"];
+						for (auto point : points) {
+							lrc.Points.push_back({ point.as<glm::vec3>() });
+						}
+						lrc.RecalculateFinalPoints();
+					}
+				);
+
 				DeserializeComponent<ScriptComponent>(deserializedEntity, "ScriptComponent", entity,
 					[&uuid](auto& sc, auto& entity, YAML::Node& scriptComponent) {
 						auto& entityFields = ScriptEngine::GetScriptFieldMap(uuid);
@@ -516,7 +551,6 @@ case ScriptFieldType::##T:\
 							}
 						}
 					});
-
 			}
 		}
 

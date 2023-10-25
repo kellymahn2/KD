@@ -561,10 +561,10 @@ namespace Kaidel {
 		}
 	}
 	template<typename T>
-	static void DrawAddComponentItems(Entity& entity,const std::string& text) {
+	static void DrawAddComponentItems(Entity& entity, const std::string& text, std::function<void(T&)> func = [](T&){}) {
 		if (!entity.HasComponent<T>()) {
 			if (ImGui::MenuItem(text.c_str())) {
-				entity.AddComponent<T>();
+				func(entity.AddComponent<T>());
 				ImGui::CloseCurrentPopup();
 			}
 		}
@@ -633,13 +633,17 @@ namespace Kaidel {
 
 		if (ImGui::BeginPopup("AddComponent"))
 		{
-			DrawAddComponentItems<ScriptComponent>(m_SelectionContext, "Script Component");
-			DrawAddComponentItems<CameraComponent>(m_SelectionContext, "Camera");
-			DrawAddComponentItems<SpriteRendererComponent>(m_SelectionContext, "Sprite Renderer");
-			DrawAddComponentItems<CircleRendererComponent>(m_SelectionContext, "Circle Renderer");
-			DrawAddComponentItems<Rigidbody2DComponent>(m_SelectionContext, "Rigidbody 2D");
-			DrawAddComponentItems<BoxCollider2DComponent>(m_SelectionContext, "Box Collider 2D");
-			DrawAddComponentItems<CircleCollider2DComponent>(m_SelectionContext, "Circle Collider 2D");
+			DrawAddComponentItems<ScriptComponent>(entity, "Script Component");
+			DrawAddComponentItems<CameraComponent>(entity, "Camera");
+			DrawAddComponentItems<SpriteRendererComponent>(entity, "Sprite Renderer");
+			DrawAddComponentItems<CircleRendererComponent>(entity, "Circle Renderer");
+			DrawAddComponentItems<Rigidbody2DComponent>(entity, "Rigidbody 2D");
+			DrawAddComponentItems<BoxCollider2DComponent>(entity, "Box Collider 2D");
+			DrawAddComponentItems<CircleCollider2DComponent>(entity, "Circle Collider 2D");
+			DrawAddComponentItems<LineRendererComponent>(entity, "Line Renderer", [](LineRendererComponent& lrc) {
+				lrc.Points = { LineRendererComponent::Point{ {0,0,0} }, LineRendererComponent::Point{ {1,1,0} } };
+				lrc.RecalculateFinalPoints();
+				});
 			//DrawAddComponentItems<ParentComponent>(m_SelectionContext, "Parent");
 			//DrawAddComponentItems<ChildComponent>(m_SelectionContext, "Child");
 			ImGui::EndPopup();
@@ -786,6 +790,52 @@ namespace Kaidel {
 			ImGui::DragFloat("Restitution Threshold", &component.RestitutionThreshold, 0.01f, .0f, 1.f);
 
 			});
+
+
+		DrawComponent<LineRendererComponent>("Line Renderer", entity, [](LineRendererComponent& component) {
+				
+
+			ImGui::ColorEdit4("Color", &component.Color.x);
+			if (ImGui::DragInt("Tesselation", (int*)&component.Tesselation, 1.0f, 0, INT_MAX)) {
+				component.RecalculateFinalPoints();
+			}
+			uint32_t size = component.Points.size();
+			uint32_t i = 0;
+			static const ImVec2 padding = { 16.0f,0 };
+			const ImVec2 addButtonSize = ImGui::CalcTextSize("+")+padding;
+			const ImVec2 deleteButtonSize = ImGui::CalcTextSize("-")+padding;
+			bool addedRemoved = false;
+			std::vector<LineRendererComponent::Point> componentCopy = component.Points;
+			for (auto& point : component.Points) {
+				ImGui::PushID(i);
+				if (ImGui::DragFloat3(std::to_string(i).c_str(),&point.Position.x,.1f)) {
+					component.RecalculateFinalPoints();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("+", addButtonSize)) {
+					addedRemoved = true;
+					componentCopy.insert(componentCopy.begin() + i + 1, 1, LineRendererComponent::Point{point.Position});
+				}
+				if (size <= 2)
+					ImGui::BeginDisabled();
+				ImGui::SameLine();
+				if (ImGui::Button("-", deleteButtonSize)) {
+					addedRemoved = true;
+					componentCopy.erase(componentCopy.begin()+i,componentCopy.begin()+i+1);
+				}
+				if (size <= 2)
+					ImGui::EndDisabled();
+				++i;
+				ImGui::PopID();
+			}
+			if (addedRemoved)
+			{
+				component.Points = std::move(componentCopy);
+				component.RecalculateFinalPoints();
+			}
+			});
+
+
 
 		//Scripts
 		DrawComponent<ScriptComponent>("Script", entity, [entity, scene = m_Context](auto& component) mutable

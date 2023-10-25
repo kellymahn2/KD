@@ -22,6 +22,9 @@ namespace Kaidel {
 	public:
 		ScopedBuffer() = default;
 		ScopedBuffer(const ScopedBuffer&) = default;
+		~ScopedBuffer() {
+			delete[] m_Buffer.Data;
+		}
 		ScopedBuffer(ScopedBuffer& rhs) {
 			m_Buffer = rhs.m_Buffer;
 		}

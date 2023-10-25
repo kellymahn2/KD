@@ -16,7 +16,6 @@
 #include <box2d/b2_polygon_shape.h>
 #include <box2d/b2_circle_shape.h>
 
-//TODO : Add local Rotation.
 
 namespace std {
 	template<>
@@ -267,6 +266,42 @@ namespace Kaidel {
 		auto& crc = GetComponent<CircleRendererComponent>(id);
 		crc.Fade = setFade;
 	}
+
+	static void LineRendererComponent_GetColor(UUID id, glm::vec4* outColor)
+	{
+		auto& lrc = GetComponent<LineRendererComponent>(id);
+		memcpy(outColor, &lrc.Color, sizeof(glm::vec4));
+	}
+	static void LineRendererComponent_SetColor(UUID id, glm::vec4* setColor)
+	{
+		auto& lrc = GetComponent<LineRendererComponent>(id);
+		memcpy(&lrc.Color, setColor, sizeof(glm::vec4));
+	}
+	static uint64_t LineRendererComponent_GetTesselation(UUID id)
+	{
+		return GetComponent<LineRendererComponent>(id).Tesselation;
+	}
+	static void LineRendererComponent_SetTesselation(UUID id, uint64_t tesselation)
+	{
+		GetComponent<LineRendererComponent>(id).Tesselation = tesselation;
+	}
+	static void LineRendererComponent_GetPoint(UUID id, uint64_t index,glm::vec3* setPoint)
+	{
+		auto& lrc = GetComponent<LineRendererComponent>(id);
+		memcpy(setPoint, &lrc.Points[index], sizeof(glm::vec3));
+	}
+	static void LineRendererComponent_SetPoint(UUID id, uint64_t index,glm::vec3* outPoint)
+	{
+		auto& lrc = GetComponent<LineRendererComponent>(id);
+		memcpy(&lrc.Points[index], outPoint, sizeof(glm::vec3));
+	}
+	static uint64_t LineRendererComponent_GetPointCount(UUID id)
+	{
+		return GetComponent<LineRendererComponent>(id).Points.size();
+	}
+
+
+
 	static void Rigidbody2DComponent_ApplyLinearImpulse(UUID id, glm::vec2* impulse, glm::vec2* point, bool wake) {
 		auto& rb2d = GetComponent<Rigidbody2DComponent>(id);
 		auto body = (b2Body*)rb2d.RuntimeBody;
@@ -524,7 +559,34 @@ namespace Kaidel {
 		}
 		return s_ScriptMaps.Vector4LengthMap[vector] = glm::length(vector);
 	}
+
+
+
+
+
+
 #pragma endregion
+
+	glm::vec3 _Math_Bezier(LineRendererComponent::Point* start, LineRendererComponent::Point* end, float t) {
+		uint32_t n = end-start - 1;
+		glm::vec3 result{ 0.0f };
+		float oneMinusT = 1.0f - t;
+		for (uint32_t i = 0; start!=end; ++i,++start) {
+			result += (CalcBinomialCoefficient(n, i) * std::pow(oneMinusT, (float)(n - i)) * std::pow(t, (float)i)) * start[i].Position;
+		}
+		return result;
+	}
+
+	static uint64_t Math_Fact(uint64_t n) {
+		return Fact(n);
+	}
+	static void Math_Bezier(MonoArray* points, float t, glm::vec3* out) {
+		*out = _Math_Bezier(mono_array_addr(points, LineRendererComponent::Point, 0),
+			mono_array_addr(points, LineRendererComponent::Point, mono_array_length(points))
+			,t
+			);
+	}
+
 	
 	static std::unordered_map<UUID, Console> s_ConsolesMap;
 	static uint64_t Console_InitNewConsole()
@@ -659,6 +721,15 @@ namespace Kaidel {
 		KD_ADD_INTERNAL(CircleRendererComponent_SetThickness);
 		KD_ADD_INTERNAL(CircleRendererComponent_GetFade);
 		KD_ADD_INTERNAL(CircleRendererComponent_SetFade);
+#pragma endregion
+#pragma region LineRendererComponent
+		KD_ADD_INTERNAL(LineRendererComponent_GetColor);
+		KD_ADD_INTERNAL(LineRendererComponent_SetColor);
+		KD_ADD_INTERNAL(LineRendererComponent_GetTesselation);
+		KD_ADD_INTERNAL(LineRendererComponent_SetTesselation);
+		KD_ADD_INTERNAL(LineRendererComponent_GetPoint);
+		KD_ADD_INTERNAL(LineRendererComponent_SetPoint);
+		KD_ADD_INTERNAL(LineRendererComponent_GetPointCount);
 #pragma endregion
 		#pragma endregion
 		#pragma region Physics
