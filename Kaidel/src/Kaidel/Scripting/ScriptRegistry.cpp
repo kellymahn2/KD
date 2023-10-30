@@ -202,8 +202,7 @@ namespace Kaidel {
 	static void TransformComponent_SetLocalPosition(UUID id, glm::vec3* setLocalPosition) {
 		Entity entity = GetEntity(id);
 		if (!entity.HasComponent<ChildComponent>()) {
-			auto& pos = entity.GetComponent<TransformComponent>().Translation;
-			MoveEntity(entity,ScriptEngine::GetSceneContext(), *setLocalPosition - pos,{0,0,0});
+			MoveEntity(entity,ScriptEngine::GetSceneContext(), *setLocalPosition,{0,0,0});
 			return;
 		}
 		auto& localPosition = entity.GetComponent<ChildComponent>().LocalPosition;
@@ -222,8 +221,7 @@ namespace Kaidel {
 	static void TransformComponent_SetLocalRotation(UUID id, glm::vec3* setLocalRotation) {
 		Entity entity = GetEntity(id);
 		if (!entity.HasComponent<ChildComponent>()) {
-			auto& rot = entity.GetComponent<TransformComponent>().Rotation;
-			MoveEntity(entity, ScriptEngine::GetSceneContext(), { 0,0,0 }, *setLocalRotation - rot);
+			MoveEntity(entity, ScriptEngine::GetSceneContext(), { 0,0,0 }, *setLocalRotation);
 			return;
 		}
 		auto& localRotation = entity.GetComponent<ChildComponent>().LocalRotation;
@@ -432,7 +430,7 @@ namespace Kaidel {
 	}
 
 	static MonoObject* Instance_GetScriptInstance(UUID id) {
-		return ScriptEngine::GetEntityScriptInstance(id)->GetInstance();
+		return (*ScriptEngine::GetEntityScriptInstances(id).begin()).second->GetInstance();
 	}
 #pragma region Vector2
 

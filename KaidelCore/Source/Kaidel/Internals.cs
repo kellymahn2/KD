@@ -42,6 +42,10 @@ namespace KaidelCore
 		[MethodImpl(MethodImplOptions.InternalCall)]	  
 		internal extern static void TransformComponent_SetLocalPosition(ulong id, ref Vector3 localPosition);
 		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static void TransformComponent_GetLocalRotation(ulong id, out Vector3 localRotation);
+		[MethodImpl(MethodImplOptions.InternalCall)]
+		internal extern static void TransformComponent_SetLocalRotation(ulong id, ref Vector3 localRotation);
+		[MethodImpl(MethodImplOptions.InternalCall)]
 		internal extern static void TransformComponent_RotateAround(ulong id, ulong parentID, ref Vector3 rotation);
 
 

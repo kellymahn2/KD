@@ -53,6 +53,18 @@ namespace KaidelCore
 				Internals.TransformComponent_SetRotation(ID,ref value);
 			}
 		}
+		public Vector3 LocalRotation
+		{
+			get
+			{
+				Internals.TransformComponent_GetLocalRotation(ID, out Vector3 rotation);
+				return rotation;
+			}
+			set
+			{
+				Internals.TransformComponent_SetLocalRotation(ID,ref value);
+			}
+		}
 		public Vector3 Scale
 		{
 			get

@@ -129,7 +129,7 @@ namespace Kaidel {
 	class ScriptableEntity;
 
 	struct ScriptComponent {
-		std::string Name;
+		std::vector<std::string> ScriptNames;
 		ScriptComponent() = default;
 		ScriptComponent(const ScriptComponent&) = default;
 	};

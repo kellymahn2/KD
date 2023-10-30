@@ -12,6 +12,11 @@ namespace Kaidel {
 		SceneRenderer(void* scene);
 		void Reset();
 		void Render();
+		SceneRenderer& operator=(void* scene) {
+			m_Context = scene;
+			Reset();
+			return *this;
+		}
 	private:
 		uint64_t m_QuadInsertIndex = 0;
 		uint64_t m_CircleInsertIndex = 0;

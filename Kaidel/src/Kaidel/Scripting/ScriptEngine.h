@@ -47,8 +47,8 @@ namespace Kaidel {
 		static void LoadAppAssembly(const std::filesystem::path& path);
 		static const std::unordered_map<std::string, Ref<ScriptClass>>& GetClasses();
 		static Ref<ScriptClass> GetEntityClass(const std::string& name);
-		static  ScriptFieldMap& GetScriptFieldMap(UUID entityID);
-		static Ref<ScriptInstance> GetEntityScriptInstance(UUID entityID);
+		static  std::unordered_map<Ref<ScriptClass>,ScriptFieldMap>& GetScriptFieldMaps(UUID entityID);
+		static std::unordered_map<std::string,Ref<ScriptInstance>> GetEntityScriptInstances(UUID entityID);
 		static MonoObject* InstantiateClass(MonoClass* monoClass);
 		static void OnRuntimeStart(Scene* scene);
 		static void OnRuntimeStop();

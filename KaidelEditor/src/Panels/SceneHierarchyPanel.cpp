@@ -595,7 +595,7 @@ namespace Kaidel {
 					}
 				}
 				else {
-					if (ImGui::TreeNode(name.c_str())) {
+					if (ImGui::TreeNodeEx(name.c_str(),ImGuiTreeNodeFlags_SpanAvailWidth)) {
 						std::string res = acsi.Draw();
 						ImGui::TreePop();
 						if(!res.empty())
@@ -633,7 +633,10 @@ namespace Kaidel {
 
 		if (ImGui::BeginPopup("AddComponent"))
 		{
-			DrawAddComponentItems<ScriptComponent>(entity, "Script Component");
+			//DrawAddComponentItems<ScriptComponent>(entity, "Script Component");
+			if (ImGui::MenuItem("Script Component")) {
+				entity.AddScript();
+			}
 			DrawAddComponentItems<CameraComponent>(entity, "Camera");
 			DrawAddComponentItems<SpriteRendererComponent>(entity, "Sprite Renderer");
 			DrawAddComponentItems<CircleRendererComponent>(entity, "Circle Renderer");
@@ -838,93 +841,111 @@ namespace Kaidel {
 
 
 		//Scripts
-		DrawComponent<ScriptComponent>("Script", entity, [entity, scene = m_Context](auto& component) mutable
+		DrawComponent<ScriptComponent>("Script", entity, [entity, scene = m_Context](ScriptComponent& component) mutable
 			{
-				//TODO: Add functionality for other types
-				bool scriptClassExists = ScriptEngine::ClassExists(component.Name);
-				if (!scriptClassExists)
-					ImGui::PushStyleColor(ImGuiCol_TextDisabled, ImVec4(0.9f, 0.2f, 0.3f, 1.0f));
-
+			
 				auto& entityScripts = ScriptEngine::GetClasses();
-				static bool IsChoosingScript = false;
-				ImGui::TextDisabled(component.Name.c_str());
-				ImGui::SameLine();
-				IsChoosingScript = !entityScripts.empty() && (ImGui::Button("##ScriptChooser", { 15,0 }) || IsChoosingScript);
-				if (IsChoosingScript) {
-					AssetChooserScriptItem acsi(entityScripts);
-					ImGui::Begin("Please Choose A Script", &IsChoosingScript);
-					{
-						std::string res = acsi.Draw();
-						if (!res.empty()) {
-							component.Name = res;
-							IsChoosingScript = false;
-						}
-					}
-					ImGui::End();
-				}
-
-
-
-
-				// Fields
 				bool sceneRunning = scene->IsRunning();
-				if (sceneRunning)
-				{
-					Ref<ScriptInstance> scriptInstance = ScriptEngine::GetEntityScriptInstance(entity.GetUUID());
-					if (scriptInstance)
-					{
-						const auto& fields = scriptInstance->GetScriptClass()->GetFields();
+				auto& entityScriptFields = ScriptEngine::GetScriptFieldMaps(entity.GetUUID());
+				auto& entityScriptInstances = ScriptEngine::GetEntityScriptInstances(entity.GetUUID());
+
+				static int64_t currentChoosingIndex = -1;
+				int64_t currentIndex = 0;
+				for (auto& klassName : component.ScriptNames) {
+					bool scriptClassExists = ScriptEngine::ClassExists(klassName);
+					if (!scriptClassExists) {
+						ImGui::TextDisabled("No Script Found");
+					}
+					else {
+						ImGui::TextDisabled(klassName.c_str());
+					}
+					static bool IsChoosingScript = false;
+					ImGui::SameLine();
+					ImGui::PushID(currentIndex);
+					IsChoosingScript = !entityScripts.empty() && (ImGui::Button("##ScriptChooser", { 15,0 }) || (IsChoosingScript));
+					ImGui::PopID();
+					if (IsChoosingScript && currentChoosingIndex == -1)
+						currentChoosingIndex = currentIndex;
+					if (IsChoosingScript && currentChoosingIndex == currentIndex) {
+						AssetChooserScriptItem acsi(entityScripts);
+						ImGui::Begin("Please Choose A Script", &IsChoosingScript);
+						if (!IsChoosingScript)
+						{
+							currentChoosingIndex = -1;
+						}
+						{
+							std::string res = acsi.Draw();
+							if (!res.empty()) {
+								klassName = res;
+								IsChoosingScript = false;
+								currentChoosingIndex = -1;
+							}
+						}
+						ImGui::End();
+						
+					}
+					if (!scriptClassExists) {
+						++currentIndex;
+						continue;
+					}
+					ImGui::PushID(currentIndex);
+					if (sceneRunning) {
+						Ref<ScriptInstance> instance = entityScriptInstances.at(klassName);
+						KD_CORE_ASSERT(instance);
+						const auto& fields = instance->GetScriptClass()->GetFields();
+
 						for (const auto& [name, field] : fields)
 						{
 							if (field.Type == ScriptFieldType::Float)
 							{
-								float data = scriptInstance->GetFieldValue<float>(field);
+								float data = instance->GetFieldValue<float>(field);
 								if (ImGui::DragFloat(name.c_str(), &data))
 								{
-									scriptInstance->SetFieldValue<float>(field, data);
+									instance->SetFieldValue<float>(field, data);
 								}
 							}
 						}
 					}
-				}
-				else if(scriptClassExists)
-				{
-					Ref<ScriptClass> entityClass = ScriptEngine::GetEntityClass(component.Name);
-					const auto& fields = entityClass->GetFields();
+					else {
+						Ref<ScriptClass> entityClass = ScriptEngine::GetEntityClass(klassName);
 
-					auto& entityFields = ScriptEngine::GetScriptFieldMap(entity.GetUUID());
-					for (const auto& [name, field] : fields)
-					{
-						// Field has been set in editor
-						if (entityFields.find(name) != entityFields.end())
+						const auto& fields = entityClass->GetFields();
+						auto& entityFields = entityScriptFields[entityClass];
+						
+						for (const auto& [name, field] : fields)
 						{
-							const ScriptFieldInstance& scriptField = entityFields.at(name);
+							// Field has been set in editor
+							if (entityFields.find(name) != entityFields.end())
+							{
+								const ScriptFieldInstance& scriptField = entityFields.at(name);
 
-							if (field.Type == ScriptFieldType::Float)
-							{
-								float data = scriptField.GetValue<float>();
-								if (ImGui::DragFloat(name.c_str(), &data))
-									scriptField.SetValue(data);
-							}
-						}
-						else
-						{
-							if (field.Type == ScriptFieldType::Float)
-							{
-								float data = 0.0f;
-								if (ImGui::DragFloat(name.c_str(), &data))
+								if (field.Type == ScriptFieldType::Float)
 								{
-									ScriptFieldInstance& fieldInstance = entityFields[name];
-									fieldInstance.Field = field;
-									fieldInstance.SetValue(data);
+									float data = scriptField.GetValue<float>();
+									if (ImGui::DragFloat(name.c_str(), &data))
+										scriptField.SetValue(data);
+								}
+							}
+							else
+							{
+								if (field.Type == ScriptFieldType::Float)
+								{
+									float data = 0.0f;
+									if (ImGui::DragFloat(name.c_str(), &data))
+									{
+										ScriptFieldInstance& fieldInstance = entityFields[name];
+										fieldInstance.Field = field;
+										fieldInstance.SetValue(data);
+									}
 								}
 							}
 						}
 					}
+					ImGui::PopID();
+					++currentIndex;
 				}
-
-				if (!scriptClassExists)
-					ImGui::PopStyleColor();
+				//TODO: Add functionality for other types
+				
 			});
 	}
 }

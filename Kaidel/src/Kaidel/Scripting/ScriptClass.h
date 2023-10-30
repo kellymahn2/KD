@@ -13,7 +13,11 @@ namespace Kaidel {
 		MonoMethod* GetMethod(const std::string& name, size_t parameterCount);
 		MonoObject* InvokeMethod(MonoObject* instance, MonoMethod* method, void** params = nullptr);
 		MonoClass* GetClass()const { return m_MonoClass; }
-
+		void SetClass(MonoClass* klass, const std::string& className, const std::string& nameSpace) {
+			m_MonoClass = klass; 
+			m_ClassName = className;
+			m_Namespace = nameSpace;
+		}
 		const std::unordered_map<std::string, ScriptField>& GetFields() { return m_Fields; }
 	private:
 		std::string m_Namespace;

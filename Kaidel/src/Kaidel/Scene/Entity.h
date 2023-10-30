@@ -56,6 +56,15 @@ namespace Kaidel {
 			auto& cc = GetComponent<ChildComponent>();
 			cc.Parent = parentID;
 		}
+
+		void AddScript() {
+			if (!HasComponent<ScriptComponent>())
+				AddComponent<ScriptComponent>();
+			auto& sc = GetComponent<ScriptComponent>();
+			sc.ScriptNames.push_back({});
+		}
+
+
 		Entity GetParent() {
 			return m_Scene->GetEntity(GetComponent<ChildComponent>().Parent);
 		}

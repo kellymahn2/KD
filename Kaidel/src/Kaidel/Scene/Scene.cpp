@@ -35,8 +35,9 @@ namespace Kaidel {
 	}
 
 	Scene::Scene()
-		:m_SceneRenderer(this)
+		
 	{
+		m_SceneRenderer = this;
 	}
 
 	Scene::~Scene()
@@ -170,6 +171,7 @@ namespace Kaidel {
 	void Scene::RenderScene()
 	{
 		{
+			m_SceneRenderer = this;
 			m_SceneRenderer.Reset();
 			m_SceneRenderer.Render();
 			/*auto view = m_Registry.view<TransformComponent, SpriteRendererComponent, IDComponent>();
@@ -222,7 +224,7 @@ namespace Kaidel {
 	{
 		return CreateEntity(UUID{}, name);
 	}
-
+	SceneRenderer Scene::m_SceneRenderer;
 	Entity Scene::CreateEntity(UUID uuid, const std::string& name /*= std::string()*/)
 	{
 		Entity entity = { m_Registry.create(), this };

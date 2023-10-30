@@ -140,8 +140,8 @@ namespace Kaidel {
 		MonoImage* AppAssemblyImage = nullptr;
 		ScriptClass EntityClass;
 		std::unordered_map<std::string, Ref<ScriptClass>> EntityClasses;
-		std::unordered_map<UUID, Ref<ScriptInstance>> EntityInstances;
-		std::unordered_map<UUID, ScriptFieldMap >	EntityScriptFields;
+		std::unordered_map<UUID, std::unordered_map<std::string,Ref<ScriptInstance>>> EntityInstances;
+		std::unordered_map<UUID, std::unordered_map<Ref<ScriptClass>,ScriptFieldMap>>	EntityScriptFields;
 		std::filesystem::path CoreAssemblyFilePath;
 		std::filesystem::path AppAssemblyFilePath;
 
@@ -176,7 +176,7 @@ namespace Kaidel {
 	{
 		s_Data->SceneContext = scene;
 		if (s_Data->ReloadClassFields) {
-			std::vector<UUID> deletedIDs;
+			/*std::vector<UUID> deletedIDs;
 			for (auto& [id, field] : s_Data->EntityScriptFields) {
 
 				auto entity = s_Data->SceneContext->GetEntity(id);
@@ -202,6 +202,64 @@ namespace Kaidel {
 			for (auto& id : deletedIDs) {
 				s_Data->EntityScriptFields.erase(id);
 			}
+			s_Data->ReloadClassFields = false;*/
+
+			/*std::vector<UUID> deletedEntities;
+			for (auto& [id, classMap] : s_Data->EntityScriptFields) {
+				auto entity = s_Data->SceneContext->GetEntity(id);
+				if (!entity)
+				{
+					deletedEntities.push_back(id);
+					continue;
+				}
+				const auto& name = entity.GetComponent<TagComponent>();
+				for (auto& [klass, field] : classMap) {
+
+					auto cpy = field;
+					for (auto& [name, f] : field) {
+						if (klass->m_Fields.find(name) != klass->m_Fields.end()) {
+							cpy.at(name).Field = klass->m_Fields.at(name);
+						}
+						else {
+							cpy.erase(name);
+						}
+					}
+					field = std::move(cpy);
+				}
+			}
+			for (auto& deletedEntity : deletedEntities) {
+				s_Data->EntityScriptFields.erase(deletedEntity);
+			}*/
+
+
+			for (auto& [entityID, allFields] : s_Data->EntityScriptFields) {
+
+				auto cpyFields = allFields;
+
+				for (auto& [klass, fieldMap] : cpyFields) {
+					std::string fullName;
+					if (!klass->m_Namespace.empty()) {
+						fullName = fmt::format("{}.{}", klass->m_Namespace, klass->m_ClassName);
+					}
+					else {
+						fullName = klass->m_ClassName;
+					}
+					if (s_Data->EntityClasses.find(fullName) == s_Data->EntityClasses.end()) {
+						allFields.erase(klass);
+						continue;
+					}
+					auto cpyFieldMap = fieldMap;
+					for (auto& [fieldName, field] : cpyFieldMap) {
+						if (klass->m_Fields.find(fieldName) == klass->m_Fields.end()) {
+							fieldMap.erase(fieldName);
+							continue;
+						}
+						fieldMap.at(fieldName).Field = klass->m_Fields.at(fieldName);
+					}
+				}
+				allFields = std::move(cpyFields);
+			}
+
 			s_Data->ReloadClassFields = false;
 		}
 	}
@@ -226,31 +284,35 @@ namespace Kaidel {
 	void ScriptEngine::OnCreateEntity(Entity& entity)
 	{
 		const auto& sc = entity.GetComponent<ScriptComponent>();
-		if (ScriptEngine::ClassExists(sc.Name))
-		{
-			UUID entityID = entity.GetUUID();
 
-			Ref<ScriptInstance> instance = CreateRef<ScriptInstance>(s_Data->EntityClasses[sc.Name], entity);
-			s_Data->EntityInstances[entityID] = instance;
-
-			// Copy field values
-			if (s_Data->EntityScriptFields.find(entityID) != s_Data->EntityScriptFields.end())
+		UUID entityID = entity.GetUUID();
+		auto entityIT = s_Data->EntityScriptFields.find(entityID);
+		for (auto& name : sc.ScriptNames) {
+			if (ScriptEngine::ClassExists(name))
 			{
-				const ScriptFieldMap& fieldMap = s_Data->EntityScriptFields.at(entityID);
-				for (const auto& [name, fieldInstance] : fieldMap)
-					instance->SetFieldValueImpl(fieldInstance.Field, fieldInstance.m_Data);
-			}
 
-			instance->InvokeOnCreate();
+				Ref<ScriptInstance> instance = CreateRef<ScriptInstance>(s_Data->EntityClasses[name], entity);
+				s_Data->EntityInstances[entityID][name] = instance;
+
+				// Copy field values
+				if (entityIT!= s_Data->EntityScriptFields.end())
+				{
+					for (auto& [fieldName, fieldInstance] : (*entityIT).second.at(s_Data->EntityClasses[name])) {
+						instance->SetFieldValueImpl(fieldInstance.Field, fieldInstance.m_Data);
+					}
+				}
+
+				instance->InvokeOnCreate();
+			}
 		}
 	}
 
 	void ScriptEngine::OnUpdateEntity(Entity& entity, float ts)
 	{
 		KD_CORE_ASSERT(s_Data->EntityInstances.find(entity.GetUUID()) != s_Data->EntityInstances.end());
-		Ref<ScriptInstance> instance = s_Data->EntityInstances.at(entity.GetUUID());
-		s_Data->EntityInstances[entity.GetUUID()] = instance;
-		instance->InvokeOnUpdate(ts);
+		for (auto& scripts : s_Data->EntityInstances.at(entity.GetUUID())) {
+			scripts.second->InvokeOnUpdate(ts);
+		}
 	}
 
 	Scene* ScriptEngine::GetSceneContext()
@@ -269,7 +331,7 @@ namespace Kaidel {
 		s_Data->EntityClass = ScriptClass("KaidelCore", "Entity", s_Data->CoreAssemblyImage);
 	}
 	static void OnAppAssemblyEvent(const std::string& path, const filewatch::Event eventType) {
-		if (s_Data->SceneContext->IsRunning()) {
+		if (s_Data->SceneContext) {
 			s_Data->AssemblyReloadPending = eventType == filewatch::Event::modified;
 			return;
 		}
@@ -297,10 +359,10 @@ namespace Kaidel {
 	}
 	void ScriptEngine::LoadAssemblyClasses(MonoAssembly* assembly)
 	{
-		s_Data->EntityClasses.clear();
 		MonoImage* image = mono_assembly_get_image(assembly);
 		const MonoTableInfo* typeDefinitionsTable = mono_image_get_table_info(image, MONO_TABLE_TYPEDEF);
 		int32_t numTypes = mono_table_info_get_rows(typeDefinitionsTable);
+		auto& classes = s_Data->EntityClasses;
 
 		for (int32_t i = 0; i < numTypes; i++)
 		{
@@ -323,9 +385,15 @@ namespace Kaidel {
 			bool isEntityDerived = mono_class_is_subclass_of(monoClass, s_Data->EntityClass.GetClass(), false);
 			if (!isEntityDerived)
 				continue;
-			Ref<ScriptClass> scriptClass = CreateRef<ScriptClass>(nameSpace, name);
-			s_Data->EntityClasses[fullName] =scriptClass;
+			auto& scriptClass = s_Data->EntityClasses[fullName];
+			if (!scriptClass) {
+				scriptClass = CreateRef<ScriptClass>(nameSpace,name);
+			}
+			else
+				scriptClass->SetClass(monoClass, name, nameSpace);
 			void* iterator = nullptr;
+			//TODO: implement support classes getting deleted.
+			scriptClass->m_Fields.clear();
 			while (MonoClassField* field = mono_class_get_fields(monoClass, &iterator)) {
 				std::string name = mono_field_get_name(field);
 				uint32_t flags = mono_field_get_flags(field);
@@ -367,15 +435,15 @@ namespace Kaidel {
 		return instance;
 	}
 
-	Ref<ScriptInstance> ScriptEngine::GetEntityScriptInstance(UUID entityID)
+	std::unordered_map< std::string , Ref<ScriptInstance >> ScriptEngine::GetEntityScriptInstances(UUID entityID)
 	{
 		auto it = s_Data->EntityInstances.find(entityID);
 		if (it == s_Data->EntityInstances.end())
-			return nullptr;
+			return {};
 		return it->second;
 	}
 
-	 ScriptFieldMap& ScriptEngine::GetScriptFieldMap(UUID entityID)
+	std::unordered_map<Ref<ScriptClass>, ScriptFieldMap>& ScriptEngine::GetScriptFieldMaps(UUID entityID)
 	{
 		return s_Data->EntityScriptFields[entityID];
 	}
@@ -389,10 +457,10 @@ namespace Kaidel {
 
 	ScriptFieldInstance& ScriptEngine::AddScriptFieldInstance(UUID entityID, const std::string& name, ScriptFieldType type,Ref<ScriptClass>scriptClass)
 	{
-		s_Data->EntityScriptFields[entityID][name].Field = scriptClass->GetFields().at(name);
-		return s_Data->EntityScriptFields[entityID][name];
+		s_Data->EntityScriptFields[entityID][scriptClass][name].Field = scriptClass->GetFields().at(name);
+		return s_Data->EntityScriptFields[entityID][scriptClass][name];
 	}
-
+	//TODO: Make Reloading Work.
 	void ScriptEngine::ReloadAssembly()
 	{
 

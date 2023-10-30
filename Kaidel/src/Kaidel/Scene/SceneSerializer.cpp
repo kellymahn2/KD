@@ -335,37 +335,37 @@ namespace Kaidel {
 
 
 
-		if (entity.HasComponent<ScriptComponent>()) {
-			out << YAML::Key << "ScriptComponent";
-			out << YAML::BeginMap;//ScriptComponent
-			auto& scriptComponent = entity.GetComponent<ScriptComponent>();
-			out << YAML::Key << "Name" << YAML::Value << scriptComponent.Name;
+		//if (entity.HasComponent<ScriptComponent>()) {
+		//	out << YAML::Key << "ScriptComponent";
+		//	out << YAML::BeginMap;//ScriptComponent
+		//	auto& scriptComponent = entity.GetComponent<ScriptComponent>();
+		//	out << YAML::Key << "Name" << YAML::Value << scriptComponent.Name;
 
-			//Fields
-			Ref<ScriptClass> entityClass = ScriptEngine::GetEntityClass(scriptComponent.Name);
-			const auto& fields = entityClass->GetFields();
-			if (!fields.empty()) {
-				out << YAML::Key << "ScriptFields"<<YAML::Value;
-				const auto& entityFields = ScriptEngine::GetScriptFieldMap(entity.GetUUID());
-				out << YAML::BeginSeq;
-				for (const auto& [fieldName, field] : entityFields) {
-					out << YAML::BeginMap;//ScriptFields
-					out << YAML::Key << "Name" << YAML::Value << fieldName;
-					out << YAML::Key << "Type" << YAML::Value << ScriptFieldTypeToString(field.Field.Type);
-					out << YAML::Key << "Data" << YAML::Value;
-					// Field has been set in editor
-					switch (field.Field.Type)
-					{
-					case ScriptFieldType::Float:
-						out<< field.GetValue<float>();
-						break;
-					}
-					out << YAML::EndMap;//ScriptFields
-				}
-				out << YAML::EndSeq;
-			}
-			out << YAML::EndMap;//ScriptComponent
-		}
+		//	//Fields
+		//	Ref<ScriptClass> entityClass = ScriptEngine::GetEntityClass(scriptComponent.Name);
+		//	const auto& fields = entityClass->GetFields();
+		//	if (!fields.empty()) {
+		//		out << YAML::Key << "ScriptFields"<<YAML::Value;
+		//		const auto& entityFields = ScriptEngine::GetScriptFieldMap(entity.GetUUID());
+		//		out << YAML::BeginSeq;
+		//		for (const auto& [fieldName, field] : entityFields) {
+		//			out << YAML::BeginMap;//ScriptFields
+		//			out << YAML::Key << "Name" << YAML::Value << fieldName;
+		//			out << YAML::Key << "Type" << YAML::Value << ScriptFieldTypeToString(field.Field.Type);
+		//			out << YAML::Key << "Data" << YAML::Value;
+		//			// Field has been set in editor
+		//			switch (field.Field.Type)
+		//			{
+		//			case ScriptFieldType::Float:
+		//				out<< field.GetValue<float>();
+		//				break;
+		//			}
+		//			out << YAML::EndMap;//ScriptFields
+		//		}
+		//		out << YAML::EndSeq;
+		//	}
+		//	out << YAML::EndMap;//ScriptComponent
+		//}
 		out << YAML::EndMap; // Entity
 	}
 
@@ -522,7 +522,7 @@ namespace Kaidel {
 					}
 				);
 
-				DeserializeComponent<ScriptComponent>(deserializedEntity, "ScriptComponent", entity,
+				/*DeserializeComponent<ScriptComponent>(deserializedEntity, "ScriptComponent", entity,
 					[&uuid](auto& sc, auto& entity, YAML::Node& scriptComponent) {
 						auto& entityFields = ScriptEngine::GetScriptFieldMap(uuid);
 						sc.Name = scriptComponent["Name"].as<std::string>();
@@ -550,7 +550,7 @@ case ScriptFieldType::##T:\
 								
 							}
 						}
-					});
+					});*/
 			}
 		}
 
