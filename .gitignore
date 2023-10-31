@@ -17,3 +17,6 @@ KaidelEditor/Resources/Scripts
 KaidelEditor/mono
 Libs
 Kaidel/vendor/mono
+KaidelEditor/SandboxProject/assets/scripts/Binaries
+KaidelEditor/SandboxProject/assets/scripts/Intermediates/Debug
+SandboxProject/scripts/KaidelEditor/Resources/Scripts/Intermediates/Debug

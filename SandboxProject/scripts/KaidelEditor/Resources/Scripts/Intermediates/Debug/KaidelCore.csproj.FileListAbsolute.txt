@@ -1,6 +1,0 @@
-C:\dev\Engines\KD\SandboxProject\scripts\KaidelEditor\Resources\Scripts\Intermediates\Debug\KaidelCore.csproj.AssemblyReference.cache
-C:\dev\Engines\KD\SandboxProject\scripts\KaidelEditor\Resources\Scripts\Intermediates\Debug\KaidelCore.csproj.CoreCompileInputs.cache
-C:\dev\Engines\KD\SandboxProject\scripts\KaidelEditor\Resources\Scripts\Intermediates\Debug\KaidelCore.dll
-C:\dev\Engines\KD\SandboxProject\scripts\KaidelEditor\Resources\Scripts\Intermediates\Debug\KaidelCore.pdb
-C:\dev\Engines\KD\SandboxProject\scripts\KaidelEditor\Resources\Scripts\KaidelCore.dll
-C:\dev\Engines\KD\SandboxProject\scripts\KaidelEditor\Resources\Scripts\KaidelCore.pdb

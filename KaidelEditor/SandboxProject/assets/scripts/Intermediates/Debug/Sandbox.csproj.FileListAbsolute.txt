@@ -1,9 +1,0 @@
-C:\dev\Engines\KD\KaidelEditor\SandboxProject\assets\scripts\Binaries\Sandbox.dll
-C:\dev\Engines\KD\KaidelEditor\SandboxProject\assets\scripts\Binaries\Sandbox.pdb
-C:\dev\Engines\KD\KaidelEditor\SandboxProject\assets\scripts\Binaries\KaidelCore.dll
-C:\dev\Engines\KD\KaidelEditor\SandboxProject\assets\scripts\Binaries\KaidelCore.pdb
-C:\dev\Engines\KD\KaidelEditor\SandboxProject\assets\scripts\Intermediates\Debug\Sandbox.csproj.AssemblyReference.cache
-C:\dev\Engines\KD\KaidelEditor\SandboxProject\assets\scripts\Intermediates\Debug\Sandbox.csproj.CoreCompileInputs.cache
-C:\dev\Engines\KD\KaidelEditor\SandboxProject\assets\scripts\Intermediates\Debug\Sandbox.csproj.CopyComplete
-C:\dev\Engines\KD\KaidelEditor\SandboxProject\assets\scripts\Intermediates\Debug\Sandbox.dll
-C:\dev\Engines\KD\KaidelEditor\SandboxProject\assets\scripts\Intermediates\Debug\Sandbox.pdb
