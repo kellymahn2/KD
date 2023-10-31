@@ -35,7 +35,7 @@ Entities:
       BodyType: Static
       FixedRotation: false
     CircleCollider2DComponent:
-      Offset: [-1, 0.5]
+      Offset: [0, 0]
       Radius: 0.5
       Density: 1
       Friction: 0.5
@@ -83,11 +83,11 @@ Entities:
     TagComponent:
       Tag: Floor
     TransformComponent:
-      Translation: [-0.883175671, -1.09447932, 0]
+      Translation: [-0.883175671, -1.09447932, -5.69999981]
       Rotation: [0, 0, -0.638996005]
       Scale: [6.74196768, 0.46067813, 1]
     SpriteRendererComponent:
-      Color: [0.949806929, 0.455301404, 0.0660097376, 1]
+      Color: [1, 1, 1, 1]
       TilingFactor: 1
     Rigidbody2DComponent:
       BodyType: Static

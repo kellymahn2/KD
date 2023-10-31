@@ -1,0 +1,18 @@
+Scene: Untitled
+Entities:
+  - Entity: 4786482364412468794
+    TagComponent:
+      Tag: Entity
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    LineRendererComponent:
+      Tesselation: 200
+      Color: [.9,.6,.2,1.0]
+      Points:
+        - [1, 1, 0]
+        - [1.5, 2, 0]
+        - [2, 1, 0]
+        - [2.5, 0, 0]
+        - [3, 1, 0]

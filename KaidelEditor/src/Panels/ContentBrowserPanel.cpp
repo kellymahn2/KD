@@ -18,10 +18,12 @@ namespace Kaidel {
 
 
 		ShowFileNavigator();
+
+
 		auto relative = std::filesystem::relative(m_CurrentPath, s_AssetPath);
-		static float padding = 32.0f;
-		static float thumbnailSize = 50.0f;
-		float cellSize = thumbnailSize + padding;
+		constexpr static float padding = 32.0f;
+		constexpr static float thumbnailSize = 50.0f;
+		constexpr static float cellSize = thumbnailSize + padding;
 		
 		float panelWidth = ImGui::GetContentRegionAvail().x;
 		int columnCount = (int)(panelWidth / cellSize);
@@ -33,12 +35,20 @@ namespace Kaidel {
 		for (auto& directoryEntry : std::filesystem::directory_iterator(m_CurrentPath)) {
 			auto path = directoryEntry.path();
 			std::string filename = path.filename().string();
-
+			static int editingIndex = -1;
+			ImGui::PushID(i);
 			auto icon = directoryEntry.is_directory() ? m_Icons.DirectoryIcon : m_Icons.FileIcon;
 			ImGui::PushStyleColor(ImGuiCol_Button, { 0,0,0,0 });
 			
-			ImGui::ImageButton(filename.c_str(), (ImTextureID)icon->GetRendererID(), {thumbnailSize,thumbnailSize}, {0,1}, {1,0});
-			if (ImGui::BeginDragDropSource()) {
+			ImGui::Image((ImTextureID)icon->GetRendererID(), {thumbnailSize,thumbnailSize}, {0,1}, {1,0});
+			if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+				if (directoryEntry.is_directory()) {
+					m_CurrentPath /= path.filename();
+					editingIndex = -1;
+					strcpy(m_SelectedFileName, "");
+				}
+			}
+			if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
 				if (path.extension() == ".kaidel"|| path.extension() == ".Kaidel") {
 					const wchar_t* itemPath = path.c_str();
 					ImGui::SetDragDropPayload("CONTENT_BROWSER_ITEM", itemPath, (wcslen(itemPath) + 1) * sizeof(wchar_t));
@@ -51,17 +61,39 @@ namespace Kaidel {
 			}
 
 			ImGui::PopStyleColor();
-
-			if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-				if (directoryEntry.is_directory())
-					m_CurrentPath /= path.filename();
+			if (editingIndex==i||(editingIndex==-1&&filename == m_SelectedFileName)) {
+				if (ImGui::InputText("##", m_SelectedFileName, 24)) {
+					editingIndex = i;
+				}
+				if (ImGui::IsItemDeactivatedAfterEdit()) {
+					if (std::filesystem::exists(m_CurrentPath / m_SelectedFileName))
+						KD_WARN("Tried To Rename to {} When It Already Exists", m_SelectedFileName);
+					else
+						std::filesystem::rename(m_CurrentPath / filename, m_CurrentPath / m_SelectedFileName);
+					strcpy(m_SelectedFileName, "");
+					editingIndex = -1;
+				}
+			}
+			else {
+				ImGui::TextWrapped(filename.c_str());
+				if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+					strcpy(m_SelectedFileName, filename.c_str());
+				}
 			}
 
-			ImGui::TextWrapped(filename.c_str());
 			ImGui::NextColumn();
+			ImGui::PopID();
+			++i;
 		}
 		
 		ImGui::Columns(1);
+		if (ImGui::BeginPopupContextWindow("##ContentBrowser", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
+			if (ImGui::MenuItem("New .cs File")) {
+				auto x = m_CurrentPath / "New.cs";
+				std::ofstream file(x);
+			}
+			ImGui::EndPopup();
+		}
 		ImGui::End();
 	}
 
@@ -109,5 +141,7 @@ namespace Kaidel {
 			ImGui::PopStyleVar();
 			ImGui::PopStyleColor(2);
 	}
+
+
 
 }

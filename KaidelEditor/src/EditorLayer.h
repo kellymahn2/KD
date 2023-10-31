@@ -3,8 +3,9 @@
 #include "Kaidel.h"
 #include "Panels/SceneHierarchyPanel.h"
 #include "Panels/ContentBrowserPanel.h"
+#include "Panels/ConsolePanel.h"
 #include "Kaidel/Renderer/EditorCamera.h"
-
+#include "Kaidel\Renderer\UniformBuffer.h"
 namespace Kaidel {
 
 	class EditorLayer : public Layer
@@ -35,25 +36,34 @@ namespace Kaidel {
 		void OnSceneSimulateStop();
 
 		void UI_Toolbar();
+		void MoveChildren(Entity curr, const glm::vec3& deltaTranslation, const glm::vec3& deltaRotation,Entity parent = {});
 		void DrawGizmos();
-
+		struct GizmoCamera {
+			glm::mat4 View;
+			const glm::mat4& Projection;
+		};
+		GizmoCamera GetCurrentCameraViewProjection();
 		void OnOverlayRender();
 
 		void ShowDebugWindow();
 
 		void ShowViewport();
 	private:
-		Kaidel::OrthographicCameraController m_CameraController;
 
-		// Temp
-		Ref<VertexArray> m_SquareVA;
-		Ref<Shader> m_FlatColorShader;
+
+		Ref<VertexBuffer> vb;
+		Ref<VertexArray> va;
+		Ref<Shader> s;
+		Ref<IndexBuffer> ib;
+		Ref<UniformBuffer> ub;
+
+
+
+		Console m_DebugConsole;
 		Ref<Framebuffer> m_Framebuffer;
 		Ref<Scene> m_ActiveScene;
 		Ref<Scene> m_EditorScene, m_RuntimeScene,m_SimulationScene;
-		Entity m_SquareEntity;
-		Entity m_CameraEntity;
-		Entity m_SecondCamera;
+
 		
 		Entity m_HoveredEntity;
 
@@ -61,25 +71,25 @@ namespace Kaidel {
 
 		bool m_Debug = false;
 
+		bool m_ConsoleOpen=false;
 		EditorCamera m_EditorCamera;
-
-		Ref<Texture2D> m_CheckerboardTexture;
 
 		bool m_ViewportFocused = false, m_ViewportHovered = false;
 		glm::vec2 m_ViewportSize = { 0.0f, 0.0f };
 		glm::vec2 m_ViewportBounds[2];
 
-		glm::vec4 m_SquareColor = { 0.2f, 0.3f, 0.8f, 1.0f };
 
 		int m_GizmoType = -1;
 
 		// Panels
 		SceneHierarchyPanel m_SceneHierarchyPanel;
 		ContentBrowserPanel m_ContentBrowserPanel;
+		ConsolePanel m_ConsolePanel;
 
 
 		struct Icons {
 			Ref<Texture2D> IconPlay;
+			Ref<Texture2D> IconPause;
 			Ref<Texture2D> IconSimulateStart;
 			Ref<Texture2D> IconSimulateStop;
 			Ref<Texture2D> IconStop;

@@ -1,0 +1,48 @@
+project "KaidelCore"
+	kind "ConsoleApp"
+	language "C++"
+	cppdialect "C++17"
+	staticruntime "off"
+
+	targetdir ("%{wks.location}/bin/" .. outputdir .. "/%{prj.name}")
+	objdir ("%{wks.location}/bin-int/" .. outputdir .. "/%{prj.name}")
+
+	files
+	{
+		"src/**.h",
+		"src/**.cpp"
+	}
+
+	includedirs
+	{
+		"%{wks.location}/Kaidel/vendor/spdlog/include",
+		"%{wks.location}/Kaidel/src",
+		"%{wks.location}/Kaidel/vendor",
+		"%{IncludeDir.glm}",
+		"%{IncludeDir.entt}",
+		"%{IncludeDir.ImGuizmo}",
+		"%{IncludeDir.filewatch}"
+	}
+
+	links
+	{
+		"Kaidel"
+	}
+
+	filter "system:windows"
+		systemversion "latest"
+
+	filter "configurations:Debug"
+		defines "KD_DIST"
+		runtime "Debug"
+		symbols "on"
+
+	filter "configurations:Release"
+		defines "KD_DIST"
+		runtime "Release"
+		optimize "on"
+
+	filter "configurations:Dist"
+		defines "KD_DIST"
+		runtime "Release"
+		optimize "on"

@@ -15,7 +15,7 @@ namespace Kaidel {
 		void SetContext(const Ref<Scene>& scene);
 
 		void OnImGuiRender();
-
+		void RegisterFieldRenderers();
 		Entity GetSelectedEntity() const { return m_SelectionContext; }
 		void SetSelectedEntity(Entity entity);
 	private:
