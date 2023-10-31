@@ -20,9 +20,12 @@ namespace Kaidel {
 
 		virtual void ClearAttachment(uint32_t attachmentIndex, int value) override;
 
-		virtual uint32_t GetColorAttachmentRendererID(uint32_t index = 0) const override { KD_CORE_ASSERT(index < m_ColorAttachments.size()); return m_ColorAttachments[index]; }
+		virtual uint64_t GetColorAttachmentRendererID(uint32_t index = 0) const override { KD_CORE_ASSERT(index < m_ColorAttachments.size()); return (uint64_t)m_ColorAttachments[index]; }
 
 		virtual const FramebufferSpecification& GetSpecification() const override { return m_Specification; }
+
+
+		void ClearAttachment(uint32_t attachmentIndex, const float* colors) override;
 
 	private:
 		uint32_t m_RendererID = 0;

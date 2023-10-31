@@ -5,10 +5,11 @@
 
 #include "Kaidel/Renderer/Renderer.h"
 
+#include "Kaidel/Scripting/ScriptEngine.h"
+
 #include "Kaidel/Core/Input.h"
 
 #include <GLFW/glfw3.h>
-
 namespace Kaidel {
 	Application* Application::s_Instance = nullptr;
 
@@ -26,7 +27,7 @@ namespace Kaidel {
 		m_Window->SetEventCallback(KD_BIND_EVENT_FN(Application::OnEvent));
 
 		Renderer::Init();
-
+		ScriptEngine::Init();
 		m_ImGuiLayer = new ImGuiLayer();
 		PushOverlay(m_ImGuiLayer);
 	}
@@ -34,7 +35,7 @@ namespace Kaidel {
 	Application::~Application()
 	{
 		KD_PROFILE_FUNCTION();
-
+		ScriptEngine::Shutdown();
 		Renderer::Shutdown();
 	}
 
@@ -57,6 +58,13 @@ namespace Kaidel {
 	void Application::Close()
 	{
 		m_Running = false;
+	}
+
+	void Application::SubmitToMainThread(const std::function<void()>& func)
+	{
+		std::scoped_lock<std::mutex> lock(m_AppThreadQueueMutex);
+		
+		m_AppThreadQueue.push_back(func);
 	}
 
 	void Application::OnEvent(Event& e)
@@ -89,6 +97,8 @@ namespace Kaidel {
 
 			if (!m_Minimized)
 			{
+				ExecuteMainThreadQueue();
+
 				{
 					KD_PROFILE_SCOPE("LayerStack OnUpdate");
 
@@ -130,6 +140,14 @@ namespace Kaidel {
 		Renderer::OnWindowResize(e.GetWidth(), e.GetHeight());
 
 		return false;
+	}
+
+	void Application::ExecuteMainThreadQueue()
+	{
+		std::scoped_lock<std::mutex> lock(m_AppThreadQueueMutex);
+		for (auto& func : m_AppThreadQueue)
+			func();
+		m_AppThreadQueue.clear();
 	}
 
 }

@@ -3,7 +3,7 @@
 
 #include "Entity.h"
 #include "Components.h"
-
+#include "Kaidel/Scripting/ScriptEngine.h"
 #include <fstream>
 
 #include <yaml-cpp/yaml.h>
@@ -107,7 +107,53 @@ namespace Kaidel {
 		out << YAML::BeginSeq << v.x << v.y << v.z << v.w << YAML::EndSeq;
 		return out;
 	}
+	static std::string ScriptFieldTypeToString(ScriptFieldType type) {
+		switch (type)
+		{
+		case ScriptFieldType::Float:return "Float";
+		case ScriptFieldType::Double:return "Double";
+		case ScriptFieldType::Short:return "Short";
+		case ScriptFieldType::UShort:return "UShort";
+		case ScriptFieldType::Int:return "Int";
+		case ScriptFieldType::UInt:return "UInt";
+		case ScriptFieldType::Long:return "Long";
+		case ScriptFieldType::ULong:return "ULong";
+		case ScriptFieldType::Byte:return "Byte";
+		case ScriptFieldType::SByte:return "SByte";
+		case ScriptFieldType::Char:return "Char";
+		case ScriptFieldType::String:return "String";
+		case ScriptFieldType::Bool:return "Bool";
+		case ScriptFieldType::Entity:return "Entity";
+		case ScriptFieldType::Vector2:return "Vector2";
+		case ScriptFieldType::Vector3:return "Vector3";
+		case ScriptFieldType::Vector4:return "Vector4";
+		}
+		KD_CORE_ASSERT(false, "Not a valid field type");
+		return "";
+	}
+	static ScriptFieldType ScriptFieldTypeFromString(std::string_view type) {
+#define Temp(T) if(type==#T) return ScriptFieldType::T;
 
+		Temp(Float);
+		Temp(Double);
+		Temp(Short);
+		Temp(UShort);
+		Temp(Int);
+		Temp(UInt);
+		Temp(Long);
+		Temp(ULong);
+		Temp(Byte);
+		Temp(SByte);
+		Temp(Char);
+		Temp(String);
+		Temp(Bool);
+		Temp(Entity);
+		Temp(Vector2);
+		Temp(Vector3);
+		Temp(Vector4);
+		KD_CORE_ASSERT(false, "Type does not exist");
+		return ScriptFieldType::None;
+	}
 	static std::string RigidBody2DBodyTypeToString(Rigidbody2DComponent::BodyType bodyType) {
 		switch (bodyType)
 		{
@@ -136,7 +182,7 @@ namespace Kaidel {
 	{
 		KD_CORE_ASSERT(entity.HasComponent<IDComponent>());
 		out << YAML::BeginMap; // Entity
-		out << YAML::Key << "Entity" << YAML::Value << entity.GetUUID(); // TODO: Entity ID goes here
+		out << YAML::Key << "Entity" << YAML::Value << (uint64_t)entity.GetUUID();
 
 		if (entity.HasComponent<TagComponent>())
 		{
@@ -148,7 +194,17 @@ namespace Kaidel {
 
 			out << YAML::EndMap; // TagComponent
 		}
+		if (entity.HasComponent<ChildComponent>()) {
+			out << YAML::Key << "ChildComponent";
+			out << YAML::BeginMap; // ChildComponent
 
+			auto& cc = entity.GetComponent<ChildComponent>();
+			out << YAML::Key << "Parent" << YAML::Value << (uint64_t)cc.Parent;
+			out << YAML::Key << "LocalPosition" << YAML::Value << cc.LocalPosition;
+			out << YAML::Key << "LocalRotation" << YAML::Value << cc.LocalRotation;
+
+			out << YAML::EndMap; // ChildComponent
+		}
 		if (entity.HasComponent<TransformComponent>())
 		{
 			out << YAML::Key << "TransformComponent";
@@ -257,7 +313,92 @@ namespace Kaidel {
 
 			out << YAML::EndMap; // CircleCollider2DComponent
 		}
+		if (entity.HasComponent<LineRendererComponent>()) {
+			out << YAML::Key << "LineRendererComponent";
+			out << YAML::BeginMap; // LineRendererComponent
 
+			auto& lineRendererComponent = entity.GetComponent<LineRendererComponent>();
+			out << YAML::Key << "Tesselation" << YAML::Value << lineRendererComponent.Tesselation;
+			out << YAML::Key << "Color" << YAML::Value << lineRendererComponent.Color;
+			out << YAML::Key << "Points";
+			out << YAML::BeginSeq;
+			for (auto& point : lineRendererComponent.Points) {
+				out << point.Position;
+			}
+			out << YAML::EndSeq;
+			out << YAML::EndMap; // LineRendererComponent
+		}
+
+		if (entity.HasComponent<ScriptComponent>()) {
+			out << YAML::Key << "ScriptComponent";
+			out << YAML::BeginMap; // ScriptComponent
+			auto& src = entity.GetComponent<ScriptComponent>();
+			out << YAML::Key << "Scripts";
+			out << YAML::BeginSeq;
+			const auto& scriptFields = ScriptEngine::GetScriptFieldMaps(entity.GetUUID());
+			for (auto& script : src.ScriptNames) {
+				auto klass = ScriptEngine::GetEntityClass(script);
+				if (!klass)
+					continue;
+				out << YAML::Key << "Name" << YAML::Value << script;
+				if (scriptFields.find(klass) != scriptFields.end()) {
+					auto& fields = scriptFields.at(klass);
+					if (fields.empty())
+						continue;
+					out << YAML::Key << "ScriptFields" << YAML::Value;
+					out << YAML::BeginSeq;
+					const auto& entityFields = scriptFields.at(klass);
+					for (const auto& [fieldName, field] : entityFields) {
+						out << YAML::BeginMap;//ScriptFields
+						out << YAML::Key << "Name" << YAML::Value << fieldName;
+						out << YAML::Key << "Type" << YAML::Value << ScriptFieldTypeToString(field.Field.Type);
+						out << YAML::Key << "Data" << YAML::Value;
+						// Field has been set in editor
+						switch (field.Field.Type)
+						{
+						case ScriptFieldType::Float:
+							out<< field.GetValue<float>();
+							break;
+						}
+						out << YAML::EndMap;//ScriptFields
+					}
+					out << YAML::EndSeq;
+				}
+			}
+			out << YAML::EndSeq;
+			out << YAML::EndMap;
+		}
+		//if (entity.HasComponent<ScriptComponent>()) {
+		//	out << YAML::Key << "ScriptComponent";
+		//	out << YAML::BeginMap;//ScriptComponent
+		//	auto& scriptComponent = entity.GetComponent<ScriptComponent>();
+		//	out << YAML::Key << "Name" << YAML::Value << scriptComponent.Name;
+
+		//	//Fields
+		//	Ref<ScriptClass> entityClass = ScriptEngine::GetEntityClass(scriptComponent.Name);
+		//	const auto& fields = entityClass->GetFields();
+		//	if (!fields.empty()) {
+		//		out << YAML::Key << "ScriptFields"<<YAML::Value;
+		//		const auto& entityFields = ScriptEngine::GetScriptFieldMap(entity.GetUUID());
+		//		out << YAML::BeginSeq;
+		//		for (const auto& [fieldName, field] : entityFields) {
+		//			out << YAML::BeginMap;//ScriptFields
+		//			out << YAML::Key << "Name" << YAML::Value << fieldName;
+		//			out << YAML::Key << "Type" << YAML::Value << ScriptFieldTypeToString(field.Field.Type);
+		//			out << YAML::Key << "Data" << YAML::Value;
+		//			// Field has been set in editor
+		//			switch (field.Field.Type)
+		//			{
+		//			case ScriptFieldType::Float:
+		//				out<< field.GetValue<float>();
+		//				break;
+		//			}
+		//			out << YAML::EndMap;//ScriptFields
+		//		}
+		//		out << YAML::EndSeq;
+		//	}
+		//	out << YAML::EndMap;//ScriptComponent
+		//}
 		out << YAML::EndMap; // Entity
 	}
 
@@ -307,12 +448,11 @@ namespace Kaidel {
 		auto entities = data["Entities"];
 		if (entities)
 		{
-			for (auto entity : entities)
+			for (auto entityNode : entities)
 			{
-				UUID uuid = entity["Entity"].as<uint64_t>(); // TODO
-
+				UUID uuid = entityNode["Entity"].as<uint64_t>(); 
 				std::string name;
-				auto tagComponent = entity["TagComponent"];
+				auto tagComponent = entityNode["TagComponent"];
 				if (tagComponent)
 					name = tagComponent["Tag"].as<std::string>();
 
@@ -320,7 +460,7 @@ namespace Kaidel {
 
 				Entity deserializedEntity = m_Scene->CreateEntity(uuid,name);
 
-				auto transformComponent = entity["TransformComponent"];
+				auto transformComponent = entityNode["TransformComponent"];
 				if (transformComponent)
 				{
 					// Entities always have transforms
@@ -330,11 +470,19 @@ namespace Kaidel {
 					tc.Scale = transformComponent["Scale"].as<glm::vec3>();
 				}
 
-
-				DeserializeComponent<CameraComponent>(deserializedEntity, "CameraComponent", entity,
+				DeserializeComponent<ChildComponent>(deserializedEntity, "ChildComponent", entityNode,
+					[](auto& cc, auto& entity, auto& childComponent) {
+						cc.Parent = childComponent["Parent"].as<uint64_t>();
+						if (childComponent["LocalPosition"]) {
+							cc.LocalPosition = childComponent["LocalPosition"].as<glm::vec3>();
+						}
+						if (childComponent["LocalRotation"]) {
+							cc.LocalRotation= childComponent["LocalRotation"].as<glm::vec3>();
+						}
+					});
+				DeserializeComponent<CameraComponent>(deserializedEntity, "CameraComponent", entityNode,
 					[](auto& cc, auto& entity, auto& cameraComponent) {
 						auto& cameraProps = cameraComponent["Camera"];
-						cc.Camera.SetProjectionType((SceneCamera::ProjectionType)cameraProps["ProjectionType"].as<int>());
 
 						cc.Camera.SetPerspectiveVerticalFOV(cameraProps["PerspectiveFOV"].as<float>());
 						cc.Camera.SetPerspectiveNearClip(cameraProps["PerspectiveNear"].as<float>());
@@ -346,10 +494,11 @@ namespace Kaidel {
 
 						cc.Primary = cameraComponent["Primary"].as<bool>();
 						cc.FixedAspectRatio = cameraComponent["FixedAspectRatio"].as<bool>();
+						cc.Camera.SetProjectionType((SceneCamera::ProjectionType)cameraProps["ProjectionType"].as<int>());
 					}
 				);
 
-				DeserializeComponent<SpriteRendererComponent>(deserializedEntity, "SpriteRendererComponent", entity,
+				DeserializeComponent<SpriteRendererComponent>(deserializedEntity, "SpriteRendererComponent", entityNode,
 					[](auto& src, auto& entity, auto& spriteRendererComponent) {
 						src.Color = spriteRendererComponent["Color"].as<glm::vec4>();
 						if (spriteRendererComponent["Texture"])
@@ -358,7 +507,7 @@ namespace Kaidel {
 							src.TilingFactor = spriteRendererComponent["TilingFactor"].as<float>();
 					}
 				);
-				DeserializeComponent<CircleRendererComponent>(deserializedEntity, "CircleRendererComponent", entity,
+				DeserializeComponent<CircleRendererComponent>(deserializedEntity, "CircleRendererComponent", entityNode,
 					[](CircleRendererComponent& crc, auto& entity, auto& circleRendererComponent) {
 						crc.Color = circleRendererComponent["Color"].as < glm::vec4>();
 						crc.Thickness = circleRendererComponent["Thickness"].as <float>();
@@ -366,13 +515,13 @@ namespace Kaidel {
 
 					}
 				);
-				DeserializeComponent<Rigidbody2DComponent>(deserializedEntity, "Rigidbody2DComponent", entity,
+				DeserializeComponent<Rigidbody2DComponent>(deserializedEntity, "Rigidbody2DComponent", entityNode,
 					[](auto& rb2d, auto& entity, auto& rigidbody2DComponent) {
 						rb2d.Type = RigidBody2DBodyTypeFromString(rigidbody2DComponent["BodyType"].as<std::string>());
 						rb2d.FixedRotation = rigidbody2DComponent["FixedRotation"].as<bool>();
 					}
 				);
-				DeserializeComponent<BoxCollider2DComponent>(deserializedEntity, "BoxCollider2DComponent", entity,
+				DeserializeComponent<BoxCollider2DComponent>(deserializedEntity, "BoxCollider2DComponent", entityNode,
 					[](auto& bc2d, auto& entity, auto& boxCollider2DComponent) {
 						bc2d.Offset = boxCollider2DComponent["Offset"].as<glm::vec2>();
 						bc2d.Size = boxCollider2DComponent["Size"].as<glm::vec2>();
@@ -383,7 +532,7 @@ namespace Kaidel {
 					}
 				);
 
-				DeserializeComponent<CircleCollider2DComponent>(deserializedEntity, "CircleCollider2DComponent", entity,
+				DeserializeComponent<CircleCollider2DComponent>(deserializedEntity, "CircleCollider2DComponent", entityNode,
 					[](auto& cc2d, auto& entity, auto& circleCollider2DComponent) {
 						cc2d.Offset = circleCollider2DComponent["Offset"].as<glm::vec2>();
 						cc2d.Radius = circleCollider2DComponent["Radius"].as<float>();
@@ -393,9 +542,86 @@ namespace Kaidel {
 						cc2d.RestitutionThreshold = circleCollider2DComponent["RestitutionThreshold"].as<float>();
 					}
 				);
+
+				DeserializeComponent<LineRendererComponent>(deserializedEntity, "LineRendererComponent", entityNode,
+					[](LineRendererComponent& lrc, auto& entity, YAML::Node& lineRendererComponent) {
+						lrc.Tesselation = lineRendererComponent["Tesselation"].as<uint32_t>();
+						lrc.Color = lineRendererComponent["Color"].as<glm::vec4>();
+						YAML::Node points = lineRendererComponent["Points"];
+						for (auto point : points) {
+							lrc.Points.push_back({ point.as<glm::vec3>() });
+						}
+						lrc.RecalculateFinalPoints();
+					}
+				);
+
+
+				DeserializeComponent<ScriptComponent>(deserializedEntity, "ScriptComponent", entityNode,
+					[](ScriptComponent& src , auto& entity,YAML::Node& scriptRendererComponent) {
+						YAML::Node scripts = scriptRendererComponent["Scripts"];
+						for (auto node : scripts) {
+							src.ScriptNames.push_back(node["Name"].as<std::string>());
+							auto klass = ScriptEngine::GetEntityClass(node["Name"].as<std::string>());
+							if(!klass)
+								continue;
+							YAML::Node fields = node["ScriptFields"];
+							for(auto field : fields){
+								ScriptFieldType type = ScriptFieldTypeFromString(field["Type"].as<std::string>());
+								std::string name = field["Name"].as<std::string>();
+#define 						FIELD_DATA_SERILIZATION(T,Type) \
+								case ScriptFieldType::##T:\
+									ScriptEngine::AddSerializedField<Type>(entity.GetUUID(), name,\
+										type, klass, field["Data"].as<Type>());\
+									break
+									switch (type)
+									{
+										FIELD_DATA_SERILIZATION(Float,float);
+									}
+							}
+
+						}
+						
+					}
+					);
+
+				/*DeserializeComponent<ScriptComponent>(deserializedEntity, "ScriptComponent", entity,
+					[&uuid](auto& sc, auto& entity, YAML::Node& scriptComponent) {
+						auto& entityFields = ScriptEngine::GetScriptFieldMap(uuid);
+						sc.Name = scriptComponent["Name"].as<std::string>();
+						if (!ScriptEngine::ClassExists(sc.Name))
+						{
+							KD_ERROR("Entity Script Class {} Could not be found.", sc.Name);
+							return;
+						}
+						if (scriptComponent["ScriptFields"]) {
+							Ref<ScriptClass> scriptClass = ScriptEngine::GetEntityClass(sc.Name);
+							for (auto v : scriptComponent["ScriptFields"]) {
+								auto name = v["Name"].as<std::string>();
+								if (scriptClass->GetFields().find(name) == scriptClass->GetFields().end())
+									continue;
+								auto type = ScriptFieldTypeFromString(v["Type"].as<std::string>());
+#define FIELD_DATA_SERILIZATION(T,Type) \
+case ScriptFieldType::##T:\
+	ScriptEngine::AddSerializedField<Type>(entity.GetUUID(), name,\
+		type, ScriptEngine::GetEntityClass(sc.Name), v["Data"].as<Type>());\
+	break
+								switch (type)
+								{
+									FIELD_DATA_SERILIZATION(Float,float);
+								}
+								
+							}
+						}
+					});*/
 			}
 		}
 
+		auto view = m_Scene->m_Registry.view<ChildComponent>();
+		for (auto e : view) {
+			Entity childEntity{ e,m_Scene.get() };
+			auto& parentID = childEntity.GetComponent<ChildComponent>().Parent;
+			m_Scene->GetEntity(parentID).AddChild(childEntity.GetUUID());
+		}
 		return true;
 	}
 

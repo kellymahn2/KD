@@ -7,6 +7,7 @@
 #include "Kaidel/Core/Application.h"
 #include "Kaidel/Core/Layer.h"
 #include "Kaidel/Core/Log.h"
+#include "Kaidel/Core/Console.h"
 #include "Kaidel/Core/Assert.h"
 
 #include "Kaidel/Core/Timestep.h"

@@ -4,8 +4,10 @@
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
+#include <backends/imgui_impl_dx11.h>
 
 #include "Kaidel/Core/Application.h"
+#include "Kaidel/Renderer/RendererAPI.h"
 
 // TEMPORARY
 #include <GLFW/glfw3.h>
@@ -14,7 +16,11 @@
 #include "ImGuizmo.h"
 
 namespace Kaidel {
-
+	struct ImGuiDirectXRes {
+		ID3D11Device* Device;
+		ID3D11DeviceContext* DeviceContext;
+	};
+	ImGuiDirectXRes InitImGuiForDirectX();
 	ImGuiLayer::ImGuiLayer()
 		: Layer("ImGuiLayer")
 	{
@@ -56,16 +62,38 @@ namespace Kaidel {
 		GLFWwindow* window = static_cast<GLFWwindow*>(app.GetWindow().GetNativeWindow());
 
 		// Setup Platform/Renderer bindings
-		ImGui_ImplGlfw_InitForOpenGL(window, true);
-		ImGui_ImplOpenGL3_Init("#version 410");
+		switch (RendererAPI::GetAPI())
+		{
+		case RendererAPI::API::OpenGL: {
+			ImGui_ImplGlfw_InitForOpenGL(window, true);
+			ImGui_ImplOpenGL3_Init("#version 410");
+		}
+		break;
+		case RendererAPI::API::DirectX: {
+			ImGui_ImplGlfw_InitForOther(window, true);
+			auto data = InitImGuiForDirectX();
+			ImGui_ImplDX11_Init(data.Device, data.DeviceContext);
+		}
+		break;
+		}
 	}
 
 	void ImGuiLayer::OnDetach()
 	{
 		KD_PROFILE_FUNCTION();
-
-		ImGui_ImplOpenGL3_Shutdown();
-		ImGui_ImplGlfw_Shutdown();
+		switch (RendererAPI::GetAPI())
+		{
+		case RendererAPI::API::OpenGL: {
+			ImGui_ImplOpenGL3_Shutdown();
+			ImGui_ImplGlfw_Shutdown();
+		}
+		break;
+		case RendererAPI::API::DirectX: {
+			ImGui_ImplDX11_Shutdown();
+			ImGui_ImplGlfw_Shutdown();
+		}
+		break;
+		}
 		ImGui::DestroyContext();
 	}
 
@@ -83,8 +111,20 @@ namespace Kaidel {
 	{
 		KD_PROFILE_FUNCTION();
 
-		ImGui_ImplOpenGL3_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
+		switch (RendererAPI::GetAPI())
+		{
+		case RendererAPI::API::OpenGL: {
+			ImGui_ImplOpenGL3_NewFrame();
+			ImGui_ImplGlfw_NewFrame();
+		}
+		break;
+		case RendererAPI::API::DirectX: {
+			ImGui_ImplDX11_NewFrame();
+			ImGui_ImplGlfw_NewFrame();
+		}
+		break;
+		}
+		
 		ImGui::NewFrame();
 		ImGuizmo::BeginFrame();
 	}
@@ -99,7 +139,17 @@ namespace Kaidel {
 
 		// Rendering
 		ImGui::Render();
-		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+		switch (RendererAPI::GetAPI())
+		{
+		case RendererAPI::API::OpenGL: {
+			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+		}
+		break;
+		case RendererAPI::API::DirectX: {
+			ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+		}
+		break;
+		}
 
 		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 		{

@@ -44,6 +44,33 @@ namespace Kaidel {
 			KD_CORE_ASSERT(HasComponent<T>(), "Entity does not have component!");
 			m_Scene->m_Registry.remove<T>(m_EntityHandle);
 		}
+		void AddChild(UUID childId) {
+			if (!HasComponent<ParentComponent>())
+				AddComponent<ParentComponent>();
+			auto& pc=GetComponent<ParentComponent>();
+			pc.Children.push_back(childId);
+		}
+		void AddParent(UUID parentID) {
+			if (!HasComponent<ChildComponent>())
+				AddComponent<ChildComponent>();
+			auto& cc = GetComponent<ChildComponent>();
+			cc.Parent = parentID;
+		}
+
+		void AddScript() {
+			if (!HasComponent<ScriptComponent>())
+				AddComponent<ScriptComponent>();
+			auto& sc = GetComponent<ScriptComponent>();
+			sc.ScriptNames.push_back({});
+		}
+
+
+		Entity GetParent() {
+			return m_Scene->GetEntity(GetComponent<ChildComponent>().Parent);
+		}
+		bool HasChildren() {
+			return HasComponent<ParentComponent>() && !GetComponent<ParentComponent>().Children.empty();
+		}
 		inline UUID GetUUID() { return GetComponent<IDComponent>().ID; }
 		operator bool() const { return m_EntityHandle != entt::null&&(int)m_EntityHandle!=-1; }
 		operator entt::entity() const { return m_EntityHandle; }
@@ -62,5 +89,8 @@ namespace Kaidel {
 		entt::entity m_EntityHandle{ entt::null };
 		Scene* m_Scene = nullptr;
 	};
-
+	glm::mat4 GetLocalTransform(Entity entity);
+	void RotateEntity(Entity entity, Scene* scene, const glm::vec3& delta, Entity top = {});
+	void TranslateEntity(Entity entity, Scene* scene, const glm::vec3& delta, Entity top = {});
+	void MoveEntity(Entity entity, Scene* scene, const glm::vec3& deltaT, const glm::vec3& deltaR);
 }

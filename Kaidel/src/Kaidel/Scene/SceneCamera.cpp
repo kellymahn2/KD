@@ -30,12 +30,16 @@ namespace Kaidel {
 
 	void SceneCamera::SetViewportSize(uint32_t width, uint32_t height)
 	{
+		if (height == 0)
+			return;
 		m_AspectRatio = (float)width / (float)height;
 		RecalculateProjection();
 	}
 
 	void SceneCamera::RecalculateProjection()
 	{
+		if (!m_AspectRatio)
+			return;
 		if (m_ProjectionType == ProjectionType::Perspective)
 		{
 			m_Projection = glm::perspective(m_PerspectiveFOV, m_AspectRatio, m_PerspectiveNear, m_PerspectiveFar);

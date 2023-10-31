@@ -15,10 +15,23 @@ namespace Kaidel {
 
 	struct IDComponent {
 		UUID ID;
+		bool IsActive = true;
+		bool IsVisible = true;
 		IDComponent() = default;
 		IDComponent(const IDComponent&) = default;
 	};
+	struct ParentComponent {
+		std::vector<UUID> Children;
+	};
+	struct ChildComponent {
+		UUID Parent;
+		glm::vec3 LocalPosition = {0,0,0};
+		glm::vec3 LocalRotation = {0,0,0};
 
+		ChildComponent() = default;
+		ChildComponent(UUID parent):Parent(parent) {
+		}
+	};
 	struct TagComponent
 	{
 		std::string Tag;
@@ -28,7 +41,7 @@ namespace Kaidel {
 		TagComponent(const std::string& tag)
 			: Tag(tag) {}
 	};
-
+	glm::mat4 _GetTransform(const glm::vec3& pos, const glm::vec3&rot, const glm::vec3& scl);
 	struct TransformComponent
 	{
 		glm::vec3 Translation = { 0.0f, 0.0f, 0.0f };
@@ -42,11 +55,7 @@ namespace Kaidel {
 
 		glm::mat4 GetTransform() const
 		{
-			glm::mat4 rotation = glm::toMat4(glm::quat(Rotation));
-
-			return glm::translate(glm::mat4(1.0f), Translation)
-				* rotation
-				* glm::scale(glm::mat4(1.0f), Scale);
+			return _GetTransform(Translation, Rotation, Scale);
 		}
 	};
 
@@ -69,6 +78,43 @@ namespace Kaidel {
 		CircleRendererComponent() = default;
 		CircleRendererComponent(const CircleRendererComponent&) = default;
 	};
+	template<typename T, typename _Points>
+	glm::vec3 Bezier(const std::vector<_Points>& controlPoints, T t) {
+		uint32_t n = controlPoints.size() - 1;
+		glm::vec3 result{ 0.0f };
+		T oneMinusT = 1.0f - t;
+		for (uint32_t i = 0; i <= n; ++i) {
+			result += (CalcBinomialCoefficient(n, i) * std::pow(oneMinusT, (T)(n - i)) * std::pow(t, (T)i)) * controlPoints[i].Position;
+		}
+		return result;
+	}
+	struct LineRendererComponent {
+
+		struct Point {
+			glm::vec3 Position{};
+		};
+		uint64_t Tesselation{};
+		std::vector<Point> Points;
+		std::vector<Point> FinalPoints;
+		glm::vec4 Color{};
+		LineRendererComponent() = default;
+		LineRendererComponent(const LineRendererComponent&) = default;
+		LineRendererComponent(std::vector<Point>&& points) 
+			: Points(std::move(points))
+		{
+			RecalculateFinalPoints();
+		}
+		void RecalculateFinalPoints() {
+			float offset = 1.0f / (Tesselation + 1);
+			std::vector<LineRendererComponent::Point> points;
+			points.reserve(Tesselation + 1);
+			for (uint32_t i = 0; i < Tesselation + 1; ++i) {
+				points.push_back({ Bezier(Points, offset * i) });
+			}
+			FinalPoints = std::move(points);
+		}
+
+	};
 
 	struct CameraComponent
 	{
@@ -82,6 +128,11 @@ namespace Kaidel {
 
 	class ScriptableEntity;
 
+	struct ScriptComponent {
+		std::vector<std::string> ScriptNames;
+		ScriptComponent() = default;
+		ScriptComponent(const ScriptComponent&) = default;
+	};
 	struct NativeScriptComponent
 	{
 		ScriptableEntity* Instance = nullptr;

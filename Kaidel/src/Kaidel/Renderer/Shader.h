@@ -2,14 +2,26 @@
 
 #include <string>
 #include <unordered_map>
-
+#include "Buffer.h"
 #include <glm/glm.hpp>
 
 namespace Kaidel {
 
+	typedef int ShaderType;
 	class Shader
 	{
 	public:
+
+		enum ShaderType_ {
+			ShaderType_Vertex = 1<<0,
+			ShaderType_Pixel = 1<<1,
+			ShaderType_Fragment = ShaderType_Pixel,
+			ShaderType_Geometry = 1<<2,
+			ShaderType_Compute = 1<<3
+		};
+
+	
+
 		virtual ~Shader() = default;
 
 		virtual void Bind() const = 0;
@@ -27,6 +39,11 @@ namespace Kaidel {
 
 		static Ref<Shader> Create(const std::string& filepath);
 		static Ref<Shader> Create(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc);
+
+
+
+	protected:
+		ShaderType m_ShaderType;
 	};
 
 	class ShaderLibrary
