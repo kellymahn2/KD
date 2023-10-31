@@ -329,12 +329,45 @@ namespace Kaidel {
 			out << YAML::EndMap; // LineRendererComponent
 		}
 
-
-
-
-
-
-
+		if (entity.HasComponent<ScriptComponent>()) {
+			out << YAML::Key << "ScriptComponent";
+			out << YAML::BeginMap; // ScriptComponent
+			auto& src = entity.GetComponent<ScriptComponent>();
+			out << YAML::Key << "Scripts";
+			out << YAML::BeginSeq;
+			const auto& scriptFields = ScriptEngine::GetScriptFieldMaps(entity.GetUUID());
+			for (auto& script : src.ScriptNames) {
+				auto klass = ScriptEngine::GetEntityClass(script);
+				if (!klass)
+					continue;
+				out << YAML::Key << "Name" << YAML::Value << script;
+				if (scriptFields.find(klass) != scriptFields.end()) {
+					auto& fields = scriptFields.at(klass);
+					if (fields.empty())
+						continue;
+					out << YAML::Key << "ScriptFields" << YAML::Value;
+					out << YAML::BeginSeq;
+					const auto& entityFields = scriptFields.at(klass);
+					for (const auto& [fieldName, field] : entityFields) {
+						out << YAML::BeginMap;//ScriptFields
+						out << YAML::Key << "Name" << YAML::Value << fieldName;
+						out << YAML::Key << "Type" << YAML::Value << ScriptFieldTypeToString(field.Field.Type);
+						out << YAML::Key << "Data" << YAML::Value;
+						// Field has been set in editor
+						switch (field.Field.Type)
+						{
+						case ScriptFieldType::Float:
+							out<< field.GetValue<float>();
+							break;
+						}
+						out << YAML::EndMap;//ScriptFields
+					}
+					out << YAML::EndSeq;
+				}
+			}
+			out << YAML::EndSeq;
+			out << YAML::EndMap;
+		}
 		//if (entity.HasComponent<ScriptComponent>()) {
 		//	out << YAML::Key << "ScriptComponent";
 		//	out << YAML::BeginMap;//ScriptComponent
@@ -415,11 +448,11 @@ namespace Kaidel {
 		auto entities = data["Entities"];
 		if (entities)
 		{
-			for (auto entity : entities)
+			for (auto entityNode : entities)
 			{
-				UUID uuid = entity["Entity"].as<uint64_t>(); 
+				UUID uuid = entityNode["Entity"].as<uint64_t>(); 
 				std::string name;
-				auto tagComponent = entity["TagComponent"];
+				auto tagComponent = entityNode["TagComponent"];
 				if (tagComponent)
 					name = tagComponent["Tag"].as<std::string>();
 
@@ -427,7 +460,7 @@ namespace Kaidel {
 
 				Entity deserializedEntity = m_Scene->CreateEntity(uuid,name);
 
-				auto transformComponent = entity["TransformComponent"];
+				auto transformComponent = entityNode["TransformComponent"];
 				if (transformComponent)
 				{
 					// Entities always have transforms
@@ -437,7 +470,7 @@ namespace Kaidel {
 					tc.Scale = transformComponent["Scale"].as<glm::vec3>();
 				}
 
-				DeserializeComponent<ChildComponent>(deserializedEntity, "ChildComponent", entity,
+				DeserializeComponent<ChildComponent>(deserializedEntity, "ChildComponent", entityNode,
 					[](auto& cc, auto& entity, auto& childComponent) {
 						cc.Parent = childComponent["Parent"].as<uint64_t>();
 						if (childComponent["LocalPosition"]) {
@@ -447,7 +480,7 @@ namespace Kaidel {
 							cc.LocalRotation= childComponent["LocalRotation"].as<glm::vec3>();
 						}
 					});
-				DeserializeComponent<CameraComponent>(deserializedEntity, "CameraComponent", entity,
+				DeserializeComponent<CameraComponent>(deserializedEntity, "CameraComponent", entityNode,
 					[](auto& cc, auto& entity, auto& cameraComponent) {
 						auto& cameraProps = cameraComponent["Camera"];
 
@@ -465,7 +498,7 @@ namespace Kaidel {
 					}
 				);
 
-				DeserializeComponent<SpriteRendererComponent>(deserializedEntity, "SpriteRendererComponent", entity,
+				DeserializeComponent<SpriteRendererComponent>(deserializedEntity, "SpriteRendererComponent", entityNode,
 					[](auto& src, auto& entity, auto& spriteRendererComponent) {
 						src.Color = spriteRendererComponent["Color"].as<glm::vec4>();
 						if (spriteRendererComponent["Texture"])
@@ -474,7 +507,7 @@ namespace Kaidel {
 							src.TilingFactor = spriteRendererComponent["TilingFactor"].as<float>();
 					}
 				);
-				DeserializeComponent<CircleRendererComponent>(deserializedEntity, "CircleRendererComponent", entity,
+				DeserializeComponent<CircleRendererComponent>(deserializedEntity, "CircleRendererComponent", entityNode,
 					[](CircleRendererComponent& crc, auto& entity, auto& circleRendererComponent) {
 						crc.Color = circleRendererComponent["Color"].as < glm::vec4>();
 						crc.Thickness = circleRendererComponent["Thickness"].as <float>();
@@ -482,13 +515,13 @@ namespace Kaidel {
 
 					}
 				);
-				DeserializeComponent<Rigidbody2DComponent>(deserializedEntity, "Rigidbody2DComponent", entity,
+				DeserializeComponent<Rigidbody2DComponent>(deserializedEntity, "Rigidbody2DComponent", entityNode,
 					[](auto& rb2d, auto& entity, auto& rigidbody2DComponent) {
 						rb2d.Type = RigidBody2DBodyTypeFromString(rigidbody2DComponent["BodyType"].as<std::string>());
 						rb2d.FixedRotation = rigidbody2DComponent["FixedRotation"].as<bool>();
 					}
 				);
-				DeserializeComponent<BoxCollider2DComponent>(deserializedEntity, "BoxCollider2DComponent", entity,
+				DeserializeComponent<BoxCollider2DComponent>(deserializedEntity, "BoxCollider2DComponent", entityNode,
 					[](auto& bc2d, auto& entity, auto& boxCollider2DComponent) {
 						bc2d.Offset = boxCollider2DComponent["Offset"].as<glm::vec2>();
 						bc2d.Size = boxCollider2DComponent["Size"].as<glm::vec2>();
@@ -499,7 +532,7 @@ namespace Kaidel {
 					}
 				);
 
-				DeserializeComponent<CircleCollider2DComponent>(deserializedEntity, "CircleCollider2DComponent", entity,
+				DeserializeComponent<CircleCollider2DComponent>(deserializedEntity, "CircleCollider2DComponent", entityNode,
 					[](auto& cc2d, auto& entity, auto& circleCollider2DComponent) {
 						cc2d.Offset = circleCollider2DComponent["Offset"].as<glm::vec2>();
 						cc2d.Radius = circleCollider2DComponent["Radius"].as<float>();
@@ -510,7 +543,7 @@ namespace Kaidel {
 					}
 				);
 
-				DeserializeComponent<LineRendererComponent>(deserializedEntity, "LineRendererComponent", entity,
+				DeserializeComponent<LineRendererComponent>(deserializedEntity, "LineRendererComponent", entityNode,
 					[](LineRendererComponent& lrc, auto& entity, YAML::Node& lineRendererComponent) {
 						lrc.Tesselation = lineRendererComponent["Tesselation"].as<uint32_t>();
 						lrc.Color = lineRendererComponent["Color"].as<glm::vec4>();
@@ -521,6 +554,35 @@ namespace Kaidel {
 						lrc.RecalculateFinalPoints();
 					}
 				);
+
+
+				DeserializeComponent<ScriptComponent>(deserializedEntity, "ScriptComponent", entityNode,
+					[](ScriptComponent& src , auto& entity,YAML::Node& scriptRendererComponent) {
+						YAML::Node scripts = scriptRendererComponent["Scripts"];
+						for (auto node : scripts) {
+							src.ScriptNames.push_back(node["Name"].as<std::string>());
+							auto klass = ScriptEngine::GetEntityClass(node["Name"].as<std::string>());
+							if(!klass)
+								continue;
+							YAML::Node fields = node["ScriptFields"];
+							for(auto field : fields){
+								ScriptFieldType type = ScriptFieldTypeFromString(field["Type"].as<std::string>());
+								std::string name = field["Name"].as<std::string>();
+#define 						FIELD_DATA_SERILIZATION(T,Type) \
+								case ScriptFieldType::##T:\
+									ScriptEngine::AddSerializedField<Type>(entity.GetUUID(), name,\
+										type, klass, field["Data"].as<Type>());\
+									break
+									switch (type)
+									{
+										FIELD_DATA_SERILIZATION(Float,float);
+									}
+							}
+
+						}
+						
+					}
+					);
 
 				/*DeserializeComponent<ScriptComponent>(deserializedEntity, "ScriptComponent", entity,
 					[&uuid](auto& sc, auto& entity, YAML::Node& scriptComponent) {

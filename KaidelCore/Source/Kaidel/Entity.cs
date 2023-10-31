@@ -128,6 +128,13 @@ namespace KaidelCore
 			object instance = Internals.Instance_GetScriptInstance(ID);
 			return instance as T;
 		}
+		public T As<T>(string name) where T : Entity, new()
+		{
+			Entity entity = FindEntityByName(name);
+			if( entity == null )
+				return null;
+			return entity.As<T>();
+		}
 
 	}
 }

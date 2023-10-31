@@ -176,61 +176,6 @@ namespace Kaidel {
 	{
 		s_Data->SceneContext = scene;
 		if (s_Data->ReloadClassFields) {
-			/*std::vector<UUID> deletedIDs;
-			for (auto& [id, field] : s_Data->EntityScriptFields) {
-
-				auto entity = s_Data->SceneContext->GetEntity(id);
-
-				if (!entity)
-				{
-					deletedIDs.push_back(id);
-					continue;
-				}
-				const auto& n = entity.GetComponent<TagComponent>();
-				auto scriptClass = GetEntityClass(entity.GetComponent<ScriptComponent>().Name);
-				auto cpy = field;
-				for (auto& [name, f] : field) {
-					if (scriptClass->m_Fields.find(name) != scriptClass->m_Fields.end()) {
-						cpy.at(name).Field = scriptClass->m_Fields.at(name);
-					}
-					else {
-						cpy.erase(name);
-					}
-				}
-				field = std::move(cpy);
-			}
-			for (auto& id : deletedIDs) {
-				s_Data->EntityScriptFields.erase(id);
-			}
-			s_Data->ReloadClassFields = false;*/
-
-			/*std::vector<UUID> deletedEntities;
-			for (auto& [id, classMap] : s_Data->EntityScriptFields) {
-				auto entity = s_Data->SceneContext->GetEntity(id);
-				if (!entity)
-				{
-					deletedEntities.push_back(id);
-					continue;
-				}
-				const auto& name = entity.GetComponent<TagComponent>();
-				for (auto& [klass, field] : classMap) {
-
-					auto cpy = field;
-					for (auto& [name, f] : field) {
-						if (klass->m_Fields.find(name) != klass->m_Fields.end()) {
-							cpy.at(name).Field = klass->m_Fields.at(name);
-						}
-						else {
-							cpy.erase(name);
-						}
-					}
-					field = std::move(cpy);
-				}
-			}
-			for (auto& deletedEntity : deletedEntities) {
-				s_Data->EntityScriptFields.erase(deletedEntity);
-			}*/
-
 
 			for (auto& [entityID, allFields] : s_Data->EntityScriptFields) {
 
@@ -259,7 +204,6 @@ namespace Kaidel {
 				}
 				allFields = std::move(cpyFields);
 			}
-
 			s_Data->ReloadClassFields = false;
 		}
 	}
@@ -357,12 +301,19 @@ namespace Kaidel {
 	{
 		return s_Data->EntityClasses;
 	}
+
+
+
+
+
 	void ScriptEngine::LoadAssemblyClasses(MonoAssembly* assembly)
 	{
 		MonoImage* image = mono_assembly_get_image(assembly);
 		const MonoTableInfo* typeDefinitionsTable = mono_image_get_table_info(image, MONO_TABLE_TYPEDEF);
 		int32_t numTypes = mono_table_info_get_rows(typeDefinitionsTable);
-		auto& classes = s_Data->EntityClasses;
+		std::unordered_map < std::string, Ref<ScriptClass>> classes;
+
+
 
 		for (int32_t i = 0; i < numTypes; i++)
 		{
@@ -385,12 +336,15 @@ namespace Kaidel {
 			bool isEntityDerived = mono_class_is_subclass_of(monoClass, s_Data->EntityClass.GetClass(), false);
 			if (!isEntityDerived)
 				continue;
-			auto& scriptClass = s_Data->EntityClasses[fullName];
-			if (!scriptClass) {
-				scriptClass = CreateRef<ScriptClass>(nameSpace,name);
-			}
-			else
+			Ref<ScriptClass> scriptClass;
+			if (s_Data->EntityClasses.find(fullName) != s_Data->EntityClasses.end())
+			{
+				scriptClass = classes[fullName] = s_Data->EntityClasses.at(fullName);
 				scriptClass->SetClass(monoClass, name, nameSpace);
+			}
+			else {
+				scriptClass = classes[fullName] = CreateRef<ScriptClass>(nameSpace,name,s_Data->AppAssemblyImage);
+			}
 			void* iterator = nullptr;
 			//TODO: implement support classes getting deleted.
 			scriptClass->m_Fields.clear();
@@ -404,6 +358,7 @@ namespace Kaidel {
 				}
 			}
 		}
+		s_Data->EntityClasses = std::move(classes);
 	}
 
 	void ScriptEngine::InitMono()
@@ -455,10 +410,12 @@ namespace Kaidel {
 		return s_Data->EntityClasses.at(name);
 	}
 
-	ScriptFieldInstance& ScriptEngine::AddScriptFieldInstance(UUID entityID, const std::string& name, ScriptFieldType type,Ref<ScriptClass>scriptClass)
+	ScriptFieldInstance* ScriptEngine::AddScriptFieldInstance(UUID entityID, const std::string& name, ScriptFieldType type,Ref<ScriptClass>scriptClass)
 	{
+		if (scriptClass->m_Fields.find(name) == scriptClass->m_Fields.end())
+			return nullptr;
 		s_Data->EntityScriptFields[entityID][scriptClass][name].Field = scriptClass->GetFields().at(name);
-		return s_Data->EntityScriptFields[entityID][scriptClass][name];
+		return &s_Data->EntityScriptFields.at(entityID).at(scriptClass).at(name);
 	}
 	//TODO: Make Reloading Work.
 	void ScriptEngine::ReloadAssembly()

@@ -59,12 +59,13 @@ namespace Kaidel {
 		static MonoImage* GetCoreAssemblyImage();
 		template<typename T>
 		static void AddSerializedField(UUID entityID, const std::string& name, ScriptFieldType type, Ref<ScriptClass> scriptClass,const T& data) {
-			ScriptFieldInstance& sfi = AddScriptFieldInstance(entityID, name, type, scriptClass);
-			sfi.SetValue<T>(data);
+			ScriptFieldInstance* sfi = AddScriptFieldInstance(entityID, name, type, scriptClass);
+			if(sfi != nullptr)
+			sfi->SetValue<T>(data);
 		}
 		static void LoadAssemblyClasses(MonoAssembly* assembly);
 	private:
-		static ScriptFieldInstance& AddScriptFieldInstance(UUID entityID, const std::string& name, ScriptFieldType type,Ref<ScriptClass> scriptClass);
+		static ScriptFieldInstance* AddScriptFieldInstance(UUID entityID, const std::string& name, ScriptFieldType type,Ref<ScriptClass> scriptClass);
 		static void InitMono();
 		static void ShutdownMono();
 	};
