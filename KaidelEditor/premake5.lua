@@ -1,4 +1,4 @@
-project "KaidelCore"
+project "KaidelEditor"
 	kind "ConsoleApp"
 	language "C++"
 	cppdialect "C++17"
@@ -20,8 +20,7 @@ project "KaidelCore"
 		"%{wks.location}/Kaidel/vendor",
 		"%{IncludeDir.glm}",
 		"%{IncludeDir.entt}",
-		"%{IncludeDir.ImGuizmo}",
-		"%{IncludeDir.filewatch}"
+		"%{IncludeDir.ImGuizmo}"
 	}
 
 	links

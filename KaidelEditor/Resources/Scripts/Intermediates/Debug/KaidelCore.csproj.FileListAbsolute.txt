@@ -4,3 +4,9 @@ C:\dev\Engines\KD\KaidelEditor\Resources\Scripts\Intermediates\Debug\KaidelCore.
 C:\dev\Engines\KD\KaidelEditor\Resources\Scripts\Intermediates\Debug\KaidelCore.pdb
 C:\dev\Engines\KD\KaidelEditor\Resources\Scripts\KaidelCore.dll
 C:\dev\Engines\KD\KaidelEditor\Resources\Scripts\KaidelCore.pdb
+E:\Engines\KD\KaidelEditor\Resources\Scripts\Intermediates\Debug\KaidelCore.csproj.AssemblyReference.cache
+E:\Engines\KD\KaidelEditor\Resources\Scripts\Intermediates\Debug\KaidelCore.csproj.CoreCompileInputs.cache
+E:\Engines\KD\KaidelEditor\Resources\Scripts\Intermediates\Debug\KaidelCore.dll
+E:\Engines\KD\KaidelEditor\Resources\Scripts\Intermediates\Debug\KaidelCore.pdb
+E:\Engines\KD\KaidelEditor\Resources\Scripts\KaidelCore.dll
+E:\Engines\KD\KaidelEditor\Resources\Scripts\KaidelCore.pdb
