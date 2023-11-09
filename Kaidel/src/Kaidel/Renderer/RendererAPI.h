@@ -1,11 +1,7 @@
 #pragma once
-
 #include <glm/glm.hpp>
-
 #include "Kaidel/Renderer/VertexArray.h"
-
 namespace Kaidel {
-
 	class RendererAPI
 	{
 	public:
@@ -30,5 +26,4 @@ namespace Kaidel {
 	private:
 		static API s_API;
 	};
-
 }

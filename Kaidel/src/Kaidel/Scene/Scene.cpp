@@ -17,6 +17,7 @@
 #include <box2d/b2_circle_shape.h>
 
 
+
 #define DEF_COMPONENT_ADD(Component) template<>\
 void Scene::OnComponentAdded<##Component>(Entity entity, ##Component& component){}
 
@@ -77,7 +78,7 @@ namespace Kaidel {
 				SpriteRendererComponent, 
 				CircleRendererComponent ,CircleCollider2DComponent,
 				CameraComponent,
-				BoxCollider2DComponent, Rigidbody2DComponent,
+				BoxCollider2DComponent, Rigidbody2DComponent,AnimationComponent,
 				NativeScriptComponent, ScriptComponent,ParentComponent,ChildComponent , LineRendererComponent>
 				(entity, srcReg, e); });
 		newScene->m_IDMap = rhs->m_IDMap;
@@ -154,9 +155,16 @@ namespace Kaidel {
 
 				b2Body* body = (b2Body*)rb2d.RuntimeBody; 
 				const auto& position = body->GetPosition();
-				transform.Translation.x = position.x;
-				transform.Translation.y = position.y;
-				transform.Rotation.z = body->GetAngle();
+
+				glm::vec3 deltaPos = -transform.Translation;
+				deltaPos.z = 0.0f;
+				deltaPos.x += position.x;
+				deltaPos.y += position.y;
+				glm::vec3 deltaRot = -transform.Rotation;
+				deltaRot.x = 0.0f;
+				deltaRot.y = 0.0f;
+				deltaRot.z += body->GetAngle();
+				MoveEntity(entity, this, deltaPos, deltaRot);
 			}
 		}
 	}
@@ -165,6 +173,16 @@ namespace Kaidel {
 	{
 		delete m_PhysicsWorld;
 		m_PhysicsWorld = nullptr;
+	}
+
+	void Scene::UpdateAnimations(float ts)
+	{
+		for (auto e : m_Registry.view<AnimationComponent>()) {
+			Entity entity{ e,this };
+			auto& ac = entity.GetComponent<AnimationComponent>();
+			if (ac.Animation && ac.AnimationController && ac.Animation->GetState() == AnimationState::Playing)
+				ac.AnimationController->Update(entity,ts,ac.Animation);
+		}
 	}
 
 
@@ -264,6 +282,23 @@ namespace Kaidel {
 		m_SceneIsRunning = true;
 		//Scripts
 		ScriptEngine::OnRuntimeStart(this);
+
+		/*for (auto e : m_Registry.view<AnimationComponent>()) {
+			auto& ac = m_Registry.get<AnimationComponent>(e);
+			if (ac.Animation)
+				ac.Animation->Reset();
+		}*/
+		{
+			for (auto e : m_Registry.view<AnimationComponent>()) {
+				auto& ac = m_Registry.get<AnimationComponent>(e);
+				Entity entity{ e,this };
+				SetDefaultTranslation(entity);
+				if (ac.Animation&& ac.AnimationController) {
+					ac.AnimationController->Play(ac.Animation);
+				}
+			}
+		}
+
 		//Instantiate all scripts
 		auto view = m_Registry.view<ScriptComponent>();
 		for (auto e : view) {
@@ -308,6 +343,9 @@ namespace Kaidel {
 				nsc.Instance->OnUpdate(ts);
 			});
 		}*/
+
+		UpdateAnimations(ts);
+
 		if (!m_IsPaused) {
 			//Physics
 			OnPhysics2DUpdate(ts);
@@ -382,6 +420,21 @@ namespace Kaidel {
 	void Scene::OnComponentAdded<CameraComponent>(Entity entity, CameraComponent& component)
 	{
 		component.Camera.SetViewportSize(m_ViewportWidth, m_ViewportHeight);
+	}
+	template<>
+	void Scene::OnComponentAdded<AnimationComponent>(Entity entity, AnimationComponent& component)
+	{
+		//NOTE : Added properties should go here.
+		if (!component.Animation)
+			return;
+		for (auto& [propertyType,property] : component.Animation->m_AnimatedProperties) {
+			switch ((AnimatedPropertyType)propertyType)
+			{
+			case AnimatedPropertyType::Translate : {
+				AddDefaultTranslation(entity.GetComponent<TransformComponent>().Translation, entity.GetUUID());
+			}
+			}
+		}
 	}
 	DEF_COMPONENT_ADD(TransformComponent)
 	DEF_COMPONENT_ADD(SpriteRendererComponent)

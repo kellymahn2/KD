@@ -57,7 +57,8 @@ namespace Kaidel {
 		Ref<IndexBuffer> ib;
 		Ref<UniformBuffer> ub;
 
-
+		Ref<Animation> a;
+		Ref<AnimationPlayer> ap;
 
 		Console m_DebugConsole;
 		Ref<Framebuffer> m_Framebuffer;

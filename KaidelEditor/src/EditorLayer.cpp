@@ -58,6 +58,25 @@ namespace Kaidel {
 		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 		m_SceneHierarchyPanel.RegisterFieldRenderers();
 		m_ConsolePanel.SetContext(::Log::GetClientLogger());
+		Entity e = m_ActiveScene->CreateEntity();
+
+		/*a = CreateRef<TransformAnimationFrame>(glm::vec3{ 1,1,0 }, 2.0f);
+		ac = CreateRef<AnimationController>();*/
+		a = CreateRef<Animation>();
+		ap = CreateRef<AnimationPlayer>();
+
+		auto property = a->AddProperty(AnimatedPropertyType::Translate);
+		KeyFrame<AnimatedPropertyType::Translate> kf1{};
+		kf1.StartTime = 0.0f;
+		kf1.EndTime = 5.0f;
+		kf1.TargetTranslation = { 1.0f,1.0f,.0 };
+		KeyFrame<AnimatedPropertyType::Translate> kf2{};
+		kf2.StartTime = 5.0f;
+		kf2.EndTime = 8.0f;
+		kf2.TargetTranslation = { 2,1,0 };
+		property->AddKeyFrame<AnimatedPropertyType::Translate>(kf1);
+		property->AddKeyFrame<AnimatedPropertyType::Translate>(kf2);
+		auto& animationComponent = e.AddComponent<AnimationComponent>(a,ap);
 	}
 
 	void EditorLayer::OnDetach()
@@ -558,12 +577,7 @@ namespace Kaidel {
 		ImGui::Text("Frame Rate: %.3f", ImGui::GetIO().Framerate);
 		ImGui::Text("Selected Entity: %d", m_SceneHierarchyPanel.GetSelectedEntity().operator entt::entity());
 		ImGui::Text("%f,%f", ImGui::GetMousePos().x - m_ViewportBounds[0].x, ImGui::GetMousePos().y - m_ViewportBounds[0].y);
-		auto d= m_EditorCamera.GetViewMatrix() * m_EditorCamera.GetProjection();
-		ImGui::Text("c1 : %.3f,%.3f,%.3f,%.3f",d[0][0],d[0][1],d[0][2],d[0][3]);
-		ImGui::Text("c2 : %.3f,%.3f,%.3f,%.3f",d[1][0],d[1][1],d[1][2],d[1][3]);
-		ImGui::Text("c3 : %.3f,%.3f,%.3f,%.3f",d[2][0],d[2][1],d[2][2],d[2][3]);
-		ImGui::Text("c4 : %.3f,%.3f,%.3f,%.3f",d[3][0],d[3][1],d[3][2],d[3][3]);
-
+		ImGui::Text("%f", a->GetTime());
 		auto t = Renderer2D::GetWhite();
 		ImGui::Image((void*)t->GetRendererID(),ImVec2{(float)100,(float)100});
 		t = m_Icons.IconStop;

@@ -57,7 +57,6 @@ namespace Kaidel {
 				});
 			m_CircleInsertIndex += 4;
 		}
-		m_JobSystem.Wait();
 
 		auto lineView= context->m_Registry.view<TransformComponent, LineRendererComponent>();
 		for (auto e : lineView) {

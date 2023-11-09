@@ -5,6 +5,7 @@
 #include "Kaidel/Core/UUID.h"
 #include "SceneRenderer.h"
 #include "entt.hpp"
+#include "Kaidel/Animation/Animation.h"
 class b2World;
 
 namespace Kaidel {
@@ -56,6 +57,7 @@ namespace Kaidel {
 		void OnPhysics2DStart();
 		void OnPhysics2DUpdate(Timestep& ts);
 		void OnPhysics2DStop();
+		void UpdateAnimations(float ts);
 		void RenderScene();
 	private:
 		entt::registry m_Registry;
