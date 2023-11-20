@@ -59,15 +59,15 @@ namespace Kaidel {
 				glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 		#endif
 			glfwWindowHint(GLFW_SAMPLES, 4);
+			if(Renderer::GetAPI() == RendererAPI::API::DirectX)
+				glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 			m_Window = glfwCreateWindow((int)props.Width, (int)props.Height, m_Data.Title.c_str(), nullptr, nullptr);
 			++s_GLFWWindowCount;
 		}
-
 		m_Context = GraphicsContext::Create(m_Window);
 		m_Context->Init();
 
 		glfwSetWindowUserPointer(m_Window, &m_Data);
-		SetVSync(true);
 
 		// Set GLFW callbacks
 		glfwSetWindowSizeCallback(m_Window, [](GLFWwindow* window, int width, int height)

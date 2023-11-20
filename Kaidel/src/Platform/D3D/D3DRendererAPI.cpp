@@ -21,6 +21,7 @@ namespace Kaidel {
 		viewport.TopLeftY = y;
 		viewport.Width = width;
 		viewport.Height = height;
+		viewport.MaxDepth = 1.0f;
 		d3dContext->GetDeviceContext()->RSSetViewports(1, &viewport);
 	}
 

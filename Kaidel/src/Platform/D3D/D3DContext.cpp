@@ -64,7 +64,7 @@ namespace Kaidel {
 		scd.OutputWindow = glfwGetWin32Window(m_WindowHandle);
 		scd.SampleDesc.Count = 4;
 		scd.Windowed = true;
-		D3D11CreateDeviceAndSwapChain(NULL,
+		D3DASSERT(D3D11CreateDeviceAndSwapChain(NULL,
 			D3D_DRIVER_TYPE_HARDWARE,
 			NULL,
 			0,
@@ -75,7 +75,7 @@ namespace Kaidel {
 			&m_SwapChain,
 			&m_Device,
 			NULL,
-			&m_DeviceContext);
+			&m_DeviceContext));
 		ID3D11Resource* back;
 		m_SwapChain->GetBuffer(0, __uuidof(ID3D11Resource), (void**) & back);
 		D3DASSERT(m_Device->CreateRenderTargetView(back, nullptr, &m_BackBuffer));
@@ -101,7 +101,7 @@ namespace Kaidel {
 		depthStencilViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 		depthStencilViewDesc.Texture2D.MipSlice = 0;
 
-		D3DASSERT(m_Device->CreateDepthStencilView(m_DepthStencilBuffer,nullptr, &m_DepthStencilView));
+		D3DASSERT(m_Device->CreateDepthStencilView(m_DepthStencilBuffer, nullptr, &m_DepthStencilView));
 
 
 		m_DeviceContext->OMSetRenderTargets(1, &m_BackBuffer, nullptr);
@@ -128,7 +128,7 @@ namespace Kaidel {
 		viewport.TopLeftY = 0;
 		viewport.Width = 1280;
 		viewport.Height = 720;
-
+		viewport.MaxDepth = 1.0f;
 		m_DeviceContext->RSSetViewports(1, &viewport);
 	}
 
@@ -137,6 +137,8 @@ namespace Kaidel {
 		KD_PROFILE_FUNCTION();
 		D3DASSERT(m_SwapChain->Present(0, 0));
 		m_DeviceContext->ClearDepthStencilView(m_DepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+		float col[4] = { 1.0f,1.0f,1.0f,1.0f };
+		m_DeviceContext->ClearRenderTargetView(m_BackBuffer, col);
 	}
 
 	void D3DContext::RecreateSwapChain(uint32_t width, uint32_t height)

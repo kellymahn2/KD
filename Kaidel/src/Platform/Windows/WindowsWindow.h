@@ -35,7 +35,7 @@ namespace Kaidel {
 		{
 			std::string Title;
 			unsigned int Width, Height;
-			bool VSync;
+			bool VSync = false;
 
 			EventCallbackFn EventCallback;
 		};

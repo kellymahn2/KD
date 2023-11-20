@@ -207,8 +207,8 @@ namespace Kaidel {
 
 			// create depth stensil texture
 			D3D11_TEXTURE2D_DESC descDepth = {};
-			descDepth.Width = 800u;
-			descDepth.Height = 600u;
+			descDepth.Width = m_Specification.Width;
+			descDepth.Height = m_Specification.Height;
 			descDepth.MipLevels = 1u;
 			descDepth.ArraySize = 1u;
 			descDepth.Format = DXGI_FORMAT_D32_FLOAT;

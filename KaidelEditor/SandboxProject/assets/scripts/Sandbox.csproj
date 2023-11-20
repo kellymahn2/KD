@@ -56,9 +56,9 @@
   <ItemGroup Condition=" '$(Configuration)|$(Platform)' == 'Dist|x64' ">
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Source\Camera.cs" />
     <Compile Include="Source\Player.cs" />
     <Compile Include="Source\Player2.cs" />
-    <Compile Include="Source\Camera.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\KaidelCore\KaidelCore.csproj">
