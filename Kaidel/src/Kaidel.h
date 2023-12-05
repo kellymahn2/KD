@@ -23,10 +23,13 @@
 #include "Kaidel/Scene/Entity.h"
 #include "Kaidel/Scene/ScriptableEntity.h"
 #include "Kaidel/Scene/Components.h"
+#include "Kaidel/Project/Project.h"
+
 
 // ---Renderer------------------------
 #include "Kaidel/Renderer/Renderer.h"
 #include "Kaidel/Renderer/Renderer2D.h"
+#include "Kaidel/Renderer/Renderer3D.h"
 #include "Kaidel/Renderer/RenderCommand.h"
 
 #include "Kaidel/Renderer/Buffer.h"

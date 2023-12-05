@@ -3,6 +3,7 @@
 
 #include "Entity.h"
 #include "Components.h"
+#include "Kaidel/Project/Project.h"
 #include "Kaidel/Scripting/ScriptEngine.h"
 #include <fstream>
 
@@ -502,7 +503,7 @@ namespace Kaidel {
 					[](auto& src, auto& entity, auto& spriteRendererComponent) {
 						src.Color = spriteRendererComponent["Color"].as<glm::vec4>();
 						if (spriteRendererComponent["Texture"])
-							src.Texture = Texture2D::Create(spriteRendererComponent["Texture"].as<std::string>());
+							src.Texture = Texture2D::Create(Project::GetAssetPath(spriteRendererComponent["Texture"].as<std::string>()).string());
 						if (spriteRendererComponent["TilingFactor"])
 							src.TilingFactor = spriteRendererComponent["TilingFactor"].as<float>();
 					}

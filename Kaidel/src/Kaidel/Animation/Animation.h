@@ -1,15 +1,32 @@
 #pragma once
 
+
+#include "Kaidel/Assets/Assets.h"
+#include "Kaidel/Core/UUID.h"
+#include "Kaidel/Core/Base.h"
+
+
+
 #include <vector>
 #include <list>
 #include <chrono>
 #include <glm/glm.hpp>
 #include <map>
-#include "Kaidel/Core/UUID.h"
-#include "Kaidel/Core/Base.h"
 namespace Kaidel {
 
+	namespace AnimationPropertyTypes {
+		struct Translation {
+			glm::vec3 TargetTranslation;
+		};
+	}
 	class Entity;
+	void ApplyTranslation(glm::vec3* current, glm::vec3* target, float t, Entity& entity);
+	void AddDefaultTranslation(const glm::vec3& default, UUID id);
+	void SetDefaultTranslation(Entity& entity);
+
+
+
+	
 
 
 	enum class AnimationPropertyState {
@@ -21,55 +38,44 @@ namespace Kaidel {
 	enum class AnimatedPropertyType {
 		None,Translate
 	};
-	template<AnimatedPropertyType _PropertyType>
+	
 	struct KeyFrame {
-	};
-	template<>
-	struct KeyFrame<AnimatedPropertyType::Translate> {
-		float StartTime{};
-		float EndTime{};
-		glm::vec3 TargetTranslation{};
-		static void Apply(KeyFrame& last, float t, Entity& entity);
+		struct {
+			uint8_t Data[80];
+			float StartTime;
+			float EndTime;
+			template<typename T>
+			inline T& Get() {
+				return *(reinterpret_cast<T*>(Data));
+			}
+		}AnimationData;
 	};
 
-	class AnimatedPropertyBase {
+
+
+
+
+
+
+
+
+	
+
+
+
+	class AnimatedProperty{
 	public:
-		virtual AnimationPropertyState Update(float ts) = 0;
-		virtual void Apply(Entity& entity) = 0;
-		virtual ~AnimatedPropertyBase() = default;
-		template<AnimatedPropertyType _PropertyType>
-		void AddKeyFrame(const KeyFrame<_PropertyType> keyFrame);
-
-		virtual void Play() {
-			m_State = AnimationPropertyState::Playing;
-			m_CurrentTime = 0.0f;
-		}
-		virtual void Pause() {
-			m_State = AnimationPropertyState::Paused;
-		}
-		virtual void Stop() {
-			m_State = AnimationPropertyState::Stopped;
-			m_CurrentFrame = -1;
-		}
-		virtual bool IsFinished() {
-			return m_State == AnimationPropertyState::Finished;
-		}
-	protected: 
-		int m_CurrentFrame;
-		float m_CurrentTime = 0;
-		AnimationPropertyState m_State = AnimationPropertyState::Stopped;
-	};
-
-
-
-
-	template<AnimatedPropertyType _PropertyType>
-	class AnimatedProperty : public AnimatedPropertyBase{
-	public:
+		
 		~AnimatedProperty() = default;
-		void AddKeyFrame(const KeyFrame<_PropertyType>& keyFrame) {
+		void AddKeyFrame(const KeyFrame& keyFrame) {
 			m_KeyFrames.push_back(keyFrame);
-			m_Duration = keyFrame.EndTime;
+			m_Duration = keyFrame.AnimationData.EndTime;
+		}
+		void SetPropertyType(AnimatedPropertyType type) {
+			m_Type = type;
+		}
+		AnimatedPropertyType GetPropertyType() const{
+			return m_Type;
 		}
 		AnimationPropertyState Update(float deltaTime) {
 			if (m_State != AnimationPropertyState::Playing)
@@ -81,7 +87,7 @@ namespace Kaidel {
 				m_State = AnimationPropertyState::Finished;
 			}
 			else {
-				if (m_CurrentFrame + 1 < m_KeyFrames.size()&&m_KeyFrames[m_CurrentFrame+1].StartTime <= m_CurrentTime) {
+				if (m_CurrentFrame + 1 < m_KeyFrames.size()&&m_KeyFrames[m_CurrentFrame+1].AnimationData.StartTime <= m_CurrentTime) {
 					++m_CurrentFrame;
 				}
 			}
@@ -90,12 +96,27 @@ namespace Kaidel {
 		void Apply(Entity& entity) {
 			if (m_State != AnimationPropertyState::Playing)
 				return;
-			float t = (m_CurrentTime - GetCurrentKeyFrame().StartTime) / (GetCurrentKeyFrame().EndTime - GetCurrentKeyFrame().StartTime);
+			float t = (m_CurrentTime - GetCurrentKeyFrame().AnimationData.StartTime) / (GetCurrentKeyFrame().AnimationData.EndTime - GetCurrentKeyFrame().AnimationData.StartTime);
 			if (m_CurrentFrame == 0) {
-				ApplyTranslation(nullptr, &GetCurrentKeyFrame().TargetTranslation, t, entity);
+
+				switch(m_Type){
+					case AnimatedPropertyType::Translate:
+					{
+						ApplyTranslation(nullptr, &GetCurrentKeyFrame<AnimationPropertyTypes::Translation>().TargetTranslation, t, entity);
+						break;
+					}
+				}
 			}
 			else {
-				ApplyTranslation( &m_KeyFrames[m_CurrentFrame - 1].TargetTranslation, &GetCurrentKeyFrame().TargetTranslation, t, entity);
+				switch (m_Type) {
+					case AnimatedPropertyType::Translate: {
+						auto& aptt = m_KeyFrames[m_CurrentFrame - 1].AnimationData.Get< AnimationPropertyTypes::Translation>();
+						ApplyTranslation( &aptt.TargetTranslation, &GetCurrentKeyFrame<AnimationPropertyTypes::Translation>()
+							.TargetTranslation, t, entity);
+						break;
+
+					}
+				}
 			}
 
 			//KeyFrame<_PropertyType>::Apply(m_KeyFrames.at(m_CurrentFrame), m_DeltaTime, entity);
@@ -117,42 +138,35 @@ namespace Kaidel {
 		}
 	private:
 		float GetParemeter() {
-			return (m_DeltaTime) / (m_KeyFrames[m_CurrentFrame].EndTime - m_KeyFrames[m_CurrentFrame].StartTime);
+			return (m_DeltaTime) / (m_KeyFrames[m_CurrentFrame].AnimationData.EndTime - m_KeyFrames[m_CurrentFrame].AnimationData.StartTime);
 		}
-		auto& GetCurrentKeyFrame() { return m_KeyFrames.at(m_CurrentFrame); }
-		std::vector<KeyFrame<_PropertyType>> m_KeyFrames;
+		KeyFrame& GetCurrentKeyFrame() { 
+			return m_KeyFrames.at(m_CurrentFrame); 
+		}
+		template<typename T>
+		T& GetCurrentKeyFrame() {
+			return m_KeyFrames.at(m_CurrentFrame).AnimationData.Get<T>();
+		}
+		std::vector<KeyFrame> m_KeyFrames;
 		float m_Duration = 0;
-		float m_DeltaTime;
-		
+		float m_DeltaTime = 0;
+		float m_CurrentTime = 0;
+		uint64_t m_CurrentFrame = 0;
+		AnimationPropertyState m_State = AnimationPropertyState::Stopped;
+		AnimatedPropertyType m_Type;
 	};
 
-	template<AnimatedPropertyType _PropertyType>
-	inline void AnimatedPropertyBase::AddKeyFrame(const KeyFrame<_PropertyType> keyFrame)
-	{
-		reinterpret_cast<AnimatedProperty<_PropertyType>*>(this)->AddKeyFrame(keyFrame);
-	}
-	class Animation {
+	class Animation : public _Asset {
 	public:
-		Ref<AnimatedPropertyBase> AddProperty(AnimatedPropertyType propertyType) { 
-			auto& animatedProperty = m_AnimatedProperties[(uint64_t)propertyType];
-			if (!animatedProperty)
-			{
-
-				switch (propertyType)
-				{
-				case Kaidel::AnimatedPropertyType::Translate: animatedProperty = CreateRef<AnimatedProperty<AnimatedPropertyType::Translate>>(); break;
-				default:
-					KD_CORE_ASSERT(false);
-				}
-
-			}
+		AnimatedProperty& AddProperty(AnimatedPropertyType propertyType) { 
+			auto& animatedProperty =  m_AnimatedProperties[(uint64_t)propertyType];
+			animatedProperty.SetPropertyType(propertyType);
 			return animatedProperty;
-				
 		}
 		AnimationState Update(float ts) {
 			AnimationState state = AnimationState::Finished;
 			for (auto& [propertyType, animatedProperty] : m_AnimatedProperties) {
-					state = (AnimationState) animatedProperty->Update(ts);
+					state = (AnimationState) animatedProperty.Update(ts);
 			}
 			m_CurrentTime += ts;
 			m_AnimationState = state;
@@ -160,27 +174,30 @@ namespace Kaidel {
 		}
 		void Apply(Entity& entity) {
 			for (auto& [propertyType, animatedProperty] : m_AnimatedProperties) {
-				animatedProperty->Apply(entity);
+				animatedProperty.Apply(entity);
 			}
 		}
 		void Play() {
 			m_AnimationState = AnimationState::Playing;
 			for (auto& [propertyType, animatedProperty] : m_AnimatedProperties) {
-				animatedProperty->Play();
+				animatedProperty.Play();
 			}
 			m_CurrentTime = 0.0f;
 		}
 		float GetTime() { return m_CurrentTime; }
 		AnimationState GetState() { return m_AnimationState; }
-		
+		inline virtual std::string GetAssetName()override {
+			return m_AssetName;
+		}
 	private:
 		AnimationState m_AnimationState;
-		std::unordered_map<uint64_t, Ref<AnimatedPropertyBase>> m_AnimatedProperties;
+		std::unordered_map<uint64_t,AnimatedProperty> m_AnimatedProperties;
 		float m_CurrentTime;
 		friend class Scene;
+		std::string m_AssetName;
 	};
 
-	class AnimationPlayer {
+	class AnimationPlayer : public _Asset {
 	public:
 		void Play(Ref<Animation> animation) {
 			m_AnimationsPlaying.push_back(animation);
@@ -194,12 +211,13 @@ namespace Kaidel {
 			if (state == AnimationState::Finished)
 				m_AnimationsPlaying.erase(it);
 		}
+		inline virtual std::string GetAssetName() {
+			return m_AssetName;
+		}
 	private:
 		std::list<Ref<Animation>> m_AnimationsPlaying;
-
+		std::string m_AssetName;
 	};
 
-	void ApplyTranslation(glm::vec3* current,glm::vec3* target, float t, Entity& entity);
-	void AddDefaultTranslation(const glm::vec3& default, UUID id);
-	void SetDefaultTranslation(Entity& entity);
+	
 }

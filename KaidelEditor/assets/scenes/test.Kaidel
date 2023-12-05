@@ -1,37 +1,16 @@
 Scene: Untitled
 Entities:
-  - Entity: 9748127147243312318
+  - Entity: 17797037310580891417
     TagComponent:
       Tag: Empty Entity
     TransformComponent:
-      Translation: [0, -0.099999994, 8.5]
-      Rotation: [0.532325387, 0.932005882, 0.926769793]
-      Scale: [1, 1, 1]
-    SpriteRendererComponent:
-      Color: [1, 1, 1, 1]
-      TilingFactor: 1
-    ScriptComponent:
-      Scripts:
-        - Name: Sandbox.Player2
-          ScriptFields:
-            - Name: Speed
-              Type: Float
-              Data: 12
-  - Entity: 12568905303953774230
-    TagComponent:
-      Tag: Empty Entity
-    TransformComponent:
-      Translation: [0, 0, 2.29999995]
+      Translation: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
-    CameraComponent:
-      Camera:
-        ProjectionType: 0
-        PerspectiveFOV: 0.785398185
-        PerspectiveNear: 0.00999999978
-        PerspectiveFar: 1000
-        OrthographicSize: 10
-        OrthographicNear: -1
-        OrthographicFar: 1
-      Primary: true
-      FixedAspectRatio: false
+    LineRendererComponent:
+      Tesselation: 10
+      Color: [0.713725507, 1, 0, 0]
+      Points:
+        - [0, 0, 0]
+        - [0.5, 0.5, 0]
+        - [1, 1, 0]

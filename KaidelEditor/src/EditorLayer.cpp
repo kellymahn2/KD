@@ -51,21 +51,26 @@ namespace Kaidel {
 		m_EditorCamera = EditorCamera(30.0f, 1.778f, 0.1f, 1000.0f);
 		auto& commandLineArgs = Application::Get().GetCommandLineArgs();
 		if (commandLineArgs.Count > 1) {
-			auto sceneFilePath = commandLineArgs[1];
-			OpenScene(sceneFilePath);
+			auto projectFilePath = commandLineArgs[1];
+			OpenProject(projectFilePath);
+			//OpenScene(sceneFilePath);
+		}
+		else {
+			//TODO: Actually create a new project
+			NewProject();
 		}
 
 		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 		m_SceneHierarchyPanel.RegisterFieldRenderers();
 		m_ConsolePanel.SetContext(::Log::GetClientLogger());
-		Entity e = m_ActiveScene->CreateEntity();
+		/*Entity e = m_ActiveScene->CreateEntity();*/
 
 		/*a = CreateRef<TransformAnimationFrame>(glm::vec3{ 1,1,0 }, 2.0f);
 		ac = CreateRef<AnimationController>();*/
-		a = CreateRef<Animation>();
-		ap = CreateRef<AnimationPlayer>();
+		/*a = CreateRef<Animation>();
+		ap = CreateRef<AnimationPlayer>();*/
 
-		auto property = a->AddProperty(AnimatedPropertyType::Translate);
+		/*auto property = a->AddProperty(AnimatedPropertyType::Translate);
 		KeyFrame<AnimatedPropertyType::Translate> kf1{};
 		kf1.StartTime = 0.0f;
 		kf1.EndTime = 5.0f;
@@ -76,7 +81,7 @@ namespace Kaidel {
 		kf2.TargetTranslation = { 2,1,0 };
 		property->AddKeyFrame<AnimatedPropertyType::Translate>(kf1);
 		property->AddKeyFrame<AnimatedPropertyType::Translate>(kf2);
-		auto& animationComponent = e.AddComponent<AnimationComponent>(a,ap);
+		auto& animationComponent = e.AddComponent<AnimationComponent>(a,ap);*/
 	}
 
 	void EditorLayer::OnDetach()
@@ -132,7 +137,11 @@ namespace Kaidel {
 		float d[4] = { -1,-1,-1,-1 };
 		m_Framebuffer->ClearAttachment(1, d);
 
-
+		{
+			Renderer3D::BeginScene(m_EditorCamera);
+			Renderer3D::DrawCube(glm::mat4(1.0f), { 1,0,0,1 }, -1);
+			Renderer3D::EndScene();
+		}
 		/*Renderer2D::BeginScene(m_EditorCamera);
 		Renderer2D::DrawQuad(glm::translate(glm::mat4(1.0f), glm::vec3{ 0,0,0 }), {1,0,0,1}, 4, -1);
 		Renderer2D::DrawQuad(glm::translate(glm::mat4(1.0f), glm::vec3{ .5f,.5f,-.5f }), { 0,1,0,1 }, 0, -1);
@@ -577,7 +586,7 @@ namespace Kaidel {
 		ImGui::Text("Frame Rate: %.3f", ImGui::GetIO().Framerate);
 		ImGui::Text("Selected Entity: %d", m_SceneHierarchyPanel.GetSelectedEntity().operator entt::entity());
 		ImGui::Text("%f,%f", ImGui::GetMousePos().x - m_ViewportBounds[0].x, ImGui::GetMousePos().y - m_ViewportBounds[0].y);
-		ImGui::Text("%f", a->GetTime());
+		//ImGui::Text("%f", a->GetTime());
 		auto t = Renderer2D::GetWhite();
 		ImGui::Image((void*)t->GetRendererID(),ImVec2{(float)100,(float)100});
 		t = m_Icons.IconStop;
@@ -857,6 +866,23 @@ namespace Kaidel {
 			SceneSerializer serializer(m_ActiveScene);
 			serializer.Serialize(*filepath);
 		}
+	}
+
+	void EditorLayer::NewProject()
+	{
+		Project::New();
+	}
+
+	void EditorLayer::OpenProject(const std::filesystem::path& path)
+	{
+		if (Project::Load(path)) {
+			auto startScenePath = Project::GetAssetPath(Project::GetActive()->GetConfig().StartScene);
+			OpenScene(startScenePath);
+		}
+	}
+
+	void EditorLayer::SaveProject()
+	{
 	}
 
 }

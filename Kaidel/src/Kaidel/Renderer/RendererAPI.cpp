@@ -12,7 +12,7 @@
 
 namespace Kaidel {
 
-	RendererAPI::API RendererAPI::s_API = RendererAPI::API::DirectX;
+	RendererAPI::API RendererAPI::s_API = RendererAPI::API::OpenGL;
 	glm::mat4 _GetTransform(const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& scl) {
 		glm::mat4 rotation = glm::toMat4(glm::quat(rot));
 		

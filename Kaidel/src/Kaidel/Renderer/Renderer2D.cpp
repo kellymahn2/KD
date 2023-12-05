@@ -10,72 +10,9 @@
 #include "Kaidel/Core/Timer.h"
 
 #include "Kaidel\Core\ThreadExecutor.h"
+#include "Kaidel/Core/BoundedVector.h"
 namespace Kaidel {
-	template<typename T, typename Allocator = std::allocator<T>>
-	class RendererVector {
-	public:
-		RendererVector(int maxElementCount, std::function<void(std::vector<T>&&)>&& func)
-			: m_MaxElementCount(maxElementCount), m_Function(func) {}
-
-		void addElement(const T& element) {
-			if (m_Data.size() + 1 > m_MaxElementCount) {
-				processOverflow();
-				m_Data.clear();
-			}
-			m_Data.push_back(element);
-		}
-		void PlaceAt(const T& val, uint32_t index) {
-
-			index = index % m_MaxElementCount;
-			index < m_Data.capacity() && ((m_Data.data() + index)->Set) && processOverflow();
-			m_Data.reserve(index + 1);
-			memcpy(m_Data.data() + index, &val, sizeof(T));
-			(m_Data.data() + index)->Set = true;
-			m_Set = true;
-			if (m_LastElement < index)
-				m_LastElement = index;
-		}
-		const T& operator[](uint32_t index)const { return m_Data[index]; }
-		uint32_t Size() const { return m_Data.size() }
-		uint32_t Capacity()const { return m_Data.capacity(); }
-		void reset() {
-			if (!m_Set)
-				return;
-			memset(m_Data.data(), 0, sizeof(_Internal) * m_Data.capacity());
-			m_LastElement = 0;
-			m_Set = false;
-		}
-		std::vector<T> GetCompactedData() {
-			if (!m_Set)
-				return {};
-			std::vector<T> ret;
-			ret.reserve(m_LastElement + 1);
-			for (uint32_t i = 0; i <= m_LastElement; ++i) {
-				(m_Data.data() + i)->Set && (push((m_Data.data() + i)->Data, ret));
-			}
-			return ret;
-		}
-	private:
-		bool push(T& obj, std::vector<T>& vec) {
-			vec.push_back(obj);
-			return true;
-		}
-		struct _Internal {
-			T Data = T{};
-			bool Set = false;
-		};
-		bool processOverflow()
-		{
-			m_Function(GetCompactedData());
-			reset();
-			return true;
-		}
-		uint64_t m_MaxElementCount;
-		std::function<void(std::vector<T>&&)> m_Function;
-		std::vector<_Internal> m_Data;
-		int64_t m_LastElement = 0;
-		bool m_Set = false;
-	};
+	
 	struct QuadVertex
 	{
 		glm::vec3 Position;
@@ -114,8 +51,8 @@ namespace Kaidel {
 		Ref<Shader> QuadShader;
 
 		uint32_t QuadIndexCount = 0;
-		RendererVector < QuadVertex> QuadVertexBufferArray = { MaxVertices ,[](std::vector<QuadVertex>&& data) {
-			Renderer2D::FlushQuads(std::move(data));
+		BoundedVector < QuadVertex> QuadVertexBufferArray = { 10,MaxVertices ,[](auto start,uint64_t size) {
+			Renderer2D::FlushQuads(start,size);
 			Renderer2D::StartQuadBatch();
 			} };
 		std::mutex QuadMutex;
@@ -128,8 +65,8 @@ namespace Kaidel {
 		Ref<Shader> CircleShader;
 
 		uint32_t CircleIndexCount = 0;
-		RendererVector<CircleVertex> CircleVertexBufferArray = { MaxVertices,[](std::vector<CircleVertex>&& data) {
-			Renderer2D::FlushCircles(std::move(data));
+		BoundedVector<CircleVertex> CircleVertexBufferArray = { 10,MaxVertices,[](auto start,uint64_t size) {
+			Renderer2D::FlushCircles(start,size);
 			Renderer2D::StartCircleBatch();
 			} };
 		std::mutex CircleMutex;
@@ -142,8 +79,8 @@ namespace Kaidel {
 		Ref<Shader> LineShader;
 		std::mutex LineMutex;
 		uint32_t LineVertexCount = 0;
-		RendererVector<LineVertex> LineVertexBufferArray = { MaxVertices,[](std::vector<LineVertex>&& data) {
-			Renderer2D::FlushLines(std::move(data));
+		BoundedVector<LineVertex> LineVertexBufferArray = { 10,MaxVertices,[](auto start,uint64_t size) {
+			Renderer2D::FlushLines(start,size);
 			Renderer2D::StartLineBatch();
 			} };
 
@@ -347,8 +284,7 @@ namespace Kaidel {
 	{
 		KD_PROFILE_FUNCTION();
 
-		glm::mat4 f{ 1.0f };
-		f[2][2] = -1.0f;
+		
 		s_Data.CameraBuffer.ViewProjection = camera.GetProjection()*camera.GetViewMatrix();
 		s_Data.CameraUniformBuffer->SetData(&s_Data.CameraBuffer, sizeof(Renderer2DData::CameraData));
 
@@ -378,7 +314,7 @@ namespace Kaidel {
 
 	void Renderer2D::StartQuadBatch() {
 		s_Data.QuadIndexCount = 0;
-		s_Data.QuadVertexBufferArray.reset();
+		s_Data.QuadVertexBufferArray.Reset();
 
 		s_Data.TextureSlotIndex = 1;
 	}
@@ -386,14 +322,14 @@ namespace Kaidel {
 	void Renderer2D::StartCircleBatch()
 	{
 		s_Data.CircleIndexCount = 0;
-		s_Data.CircleVertexBufferArray.reset();
+		s_Data.CircleVertexBufferArray.Reset();
 		s_Data.TextureSlotIndex = 1;
 	}
 
 	void Renderer2D::StartLineBatch()
 	{
 		s_Data.LineVertexCount = 0;
-		s_Data.LineVertexBufferArray.reset();
+		s_Data.LineVertexBufferArray.Reset();
 		s_Data.TextureSlotIndex = 1;
 	}
 
@@ -409,16 +345,16 @@ namespace Kaidel {
 		std::scoped_lock<std::mutex> quadLock(s_Data.QuadMutex);
 		std::scoped_lock<std::mutex> circleLock(s_Data.CircleMutex);
 		std::scoped_lock<std::mutex> lineLock(s_Data.LineMutex);
-		FlushQuads(s_Data.QuadVertexBufferArray.GetCompactedData());
-		FlushCircles(s_Data.CircleVertexBufferArray.GetCompactedData());
-		FlushLines(s_Data.LineVertexBufferArray.GetCompactedData());
+		FlushQuads(s_Data.QuadVertexBufferArray.Get(),s_Data.QuadVertexBufferArray.Size());
+		FlushCircles(s_Data.CircleVertexBufferArray.Get(), s_Data.CircleVertexBufferArray.Size());
+		FlushLines(s_Data.LineVertexBufferArray.Get(), s_Data.LineVertexBufferArray.Size());
 	}
 
-	void Renderer2D::FlushQuads(const std::vector<QuadVertex>& data)
+	void Renderer2D::FlushQuads(QuadVertex* start, uint64_t size)
 	{
 		if (s_Data.QuadIndexCount) {
-			s_Data.QuadVertexBuffer->SetData(data.begin()._Ptr,
-				(data.end() - data.begin()) * sizeof(QuadVertex));
+			s_Data.QuadVertexBuffer->SetData(start,
+				(size) * sizeof(QuadVertex));
 			s_Data.QuadVertexBuffer->Bind();
 			//s_Data.QuadVertexBuffer->SetData(s_Data.QuadVertexBufferBase, dataSize);
 			s_Data.QuadVertexArray->GetIndexBuffer()->Bind();
@@ -439,12 +375,12 @@ namespace Kaidel {
 		}
 	}
 
-	void Renderer2D::FlushCircles(const std::vector<CircleVertex>& data)
+	void Renderer2D::FlushCircles(CircleVertex* start, uint64_t size)
 	{
 
 		if (s_Data.CircleIndexCount) {
 
-			s_Data.CircleVertexBuffer->SetData(data.begin()._Ptr, (data.end() - data.begin()) * sizeof(CircleVertex));
+			s_Data.CircleVertexBuffer->SetData(start, (size) * sizeof(CircleVertex));
 			s_Data.CircleVertexBuffer->Bind();
 			//s_Data.QuadVertexBuffer->SetData(s_Data.QuadVertexBufferBase, dataSize);
 			s_Data.CircleVertexArray->GetIndexBuffer()->Bind();
@@ -461,10 +397,10 @@ namespace Kaidel {
 		}
 	}
 
-	void Renderer2D::FlushLines(const std::vector<LineVertex>& data)
+	void Renderer2D::FlushLines(LineVertex* start,uint64_t size)
 	{
 		if (s_Data.LineVertexCount) {
-			s_Data.LineVertexBuffer->SetData(data.begin()._Ptr,(data.end()-data.begin())*sizeof(LineVertex));
+			s_Data.LineVertexBuffer->SetData(start,(size)*sizeof(LineVertex));
 			s_Data.LineVertexBuffer->Bind();
 			s_Data.CameraUniformBuffer->Bind();
 			s_Data.LineVertexArray->Bind();
@@ -578,10 +514,11 @@ namespace Kaidel {
 		QuadVertex fourth{};
 		SetQuadVertexValues(fourth, transform, color, s_Data.QuadVertexPositions[3], textureCoords[3], entityID);
 		std::scoped_lock<std::mutex> lock(s_Data.QuadMutex);
-		s_Data.QuadVertexBufferArray.PlaceAt(first, QuadIndex);
-		s_Data.QuadVertexBufferArray.PlaceAt(second, QuadIndex + 1);
-		s_Data.QuadVertexBufferArray.PlaceAt(third, QuadIndex + 2);
-		s_Data.QuadVertexBufferArray.PlaceAt(fourth, QuadIndex + 3);
+		auto bvi =  s_Data.QuadVertexBufferArray.Reserve(4);
+		bvi[0] = first;
+		bvi[1] = second;
+		bvi[2] = third;
+		bvi[3] = fourth;
 		s_Data.QuadIndexCount += 6;
 		s_Data.Stats.QuadCount += 1;
 	}
@@ -629,10 +566,11 @@ namespace Kaidel {
 		CircleVertex fourth{};
 		SetCircleVertexValues(fourth, transform, color, s_Data.QuadVertexPositions[3],Thickness,fade, entityID);
 		std::lock_guard<std::mutex> lock(s_Data.CircleMutex);
-		s_Data.CircleVertexBufferArray.PlaceAt(first, insertIndex);
-		s_Data.CircleVertexBufferArray.PlaceAt(second,insertIndex + 1);
-		s_Data.CircleVertexBufferArray.PlaceAt(third, insertIndex + 2);
-		s_Data.CircleVertexBufferArray.PlaceAt(fourth,insertIndex + 3);
+		auto bvi = s_Data.CircleVertexBufferArray.Reserve(4);
+		bvi[0] = first;
+		bvi[1] = second;
+		bvi[2] = third;
+		bvi[3] = fourth;
 		s_Data.CircleIndexCount += 6;
 		s_Data.Stats.CircleCount+= 1;
 	}
@@ -669,8 +607,9 @@ namespace Kaidel {
 		second.Color = color;
 		second.EntityID = entityID;
 		std::scoped_lock<std::mutex> lock(s_Data.LineMutex);
-		s_Data.LineVertexBufferArray.PlaceAt(first, insertIndex);
-		s_Data.LineVertexBufferArray.PlaceAt(second, insertIndex+1);
+		auto bvi = s_Data.LineVertexBufferArray.Reserve(4);
+		bvi[0] = first;
+		bvi[1] = second;
 		s_Data.LineVertexCount += 2;
 	}
 

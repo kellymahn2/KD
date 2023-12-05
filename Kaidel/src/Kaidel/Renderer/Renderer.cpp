@@ -1,6 +1,7 @@
 #include "KDpch.h"
 #include "Kaidel/Renderer/Renderer.h"
 #include "Kaidel/Renderer/Renderer2D.h"
+#include "Kaidel/Renderer/Renderer3D.h"
 
 namespace Kaidel {
 
@@ -12,10 +13,12 @@ namespace Kaidel {
 
 		RenderCommand::Init();
 		Renderer2D::Init();
+		Renderer3D::Init();
 	}
 
 	void Renderer::Shutdown()
 	{
+		Renderer3D::Shutdown();
 		Renderer2D::Shutdown();
 	}
 

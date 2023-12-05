@@ -25,9 +25,9 @@ namespace Kaidel {
 		static void BeginScene(const OrthographicCamera& camera); // TODO: Remove
 		static void EndScene();
 		static void Flush();
-		static void FlushQuads(const std::vector<QuadVertex>&);
-		static void FlushCircles(const std::vector<CircleVertex>&);
-		static void FlushLines(const std::vector<LineVertex>&);
+		static void FlushQuads(QuadVertex* start,uint64_t size);
+		static void FlushCircles(CircleVertex* start, uint64_t size);
+		static void FlushLines(LineVertex* start, uint64_t size);
 		// Primitives
 
 

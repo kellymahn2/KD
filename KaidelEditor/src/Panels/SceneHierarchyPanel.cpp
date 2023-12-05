@@ -801,8 +801,10 @@ namespace Kaidel {
 			ImGui::ColorEdit4("Color", &component.Color.x);
 			int32_t cpy = component.Tesselation;
 			if (ImGui::InputInt("Tesselation", (int*)&cpy)) {
-				if(cpy>=0)
+				if (cpy >= 0) {
+					component.Tesselation = cpy;
 					component.RecalculateFinalPoints();
+				}
 			}
 			uint32_t size = component.Points.size();
 			uint32_t i = 0;

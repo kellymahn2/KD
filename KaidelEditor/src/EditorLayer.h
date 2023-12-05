@@ -30,6 +30,12 @@ namespace Kaidel {
 		void SaveScene();
 		void SaveSceneAs();
 
+
+		void NewProject();
+		void OpenProject(const std::filesystem::path& path);
+		void SaveProject();
+
+
 		void OnScenePlay();
 		void OnSceneStop();
 		void OnSceneSimulateStart();
