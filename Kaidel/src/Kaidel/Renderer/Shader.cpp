@@ -4,9 +4,12 @@
 #include "Kaidel/Renderer/Renderer.h"
 #include "Platform/OpenGL/OpenGLShader.h"
 #include "Platform/D3D/D3DShader.h"
+#include "Platform/OpenGL/OpenGLComputeShader.h"
+#include "Platform/D3D/D3DComputeShader.h"
 
 namespace Kaidel {
 
+	uint64_t UAVInput::s_UAVCount = 0;
 	Ref<Shader> Shader::Create(const std::string& filepath)
 	{
 		switch (Renderer::GetAPI())
@@ -33,6 +36,44 @@ namespace Kaidel {
 		return nullptr;
 	}
 
+
+	Ref<UAVInput> UAVInput::Create(uint32_t size, void* data) {
+		switch (Renderer::GetAPI())
+		{
+		case RendererAPI::API::OpenGL:  return CreateRef<OpenGLComputeShaderUAVInput>(size,data);
+		case RendererAPI::API::DirectX: return nullptr;
+		}
+		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
+		return nullptr;
+	}
+	Ref<TypedBufferInput> TypedBufferInput::Create(TypedBufferInputDataType type, uint32_t width, uint32_t height, void* data) {
+		switch (Renderer::GetAPI())
+		{
+		case RendererAPI::API::OpenGL:  return CreateRef<OpenGLTypedBufferInput>(type,width,height,data);
+		case RendererAPI::API::DirectX: return nullptr;
+		}
+		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
+		return nullptr;
+	}
+
+
+
+
+	Ref<ComputeShader> ComputeShader::Create(const std::string& filepath) {
+		switch (Renderer::GetAPI())
+		{
+
+		case RendererAPI::API::None:KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
+		case RendererAPI::API::OpenGL:return CreateRef<OpenGLComputeShader>(filepath);
+		//case RendererAPI::API::DirectX:return CreateRef<D3DComputeShader>(filepath);
+
+		}
+		KD_CORE_ASSERT(false, "Unkown RendererAPI!");
+
+		return nullptr;
+	}
+
+	
 	void ShaderLibrary::Add(const std::string& name, const Ref<Shader>& shader)
 	{
 		KD_CORE_ASSERT(!Exists(name), "Shader already exists!");

@@ -61,7 +61,6 @@ namespace Kaidel {
 		Ref<VertexArray> va;
 		Ref<Shader> s;
 		Ref<IndexBuffer> ib;
-		Ref<UniformBuffer> ub;
 
 		Ref<Animation> a;
 		Ref<AnimationPlayer> ap;
@@ -107,6 +106,11 @@ namespace Kaidel {
 			Edit = 0, Play = 1 , Simulate = 2
 		};
 		SceneState m_SceneState=SceneState::Edit;
+
+		Ref<ComputeShader> cs;
+		Ref<TypedBufferInput> tbi;
+		Ref<UniformBuffer> ub;
+		float totalTime = 0;
 	};
 
 }

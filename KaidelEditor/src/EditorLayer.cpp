@@ -63,6 +63,13 @@ namespace Kaidel {
 		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
 		m_SceneHierarchyPanel.RegisterFieldRenderers();
 		m_ConsolePanel.SetContext(::Log::GetClientLogger());
+
+		cs = ComputeShader::Create("assets/shaders/TestCompute2.glsl");
+
+		tbi = TypedBufferInput::Create(TypedBufferInputDataType::RGBA8, 799, 449);
+		ub = UniformBuffer::Create(4, 0);
+
+		
 		/*Entity e = m_ActiveScene->CreateEntity();*/
 
 		/*a = CreateRef<TransformAnimationFrame>(glm::vec3{ 1,1,0 }, 2.0f);
@@ -121,10 +128,22 @@ namespace Kaidel {
 			m_Framebuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 			m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);
 			m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+			tbi->SetBufferData(nullptr,m_ViewportSize.x,m_ViewportSize.y);
 		}
 		// Update
 		if(m_SceneState==SceneState::Edit)
 			m_EditorCamera.OnUpdate(ts);
+		
+
+		{
+			ub->SetData(&totalTime, 4, 0);
+			ub->Bind();
+			cs->SetTypedBufferInput(tbi, TypedBufferAccessMode::ReadWrite, 0);
+			cs->Bind();
+			cs->Execute(m_ViewportSize.x/8,m_ViewportSize.y/8, 1);
+			totalTime += ts;
+		}
+
 
 		// Render
 		Renderer2D::ResetStats();
@@ -585,11 +604,9 @@ namespace Kaidel {
 		ImGui::Text("Indices: %d", stats.GetTotalIndexCount());
 		ImGui::Text("Frame Rate: %.3f", ImGui::GetIO().Framerate);
 		ImGui::Text("Selected Entity: %d", m_SceneHierarchyPanel.GetSelectedEntity().operator entt::entity());
-		ImGui::Text("%f,%f", ImGui::GetMousePos().x - m_ViewportBounds[0].x, ImGui::GetMousePos().y - m_ViewportBounds[0].y);
+		ImGui::Text("%f,%f", m_ViewportSize.x, m_ViewportSize.y);
 		//ImGui::Text("%f", a->GetTime());
-		auto t = Renderer2D::GetWhite();
-		ImGui::Image((void*)t->GetRendererID(),ImVec2{(float)100,(float)100});
-		t = m_Icons.IconStop;
+		auto t = m_Icons.IconStop;
 		ImGui::Image((void*)t->GetRendererID(), ImVec2{ (float)t->GetWidth(),(float)t->GetHeight() });
 		ImGui::End();
 
@@ -616,7 +633,7 @@ namespace Kaidel {
 
 		auto textureID = m_Framebuffer->GetColorAttachmentRendererID();
 		glm::vec4 uvs = _GetUVs();
-		ImGui::Image(reinterpret_cast<void*>(textureID), ImVec2{ m_ViewportSize.x, m_ViewportSize.y },{uvs.x,uvs.y},{uvs.z,uvs.w});
+		ImGui::Image(reinterpret_cast<void*>(tbi->GetTextureID()), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, { uvs.x,uvs.y }, { uvs.z,uvs.w });
 		if (ImGui::BeginDragDropTarget()) {
 			if (auto payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
 				const wchar_t* path = (const wchar_t*)payload->Data;
