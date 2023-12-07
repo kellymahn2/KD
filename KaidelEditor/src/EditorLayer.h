@@ -44,6 +44,9 @@ namespace Kaidel {
 		void UI_Toolbar();
 		void MoveChildren(Entity curr, const glm::vec3& deltaTranslation, const glm::vec3& deltaRotation,Entity parent = {});
 		void DrawGizmos();
+		void DrawSelectedEntityOutline(Entity selectedEntity);
+
+
 		struct GizmoCamera {
 			glm::mat4 View;
 			const glm::mat4& Projection;
@@ -110,6 +113,7 @@ namespace Kaidel {
 		Ref<ComputeShader> cs;
 		Ref<TypedBufferInput> tbi;
 		Ref<UniformBuffer> ub;
+		Ref<UAVInput> ui;
 		float totalTime = 0;
 	};
 

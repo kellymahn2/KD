@@ -43,6 +43,7 @@ namespace Kaidel {
 		m_LastBoundSlot = slot;
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_RendererID);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, slot, m_RendererID);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 	}
 	void OpenGLComputeShaderUAVInput::Unbind()const{
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_RendererID);
@@ -192,18 +193,22 @@ namespace Kaidel {
 
 	void OpenGLComputeShader::SetUAVInput(Ref<UAVInput> uav, uint32_t slot) {
 		uav->Bind(slot);
-		auto bufferName = std::string("a_UAV") + std::to_string(UAVInput::s_UAVCount);
+		/*auto bufferName = std::string("a_UAV") + std::to_string(UAVInput::s_UAVCount);
 		GLuint bufferIndex = glGetProgramResourceIndex(m_RendererID, GL_SHADER_STORAGE_BLOCK, bufferName.c_str());
-		glShaderStorageBlockBinding(m_RendererID, bufferIndex, slot);
+		glShaderStorageBlockBinding(m_RendererID, bufferIndex, slot);*/
 	}
 	void OpenGLComputeShader::SetTypedBufferInput(Ref<TypedBufferInput> tbi, TypedBufferAccessMode accessMode, uint32_t slot) {
 		tbi->Bind(accessMode, slot);
 	}
 
+	void OpenGLComputeShader::Wait()const {
+		
+		glMemoryBarrier(GL_ALL_BARRIER_BITS);
+	}
+
 	void OpenGLComputeShader::Execute(uint64_t x, uint64_t y, uint64_t z) const
 	{
 		glDispatchCompute(x, y, z);
-		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 	}
 
 

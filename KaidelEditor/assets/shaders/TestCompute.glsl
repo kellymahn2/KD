@@ -1,6 +1,6 @@
 #version 460 core
 
-layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
 layout(rgba32f, binding = 0) uniform image2D imgOutput;
 
@@ -18,7 +18,7 @@ vec3 palette( float t ) {
     return a + b*cos( 6.28318*(c*t+d) );
 }
 void main() {
-    vec4 value = vec4(0.0, 0.0, 0.0, 1.0);
+     vec4 value = vec4(0.0, 0.0, 0.0, 1.0);
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
 	ivec2 imgSize=  imageSize(imgOutput);
 	vec2 uv = (vec2(texelCoord.xy)*2.0 - imgSize)/imgSize.y;
@@ -39,6 +39,5 @@ void main() {
 
         finalColor += col * d;
     }
-	vec3 col = 0.5 + 0.5*cos(Time+uv0.xyx+vec3(0,2,4));
     imageStore(imgOutput, texelCoord, vec4(finalColor,1.0));
 }

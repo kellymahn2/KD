@@ -41,7 +41,7 @@ namespace Kaidel {
 		KD_INFO("Loaded Stop Button");
 
 		FramebufferSpecification fbSpec;
-		fbSpec.Attachments = { FramebufferTextureFormat::RGBA8,{FramebufferTextureFormat::RED_INTEGER,true}, FramebufferTextureFormat::Depth };
+		fbSpec.Attachments = { FramebufferTextureFormat::RGBA8,{FramebufferTextureFormat::RED_INTEGER,true}, FramebufferTextureFormat::DepthStencil };
 		fbSpec.Width = 1280;
 		fbSpec.Height = 720;
 		fbSpec.Samples = 1;
@@ -68,8 +68,23 @@ namespace Kaidel {
 
 		tbi = TypedBufferInput::Create(TypedBufferInputDataType::RGBA8, 799, 449);
 		ub = UniformBuffer::Create(4, 0);
-
+		float x = 1.0f;
+		ui = UAVInput::Create(sizeof(x), &x);
 		
+		{
+			auto e = m_ActiveScene->CreateEntity();
+			e.AddComponent<CubeRendererComponent>();
+		}
+		{
+			auto e = m_ActiveScene->CreateEntity();
+			e.AddComponent<SpriteRendererComponent>();
+			e.GetComponent<TransformComponent>().Translation = glm::vec3{ 1.0 };
+		}
+		/*{
+			auto e = m_ActiveScene->CreateEntity();
+			auto& crc = e.AddComponent<CubeRendererComponent>();
+			crc.Color = { .8,.6,.3,1.0 };
+		}*/
 		/*Entity e = m_ActiveScene->CreateEntity();*/
 
 		/*a = CreateRef<TransformAnimationFrame>(glm::vec3{ 1,1,0 }, 2.0f);
@@ -115,6 +130,7 @@ namespace Kaidel {
 		}
 		return -1;
 	}
+	static float t = 0.0f;
 	void EditorLayer::OnUpdate(Timestep ts)
 	{
 		KD_PROFILE_FUNCTION();
@@ -128,38 +144,40 @@ namespace Kaidel {
 			m_Framebuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 			m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);
 			m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
-			tbi->SetBufferData(nullptr,m_ViewportSize.x,m_ViewportSize.y);
 		}
 		// Update
 		if(m_SceneState==SceneState::Edit)
 			m_EditorCamera.OnUpdate(ts);
 		
 
-		{
+		/*{
 			ub->SetData(&totalTime, 4, 0);
 			ub->Bind();
 			cs->SetTypedBufferInput(tbi, TypedBufferAccessMode::ReadWrite, 0);
+			cs->SetUAVInput(ui,0);
 			cs->Bind();
-			cs->Execute(m_ViewportSize.x/8,m_ViewportSize.y/8, 1);
+			cs->Execute(ceil(m_ViewportSize.x/8),ceil(m_ViewportSize.y/8), 1);
+			cs->Wait();
 			totalTime += ts;
-		}
+		}*/
 
 
 		// Render
 		Renderer2D::ResetStats();
 		m_Framebuffer->Bind();
-		float c[4] = { 0.1f, 0.1f, 0.1f, 1 };
+		float c[4] = { .1f, .1f,.1f, 1 };
 		/*RenderCommand::SetClearColor({ 0.1f, 0.1f, 0.1f, 1 });
 		RenderCommand::Clear();*/
 		// Clear our entity ID attachment to -1
+		//Add FrameBuffer method for clearing the depth attachment
 		m_Framebuffer->ClearAttachment(0, c);
 		float d[4] = { -1,-1,-1,-1 };
 		m_Framebuffer->ClearAttachment(1, d);
 
 		{
-			Renderer3D::BeginScene(m_EditorCamera);
-			Renderer3D::DrawCube(glm::mat4(1.0f), { 1,0,0,1 }, -1);
-			Renderer3D::EndScene();
+			/*Renderer2D::BeginScene(m_EditorCamera);
+			Renderer2D::DrawQuad();
+			Renderer2D::EndScene();*/
 		}
 		/*Renderer2D::BeginScene(m_EditorCamera);
 		Renderer2D::DrawQuad(glm::translate(glm::mat4(1.0f), glm::vec3{ 0,0,0 }), {1,0,0,1}, 4, -1);
@@ -212,44 +230,8 @@ namespace Kaidel {
 		
 		if (Entity selectedEntity = m_SceneHierarchyPanel.GetSelectedEntity(); selectedEntity && m_SceneState == SceneState::Edit)
 		{
-			Renderer2D::BeginScene(m_EditorCamera);
-			//Renderer2D::SetLineWidth(4.0f);
-			auto& tc = selectedEntity.GetComponent<TransformComponent>();
-			if (selectedEntity.HasComponent<SpriteRendererComponent>()) {
-		
-				auto& pos = tc.Translation;
-				auto& rot = glm::toMat4(glm::quat(tc.Rotation));
-				auto& scale = tc.Scale + .02f;
-				auto& col = selectedEntity.GetComponent<SpriteRendererComponent>().Color;
-				auto transform = glm::translate(glm::mat4(1.0f), pos) * rot * glm::scale(glm::mat4(1.0f), scale);
-				if (col == glm::vec4{ 1,0,0,1 })
-					Renderer2D::DrawRect(transform, glm::vec4{ 1 });
-				else
-					Renderer2D::DrawRect(transform, glm::vec4{ 1,0,0,1 });
-			}
-			else if (selectedEntity.HasComponent<CircleRendererComponent>()) {
-				auto& crc = selectedEntity.GetComponent<CircleRendererComponent>();
-		
-				auto scale = tc.Scale;
-				auto transform = glm::translate(glm::mat4(1.0f), tc.Translation)
-					* glm::scale(glm::mat4(1.0f), scale+0.01f);
-				auto& col = selectedEntity.GetComponent<CircleRendererComponent>().Color;
-				if (col == glm::vec4(1, 0, 0, 1))
-					Renderer2D::DrawCircle(transform, glm::vec4{ 1 }, .02f);
-				else
-					Renderer2D::DrawCircle(transform, glm::vec4{ 1,0,0,1 }, .02f);
-			}
-			Renderer2D::EndScene();
+			DrawSelectedEntityOutline(selectedEntity);
 		}
-
-
-
-
-
-
-
-
-		
 		//int pixelData = GetCurrentPixelData(m_ViewportBounds,m_Framebuffer);
 		//m_HoveredEntity = pixelData == -1 ? Entity() : Entity((entt::entity)pixelData, m_ActiveScene.get());
 		m_Framebuffer->Unbind();
@@ -291,7 +273,7 @@ namespace Kaidel {
 	}
 	
 
-
+	
 	void EditorLayer::OnImGuiRender()
 	{
 		KD_PROFILE_FUNCTION();
@@ -583,6 +565,36 @@ namespace Kaidel {
 		}
 	}
 
+	void EditorLayer::DrawSelectedEntityOutline(Entity selectedEntity) {
+		Renderer2D::BeginScene(m_EditorCamera);
+		//Renderer2D::SetLineWidth(4.0f);
+		auto& tc = selectedEntity.GetComponent<TransformComponent>();
+		if (selectedEntity.HasComponent<SpriteRendererComponent>()) {
+
+			auto& pos = tc.Translation;
+			auto& rot = glm::toMat4(glm::quat(tc.Rotation));
+			auto& scale = tc.Scale + .02f;
+			auto& col = selectedEntity.GetComponent<SpriteRendererComponent>().Color;
+			auto transform = glm::translate(glm::mat4(1.0f), pos) * rot * glm::scale(glm::mat4(1.0f), scale);
+			if (col == glm::vec4{ 1,0,0,1 })
+				Renderer2D::DrawRect(transform, glm::vec4{ 1 });
+			else
+				Renderer2D::DrawRect(transform, glm::vec4{ 1,0,0,1 });
+		}
+		else if (selectedEntity.HasComponent<CircleRendererComponent>()) {
+			auto& crc = selectedEntity.GetComponent<CircleRendererComponent>();
+
+			auto scale = tc.Scale;
+			auto transform = glm::translate(glm::mat4(1.0f), tc.Translation)
+				* glm::scale(glm::mat4(1.0f), scale + 0.01f);
+			auto& col = selectedEntity.GetComponent<CircleRendererComponent>().Color;
+			if (col == glm::vec4(1, 0, 0, 1))
+				Renderer2D::DrawCircle(transform, glm::vec4{ 1 }, .02f);
+			else
+				Renderer2D::DrawCircle(transform, glm::vec4{ 1,0,0,1 }, .02f);
+		}
+		Renderer2D::EndScene();
+	}
 
 	void EditorLayer::ShowDebugWindow()
 	{
@@ -633,7 +645,7 @@ namespace Kaidel {
 
 		auto textureID = m_Framebuffer->GetColorAttachmentRendererID();
 		glm::vec4 uvs = _GetUVs();
-		ImGui::Image(reinterpret_cast<void*>(tbi->GetTextureID()), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, { uvs.x,uvs.y }, { uvs.z,uvs.w });
+		ImGui::Image(reinterpret_cast<void*>(m_Framebuffer->GetColorAttachmentRendererID()), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, { uvs.x,uvs.y }, { uvs.z,uvs.w });
 		if (ImGui::BeginDragDropTarget()) {
 			if (auto payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
 				const wchar_t* path = (const wchar_t*)payload->Data;

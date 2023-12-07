@@ -16,10 +16,10 @@ namespace Kaidel {
 	{
 		switch (severity)
 		{
-			case GL_DEBUG_SEVERITY_HIGH:         KD_CORE_CRITICAL(message); return;
-			case GL_DEBUG_SEVERITY_MEDIUM:       KD_CORE_ERROR(message); return;
-			case GL_DEBUG_SEVERITY_LOW:          KD_CORE_WARN(message); return;
-			case GL_DEBUG_SEVERITY_NOTIFICATION: KD_CORE_TRACE(message); return;
+			case GL_DEBUG_SEVERITY_HIGH:         KD_CRITICAL(message); return;
+			case GL_DEBUG_SEVERITY_MEDIUM:       KD_ERROR(message); return;
+			case GL_DEBUG_SEVERITY_LOW:          KD_WARN(message); return;
+			case GL_DEBUG_SEVERITY_NOTIFICATION: KD_TRACE(message); return;
 		}
 		
 		KD_CORE_ASSERT(false, "Unknown severity level!");

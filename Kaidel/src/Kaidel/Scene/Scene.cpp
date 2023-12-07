@@ -4,6 +4,7 @@
 #include "Scene.h"
 #include "Components.h"
 #include "Kaidel/Renderer/Renderer2D.h"
+#include "Kaidel/Renderer/Renderer3D.h"
 #include "ScriptableEntity.h"
 #include "Entity.h"
 #include "SceneRenderer.h"
@@ -364,10 +365,11 @@ namespace Kaidel {
 		Entity cam = GetPrimaryCameraEntity();
 		if (cam)
 		{
-			Renderer2D::BeginScene(cam.GetComponent<CameraComponent>().Camera, cam.GetComponent<TransformComponent>().GetTransform());
-
+			auto camTransform = cam.GetComponent<TransformComponent>().GetTransform();
+			Renderer2D::BeginScene(cam.GetComponent<CameraComponent>().Camera, camTransform);
+			Renderer3D::BeginScene(cam.GetComponent<CameraComponent>().Camera, cam.GetComponent<TransformComponent>().GetTransform());
 			RenderScene();
-
+			Renderer3D::EndScene();
 			Renderer2D::EndScene();
 		}
 
@@ -376,7 +378,9 @@ namespace Kaidel {
 	void Scene::OnUpdateEditor(Timestep ts, EditorCamera& camera)
 	{
 		Renderer2D::BeginScene(camera);
+		Renderer3D::BeginScene(camera);
 		RenderScene();
+		Renderer3D::EndScene();
 		Renderer2D::EndScene();
 	}
 
@@ -449,5 +453,6 @@ namespace Kaidel {
 	DEF_COMPONENT_ADD(ParentComponent)
 	DEF_COMPONENT_ADD(ChildComponent)
 	DEF_COMPONENT_ADD(LineRendererComponent)
+	DEF_COMPONENT_ADD(CubeRendererComponent)
 
 }

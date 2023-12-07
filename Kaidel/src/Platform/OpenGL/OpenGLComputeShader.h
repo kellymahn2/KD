@@ -10,9 +10,9 @@ namespace Kaidel {
 		OpenGLComputeShaderUAVInput(uint32_t size, void* data = nullptr);
 		void SetBufferData(void* data, uint32_t size);
 		~OpenGLComputeShaderUAVInput() ;
-	private:
 		void Bind(uint32_t slot)const;
 		void Unbind()const;
+	private:
 		mutable uint32_t m_LastBoundSlot = 0;
 		uint32_t m_RendererID = 0;
 
@@ -46,6 +46,7 @@ namespace Kaidel {
 		virtual void SetUAVInput(Ref<UAVInput> uav, uint32_t slot = 0);
 		virtual void SetTypedBufferInput(Ref<TypedBufferInput> tbi, TypedBufferAccessMode accessMode, uint32_t slot);
 		virtual void Execute(uint64_t x, uint64_t y, uint64_t z) const override;
+		virtual void Wait()const;
 
 	private:
 		uint32_t m_RendererID = 0;

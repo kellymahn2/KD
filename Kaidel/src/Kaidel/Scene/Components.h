@@ -72,6 +72,7 @@ namespace Kaidel {
 		}
 		AnimationComponent(const AnimationComponent&) = default;
 	};
+	//2D
 
 	struct SpriteRendererComponent
 	{
@@ -127,6 +128,14 @@ namespace Kaidel {
 			}
 			FinalPoints = std::move(points);
 		}
+
+	};
+
+	//3D
+	struct CubeRendererComponent {
+		glm::vec4 Color{ 1.0f };
+		CubeRendererComponent() = default;
+		CubeRendererComponent(const CubeRendererComponent&) = default;
 
 	};
 

@@ -4,6 +4,7 @@
 #include "Scene.h"
 #include "Entity.h"
 #include "Kaidel\Renderer\Renderer2D.h"
+#include "Kaidel\Renderer\Renderer3D.h"
 #include "Kaidel\Core\JobSystem.h"
 #include "Kaidel/Core/Timer.h"
 
@@ -73,6 +74,21 @@ namespace Kaidel {
 			});
 			m_LineInsertIndex += lineView.get<LineRendererComponent>(e).FinalPoints.size()*2;
 		}
+
+		auto cubeView = context->m_Registry.view<TransformComponent, CubeRendererComponent>();
+		for (auto e : cubeView) {
+			m_JobSystem.Execute([e, this, context, &view = cubeView]() {
+				CubeRendererComponent& crc = view.get<CubeRendererComponent>(e);
+				Renderer3D::DrawCube(view.get<TransformComponent>(e).GetTransform(), crc.Color, (int)e);
+				});
+		}
+
+
+
+
+
+
+
 		m_JobSystem.Wait();
 	}
 

@@ -78,10 +78,10 @@ namespace Kaidel {
 		static Ref<UAVInput> Create(uint32_t size, void* data = nullptr);
 		virtual void SetBufferData(void* data, uint32_t size) = 0;
 		virtual ~UAVInput() = default;
-
-	protected:
 		virtual void Bind(uint32_t slot = 0)const = 0;
 		virtual void Unbind() const = 0;
+
+	protected:
 		friend class OpenGLComputeShader;
 		friend class D3DComputeShader;
 		static uint64_t s_UAVCount;
@@ -99,6 +99,7 @@ namespace Kaidel {
 		virtual void SetUAVInput(Ref<UAVInput> uav,uint32_t slot = 0) = 0;
 		virtual void SetTypedBufferInput(Ref<TypedBufferInput> tbi, TypedBufferAccessMode accessMode, uint32_t slot) = 0;
 		virtual void Execute(uint64_t x, uint64_t y, uint64_t z) const = 0;
+		virtual void Wait() const = 0;
 	private:
 
 	};

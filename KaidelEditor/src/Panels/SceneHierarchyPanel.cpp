@@ -842,7 +842,9 @@ namespace Kaidel {
 			}
 			});
 
-
+		DrawComponent<CubeRendererComponent>("Cube Renderer", entity, [entity, scene = m_Context](CubeRendererComponent& component) {
+			ImGui::ColorEdit4("Color", &component.Color.x);
+			});
 
 		//Scripts
 		DrawComponent<ScriptComponent>("Script", entity, [entity, scene = m_Context](ScriptComponent& component) mutable
