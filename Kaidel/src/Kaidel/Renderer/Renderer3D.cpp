@@ -22,11 +22,7 @@ namespace Kaidel {
 		int EntityID;
 	};
 
-	struct Light {
-		glm::vec3 Color;
-		glm::vec3 Position;
-		float AmbientStrength = 0.0f;
-	};
+	
 	struct Renderer3DData {
 		static constexpr uint32_t MaxCubes = 1000;
 		static constexpr uint32_t MaxVertices= MaxCubes*24;
@@ -67,8 +63,6 @@ namespace Kaidel {
 		Ref<UniformBuffer> CameraUniformBuffer;
 
 
-		//Lighting
-		Ref<UAVInput> LightUAVBuffer;
 
 
 	};
@@ -225,10 +219,6 @@ namespace Kaidel {
 		//Lighting
 
 
-		struct lightBuffer{
-			Light light = { glm::vec3{ 1.0 },glm::vec3{ 1.f },.1f };
-		} LightBuffer;
-		s_Data.LightUAVBuffer = UAVInput::Create(sizeof(lightBuffer), &LightBuffer);
 	}
 
 	void Renderer3D::Shutdown() {
@@ -297,7 +287,6 @@ namespace Kaidel {
 			s_Data.CubeVertexArray->GetIndexBuffer()->Bind();
 			s_Data.CameraUniformBuffer->Bind();
 			s_Data.CubeVertexArray->Bind();
-			s_Data.LightUAVBuffer->Bind();
 			s_Data.CubeShader->Bind();
 			//Bind textures
 			for (uint32_t i = 0; i < s_Data.TextureSlotIndex; ++i) {
@@ -305,7 +294,6 @@ namespace Kaidel {
 			}
 			RenderCommand::DrawIndexed(s_Data.CubeVertexArray, s_Data.CubeIndexCount);
 			s_Data.CubeShader->Unbind();
-			s_Data.LightUAVBuffer->Unbind();
 			s_Data.CubeVertexArray->Unbind();
 			s_Data.CameraUniformBuffer->UnBind();
 			s_Data.CubeVertexArray->GetIndexBuffer()->Unbind();

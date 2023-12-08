@@ -71,6 +71,7 @@ namespace Kaidel {
 		friend class SceneHierarchyPanel;
 		friend class SceneRenderer;
 		static SceneRenderer m_SceneRenderer;
+		friend class EditorLayer;
 		std::unordered_map<UUID, entt::entity> m_IDMap;
 	};
 

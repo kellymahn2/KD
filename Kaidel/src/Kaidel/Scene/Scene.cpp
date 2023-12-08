@@ -75,12 +75,13 @@ namespace Kaidel {
 			UUID uuid = srcReg.get<IDComponent>(e).ID;
 			const auto& name = srcReg.get<TagComponent>(e).Tag;
 			Entity entity = newScene->CreateEntity(uuid, name);
-			CopyComponents<	TagComponent, TransformComponent,
+			CopyComponents<TagComponent, TransformComponent,
 				SpriteRendererComponent, 
 				CircleRendererComponent ,CircleCollider2DComponent,
 				CameraComponent,
 				BoxCollider2DComponent, Rigidbody2DComponent,AnimationComponent,
-				NativeScriptComponent, ScriptComponent,ParentComponent,ChildComponent , LineRendererComponent>
+				NativeScriptComponent, ScriptComponent,ParentComponent,ChildComponent 
+				,LineRendererComponent,CubeRendererComponent,LightComponent>
 				(entity, srcReg, e); });
 		newScene->m_IDMap = rhs->m_IDMap;
 		return newScene;
@@ -193,6 +194,9 @@ namespace Kaidel {
 			m_SceneRenderer = this;
 			m_SceneRenderer.Reset();
 			m_SceneRenderer.Render();
+
+			
+
 			/*auto view = m_Registry.view<TransformComponent, SpriteRendererComponent, IDComponent>();
 			KD_PROFILE_SCOPE();
 			for (auto e : view)
@@ -454,5 +458,7 @@ namespace Kaidel {
 	DEF_COMPONENT_ADD(ChildComponent)
 	DEF_COMPONENT_ADD(LineRendererComponent)
 	DEF_COMPONENT_ADD(CubeRendererComponent)
+	DEF_COMPONENT_ADD(LightComponent)
+
 
 }

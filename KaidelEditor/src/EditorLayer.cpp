@@ -71,7 +71,7 @@ namespace Kaidel {
 		float x = 1.0f;
 		ui = UAVInput::Create(sizeof(x), &x);
 		
-		{
+		/*{
 			auto e = m_ActiveScene->CreateEntity();
 			e.AddComponent<CubeRendererComponent>();
 		}
@@ -79,7 +79,7 @@ namespace Kaidel {
 			auto e = m_ActiveScene->CreateEntity();
 			e.AddComponent<SpriteRendererComponent>();
 			e.GetComponent<TransformComponent>().Translation = glm::vec3{ 1.0 };
-		}
+		}*/
 		/*{
 			auto e = m_ActiveScene->CreateEntity();
 			auto& crc = e.AddComponent<CubeRendererComponent>();
@@ -175,9 +175,13 @@ namespace Kaidel {
 		m_Framebuffer->ClearAttachment(1, d);
 
 		{
-			/*Renderer2D::BeginScene(m_EditorCamera);
-			Renderer2D::DrawQuad();
-			Renderer2D::EndScene();*/
+			auto view = m_ActiveScene->m_Registry.view<TransformComponent, LightComponent>();
+			Renderer2D::BeginScene(m_EditorCamera);
+			for (auto e : view) {
+				Renderer2D::DrawQuad(glm::translate(glm::mat4(1.0f),view.get<LightComponent>(e).Light->GetPosition()), 
+					glm::vec4(view.get<LightComponent>(e).Light->GetColor(), 1.0f), 0, -1);
+			}
+			Renderer2D::EndScene();
 		}
 		/*Renderer2D::BeginScene(m_EditorCamera);
 		Renderer2D::DrawQuad(glm::translate(glm::mat4(1.0f), glm::vec3{ 0,0,0 }), {1,0,0,1}, 4, -1);
@@ -248,7 +252,8 @@ namespace Kaidel {
 		}
 		{
 			auto view = m_ActiveScene->GetAllComponentsWith<TransformComponent, CircleCollider2DComponent>();
-			for (auto e : view) {				
+			for (auto e : view) {
+				
 				auto [tc, bc2d] = view.get<TransformComponent, CircleCollider2DComponent>(e);
 				auto scale = tc.Scale * glm::vec3(bc2d.Radius * 2.0f, bc2d.Radius * 2.0f, 1.0f);
 				auto transform = glm::translate(glm::mat4(1.0f), tc.Translation)
@@ -259,7 +264,8 @@ namespace Kaidel {
 		}
 		{
 			auto view = m_ActiveScene->GetAllComponentsWith<TransformComponent, BoxCollider2DComponent>();
-			for (auto e : view) {
+			for (auto e : view) {
+
 				auto [tc, bc2d] = view.get<TransformComponent, BoxCollider2DComponent>(e);
 				auto scale = tc.Scale * glm::vec3(bc2d.Size*2.0f, 1.0f);
 				auto transform = glm::translate(glm::mat4(1.0f), tc.Translation)
@@ -381,8 +387,10 @@ namespace Kaidel {
 				for (auto& message : ::Log::GetCoreLogger()->GetMessages()) {
 
 					ImVec4 messageColor{ 1,1,1,1 };
-					switch (message.Level)
-					{
+					switch (message.Level)
+
+					{
+
 					case MessageLevel::Info:
 					{
 						messageColor = { .24f,.71f,.78f,1.0f };
@@ -399,7 +407,8 @@ namespace Kaidel {
 					}
 					break;
 					default:
-						break;					}
+						break;
+					}
 					std::time_t time = std::chrono::system_clock::to_time_t(message.Time);
 					std::tm tm = *std::localtime(&time);
 					char buf[80] = { 0 };
@@ -411,8 +420,10 @@ namespace Kaidel {
 				for (auto& message : ::Log::GetClientLogger()->GetMessages()) {
 
 					ImVec4 messageColor{ 1,1,1,1 };
-					switch (message.Level)
-					{
+					switch (message.Level)
+
+					{
+
 					case MessageLevel::Info:
 					{
 						messageColor = { .24f,.71f,.78f,1.0f };
@@ -429,7 +440,8 @@ namespace Kaidel {
 					}
 					break;
 					default:
-						break;
+						break;
+
 					}
 					std::time_t time = std::chrono::system_clock::to_time_t(message.Time);
 					std::tm tm = *std::localtime(&time);

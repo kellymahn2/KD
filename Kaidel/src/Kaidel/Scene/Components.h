@@ -3,7 +3,7 @@
 #include "Kaidel/Renderer/Texture.h"
 #include "Kaidel/Core/UUID.h"
 #include "Kaidel/Animation/Animation.h"
-
+#include "Kaidel/Renderer/Light.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -137,6 +137,15 @@ namespace Kaidel {
 		CubeRendererComponent() = default;
 		CubeRendererComponent(const CubeRendererComponent&) = default;
 
+	};
+
+
+	struct LightComponent {
+		Ref<Light> Light;
+		LightComponent() {
+			Light = CreateRef<Kaidel::Light>();
+		}
+		LightComponent(const LightComponent&) = default;
 	};
 
 	struct CameraComponent

@@ -647,6 +647,8 @@ namespace Kaidel {
 				lrc.Points = { LineRendererComponent::Point{ {0,0,0} }, LineRendererComponent::Point{ {1,1,0} } };
 				lrc.RecalculateFinalPoints();
 				});
+			DrawAddComponentItems<LightComponent>(entity, "Light");
+			DrawAddComponentItems<CubeRendererComponent>(entity, "Cube Renderer");
 			//DrawAddComponentItems<ParentComponent>(m_SelectionContext, "Parent");
 			//DrawAddComponentItems<ChildComponent>(m_SelectionContext, "Child");
 			ImGui::EndPopup();
@@ -844,6 +846,35 @@ namespace Kaidel {
 
 		DrawComponent<CubeRendererComponent>("Cube Renderer", entity, [entity, scene = m_Context](CubeRendererComponent& component) {
 			ImGui::ColorEdit4("Color", &component.Color.x);
+			});
+
+		DrawComponent<LightComponent>("Light", entity, [entity, scene = m_Context](LightComponent& component) {
+			
+			{
+				glm::vec3 color = component.Light->GetColor();
+				if (ImGui::ColorEdit3("Color", &color.r)) {
+					component.Light->SetColor(color);
+				}
+			}
+			{
+				float ambientIntensity = component.Light->GetAmbientIntensity();
+				if (ImGui::DragFloat("Ambient Intensity", &ambientIntensity)) {
+					component.Light->SetAmbientIntensity(ambientIntensity);
+				}
+			}
+			{
+				float diffuseIntensity = component.Light->GetDiffuseIntensity();
+				if (ImGui::DragFloat("Diffuse Intensity", &diffuseIntensity)) {
+					component.Light->SetDiffuseIntensity(diffuseIntensity);
+				}
+			} 
+			{
+				float specularIntensity = component.Light->GetSpecularIntensity();
+				if (ImGui::DragFloat("Specular Intensity", &specularIntensity)) {
+					component.Light->SetSpecularIntensity(specularIntensity);
+				}
+			}
+
 			});
 
 		//Scripts
