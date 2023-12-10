@@ -64,12 +64,24 @@ namespace Kaidel {
 		m_SceneHierarchyPanel.RegisterFieldRenderers();
 		m_ConsolePanel.SetContext(::Log::GetClientLogger());
 
-		cs = ComputeShader::Create("assets/shaders/TestCompute2.glsl");
+
+		{
+			Entity e = m_ActiveScene->CreateEntity("Light");
+			auto& lc  = e.AddComponent<LightComponent>();
+			e.GetComponent<TransformComponent>().Translation = glm::vec3{ 1.0f };
+		}
+		{
+			Entity e = m_ActiveScene->CreateEntity("Cube");
+			auto& crc = e.AddComponent<CubeRendererComponent>();
+			crc.Color = glm::vec4(1.0f);
+		}
+
+		/*cs = ComputeShader::Create("assets/shaders/TestCompute2.glsl");
 
 		tbi = TypedBufferInput::Create(TypedBufferInputDataType::RGBA8, 799, 449);
-		ub = UniformBuffer::Create(4, 0);
-		float x = 1.0f;
-		ui = UAVInput::Create(sizeof(x), &x);
+		ub = UniformBuffer::Create(4, 0);*/
+		/*float x = 1.0f;
+		ui = UAVInput::Create(sizeof(x), &x);*/
 		
 		/*{
 			auto e = m_ActiveScene->CreateEntity();

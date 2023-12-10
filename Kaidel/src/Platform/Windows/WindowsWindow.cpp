@@ -158,6 +158,7 @@ namespace Kaidel {
 			MouseMovedEvent event((float)xPos, (float)yPos);
 			data.EventCallback(event);
 		});
+		SetVSync(false);
 	}
 
 	void WindowsWindow::Shutdown()

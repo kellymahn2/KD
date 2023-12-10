@@ -24,16 +24,16 @@ namespace Kaidel {
 
 
 
-	OpenGLComputeShaderUAVInput::OpenGLComputeShaderUAVInput(uint32_t size, void* data) {
-
+	OpenGLComputeShaderUAVInput::OpenGLComputeShaderUAVInput(uint32_t count,uint32_t sizeofElement, void* data) {
+		m_SizeofElement = sizeofElement;
 		glGenBuffers(1, &m_RendererID);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_RendererID);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, size, data, GL_DYNAMIC_DRAW);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, count*sizeofElement, data, GL_DYNAMIC_DRAW);
 		++UAVInput::s_UAVCount;
 	}
-	void OpenGLComputeShaderUAVInput::SetBufferData(void* data, uint32_t size){
+	void OpenGLComputeShaderUAVInput::SetBufferData(void* data, uint32_t count){
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_RendererID);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, size, data, GL_DYNAMIC_DRAW);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, count*m_SizeofElement, data, GL_DYNAMIC_DRAW);
 	}
 	OpenGLComputeShaderUAVInput::~OpenGLComputeShaderUAVInput(){
 		glDeleteBuffers(1, &m_RendererID);
@@ -53,8 +53,8 @@ namespace Kaidel {
 
 
 
-	OpenGLTypedBufferInput::OpenGLTypedBufferInput(TypedBufferInputDataType type, uint32_t width, uint32_t height, void* data)
-		:m_InputType(type)
+	OpenGLTypedBufferInput::OpenGLTypedBufferInput(TypedBufferInputDataType type, TypedBufferAccessMode accessMode, uint32_t width, uint32_t height, void* data)
+		:m_InputType(type),m_AccessMode(accessMode)
 	{
 		glGenTextures(1, &m_RendererID);
 		glBindTexture(GL_TEXTURE_2D, m_RendererID);
@@ -92,9 +92,9 @@ namespace Kaidel {
 	uint64_t OpenGLTypedBufferInput::GetTextureID()const {
 		return m_RendererID;
 	}
-	void OpenGLTypedBufferInput::Bind(TypedBufferAccessMode accessMode ,uint32_t slot)const {
+	void OpenGLTypedBufferInput::Bind(uint32_t slot)const {
 		GLint accessmode = 0;
-		switch (accessMode)
+		switch (m_AccessMode)
 		{
 		case Kaidel::Read:
 			accessmode = GL_READ_ONLY;
@@ -106,6 +106,7 @@ namespace Kaidel {
 			accessmode = GL_READ_WRITE;
 			break;
 		}
+			
 		m_LastBoundSlot = slot;
 		glBindImageTexture(slot, m_RendererID, 0, GL_FALSE, 0, accessmode, m_InternalFormat);
 	}
@@ -197,8 +198,8 @@ namespace Kaidel {
 		GLuint bufferIndex = glGetProgramResourceIndex(m_RendererID, GL_SHADER_STORAGE_BLOCK, bufferName.c_str());
 		glShaderStorageBlockBinding(m_RendererID, bufferIndex, slot);*/
 	}
-	void OpenGLComputeShader::SetTypedBufferInput(Ref<TypedBufferInput> tbi, TypedBufferAccessMode accessMode, uint32_t slot) {
-		tbi->Bind(accessMode, slot);
+	void OpenGLComputeShader::SetTypedBufferInput(Ref<TypedBufferInput> tbi, uint32_t slot) {
+		tbi->Bind(slot);
 	}
 
 	void OpenGLComputeShader::Wait()const {

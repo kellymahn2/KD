@@ -12,8 +12,8 @@ namespace Kaidel {
 		KD_PROFILE_FUNCTION();
 
 		RenderCommand::Init();
-		Renderer2D::Init();
 		Renderer3D::Init();
+		Renderer2D::Init();
 	}
 
 	void Renderer::Shutdown()

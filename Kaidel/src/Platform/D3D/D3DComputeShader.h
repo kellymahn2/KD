@@ -7,6 +7,38 @@
 namespace Kaidel {
 
 	
+	class D3DUAVInput : public UAVInput {
+	public:
+		D3DUAVInput(uint32_t count,uint32_t sizeofElement, void* data = nullptr);
+		~D3DUAVInput();
+		virtual void SetBufferData(void* data, uint32_t count);
+		virtual void Bind(uint32_t slot = 0)const;
+		virtual void Unbind() const;
+
+	private:
+		ID3D11ShaderResourceView* m_SRV;
+		ID3D11Buffer* m_Buffer;
+		mutable uint32_t m_LastBoundSlot = 0;
+		uint64_t m_Count;
+		uint64_t m_SizeofElement;
+	};
+	class D3DTypedBufferInput : public TypedBufferInput {
+	public:
+		D3DTypedBufferInput(TypedBufferInputDataType type, TypedBufferAccessMode accessMode , uint32_t  width, uint32_t height, void* data = nullptr);
+		~D3DTypedBufferInput();
+		void SetBufferData(void* data, uint32_t width, uint32_t height);
+		virtual uint64_t GetTextureID()const;
+	private:
+		void Bind(uint32_t slot)const override;
+		void Unbind() const;
+		ID3D11Buffer* m_Buffer;
+		ID3D11ShaderResourceView* m_SRV;
+		mutable uint32_t m_LastBoundSlot = 0;
+		TypedBufferInputDataType m_InputType;
+		TypedBufferAccessMode m_AccessMode;
+		uint64_t m_Width, m_Height;
+	};
+
 	class D3DComputeShader : public ComputeShader {
 
 	public:

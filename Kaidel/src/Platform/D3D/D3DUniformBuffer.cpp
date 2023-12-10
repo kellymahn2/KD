@@ -13,7 +13,6 @@ namespace Kaidel {
 		bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 		bd.MiscFlags = 0;
-		bd.StructureByteStride = 0;
 		auto d3dContext = D3DContext::Get();
 		D3DASSERT(d3dContext->GetDevice()->CreateBuffer(&bd, nullptr, &m_UniformBuffer));
 	}
@@ -38,6 +37,9 @@ namespace Kaidel {
 	void D3DUniformBuffer::Bind(uint32_t binding)
 	{
 		m_Binding = binding;
+		auto d3dContext = D3DContext::Get();
+		d3dContext->GetDeviceContext()->VSSetConstantBuffers(m_Binding, 1, &m_UniformBuffer);
+		d3dContext->GetDeviceContext()->PSSetConstantBuffers(m_Binding, 1, &m_UniformBuffer);
 	}
 
 	void D3DUniformBuffer::Bind()

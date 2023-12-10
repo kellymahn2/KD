@@ -23,8 +23,8 @@ namespace Kaidel {
 
 	void Light::SetLights()
 	{
-		static Ref<UAVInput> s_MaterialUAV = UAVInput::Create(s_InternalData.size() * sizeof(_LightInternal));
-		s_MaterialUAV->SetBufferData(s_InternalData.data(), s_InternalData.size() * sizeof(_LightInternal));
+		static Ref<UAVInput> s_MaterialUAV = UAVInput::Create(s_InternalData.size() , sizeof(_LightInternal));
+		s_MaterialUAV->SetBufferData(s_InternalData.data(), s_InternalData.size() );
 		s_MaterialUAV->Bind(2);
 	}
 

@@ -858,19 +858,19 @@ namespace Kaidel {
 			}
 			{
 				float ambientIntensity = component.Light->GetAmbientIntensity();
-				if (ImGui::DragFloat("Ambient Intensity", &ambientIntensity)) {
+				if (ImGui::DragFloat("Ambient Intensity", &ambientIntensity,0.01f,0.0f,1.0f)) {
 					component.Light->SetAmbientIntensity(ambientIntensity);
 				}
 			}
 			{
 				float diffuseIntensity = component.Light->GetDiffuseIntensity();
-				if (ImGui::DragFloat("Diffuse Intensity", &diffuseIntensity)) {
+				if (ImGui::DragFloat("Diffuse Intensity", &diffuseIntensity, 0.01f, 0.0f, 1.0f)) {
 					component.Light->SetDiffuseIntensity(diffuseIntensity);
 				}
 			} 
 			{
 				float specularIntensity = component.Light->GetSpecularIntensity();
-				if (ImGui::DragFloat("Specular Intensity", &specularIntensity)) {
+				if (ImGui::DragFloat("Specular Intensity", &specularIntensity, 0.01f, 0.0f, 1.0f)) {
 					component.Light->SetSpecularIntensity(specularIntensity);
 				}
 			}

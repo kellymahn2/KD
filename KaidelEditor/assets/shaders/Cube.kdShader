@@ -2,50 +2,129 @@
 
 struct VertexInput
 {
-	float3 a_Position : POSITION;
+	float3 a_Position : POSITION0;
 	float4 a_Color : COLOR;
-	int a_EntityID : TEXCOORD3;
+	float3 a_Normal: POSITION1;
+	int a_EntityID : TEXCOORD0;
 };
 
 cbuffer Camera : register(b0)
 {
     matrix u_ViewProjection;
+	float3 u_CameraPosition;
 };
 
 struct VertexOutput
 {
 	float4 Pos : SV_Position;
 	float4 Color : COLOR;
-	nointerpolation int EntityID : TEXCOORD0;
+	float3 FragPos : POSITION0;
+	float3 Normal : POSITION1;
+	nointerpolation int EntityID : TEXCOORD;
 };
 VertexOutput main(VertexInput input)
 {
     VertexOutput output;
 	output.Pos = mul(u_ViewProjection,float4(input.a_Position,1.0f));
-    output.Color = input.a_Color;
+	output.Color = input.a_Color;
+	output.FragPos = input.a_Position;
+	output.Normal = input.a_Normal;
 	output.EntityID = input.a_EntityID;
     return output;
 }
 
 #type fragment
 
-struct VertexOutput 
+struct Camera
+{
+    matrix u_ViewProjection;
+    float3 u_CameraPosition;
+};
+
+struct CountInfo
+{
+    int u_LightCount;
+    int u_MaterialCount;
+};
+
+struct VertexOutput
 {
 	float4 Pos : SV_Position;
 	float4 Color : COLOR;
-	nointerpolation int EntityID : TEXCOORD0;
+	float3 FragPos : POSITION0;
+	float3 Normal : POSITION1;
+	nointerpolation int EntityID : TEXCOORD;
 };
+
+struct Light
+{
+    float3 Color;
+    float3 Position;
+    float AmbientIntensity;
+    float DiffuseIntensity;
+    float SpecularIntensity;
+};
+
+cbuffer CameraBuffer : register(b0)
+{
+    Camera u_Camera;
+};
+
+cbuffer CountInfoBuffer : register(b1)
+{
+    CountInfo u_CountInfo;
+};
+
+StructuredBuffer<Light> u_Lights : register(t2);
+
+Texture2D u_Textures[32] : register(t0);
 
 struct PSOutput
 {
 	float4 Color : SV_Target0;
 	int EntityID : SV_Target1;
 };
+float4 ApplyLighting(float4 objectColor,VertexOutput Input){
+	float3 totalAmbient = float3(0.0, 0.0, 0.0);
+    float3 totalDiffuse = float3(0.0, 0.0, 0.0);
+    float3 totalSpecular = float3(0.0, 0.0, 0.0);
+	for(int i =0;i<u_CountInfo.u_LightCount;++i){
+		float3 lightColor = u_Lights[i].Color;
+		float3 lightPos = u_Lights[i].Position;
+		float3 norm = normalize(Input.Normal);
+		float3 lightDir = normalize(lightPos - Input.FragPos);
 
-PSOutput main(VertexOutput input)
+		//Ambient
+		totalAmbient +=  u_Lights[i].AmbientIntensity * lightColor;
+
+		// Diffuse
+        totalDiffuse +=  u_Lights[i].DiffuseIntensity * max(dot(norm, lightDir), 0.0) * lightColor;
+
+        // Specular
+        float3 viewDir = normalize(u_Camera.u_CameraPosition - Input.FragPos);
+        float3 reflectDir = reflect(-lightDir, norm);
+        totalSpecular +=  u_Lights[i].SpecularIntensity * pow(max(dot(viewDir, reflectDir), 0.0), 32) * lightColor;
+	}
+	float3 result = totalAmbient + totalDiffuse + totalSpecular;
+    float3 col = result * objectColor.rgb;
+    objectColor.rgb = col;
+	return objectColor;
+}
+PSOutput main(VertexOutput Input) 
 {
-	PSOutput output;
-	output.Color = input.Color;
-	output.EntityID = input.EntityID;
-	return output;
+    PSOutput output;
+
+    float4 texColor = Input.Color;
+    if (texColor.a == 0.0)
+        discard;
+
+   
+	texColor = ApplyLighting(texColor,Input);
+
+    
+
+    output.Color = texColor;
+    output.EntityID = Input.EntityID;
+
+    return output;
 }

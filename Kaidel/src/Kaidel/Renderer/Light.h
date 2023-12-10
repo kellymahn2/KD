@@ -4,12 +4,12 @@
 namespace Kaidel
 {
 	struct _LightInternal{
-		glm::vec3 Color;
-        glm::vec3 Position;
+		glm::vec3 Color = glm::vec3{ 1.0f };
+		glm::vec3 Position = glm::vec3{ 0.0f };
     	//glm::vec3 Direction;
-		float AmbientIntensity;
-    	float DiffuseIntensity;
-    	float SpecularIntensity;
+		float AmbientIntensity = .1f;
+    	float DiffuseIntensity = 1.0f;
+    	float SpecularIntensity = .5f;
 		/*float ConstantAttenuation;
     	float LinearAttenuation;
     	float QuadraticAttenuation;*/

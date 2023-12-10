@@ -82,8 +82,6 @@ namespace Kaidel {
 			m_VertexBuffer->Release();
 			m_VertexBuffer = newVB;
 		}
-
-		
 		D3D11_MAPPED_SUBRESOURCE mappedVB{};
 		D3DASSERT(d3dContext->GetDeviceContext()->Map(m_VertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedVB));
 		memcpy(mappedVB.pData,data,size);

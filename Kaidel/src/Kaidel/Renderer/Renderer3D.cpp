@@ -130,6 +130,10 @@ namespace Kaidel {
 
 
 	void Renderer3D::Init() {
+
+
+		s_Data.CameraUniformBuffer = UniformBuffer::Create(80, 0);
+
 		switch (RendererAPI::GetAPI())
 		{
 		case RendererAPI::API::OpenGL:
@@ -214,7 +218,6 @@ namespace Kaidel {
 		s_Data.CubeVertexData[22] = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f} }; // Back-right
 		s_Data.CubeVertexData[23] = { {-0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f} }; // Back-left
 		
-		s_Data.CameraUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::CameraData), 0);
 		
 		//Lighting
 
