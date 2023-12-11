@@ -23,7 +23,7 @@ namespace Kaidel {
 		static void FlushCubes(CubeVertex* start, uint64_t size);
 
 		//Primitives
-		static void DrawCube(const glm::mat4& transform, const glm::vec4& color, int entityID = -1);
+		static void DrawCube(const glm::mat4& transform, Ref<Material> material, int entityID = -1);
 		struct Statistics
 		{
 			uint32_t DrawCalls = 0;

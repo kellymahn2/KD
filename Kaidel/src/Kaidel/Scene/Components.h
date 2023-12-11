@@ -4,6 +4,7 @@
 #include "Kaidel/Core/UUID.h"
 #include "Kaidel/Animation/Animation.h"
 #include "Kaidel/Renderer/Light.h"
+#include "Kaidel/Renderer/Material.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -133,7 +134,7 @@ namespace Kaidel {
 
 	//3D
 	struct CubeRendererComponent {
-		glm::vec4 Color{ 1.0f };
+		Ref<Material> Material;
 		CubeRendererComponent() = default;
 		CubeRendererComponent(const CubeRendererComponent&) = default;
 

@@ -38,6 +38,9 @@ namespace Kaidel {
 		static void SetLineWidth(float width) {
 			s_RendererAPI->SetLineWidth(width);
 		}
+		static int QueryMaxTextureSlots() {
+			return s_RendererAPI->QueryMaxTextureSlots();
+		}
 	private:
 		static Scope<RendererAPI> s_RendererAPI;
 	};

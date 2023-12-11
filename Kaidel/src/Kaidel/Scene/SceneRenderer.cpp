@@ -107,7 +107,7 @@ namespace Kaidel {
 		for (auto e : cubeView) {
 			m_JobSystem.Execute([e, this, context, &view = cubeView]() {
 				CubeRendererComponent& crc = view.get<CubeRendererComponent>(e);
-				Renderer3D::DrawCube(view.get<TransformComponent>(e).GetTransform(), crc.Color, (int)e);
+				Renderer3D::DrawCube(view.get<TransformComponent>(e).GetTransform(),crc.Material,(int)e);
 				});
 		}
 	}

@@ -16,8 +16,8 @@
 namespace Kaidel {
 	struct CubeVertex {
 		glm::vec3 Position;
-		glm::vec4 Color;
 		glm::vec3 Normal;
+		int MaterialIndex;
 		//TODO : Add support for textures(eg. 3D textures and cubemaps).
 		int EntityID;
 	};
@@ -42,8 +42,11 @@ namespace Kaidel {
 
 
 		Ref<Texture2D> WhiteTexture;
-		std::array<Ref<Texture2D>, MaxTextureSlots> TextureSlots;
+		BoundedVector <Ref<Texture2D>> TextureSlots;
+
 		uint32_t TextureSlotIndex = 1; // 0 = white texture
+
+		Ref<Material> DefaultMaterial;
 
 		struct {
 			glm::vec4 CubeVertexPositions;
@@ -131,7 +134,12 @@ namespace Kaidel {
 
 	void Renderer3D::Init() {
 
+		s_Data.TextureSlots = { 0,(uint64_t)RenderCommand::QueryMaxTextureSlots(),[&](auto start,uint64_t size) {
+			s_Data.TextureSlotIndex = (uint32_t)size;
+			Flush();
+			}};
 
+		s_Data.DefaultMaterial = CreateRef<Material>();
 		s_Data.CameraUniformBuffer = UniformBuffer::Create(80, 0);
 
 		switch (RendererAPI::GetAPI())
@@ -165,8 +173,8 @@ namespace Kaidel {
 		s_Data.CubeVertexBuffer = VertexBuffer::Create(0);
 		s_Data.CubeVertexBuffer->SetLayout({
 			{ShaderDataType::Float3,"a_Position"},
-			{ShaderDataType::Float4,"a_Color"},
 			{ShaderDataType::Float3,"a_Normal"},
+			{ShaderDataType::Int,"a_MaterialIndex"},
 			{ShaderDataType::Int,"a_EntityID"}
 			});
 		s_Data.CubeVertexArray->AddVertexBuffer(s_Data.CubeVertexBuffer);
@@ -180,8 +188,9 @@ namespace Kaidel {
 		s_Data.WhiteTexture = Texture2D::Create(1, 1);
 		uint32_t whiteTextureData = 0xffffffff;
 		s_Data.WhiteTexture->SetData(&whiteTextureData, sizeof(uint32_t));
-		s_Data.TextureSlots[0] = s_Data.WhiteTexture;
-
+		auto slot = s_Data.TextureSlots.Reserve(1);
+		auto& ptr = slot[0];
+		ptr = s_Data.WhiteTexture;
 		// Front face
 		s_Data.CubeVertexData[0]  = { {-0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f} }; // Bottom-left
 		s_Data.CubeVertexData[1]  = { { 0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f} }; // Bottom-right
@@ -221,6 +230,8 @@ namespace Kaidel {
 		
 		//Lighting
 
+
+		
 
 	}
 
@@ -293,7 +304,7 @@ namespace Kaidel {
 			s_Data.CubeShader->Bind();
 			//Bind textures
 			for (uint32_t i = 0; i < s_Data.TextureSlotIndex; ++i) {
-				s_Data.TextureSlots[i]->Bind(i);
+				s_Data.TextureSlots.Get()[i]->Bind(i);
 			}
 			RenderCommand::DrawIndexed(s_Data.CubeVertexArray, s_Data.CubeIndexCount);
 			s_Data.CubeShader->Unbind();
@@ -312,13 +323,19 @@ namespace Kaidel {
 		StartBatch();
 	}
 
-	static void SetCubeVertexValues(CubeVertex& cv, const glm::mat4& transform,const glm::mat4& normalTransform, const glm::vec4& color, const glm::vec4& position,const glm::vec4& normals, int entityID) {
+	static void SetCubeVertexValues(CubeVertex& cv, const glm::mat4& transform,const glm::mat4& normalTransform,const glm::vec4& position,const glm::vec4& normals, int materialIndex,int entityID) {
 		cv.Position = transform * position;
 		cv.Normal = normalTransform * normals;
-		cv.Color = color;
+		cv.MaterialIndex = materialIndex;
 		cv.EntityID = entityID;
 	}
-	void Renderer3D::DrawCube(const glm::mat4& transform, const glm::vec4& color, int entityID) {
+	void Renderer3D::DrawCube(const glm::mat4& transform, Ref<Material> material,int entityID) {
+
+		if (!material) {
+
+			DrawCube(transform, s_Data.DefaultMaterial, entityID);
+			return;
+		}
 
 		/*s_Data.CubeVertexPositions[0] = { -0.5f,  0.5f, -0.5f, 1.0f };
 		s_Data.CubeVertexPositions[1] = { 0.5f,  0.5f, -0.5f, 1.0f };
@@ -331,7 +348,7 @@ namespace Kaidel {
 		static std::vector<CubeVertex> data{ 24,CubeVertex{} };
 		glm::mat4 normalTransform = glm::transpose(glm::inverse(glm::mat3(transform)));
 		for (std::size_t i = 0; i < data.size();++i) {
-			SetCubeVertexValues(data[i], transform, normalTransform,color, s_Data.CubeVertexData[i].CubeVertexPositions, s_Data.CubeVertexData[i].CubeVertexNormals, entityID);
+			SetCubeVertexValues(data[i], transform, normalTransform,s_Data.CubeVertexData[i].CubeVertexPositions, s_Data.CubeVertexData[i].CubeVertexNormals, material->GetIndex(), entityID);
 		}
 		
 		std::scoped_lock<std::mutex> lock(s_Data.CubeMutex);

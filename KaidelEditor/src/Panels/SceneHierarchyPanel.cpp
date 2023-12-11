@@ -845,18 +845,17 @@ namespace Kaidel {
 			});
 
 		DrawComponent<CubeRendererComponent>("Cube Renderer", entity, [entity, scene = m_Context](CubeRendererComponent& component) {
-			ImGui::ColorEdit4("Color", &component.Color.x);
 			});
 
 		DrawComponent<LightComponent>("Light", entity, [entity, scene = m_Context](LightComponent& component) {
 			
 			{
-				glm::vec3 color = component.Light->GetColor();
+				/*glm::vec3 color = component.Light->GetColor();
 				if (ImGui::ColorEdit3("Color", &color.r)) {
 					component.Light->SetColor(color);
-				}
+				}*/
 			}
-			{
+			/*{
 				float ambientIntensity = component.Light->GetAmbientIntensity();
 				if (ImGui::DragFloat("Ambient Intensity", &ambientIntensity,0.01f,0.0f,1.0f)) {
 					component.Light->SetAmbientIntensity(ambientIntensity);
@@ -873,7 +872,7 @@ namespace Kaidel {
 				if (ImGui::DragFloat("Specular Intensity", &specularIntensity, 0.01f, 0.0f, 1.0f)) {
 					component.Light->SetSpecularIntensity(specularIntensity);
 				}
-			}
+			}*/
 
 			});
 

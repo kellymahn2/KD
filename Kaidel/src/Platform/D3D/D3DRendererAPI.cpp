@@ -58,7 +58,13 @@ namespace Kaidel {
 		d3dContext->GetDeviceContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
 		d3dContext->GetDeviceContext()->Draw(vertexCount,0);
 	}
+
 	void D3DRendererAPI::SetLineWidth(float width) {
 
+	}
+
+	int D3DRendererAPI::QueryMaxTextureSlots() {
+
+		return D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT;
 	}
 }

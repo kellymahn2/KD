@@ -4,8 +4,8 @@
 #version 460 core
 
 layout(location = 0) in vec3 a_Position;
-layout(location = 1) in vec4 a_Color;
-layout(location = 2) in vec3 a_Normal;	
+layout(location = 1) in vec3 a_Normal;
+layout(location = 2) in int a_MaterialIndex;
 layout(location = 3) in int a_EntityID;
 
 layout(std140, binding = 0) uniform Camera
@@ -18,19 +18,19 @@ layout(std140, binding = 0) uniform Camera
 
 struct VertexOutput
 {
-	vec4 Color;
 	vec3 FragPos;
 	vec3 Normal;
 };
 
 layout (location = 0) out VertexOutput Output;
+layout (location = 2) out flat int v_MaterialIndex;
 layout (location = 3) out flat int v_EntityID;
 
 void main()
 {
-	Output.Color = a_Color;
 	Output.Normal = a_Normal;
 	Output.FragPos = a_Position;
+	v_MaterialIndex = a_MaterialIndex;
 	v_EntityID = a_EntityID;
 	gl_Position = u_ViewProjection * vec4(a_Position, 1.0);
 }
@@ -54,18 +54,28 @@ layout(std140, binding = 1) uniform CountInfo
 };
 struct VertexOutput
 {
-	vec4 Color;
 	vec3 FragPos;
 	vec3 Normal;
 };
 
 
+struct Material{
+	float ColorX,ColorY,ColorZ,ColorW;
+	float AmbientX,AmbientY,AmbientZ;
+	float DiffuseX,DiffuseY,DiffuseZ;
+	float SpecularX,SpecularY,SpecularZ;
+	float Shininess;
+};
+
 struct Light {
-    float ColorX,ColorY,ColorZ;
     float PositionX,PositionY,PositionZ;
-    float AmbientIntensity;
-    float DiffuseIntensity;
-    float SpecularIntensity;
+    float AmbientIntensityX,AmbientIntensityY,AmbientIntensityZ;
+    float DiffuseIntensityX,DiffuseIntensityY,DiffuseIntensityZ;
+    float SpecularIntensityX,SpecularIntensityY,SpecularIntensityZ;
+};
+
+layout(std430,binding = 1) buffer Materials{
+	Material u_Materials[];
 };
 
 layout(std430,binding = 2) buffer Lights
@@ -75,50 +85,62 @@ layout(std430,binding = 2) buffer Lights
 
 
 layout (location = 0) in VertexOutput Input;
+layout (location = 2) in flat int v_MaterialIndex;
 layout (location = 3) in flat int v_EntityID;
 
 layout (binding = 0) uniform sampler2D u_Textures[32];
 
-vec4 ApplyLighting(vec4 objectColor){
+vec4 ApplyLighting(Material material){
 
 	vec3 totalAmbient = vec3(0.0);
 	vec3 totalDiffuse = vec3(0.0);
 	vec3 totalSpecular = vec3(0.0);
+
+	vec4 materialColor = vec4(material.ColorX,material.ColorY,material.ColorZ,material.ColorW);
+	vec3 materialAmbient = vec3(material.AmbientX,material.AmbientY,material.AmbientZ);
+	vec3 materialDiffuse = vec3(material.DiffuseX,material.DiffuseY,material.DiffuseZ);
+	vec3 materialSpecular = vec3(material.SpecularX,material.SpecularY,material.SpecularZ);
 	for(int i = 0;i < u_LightCount;++i){	
-		vec3 lightColor = vec3(u_Lights[i].ColorX,u_Lights[i].ColorY,u_Lights[i].ColorZ);
-		vec3 lightPos = vec3(u_Lights[i].PositionX,u_Lights[i].PositionY,u_Lights[i].PositionZ);
+
+		Light light = u_Lights[i];
+
+		vec3 lightPos = vec3(light.PositionX,light.PositionY,light.PositionZ);
 		vec3 norm = normalize(Input.Normal);
 		vec3 lightDir = normalize(lightPos-Input.FragPos);
 		
+		vec3 ambientIntensity = vec3(light.AmbientIntensityX,light.AmbientIntensityY,light.AmbientIntensityZ);
+		vec3 diffuseIntensity = vec3(light.DiffuseIntensityX,light.DiffuseIntensityY,light.DiffuseIntensityZ);
+		vec3 specularIntensity = vec3(light.SpecularIntensityX,light.SpecularIntensityY,light.SpecularIntensityZ);
+
 		
 		//Ambient
-		totalAmbient += u_Lights[i].AmbientIntensity * lightColor;
+		totalAmbient += materialAmbient * ambientIntensity;
 
 		//Diffuse
-		totalDiffuse += u_Lights[i].DiffuseIntensity*max(dot(norm, lightDir), 0.0)* lightColor;
+		totalDiffuse += materialDiffuse*max(dot(norm, lightDir), 0.0)*	diffuseIntensity;
 
 		//Specular
 		vec3 viewDir = normalize(u_CameraPosition - Input.FragPos);
 		vec3 reflectDir = reflect(-lightDir,norm);
-		totalSpecular += u_Lights[i].SpecularIntensity*pow(max(dot(viewDir,reflectDir),0.0),32) * lightColor;
+		totalSpecular += materialSpecular*pow(max(dot(viewDir,reflectDir),0.0),32) * specularIntensity;
 	}
 
 	vec3 result = totalAmbient + totalDiffuse + totalSpecular;
-	vec3 col =  result * vec3(objectColor.x,objectColor.y,objectColor.z);
-	objectColor.xyz = col;
+	vec3 col =  result * materialColor.xyz;
+	materialColor.xyz = col;
 
-	return objectColor;
+	return materialColor;
 }
 
 void main()
 {
-	vec4 texColor = Input.Color;
+	vec4 texColor = ApplyLighting(u_Materials[v_MaterialIndex]);
+
 	if (texColor.a == 0.0)
 		discard;
 
 
 
-	texColor = ApplyLighting(texColor);
 
 	o_Color = texColor;
 	o_EntityID = v_EntityID;

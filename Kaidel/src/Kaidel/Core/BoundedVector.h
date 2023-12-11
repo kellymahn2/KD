@@ -5,7 +5,7 @@ namespace Kaidel {
 	template<typename T>
 	struct BoundedVector_Iterator {
 		~BoundedVector_Iterator() = default;
-		T& operator[](uint64_t index) const {
+		T& operator[](uint64_t index) {
 			//Add Assert here.
 			return *(m_Start + index);
 		}
@@ -23,6 +23,7 @@ namespace Kaidel {
 	template<typename T>
 	class BoundedVector {
 	public:
+		BoundedVector() = default;
 		BoundedVector(uint64_t startSize, uint64_t maxSize, std::function<void(T*, uint64_t)>&& overflowFunc) {
 			//Add Assert so that startSize is always less then maxSize.
 			m_Internal.reserve(startSize);
@@ -61,7 +62,7 @@ namespace Kaidel {
 		std::vector<T> CopyData(uint64_t newSize) {
 			std::vector<T> res;
 			uint64_t oldSize = m_ActualEnd - m_Internal.begin()._Ptr;
-			res.reserve(newSize);
+			res.resize(newSize);
 			T* start = res.data();
 			for (uint64_t i = 0; i < oldSize; ++i) {
 				*(start + i) = *(Get() + i);

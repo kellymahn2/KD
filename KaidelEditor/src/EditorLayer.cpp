@@ -73,7 +73,7 @@ namespace Kaidel {
 		{
 			Entity e = m_ActiveScene->CreateEntity("Cube");
 			auto& crc = e.AddComponent<CubeRendererComponent>();
-			crc.Color = glm::vec4(1.0f);
+			//crc.Color = glm::vec4(1.0f);
 		}
 
 		/*cs = ComputeShader::Create("assets/shaders/TestCompute2.glsl");
@@ -191,7 +191,7 @@ namespace Kaidel {
 			Renderer2D::BeginScene(m_EditorCamera);
 			for (auto e : view) {
 				Renderer2D::DrawQuad(glm::translate(glm::mat4(1.0f),view.get<LightComponent>(e).Light->GetPosition()), 
-					glm::vec4(view.get<LightComponent>(e).Light->GetColor(), 1.0f), 0, -1);
+					glm::vec4(1.0f), 0, -1);
 			}
 			Renderer2D::EndScene();
 		}
