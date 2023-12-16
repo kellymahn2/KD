@@ -38,6 +38,16 @@ void main()
 #type fragment
 #version 460 core
 
+struct VertexOutput
+{
+	vec3 FragPos;
+	vec3 Normal;
+};
+
+layout (location = 0) in VertexOutput Input;
+layout (location = 2) in flat int v_MaterialIndex;
+layout (location = 3) in flat int v_EntityID;
+
 layout(location = 0) out vec4 o_Color;
 layout(location = 1) out int o_EntityID;
 
@@ -47,17 +57,13 @@ layout(std140, binding = 0) uniform Camera
 	mat4 u_ViewProjection;
 	vec3 u_CameraPosition;
 };
+
+
 layout(std140, binding = 1) uniform CountInfo
 {
 	int u_LightCount;
 	int u_MaterialCount;
 };
-struct VertexOutput
-{
-	vec3 FragPos;
-	vec3 Normal;
-};
-
 
 struct Material{
 	float ColorX,ColorY,ColorZ,ColorW;
@@ -74,6 +80,18 @@ struct Light {
     float SpecularIntensityX,SpecularIntensityY,SpecularIntensityZ;
 };
 
+
+struct DirectionalLight{
+	float DirectionX,DirectionY,DirectionZ;
+    float AmbientIntensityX,AmbientIntensityY,AmbientIntensityZ;
+    float DiffuseIntensityX,DiffuseIntensityY,DiffuseIntensityZ;
+    float SpecularIntensityX,SpecularIntensityY,SpecularIntensityZ;
+};
+
+layout(std430,binding = 3) buffer DirLight{
+	DirectionalLight u_DirectionalLight;
+}; 
+
 layout(std430,binding = 1) buffer Materials{
 	Material u_Materials[];
 };
@@ -84,11 +102,19 @@ layout(std430,binding = 2) buffer Lights
 };
 
 
-layout (location = 0) in VertexOutput Input;
-layout (location = 2) in flat int v_MaterialIndex;
-layout (location = 3) in flat int v_EntityID;
+
 
 layout (binding = 0) uniform sampler2D u_Textures[32];
+
+
+vec3 CalcLightAmbient(vec3 materialAmbient,vec3 ambientIntensity){
+	return materialAmbient * ambientIntensity;
+}
+
+vec3 CalcLightDiffuse(vec3 materialDiffuse,vec3 norm,vec3 lightDir,vec3 diffuseIntensity){
+	return materialDiffuse*max(dot(norm, lightDir), 0.0)*	diffuseIntensity;
+}
+
 
 vec4 ApplyLighting(Material material){
 
@@ -100,12 +126,37 @@ vec4 ApplyLighting(Material material){
 	vec3 materialAmbient = vec3(material.AmbientX,material.AmbientY,material.AmbientZ);
 	vec3 materialDiffuse = vec3(material.DiffuseX,material.DiffuseY,material.DiffuseZ);
 	vec3 materialSpecular = vec3(material.SpecularX,material.SpecularY,material.SpecularZ);
+	vec3 norm = normalize(Input.Normal);
+
+	//Directional Light
+	{
+		vec3 lightDir = normalize(-vec3(u_DirectionalLight.DirectionX,u_DirectionalLight.DirectionY,u_DirectionalLight.DirectionZ));
+		
+		vec3 ambientIntensity=vec3(u_DirectionalLight.AmbientIntensityX,u_DirectionalLight.AmbientIntensityY,u_DirectionalLight.AmbientIntensityZ);
+		vec3 diffuseIntensity=vec3(u_DirectionalLight.DiffuseIntensityX,u_DirectionalLight.DiffuseIntensityY,u_DirectionalLight.DiffuseIntensityZ);
+		vec3 specularIntensity=vec3(u_DirectionalLight.SpecularIntensityX,u_DirectionalLight.SpecularIntensityY,u_DirectionalLight.SpecularIntensityZ);
+
+
+		totalAmbient += CalcLightAmbient(materialAmbient,ambientIntensity);
+
+		//Diffuse
+		totalDiffuse += CalcLightDiffuse(materialDiffuse,norm, lightDir,diffuseIntensity);
+
+		//Specular
+		vec3 viewDir = normalize(u_CameraPosition - Input.FragPos);
+		vec3 reflectDir = reflect(-lightDir,norm);
+		totalSpecular += materialSpecular*pow(max(dot(viewDir,reflectDir),0.0),32) * specularIntensity;
+	}
+
+
+
+
+
 	for(int i = 0;i < u_LightCount;++i){	
 
 		Light light = u_Lights[i];
 
 		vec3 lightPos = vec3(light.PositionX,light.PositionY,light.PositionZ);
-		vec3 norm = normalize(Input.Normal);
 		vec3 lightDir = normalize(lightPos-Input.FragPos);
 		
 		vec3 ambientIntensity = vec3(light.AmbientIntensityX,light.AmbientIntensityY,light.AmbientIntensityZ);
@@ -114,20 +165,19 @@ vec4 ApplyLighting(Material material){
 
 		
 		//Ambient
-		totalAmbient += materialAmbient * ambientIntensity;
+		totalAmbient += CalcLightAmbient(materialAmbient,ambientIntensity);
 
 		//Diffuse
-		totalDiffuse += materialDiffuse*max(dot(norm, lightDir), 0.0)*	diffuseIntensity;
+		totalDiffuse += CalcLightDiffuse(materialDiffuse,norm, lightDir,diffuseIntensity);
 
 		//Specular
 		vec3 viewDir = normalize(u_CameraPosition - Input.FragPos);
 		vec3 reflectDir = reflect(-lightDir,norm);
-		totalSpecular += materialSpecular*pow(max(dot(viewDir,reflectDir),0.0),32) * specularIntensity;
+		totalSpecular += materialSpecular*pow(max(dot(viewDir,reflectDir),0.0),material.Shininess) * specularIntensity;
 	}
 
 	vec3 result = totalAmbient + totalDiffuse + totalSpecular;
-	vec3 col =  result * materialColor.xyz;
-	materialColor.xyz = col;
+	materialColor.xyz =  result * materialColor.xyz;
 
 	return materialColor;
 }

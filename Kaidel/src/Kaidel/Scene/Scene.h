@@ -60,6 +60,9 @@ namespace Kaidel {
 		void UpdateAnimations(float ts);
 		void RenderScene();
 	private:
+
+		Entity GetMainDirectionalLight();
+
 		entt::registry m_Registry;
 		uint32_t m_ViewportWidth = 0, m_ViewportHeight = 0;
 		b2World* m_PhysicsWorld = nullptr;

@@ -81,7 +81,7 @@ namespace Kaidel {
 				CameraComponent,
 				BoxCollider2DComponent, Rigidbody2DComponent,AnimationComponent,
 				NativeScriptComponent, ScriptComponent,ParentComponent,ChildComponent 
-				,LineRendererComponent,CubeRendererComponent,LightComponent>
+				,LineRendererComponent,CubeRendererComponent,DirectionalLightComponent>
 				(entity, srcReg, e); });
 		newScene->m_IDMap = rhs->m_IDMap;
 		return newScene;
@@ -422,6 +422,15 @@ namespace Kaidel {
 		return {};
 	}
 
+	Entity Scene::GetMainDirectionalLight() {
+		auto view = m_Registry.view<DirectionalLightComponent>();
+		for (auto entity : view) {
+			const auto& light = view.get<DirectionalLightComponent>(entity);
+			if (light.IsPrimary)
+				return Entity{ entity,this };
+		}
+		return {};
+	}
 
 
 	template<>
@@ -444,6 +453,12 @@ namespace Kaidel {
 			}
 		}
 	}
+	template<>
+	void Scene::OnComponentAdded<DirectionalLightComponent>(Entity entity, DirectionalLightComponent& component) {
+		if (!GetMainDirectionalLight()) {
+			component.IsPrimary = true;
+		}
+	}
 	DEF_COMPONENT_ADD(TransformComponent)
 	DEF_COMPONENT_ADD(SpriteRendererComponent)
 	DEF_COMPONENT_ADD(TagComponent)
@@ -458,7 +473,6 @@ namespace Kaidel {
 	DEF_COMPONENT_ADD(ChildComponent)
 	DEF_COMPONENT_ADD(LineRendererComponent)
 	DEF_COMPONENT_ADD(CubeRendererComponent)
-	DEF_COMPONENT_ADD(LightComponent)
 
 
 }

@@ -67,8 +67,9 @@ namespace Kaidel {
 
 		{
 			Entity e = m_ActiveScene->CreateEntity("Light");
-			auto& lc  = e.AddComponent<LightComponent>();
-			e.GetComponent<TransformComponent>().Translation = glm::vec3{ 1.0f };
+			auto& lc  = e.AddComponent<DirectionalLightComponent>();
+			lc.IsPrimary = true;
+			
 		}
 		{
 			Entity e = m_ActiveScene->CreateEntity("Cube");
@@ -186,7 +187,7 @@ namespace Kaidel {
 		float d[4] = { -1,-1,-1,-1 };
 		m_Framebuffer->ClearAttachment(1, d);
 
-		{
+		/*{
 			auto view = m_ActiveScene->m_Registry.view<TransformComponent, LightComponent>();
 			Renderer2D::BeginScene(m_EditorCamera);
 			for (auto e : view) {
@@ -194,7 +195,7 @@ namespace Kaidel {
 					glm::vec4(1.0f), 0, -1);
 			}
 			Renderer2D::EndScene();
-		}
+		}*/
 		/*Renderer2D::BeginScene(m_EditorCamera);
 		Renderer2D::DrawQuad(glm::translate(glm::mat4(1.0f), glm::vec3{ 0,0,0 }), {1,0,0,1}, 4, -1);
 		Renderer2D::DrawQuad(glm::translate(glm::mat4(1.0f), glm::vec3{ .5f,.5f,-.5f }), { 0,1,0,1 }, 0, -1);

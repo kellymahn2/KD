@@ -38,18 +38,9 @@ namespace Kaidel {
 	void SceneRenderer::Bind(){
 		static Ref<UniformBuffer> s_CountInfoUB = UniformBuffer::Create(2*sizeof(uint64_t),1);
 
-		{
-			auto view = static_cast<Scene*>(m_Context)->m_Registry.view<TransformComponent, LightComponent>();
-			for (auto e : view) {
-				auto [tc, lc] = view.get<TransformComponent, LightComponent>(e);
-				lc.Light->SetPosition(tc.Translation);
-			}
-		}
-
-
-		Light::SetLights();
+		DirectionalLightComponent::LightType::SetLights();
 		Material::SetMaterials();
-		uint32_t countInfo[2] = { Light::GetLightCount(),Material::GetMaterialCount() };
+		uint32_t countInfo[1] = { Material::GetMaterialCount() };
 		s_CountInfoUB->SetData(countInfo, sizeof(countInfo));
 		s_CountInfoUB->Bind();
 	}

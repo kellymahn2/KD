@@ -8,10 +8,10 @@ namespace Kaidel
 {
 
 	struct _MaterialInternal{
-		glm::vec4 Color = glm::vec4{ 1.0f };
-		glm::vec3 Ambient = glm::vec3{ .2f };
+		glm::vec4 Color = glm::vec4{ .9f,.3f,.2f,1.0f };
+		glm::vec3 Ambient = glm::vec3{ 1.0f };
 		glm::vec3 Diffuse = glm::vec3{ 1.0f };
-		glm::vec3 Specular = glm::vec3{ .5f };
+		glm::vec3 Specular = glm::vec3{ 1.0f };
 		float Shininess = 32.0f;
 	};
     class Material{
