@@ -61,8 +61,7 @@ layout(std140, binding = 0) uniform Camera
 
 layout(std140, binding = 1) uniform CountInfo
 {
-	int u_LightCount;
-	int u_MaterialCount;
+	int u_PointLightCount;
 };
 
 struct Material{
@@ -88,6 +87,18 @@ struct DirectionalLight{
     float SpecularIntensityX,SpecularIntensityY,SpecularIntensityZ;
 };
 
+struct PointLight {
+	float PositionX,PositionY,PositionZ;
+	float AmbientX,AmbientY,AmbientZ;
+	float DiffuseX,DiffuseY,DiffuseZ;
+	float SpecularX,SpecularY,SpecularZ;
+
+	float ConstantCoefficient;
+	float LinearCoefficient;
+	float QuadraticCoefficient;
+};
+
+
 layout(std430,binding = 3) buffer DirLight{
 	DirectionalLight u_DirectionalLight;
 }; 
@@ -98,7 +109,7 @@ layout(std430,binding = 1) buffer Materials{
 
 layout(std430,binding = 2) buffer Lights
 {
-	Light u_Lights[];
+	PointLight u_PointLights[];
 };
 
 
@@ -127,6 +138,7 @@ vec4 ApplyLighting(Material material){
 	vec3 materialDiffuse = vec3(material.DiffuseX,material.DiffuseY,material.DiffuseZ);
 	vec3 materialSpecular = vec3(material.SpecularX,material.SpecularY,material.SpecularZ);
 	vec3 norm = normalize(Input.Normal);
+	vec3 viewDir = normalize(u_CameraPosition - Input.FragPos);
 
 	//Directional Light
 	{
@@ -143,38 +155,40 @@ vec4 ApplyLighting(Material material){
 		totalDiffuse += CalcLightDiffuse(materialDiffuse,norm, lightDir,diffuseIntensity);
 
 		//Specular
-		vec3 viewDir = normalize(u_CameraPosition - Input.FragPos);
-		vec3 reflectDir = reflect(-lightDir,norm);
-		totalSpecular += materialSpecular*pow(max(dot(viewDir,reflectDir),0.0),32) * specularIntensity;
-	}
-
-
-
-
-
-	for(int i = 0;i < u_LightCount;++i){	
-
-		Light light = u_Lights[i];
-
-		vec3 lightPos = vec3(light.PositionX,light.PositionY,light.PositionZ);
-		vec3 lightDir = normalize(lightPos-Input.FragPos);
-		
-		vec3 ambientIntensity = vec3(light.AmbientIntensityX,light.AmbientIntensityY,light.AmbientIntensityZ);
-		vec3 diffuseIntensity = vec3(light.DiffuseIntensityX,light.DiffuseIntensityY,light.DiffuseIntensityZ);
-		vec3 specularIntensity = vec3(light.SpecularIntensityX,light.SpecularIntensityY,light.SpecularIntensityZ);
-
-		
-		//Ambient
-		totalAmbient += CalcLightAmbient(materialAmbient,ambientIntensity);
-
-		//Diffuse
-		totalDiffuse += CalcLightDiffuse(materialDiffuse,norm, lightDir,diffuseIntensity);
-
-		//Specular
-		vec3 viewDir = normalize(u_CameraPosition - Input.FragPos);
 		vec3 reflectDir = reflect(-lightDir,norm);
 		totalSpecular += materialSpecular*pow(max(dot(viewDir,reflectDir),0.0),material.Shininess) * specularIntensity;
 	}
+
+
+	//Point Lights
+	{
+		for(int i =0;i<u_PointLightCount;++i){
+			vec3 lightAmbient=vec3(u_PointLights[i].AmbientX,u_PointLights[i].AmbientY,u_PointLights[i].AmbientZ);
+			vec3 lightDiffuse=vec3(u_PointLights[i].DiffuseX,u_PointLights[i].DiffuseY,u_PointLights[i].DiffuseZ);
+			vec3 lightSpecular=vec3(u_PointLights[i].SpecularX,u_PointLights[i].SpecularY,u_PointLights[i].SpecularZ);
+		
+
+
+			vec3 lightPos = vec3(u_PointLights[i].PositionX,u_PointLights[i].PositionY,u_PointLights[i].PositionZ);
+			vec3 lightDir = normalize(lightPos-Input.FragPos);
+			float distance = length(lightPos - Input.FragPos);
+			float attenuation = 1.0/(u_PointLights[i].ConstantCoefficient+u_PointLights[i].LinearCoefficient*distance+
+			u_PointLights[i].QuadraticCoefficient*(distance*distance));
+
+			totalAmbient += CalcLightAmbient(materialAmbient,lightAmbient)*attenuation;
+
+			totalDiffuse += CalcLightDiffuse(materialDiffuse,norm,lightDir,lightDiffuse) * attenuation;
+			
+			
+			vec3 reflectDir = reflect(-lightDir,norm);
+			totalSpecular += lightSpecular * pow(max(dot(viewDir, reflectDir), 0.0), material.Shininess)*materialSpecular * attenuation;
+
+		}
+	
+	}
+
+
+	
 
 	vec3 result = totalAmbient + totalDiffuse + totalSpecular;
 	materialColor.xyz =  result * materialColor.xyz;

@@ -140,14 +140,43 @@ namespace Kaidel {
 
 	};
 
+	struct PointLightComponent {
+		using LightType = PointLight;
+		Ref<LightType> Light;
+		PointLightComponent() {
+			Light = CreateRef<LightType>();
+		}
+		PointLightComponent(const PointLightComponent& rhs) {
+			Light = CreateRef<LightType>();
+			Light->GetLight() = rhs.Light->GetLight();
+		}
+	};
+
 	struct DirectionalLightComponent {
-		using LightType = Light<_DirectionalLightInternal, _DirectionalLightBindingSlot>;
+		using LightType = DirectionalLight;
 		Ref<LightType> Light;
 		bool IsPrimary = false;
 		DirectionalLightComponent() {
 			Light = CreateRef<LightType>();
 		}
-		DirectionalLightComponent(const DirectionalLightComponent&) = default;
+		DirectionalLightComponent(const DirectionalLightComponent& rhs) {
+			Light = CreateRef<LightType>();
+			Light->GetLight() = rhs.Light->GetLight();
+		}
+	};
+
+	struct SpotLightComponent {
+		using LightType = SpotLight;
+		Ref<LightType> Light;
+		SpotLightComponent() {
+			Light = CreateRef<LightType>();
+		}
+		SpotLightComponent(const SpotLightComponent& rhs) {
+			Light = CreateRef<LightType>();
+			Light->GetLight() = rhs.Light->GetLight();
+		}
+
+
 	};
 
 	/*struct LightComponent {

@@ -35,13 +35,28 @@ namespace Kaidel {
 
 
 	}
+	struct CountInfo {
+		int PointLightCount;
+	};
 	void SceneRenderer::Bind(){
-		static Ref<UniformBuffer> s_CountInfoUB = UniformBuffer::Create(2*sizeof(uint64_t),1);
+		static Ref<UniformBuffer> s_CountInfoUB = UniformBuffer::Create(sizeof(CountInfo),1);
 
-		DirectionalLightComponent::LightType::SetLights();
+		//Point Lights
+		{
+			auto view = static_cast<Scene*>(m_Context)->m_Registry.view<TransformComponent, PointLightComponent>();
+			for (auto e : view) {
+				auto [tc, plc] = view.get<TransformComponent, PointLightComponent>(e);
+				auto& light = plc.Light->GetLight();
+				light.Position = tc.Translation;
+			}
+		}
+
+		DirectionalLight::SetLights();
+		PointLight::SetLights();
 		Material::SetMaterials();
-		uint32_t countInfo[1] = { Material::GetMaterialCount() };
-		s_CountInfoUB->SetData(countInfo, sizeof(countInfo));
+		CountInfo countInfo;
+		countInfo.PointLightCount = PointLight::GetLightCount();
+		s_CountInfoUB->SetData(&countInfo, sizeof(countInfo));
 		s_CountInfoUB->Bind();
 	}
 
@@ -117,7 +132,7 @@ namespace Kaidel {
 		DrawCubes();
 
 		m_JobSystem.Wait();
-
+		
 
 
 

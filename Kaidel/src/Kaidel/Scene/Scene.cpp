@@ -459,6 +459,8 @@ namespace Kaidel {
 			component.IsPrimary = true;
 		}
 	}
+	DEF_COMPONENT_ADD(SpotLightComponent)
+	DEF_COMPONENT_ADD(PointLightComponent)
 	DEF_COMPONENT_ADD(TransformComponent)
 	DEF_COMPONENT_ADD(SpriteRendererComponent)
 	DEF_COMPONENT_ADD(TagComponent)
@@ -473,6 +475,6 @@ namespace Kaidel {
 	DEF_COMPONENT_ADD(ChildComponent)
 	DEF_COMPONENT_ADD(LineRendererComponent)
 	DEF_COMPONENT_ADD(CubeRendererComponent)
-
+	
 
 }

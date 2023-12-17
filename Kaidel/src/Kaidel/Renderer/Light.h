@@ -17,14 +17,44 @@ namespace Kaidel
 
 	struct _DirectionalLightInternal {
 		glm::vec3 Direction = { -.2f,-1.0f,-.3f };
-		glm::vec3 Ambient{ .6f };
-		glm::vec3 Diffuse{1.0f};
+		glm::vec3 Ambient{ .2f };
+		glm::vec3 Diffuse{.5f};
 		glm::vec3 Specular{ 1.0f };
 	};
 		
+	static inline constexpr uint32_t _PointLightBindingSlot = 2;
 	static inline constexpr uint32_t _DirectionalLightBindingSlot = 3;
-	static inline constexpr uint32_t _LightBindingSlot = 2;
+	static inline constexpr uint32_t _SpotLightBindingSlot = 4;
 
+	struct _PointLightInternal {
+		glm::vec3 Position{ 0.0f };
+		glm::vec3 Ambient{.2f};
+		glm::vec3 Diffuse{.5f};
+		glm::vec3 Specular{1.0f};
+
+		float ConstantCoefficient = 1.0f;
+		float LinearCoefficient = 0.09f;
+		float QuadraticCoefficient = 0.032f;
+	};
+
+
+	struct _SpotLightInternal {
+		glm::vec3 Position{ 0.0f };
+		glm::vec3 Direction{ 0.0f };
+		glm::vec3 Ambient{ .2f };
+		glm::vec3 Diffuse{ .5f };
+		glm::vec3 Specular{ 1.0f };
+		float CutOffAngle = 0.0f;
+
+		float ConstantCoefficient = 1.0f;
+		float LinearCoefficient = 0.09f;
+		float QuadraticCoefficient = 0.032f;
+
+
+	};
+
+
+	float GetMaxPointLightCoverage(float constantCoefficient, float linearCoefficient, float quadraticCoefficient);
 
 
 	template<typename T,uint32_t BindingSlot>
@@ -57,7 +87,9 @@ namespace Kaidel
 		friend class SceneRenderer;
 	};
 
+	using PointLight = Light<_PointLightInternal, _PointLightBindingSlot>;
 	using DirectionalLight = Light<_DirectionalLightInternal, _DirectionalLightBindingSlot>;
+	using SpotLight = Light<_SpotLightInternal, _SpotLightBindingSlot>;
 } 
 
 

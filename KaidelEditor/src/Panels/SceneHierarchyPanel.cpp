@@ -795,10 +795,21 @@ namespace Kaidel {
 			ImGui::DragFloat("Restitution Threshold", &component.RestitutionThreshold, 0.01f, .0f, 1.f);
 
 			});
-		DrawComponent<DirectionalLightComponent>("Box Collider 2D", entity, [](DirectionalLightComponent& component) {
-			ImGui::DragFloat3("Ambient", &component.Light->GetLight().Ambient.x,.01f,0.0f,1.0f);
-			ImGui::DragFloat3("Diffuse", &component.Light->GetLight().Diffuse.x,.01f,0.0f,1.0f);
-			ImGui::DragFloat3("Specular", &component.Light->GetLight().Specular.x,.01f,0.0f,1.0f);
+		DrawComponent<DirectionalLightComponent>("Directional Light", entity, [](DirectionalLightComponent& component) {
+			auto& light = component.Light->GetLight();
+			ImGui::DragFloat3("Ambient", &light.Ambient.x,.01f,0.0f,1.0f);
+			ImGui::DragFloat3("Diffuse", &light.Diffuse.x,.01f,0.0f,1.0f);
+			ImGui::DragFloat3("Specular", &light.Specular.x,.01f,0.0f,1.0f);
+			});
+		DrawComponent<PointLightComponent>("Point Light", entity, [](PointLightComponent& component) {
+			auto& light = component.Light->GetLight();
+			ImGui::DragFloat3("Ambient", &light.Ambient.x, .01f, 0.0f, 1.0f);
+			ImGui::DragFloat3("Diffuse", &light.Diffuse.x, .01f, 0.0f, 1.0f);
+			ImGui::DragFloat3("Specular", &light.Specular.x, .01f, 0.0f, 1.0f);
+			ImGui::DragFloat("Constant Coefficient", &light.ConstantCoefficient, 0.01f,0.01f);
+			ImGui::DragFloat("Linear Coefficient",&light.LinearCoefficient,0.01f, 0.01f);
+			ImGui::DragFloat("Quadratic Coefficient", &light.QuadraticCoefficient, 0.01f, 0.01f);
+
 			});
 		
 		DrawComponent<LineRendererComponent>("Line Renderer", entity, [](LineRendererComponent& component) {
@@ -850,35 +861,6 @@ namespace Kaidel {
 
 		DrawComponent<CubeRendererComponent>("Cube Renderer", entity, [entity, scene = m_Context](CubeRendererComponent& component) {
 			});
-
-		//DrawComponent<LightComponent>("Light", entity, [entity, scene = m_Context](LightComponent& component) {
-		//	
-		//	{
-		//		/*glm::vec3 color = component.Light->GetColor();
-		//		if (ImGui::ColorEdit3("Color", &color.r)) {
-		//			component.Light->SetColor(color);
-		//		}*/
-		//	}
-		//	/*{
-		//		float ambientIntensity = component.Light->GetAmbientIntensity();
-		//		if (ImGui::DragFloat("Ambient Intensity", &ambientIntensity,0.01f,0.0f,1.0f)) {
-		//			component.Light->SetAmbientIntensity(ambientIntensity);
-		//		}
-		//	}
-		//	{
-		//		float diffuseIntensity = component.Light->GetDiffuseIntensity();
-		//		if (ImGui::DragFloat("Diffuse Intensity", &diffuseIntensity, 0.01f, 0.0f, 1.0f)) {
-		//			component.Light->SetDiffuseIntensity(diffuseIntensity);
-		//		}
-		//	} 
-		//	{
-		//		float specularIntensity = component.Light->GetSpecularIntensity();
-		//		if (ImGui::DragFloat("Specular Intensity", &specularIntensity, 0.01f, 0.0f, 1.0f)) {
-		//			component.Light->SetSpecularIntensity(specularIntensity);
-		//		}
-		//	}*/
-
-		//	});
 
 		//Scripts
 		DrawComponent<ScriptComponent>("Script", entity, [entity, scene = m_Context](ScriptComponent& component) mutable

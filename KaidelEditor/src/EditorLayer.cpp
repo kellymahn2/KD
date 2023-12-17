@@ -67,8 +67,7 @@ namespace Kaidel {
 
 		{
 			Entity e = m_ActiveScene->CreateEntity("Light");
-			auto& lc  = e.AddComponent<DirectionalLightComponent>();
-			lc.IsPrimary = true;
+			auto& plc  = e.AddComponent<PointLightComponent>();
 			
 		}
 		{
