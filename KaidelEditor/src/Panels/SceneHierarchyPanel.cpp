@@ -560,9 +560,9 @@ namespace Kaidel {
 			}
 		}
 	}
-	template<typename T>
+	template<typename T,typename ...Exclude>
 	static void DrawAddComponentItems(Entity& entity, const std::string& text, std::function<void(T&)> func = [](T&){}) {
-		if (!entity.HasComponent<T>()) {
+		if (!entity.HasComponent<T>() && ((!(entity.HasComponent<Exclude>()))&&...)) {
 			if (ImGui::MenuItem(text.c_str())) {
 				func(entity.AddComponent<T>());
 				ImGui::CloseCurrentPopup();
@@ -638,17 +638,22 @@ namespace Kaidel {
 				entity.AddScript();
 			}
 			DrawAddComponentItems<CameraComponent>(entity, "Camera");
-			DrawAddComponentItems<SpriteRendererComponent>(entity, "Sprite Renderer");
-			DrawAddComponentItems<CircleRendererComponent>(entity, "Circle Renderer");
+			DrawAddComponentItems<SpriteRendererComponent,LineRendererComponent, CircleRendererComponent, CubeRendererComponent>(entity, "Sprite Renderer");
+			DrawAddComponentItems<CircleRendererComponent,LineRendererComponent , SpriteRendererComponent, CubeRendererComponent>(entity, "Circle Renderer");
 			DrawAddComponentItems<Rigidbody2DComponent>(entity, "Rigidbody 2D");
 			DrawAddComponentItems<BoxCollider2DComponent>(entity, "Box Collider 2D");
 			DrawAddComponentItems<CircleCollider2DComponent>(entity, "Circle Collider 2D");
-			DrawAddComponentItems<LineRendererComponent>(entity, "Line Renderer", [](LineRendererComponent& lrc) {
+			DrawAddComponentItems<LineRendererComponent, CircleRendererComponent, SpriteRendererComponent,CubeRendererComponent>(entity, "Line Renderer", [](LineRendererComponent& lrc) {
 				lrc.Points = { LineRendererComponent::Point{ {0,0,0} }, LineRendererComponent::Point{ {1,1,0} } };
 				lrc.RecalculateFinalPoints();
 				});
 			//DrawAddComponentItems<LightComponent>(entity, "Light");
-			DrawAddComponentItems<CubeRendererComponent>(entity, "Cube Renderer");
+			DrawAddComponentItems<CubeRendererComponent,LineRendererComponent, CircleRendererComponent, SpriteRendererComponent >(entity, "Cube Renderer");
+			DrawAddComponentItems<DirectionalLightComponent>(entity, "Directional Light");
+			DrawAddComponentItems<PointLightComponent>(entity, "Point Light");
+			DrawAddComponentItems<SpotLightComponent>(entity, "Spot Light");
+
+
 			//DrawAddComponentItems<ParentComponent>(m_SelectionContext, "Parent");
 			//DrawAddComponentItems<ChildComponent>(m_SelectionContext, "Child");
 			ImGui::EndPopup();
@@ -750,7 +755,6 @@ namespace Kaidel {
 			ImGui::ColorEdit4("Color", glm::value_ptr(component.Color));
 			ImGui::DragFloat("Thickness", &component.Thickness, .1f, .0f, 1.f);
 			ImGui::DragFloat("Fade", &component.Fade, .1f, .0f, 1.f);
-
 			});
 
 		//Physics
@@ -811,6 +815,24 @@ namespace Kaidel {
 			ImGui::DragFloat("Quadratic Coefficient", &light.QuadraticCoefficient, 0.01f, 0.01f);
 
 			});
+
+		DrawComponent<SpotLightComponent>("Spot Light", entity, [](SpotLightComponent& component) {
+			auto& light = component.Light->GetLight();
+			float angle = glm::degrees(glm::acos(light.CutOffAngle))*2.0f;
+			if (ImGui::DragFloat("Cut Off Angle", &angle,1.0f,0.0f,360.0f)) {
+				light.CutOffAngle = glm::cos(glm::radians(angle/2.0f));
+			}
+			ImGui::DragFloat3("Direction", &light.Direction.x);
+			ImGui::DragFloat3("Ambient", &light.Ambient.x, .01f, 0.0f, 1.0f);
+			ImGui::DragFloat3("Diffuse", &light.Diffuse.x, .01f, 0.0f, 1.0f);
+			ImGui::DragFloat3("Specular", &light.Specular.x, .01f, 0.0f, 1.0f);
+			ImGui::DragFloat("Constant Coefficient", &light.ConstantCoefficient, 0.01f, 0.01f);
+			ImGui::DragFloat("Linear Coefficient", &light.LinearCoefficient, 0.01f, 0.01f);
+			ImGui::DragFloat("Quadratic Coefficient", &light.QuadraticCoefficient, 0.01f, 0.01f);
+
+			});
+
+
 		
 		DrawComponent<LineRendererComponent>("Line Renderer", entity, [](LineRendererComponent& component) {
 				

@@ -67,14 +67,18 @@ namespace Kaidel {
 
 		{
 			Entity e = m_ActiveScene->CreateEntity("Light");
-			auto& plc  = e.AddComponent<PointLightComponent>();
+			auto& plc  = e.AddComponent<DirectionalLightComponent>();
 			
 		}
 		{
 			Entity e = m_ActiveScene->CreateEntity("Cube");
 			auto& crc = e.AddComponent<CubeRendererComponent>();
+			crc.Material = CreateRef<Material>();
+			crc.Material->SetDiffuse(2);
+			crc.Material->SetSpecular(3);
 			//crc.Color = glm::vec4(1.0f);
 		}
+
 
 		/*cs = ComputeShader::Create("assets/shaders/TestCompute2.glsl");
 

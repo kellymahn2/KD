@@ -31,4 +31,17 @@ namespace Kaidel {
 		static std::unordered_map < std::string , Ref<Texture2D>> s_Map;
 	};
 
+	class Texture2DArray {
+	public:
+		virtual ~Texture2DArray() = default;
+
+		
+		virtual void SetTextureData(void* data, uint32_t width,uint32_t height,uint32_t index) = 0;
+		virtual void Bind(uint32_t slot = 0)const = 0;
+		virtual uint32_t PushTexture(void* data, uint32_t width,uint32_t height) = 0;
+		virtual uint32_t PushTexture(const std::string& src) = 0;
+		static Ref<Texture2DArray> Create(uint32_t width, uint32_t height);
+	};
+
+
 }

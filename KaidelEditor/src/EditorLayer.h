@@ -60,14 +60,7 @@ namespace Kaidel {
 	private:
 
 
-		Ref<VertexBuffer> vb;
-		Ref<VertexArray> va;
-		Ref<Shader> s;
-		Ref<IndexBuffer> ib;
-
-		Ref<Animation> a;
-		Ref<AnimationPlayer> ap;
-
+		
 		Console m_DebugConsole;
 		Ref<Framebuffer> m_Framebuffer;
 		Ref<Scene> m_ActiveScene;
@@ -109,12 +102,7 @@ namespace Kaidel {
 			Edit = 0, Play = 1 , Simulate = 2
 		};
 		SceneState m_SceneState=SceneState::Edit;
-
-		Ref<ComputeShader> cs;
-		Ref<TypedBufferInput> tbi;
-		Ref<UniformBuffer> ub;
-		Ref<UAVInput> ui;
-		float totalTime = 0;
+		
 	};
 
 }

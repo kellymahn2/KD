@@ -17,8 +17,8 @@ namespace Kaidel {
 	struct CubeVertex {
 		glm::vec3 Position;
 		glm::vec3 Normal;
+		glm::vec2 TexCoords;
 		int MaterialIndex;
-		//TODO : Add support for textures(eg. 3D textures and cubemaps).
 		int EntityID;
 	};
 
@@ -51,6 +51,7 @@ namespace Kaidel {
 		struct {
 			glm::vec4 CubeVertexPositions;
 			glm::vec4 CubeVertexNormals;
+			glm::vec2 CubeTexCoords;
 		} CubeVertexData[24];
 
 
@@ -65,7 +66,7 @@ namespace Kaidel {
 		CameraData CameraBuffer;
 		Ref<UniformBuffer> CameraUniformBuffer;
 
-
+		Ref<Texture2DArray> MaterialTextures;
 
 
 	};
@@ -125,7 +126,7 @@ namespace Kaidel {
 			cubeIndices[i + 34] = offset + 23;
 			cubeIndices[i + 35] = offset + 20;
 
-			offset += 8;
+			offset += 24;
 		}
 		return cubeIndices;
 	}
@@ -174,6 +175,7 @@ namespace Kaidel {
 		s_Data.CubeVertexBuffer->SetLayout({
 			{ShaderDataType::Float3,"a_Position"},
 			{ShaderDataType::Float3,"a_Normal"},
+			{ShaderDataType::Float2,"a_TexCoords"},
 			{ShaderDataType::Int,"a_MaterialIndex"},
 			{ShaderDataType::Int,"a_EntityID"}
 			});
@@ -192,43 +194,57 @@ namespace Kaidel {
 		auto& ptr = slot[0];
 		ptr = s_Data.WhiteTexture;
 		// Front face
-		s_Data.CubeVertexData[0]  = { {-0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f} }; // Bottom-left
-		s_Data.CubeVertexData[1]  = { { 0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f} }; // Bottom-right
-		s_Data.CubeVertexData[2]  = { { 0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f} }; // Top-right
-		s_Data.CubeVertexData[3]  = { {-0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f} }; // Top-left
-															   		    
-		// Back face										   		    
-		s_Data.CubeVertexData[4]  = { {-0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f} }; // Bottom-left
-		s_Data.CubeVertexData[5]  = { { 0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f} }; // Bottom-right
-		s_Data.CubeVertexData[7]  = { {-0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f} }; // Top-left
-		s_Data.CubeVertexData[6]  = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f} }; // Top-right
-															   		    
-		// Right face										   		    
-		s_Data.CubeVertexData[8]  = { { 0.5f , -0.5f ,  0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f} }; // Bottom-front
-		s_Data.CubeVertexData[9]  = { { 0.5f , -0.5f , -0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f} }; // Bottom-back
-		s_Data.CubeVertexData[10] = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f} }; // Top-back
-		s_Data.CubeVertexData[11] = { { 0.5f ,  0.5f ,  0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f} }; // Top-front
-															   
-		// Left face										   
-		s_Data.CubeVertexData[12] = { {-0.5f , -0.5f ,  0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f} }; // Bottom-front
-		s_Data.CubeVertexData[13] = { {-0.5f , -0.5f , -0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f} }; // Bottom-back
-		s_Data.CubeVertexData[14] = { {-0.5f ,  0.5f , -0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f} }; // Top-back
-		s_Data.CubeVertexData[15] = { {-0.5f ,  0.5f ,  0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f} }; // Top-front
-															   
-		// Bottom face										   
-		s_Data.CubeVertexData[16] = { {-0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f} }; // Front-left
-		s_Data.CubeVertexData[17] = { { 0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f} }; // Front-right
-		s_Data.CubeVertexData[18] = { { 0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f} }; // Back-right
-		s_Data.CubeVertexData[19] = { {-0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f} }; // Back-left
-															   		    					   
-		// Top face											   		    					   
-		s_Data.CubeVertexData[20] = { {-0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f} }; // Front-left
-		s_Data.CubeVertexData[21] = { { 0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f} }; // Front-right
-		s_Data.CubeVertexData[22] = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f} }; // Back-right
-		s_Data.CubeVertexData[23] = { {-0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f} }; // Back-left
+		s_Data.CubeVertexData[0]  = { {-0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f}, {0,0}}; // Bottom-left
+		s_Data.CubeVertexData[1]  = { { 0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f}, {1,0}}; // Bottom-right
+		s_Data.CubeVertexData[2]  = { { 0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f}, {1,1}}; // Top-right
+		s_Data.CubeVertexData[3]  = { {-0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f}, {0,1}}; // Top-left
+															   		    						   
+		// Back face										   		    						   
+		s_Data.CubeVertexData[4]  = { {-0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {0,0}}; // Bottom-left
+		s_Data.CubeVertexData[5]  = { { 0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {1,0}}; // Bottom-right
+		s_Data.CubeVertexData[7]  = { {-0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {1,1}}; // Top-left
+		s_Data.CubeVertexData[6]  = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {0,1}}; // Top-right
+															   		    						   
+		// Right face										   		    						   
+		s_Data.CubeVertexData[8]  = { { 0.5f , -0.5f ,  0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {0,0}}; // Bottom-front
+		s_Data.CubeVertexData[9]  = { { 0.5f , -0.5f , -0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {1,0}}; // Bottom-back
+		s_Data.CubeVertexData[10] = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {1,1}}; // Top-back
+		s_Data.CubeVertexData[11] = { { 0.5f ,  0.5f ,  0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {0,1}}; // Top-front
+															   									   
+		// Left face										   									   
+		s_Data.CubeVertexData[12] = { {-0.5f , -0.5f ,  0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f}, {0,0}}; // Bottom-front
+		s_Data.CubeVertexData[13] = { {-0.5f , -0.5f , -0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f}, {1,0}}; // Bottom-back
+		s_Data.CubeVertexData[14] = { {-0.5f ,  0.5f , -0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f}, {1,1}}; // Top-back
+		s_Data.CubeVertexData[15] = { {-0.5f ,  0.5f ,  0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f}, {0,1}}; // Top-front
+															   									   
+		// Bottom face										   									   
+		s_Data.CubeVertexData[16] = { {-0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f}, {0,0}}; // Front-left
+		s_Data.CubeVertexData[17] = { { 0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f}, {1,0}}; // Front-right
+		s_Data.CubeVertexData[18] = { { 0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f}, {1,1}}; // Back-right
+		s_Data.CubeVertexData[19] = { {-0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f}, {0,1}}; // Back-left
+															   		    					   	   
+		// Top face											   		    					   	   
+		s_Data.CubeVertexData[20] = { {-0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f}, {0,0}}; // Front-left
+		s_Data.CubeVertexData[21] = { { 0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f}, {1,0}}; // Front-right
+		s_Data.CubeVertexData[22] = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f}, {1,1}}; // Back-right
+		s_Data.CubeVertexData[23] = { {-0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f}, {0,1}}; // Back-left
 		
 		
-		//Lighting
+		//Materials
+
+		s_Data.MaterialTextures = Texture2DArray::Create(256, 256);
+		uint32_t init = 0xffffffff;
+		//Defualt  Diffuse
+		s_Data.MaterialTextures->PushTexture(&init, 1, 1);
+		//Default Specular
+		s_Data.MaterialTextures->PushTexture(&init, 1, 1);
+		
+		//Temp
+		{
+			s_Data.MaterialTextures->PushTexture("assets/textures/container2.png");
+			s_Data.MaterialTextures->PushTexture("assets/textures/container2_specular.png");
+
+		}
 
 
 		
@@ -302,6 +318,8 @@ namespace Kaidel {
 			s_Data.CameraUniformBuffer->Bind();
 			s_Data.CubeVertexArray->Bind();
 			s_Data.CubeShader->Bind();
+			s_Data.MaterialTextures->Bind(0);
+			s_Data.CubeShader->SetInt("u_MaterialTextures", 0);
 			//Bind textures
 			for (uint32_t i = 0; i < s_Data.TextureSlotIndex; ++i) {
 				s_Data.TextureSlots.Get()[i]->Bind(i);
@@ -323,9 +341,15 @@ namespace Kaidel {
 		StartBatch();
 	}
 
-	static void SetCubeVertexValues(CubeVertex& cv, const glm::mat4& transform,const glm::mat4& normalTransform,const glm::vec4& position,const glm::vec4& normals, int materialIndex,int entityID) {
+
+	static inline uint32_t _GetTexCoordIndex(const glm::vec4& pos) {
+
+	}
+
+	static void SetCubeVertexValues(CubeVertex& cv, const glm::mat4& transform,const glm::mat4& normalTransform,const glm::vec4& position,const glm::vec4& normals, const glm::vec2& texCoords,int materialIndex,int entityID) {
 		cv.Position = transform * position;
 		cv.Normal = normalTransform * normals;
+		cv.TexCoords = texCoords;
 		cv.MaterialIndex = materialIndex;
 		cv.EntityID = entityID;
 	}
@@ -336,25 +360,16 @@ namespace Kaidel {
 			DrawCube(transform, s_Data.DefaultMaterial, entityID);
 			return;
 		}
-
-		/*s_Data.CubeVertexPositions[0] = { -0.5f,  0.5f, -0.5f, 1.0f };
-		s_Data.CubeVertexPositions[1] = { 0.5f,  0.5f, -0.5f, 1.0f };
-		s_Data.CubeVertexPositions[2] = { 0.5f, -0.5f, -0.5f, 1.0f };
-		s_Data.CubeVertexPositions[3] = { -0.5f,  -0.5f, -0.5f, 1.0f };
-		s_Data.CubeVertexPositions[4] = { -0.5f,  0.5f,  0.5f, 1.0f };
-		s_Data.CubeVertexPositions[5] = { 0.5f,  0.5f,  0.5f, 1.0f };
-		s_Data.CubeVertexPositions[6] = { 0.5f, -0.5f,  0.5f, 1.0f };
-		s_Data.CubeVertexPositions[7] = { -0.5f, -0.5f,  0.5f, 1.0f };*/
-		static std::vector<CubeVertex> data{ 24,CubeVertex{} };
+		CubeVertex  data[24];
 		glm::mat4 normalTransform = glm::transpose(glm::inverse(glm::mat3(transform)));
-		for (std::size_t i = 0; i < data.size();++i) {
-			SetCubeVertexValues(data[i], transform, normalTransform,s_Data.CubeVertexData[i].CubeVertexPositions, s_Data.CubeVertexData[i].CubeVertexNormals, material->GetIndex(), entityID);
+		for (std::size_t i = 0; i < 24;++i) {
+			SetCubeVertexValues(data[i], transform, normalTransform,s_Data.CubeVertexData[i].CubeVertexPositions, s_Data.CubeVertexData[i].CubeVertexNormals,s_Data.CubeVertexData[i].CubeTexCoords, material->GetIndex(), entityID);
 		}
 		
-		std::scoped_lock<std::mutex> lock(s_Data.CubeMutex);
 
+		std::scoped_lock<std::mutex> lock(s_Data.CubeMutex);
 		auto bvi = s_Data.CubeVertexBufferArray.Reserve(24);
-		for (std::size_t i = 0; i < data.size(); ++i) {
+		for (std::size_t i = 0; i < 24; ++i) {
 			bvi[i] = std::move(data[i]);
 		}
 

@@ -4,7 +4,6 @@
 namespace Kaidel {
 	template<typename T>
 	struct BoundedVector_Iterator {
-		~BoundedVector_Iterator() = default;
 		T& operator[](uint64_t index) {
 			//Add Assert here.
 			return *(m_Start + index);

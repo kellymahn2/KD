@@ -37,9 +37,10 @@ namespace Kaidel {
 	}
 	struct CountInfo {
 		int PointLightCount;
+		int SpotLightCount;
 	};
 	void SceneRenderer::Bind(){
-		static Ref<UniformBuffer> s_CountInfoUB = UniformBuffer::Create(sizeof(CountInfo),1);
+		static Ref<UniformBuffer> s_LightingDataUB = UniformBuffer::Create(sizeof(CountInfo),1);
 
 		//Point Lights
 		{
@@ -50,14 +51,29 @@ namespace Kaidel {
 				light.Position = tc.Translation;
 			}
 		}
+		//Spot Lights
+		{
+
+			auto view = static_cast<Scene*>(m_Context)->m_Registry.view<TransformComponent, SpotLightComponent>();
+
+			for (auto e : view) {
+
+				auto [tc, slc] = view.get<TransformComponent, SpotLightComponent>(e);
+				auto& light = slc.Light->GetLight();
+				light.Position = tc.Translation;
+			}
+		}
+
 
 		DirectionalLight::SetLights();
 		PointLight::SetLights();
+		SpotLight::SetLights();
 		Material::SetMaterials();
 		CountInfo countInfo;
 		countInfo.PointLightCount = PointLight::GetLightCount();
-		s_CountInfoUB->SetData(&countInfo, sizeof(countInfo));
-		s_CountInfoUB->Bind();
+		countInfo.SpotLightCount = SpotLight::GetLightCount();
+		s_LightingDataUB->SetData(&countInfo, sizeof(countInfo));
+		s_LightingDataUB->Bind();
 	}
 
 	void SceneRenderer::DrawQuads() {

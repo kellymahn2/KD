@@ -34,7 +34,7 @@ public:
 			Kaidel::Console::Log(fmt::format(str,std::forward<Args>(args)...),Kaidel::MessageLevel::Warn);
 		}
 		template<typename... Args>
-		void Error(const std::string& str,Args&&... args)
+		void Error(const std::string& str="", Args&&... args)
 		{
 			Kaidel::Console::Log(fmt::format(str,std::forward<Args>(args)...),Kaidel::MessageLevel::Error);
 		}
@@ -63,7 +63,7 @@ public:
 			Kaidel::Console::Log(fmt::format(str,std::forward<Args>(args)...),Kaidel::MessageLevel::Warn);
 		}
 		template<typename... Args>
-		void Error(const std::string& str,Args&&... args)
+		void Error(const std::string& str="", Args&&... args)
 		{
 			Kaidel::Console::Log(fmt::format(str,std::forward<Args>(args)...),Kaidel::MessageLevel::Error);
 		}
