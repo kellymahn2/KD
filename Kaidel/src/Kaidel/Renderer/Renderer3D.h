@@ -8,17 +8,23 @@
 
 #include "Kaidel/Scene/Components.h"
 #include <future>
-
+#include "Renderer3DFlusher.h"
+#include "VertexTypes.h"
 namespace Kaidel {
+	
+
+	
 	struct CubeVertex;
+
+
 	class Renderer3D {
 	public:
 		static void Init();
 		static void Shutdown();
-		static void BeginScene(const Camera& camera, const glm::mat4& transform);
-		static void BeginScene(const EditorCamera& camera);
-		static void BeginScene(const OrthographicCamera& camera); // TODO: Remove
-		static void EndScene();
+
+		static void BeginRendering(Renderer3DFlusher* flusher);
+		static void EndRendering();
+
 		static void Flush();
 		static void FlushCubes(CubeVertex* start, uint64_t size);
 

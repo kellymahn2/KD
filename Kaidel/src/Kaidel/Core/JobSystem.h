@@ -64,9 +64,7 @@ namespace Kaidel {
 		void Dispatch(uint32_t jobCount, uint32_t groupSize, const std::function<void(JobDispatchArgs)>& job);
 		bool IsBusy();
 		void Wait();
-
-
-
+		static JobSystem& GetMainJobSystem() { return s_JobSystem; }
 	private:
 		void poll();
 		struct JobSystemData {
@@ -78,9 +76,7 @@ namespace Kaidel {
 			std::atomic<uint64_t> finishedLabel;    // track the state of execution across background worker threads
 		};
 		JobSystemData m_Data;
-
-
-
+		static JobSystem s_JobSystem;
 	};
 
 

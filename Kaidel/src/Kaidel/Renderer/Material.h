@@ -44,5 +44,6 @@ namespace Kaidel
 		static std::vector<Material*> s_Materials;
 		uint64_t m_MaterialIndex;
 		friend class SceneRenderer;
+		friend static void BindLights(void* m_Context);
     }; 
 } 

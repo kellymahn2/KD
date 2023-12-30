@@ -51,5 +51,16 @@ namespace Kaidel {
 		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
 		return nullptr;
 	}
+	Ref<Depth2DArray> Depth2DArray::Create(uint32_t width, uint32_t height)
+	{
+		switch (Renderer::GetAPI())
+		{
+		case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
+		case RendererAPI::API::OpenGL:  return CreateRef<OpenGLDepth2DArray>(width, height);
+			//case RendererAPI::API::DirectX: return CreateRef<D3DTexture2D>(path);
+		}
+		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
+		return nullptr;
+	}
 
 }

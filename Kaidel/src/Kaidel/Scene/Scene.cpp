@@ -37,9 +37,7 @@ namespace Kaidel {
 	}
 
 	Scene::Scene()
-		
 	{
-		m_SceneRenderer = this;
 	}
 
 	Scene::~Scene()
@@ -190,38 +188,7 @@ namespace Kaidel {
 
 	void Scene::RenderScene()
 	{
-		{
-			m_SceneRenderer = this;
-			m_SceneRenderer.Reset();
-			m_SceneRenderer.Render();
-
-			
-
-			/*auto view = m_Registry.view<TransformComponent, SpriteRendererComponent, IDComponent>();
-			KD_PROFILE_SCOPE();
-			for (auto e : view)
-			{
-				auto& id = view.get<IDComponent>(e);
-				if (!id.IsActive || !id.IsVisible)
-					continue;
-				auto [transform, sprite] = view.get<TransformComponent, SpriteRendererComponent>(e);
-
-				Renderer2D::DrawSprite(transform.GetTransform(), sprite, (int)e);
-			}*/
-		}
-		/*{
-
-			auto view = m_Registry.view<TransformComponent, CircleRendererComponent,IDComponent>();
-			KD_PROFILE_SCOPE();
-			for (auto e : view) {
-				auto& id = view.get<IDComponent>(e);
-				if (!id.IsActive || !id.IsVisible)
-					continue;
-				auto [transform, crc] = view.get<TransformComponent, CircleRendererComponent>(e);
-
-				Renderer2D::DrawCircle(transform.GetTransform(), crc.Color, crc.Thickness, crc.Fade, (int)e);
-			}
-		}*/
+		
 	}
 
 	void Scene::DuplicateEntity(Entity& entity)
@@ -247,7 +214,6 @@ namespace Kaidel {
 	{
 		return CreateEntity(UUID{}, name);
 	}
-	SceneRenderer Scene::m_SceneRenderer;
 	Entity Scene::CreateEntity(UUID uuid, const std::string& name /*= std::string()*/)
 	{
 		Entity entity = { m_Registry.create(), this };
@@ -366,7 +332,7 @@ namespace Kaidel {
 
 
 		// Render 2D
-		Entity cam = GetPrimaryCameraEntity();
+		/*Entity cam = GetPrimaryCameraEntity();
 		if (cam)
 		{
 			auto camTransform = cam.GetComponent<TransformComponent>().GetTransform();
@@ -375,17 +341,13 @@ namespace Kaidel {
 			RenderScene();
 			Renderer3D::EndScene();
 			Renderer2D::EndScene();
-		}
+		}*/
 
 	}
 
 	void Scene::OnUpdateEditor(Timestep ts, EditorCamera& camera)
 	{
-		Renderer2D::BeginScene(camera);
-		Renderer3D::BeginScene(camera);
-		RenderScene();
-		Renderer3D::EndScene();
-		Renderer2D::EndScene();
+		
 	}
 
 	void Scene::OnUpdateSimulation(Timestep ts, EditorCamera& camera)

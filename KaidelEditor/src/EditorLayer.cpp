@@ -3,7 +3,7 @@
 
 #include "Kaidel/Math/Math.h"
 #include "Kaidel/Core/Timer.h"
-
+#include "Kaidel/Renderer/RenderPass.h"
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
@@ -15,6 +15,7 @@
 #include "Kaidel/Utils/PlatformUtils.h"
 
 #include "Kaidel/Scripting/ScriptEngine.h"
+
 
 #include "imguizmo/ImGuizmo.h"
 
@@ -229,7 +230,27 @@ namespace Kaidel {
 		{
 			case SceneState::Edit:
 			{
-				m_ActiveScene->OnUpdateEditor(ts, m_EditorCamera);
+
+				{
+					GeometryPass goemetryPass = { GeometryPass::GeometryType_3D | GeometryPass::GeometryType_2D , {m_ActiveScene,m_EditorCamera.GetViewProjection(),m_EditorCamera.GetPosition()} };
+					goemetryPass.Render();
+				}
+
+				{
+						
+				}
+
+				{
+
+
+				}
+
+				{
+
+
+
+				}
+
 				break;
 			}
 			case SceneState::Play:

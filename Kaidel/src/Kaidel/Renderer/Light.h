@@ -2,6 +2,8 @@
 #include <glm/glm.hpp>
 #include <vector>
 #include <Kaidel/Renderer/Shader.h>
+#include "Kaidel/Renderer/Texture.h"
+#include "Kaidel/Renderer/Framebuffer.h"
 namespace Kaidel
 {
 	//struct _LightInternal{
@@ -22,15 +24,11 @@ namespace Kaidel
 		glm::vec3 Specular{ 1.0f };
 	};
 		
-	static inline constexpr uint32_t _PointLightBindingSlot = 2;
-	static inline constexpr uint32_t _DirectionalLightBindingSlot = 3;
-	static inline constexpr uint32_t _SpotLightBindingSlot = 4;
-
 	struct _PointLightInternal {
 		glm::vec3 Position{ 0.0f };
-		glm::vec3 Ambient{.2f};
-		glm::vec3 Diffuse{.5f};
-		glm::vec3 Specular{1.0f};
+		glm::vec3 Ambient{ .2f };
+		glm::vec3 Diffuse{ .5f };
+		glm::vec3 Specular{ 1.0f };
 
 		float ConstantCoefficient = 1.0f;
 		float LinearCoefficient = 0.09f;
@@ -49,12 +47,16 @@ namespace Kaidel
 		float ConstantCoefficient = 1.0f;
 		float LinearCoefficient = 0.09f;
 		float QuadraticCoefficient = 0.032f;
-
-
 	};
 
 
-	float GetMaxPointLightCoverage(float constantCoefficient, float linearCoefficient, float quadraticCoefficient);
+	static inline constexpr uint32_t _PointLightBindingSlot = 2;
+	static inline constexpr uint32_t _DirectionalLightBindingSlot = 3;
+	static inline constexpr uint32_t _SpotLightBindingSlot = 4;
+	static inline constexpr uint32_t _ShadowMapWidth = 1024;
+	static inline constexpr uint32_t _ShadowMapHeight = 1024;
+	
+
 
 
 	template<typename T,uint32_t BindingSlot>
@@ -64,6 +66,7 @@ namespace Kaidel
 			m_LightIndex = s_InternalData.size();
 			s_InternalData.emplace_back(T{});
 			s_Lights.push_back(this);
+			//s_DepthMaps->PushTexture(nullptr,_ShadowMapWidth,_ShadowMapHeight);
 		}
 		~Light() {
 			std::swap(s_InternalData[m_LightIndex], s_InternalData.back());
@@ -73,7 +76,7 @@ namespace Kaidel
 			s_Lights.pop_back();
 		}
 		T& GetLight(){ return s_InternalData[m_LightIndex]; }
-
+		//static inline Ref<Texture2DArray> GetDepthMaps() { return s_DepthMaps; }
 	private:
 		static uint64_t GetLightCount() { return s_InternalData.size(); }
 		static void SetLights() {
@@ -83,8 +86,13 @@ namespace Kaidel
 		}
 		static inline std::vector<T> s_InternalData{};
 		static inline std::vector<Light*> s_Lights{};
+		//static inline Ref<Texture2DArray> s_DepthMaps = Texture2DArray::Create(_ShadowMapWidth,_ShadowMapHeight);
 		uint64_t m_LightIndex;
+
+	
+
 		friend class SceneRenderer;
+		friend static void BindLights(void* m_Context);
 	};
 
 	using PointLight = Light<_PointLightInternal, _PointLightBindingSlot>;

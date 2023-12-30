@@ -14,65 +14,23 @@
 
 
 namespace Kaidel {
-	struct CubeVertex {
-		glm::vec3 Position;
-		glm::vec3 Normal;
-		glm::vec2 TexCoords;
-		int MaterialIndex;
-		int EntityID;
-	};
-
 	
+
 	struct Renderer3DData {
-		static constexpr uint32_t MaxCubes = 1000;
-		static constexpr uint32_t MaxVertices= MaxCubes*24;
-		static constexpr uint32_t MaxIndices = MaxCubes*36;
-		static constexpr uint32_t MaxTextureSlots = 32;
+		
 
-		Ref<VertexArray> CubeVertexArray;
-		Ref<VertexBuffer> CubeVertexBuffer;
-		Ref<Shader> CubeShader;
-		uint32_t CubeIndexCount = 0;
-		BoundedVector < CubeVertex> CubeVertexBufferArray = { 10,MaxVertices ,[](auto start,uint64_t size) {
-			Renderer3D::FlushCubes(start,size);
-			Renderer3D::StartCubeBatch();
-			} };
-		std::mutex CubeMutex;
-		size_t CubeVertexBufferIndex = 0;
-
-
-		Ref<Texture2D> WhiteTexture;
-		BoundedVector <Ref<Texture2D>> TextureSlots;
-
-		uint32_t TextureSlotIndex = 1; // 0 = white texture
-
+		Renderer3DFlusher* Flusher;
 		Ref<Material> DefaultMaterial;
-
 		struct {
 			glm::vec4 CubeVertexPositions;
 			glm::vec4 CubeVertexNormals;
 			glm::vec2 CubeTexCoords;
 		} CubeVertexData[24];
-
-
-
-		
-		Renderer3D::Statistics Stats;
-		struct CameraData
-		{
-			glm::mat4 ViewProjection;
-			glm::vec3 CameraPosition;
-		};
-		CameraData CameraBuffer;
-		Ref<UniformBuffer> CameraUniformBuffer;
-
-		Ref<Texture2DArray> MaterialTextures;
-
-
+		std::mutex CubeMutex;
 	};
-	static Renderer3DData s_Data;
+	Renderer3DData s_Data;
 
-	static uint32_t* SetupCubeIndices() {
+	/*static uint32_t* SetupCubeIndices() {
 		uint32_t* cubeIndices = new uint32_t[s_Data.MaxIndices];
 
 		uint32_t offset = 0;
@@ -129,125 +87,161 @@ namespace Kaidel {
 			offset += 24;
 		}
 		return cubeIndices;
-	}
+	}*/
 
 
 
 	void Renderer3D::Init() {
 
-		s_Data.TextureSlots = { 0,(uint64_t)RenderCommand::QueryMaxTextureSlots(),[&](auto start,uint64_t size) {
-			s_Data.TextureSlotIndex = (uint32_t)size;
-			Flush();
-			}};
-
 		s_Data.DefaultMaterial = CreateRef<Material>();
-		s_Data.CameraUniformBuffer = UniformBuffer::Create(80, 0);
-
-		switch (RendererAPI::GetAPI())
-		{
-		case RendererAPI::API::OpenGL:
-		{
-			s_Data.CubeShader = Shader::Create("assets/shaders/Cube.glsl");
-			break;
-		}
-		case RendererAPI::API::DirectX:
-		{
-			s_Data.CubeShader = Shader::Create("assets/shaders/Cube.kdShader");
-			break;
-		}
-		}
-
-		//Cubes
-		switch (RendererAPI::GetAPI()) {
-		case RendererAPI::API::OpenGL:
-		{
-			s_Data.CubeVertexArray = VertexArray::Create();
-			break;
-		}
-		case RendererAPI::API::DirectX:
-		{
-
-			s_Data.CubeVertexArray = VertexArray::Create(s_Data.CubeShader);
-			break;
-		}
-		}
-		s_Data.CubeVertexBuffer = VertexBuffer::Create(0);
-		s_Data.CubeVertexBuffer->SetLayout({
-			{ShaderDataType::Float3,"a_Position"},
-			{ShaderDataType::Float3,"a_Normal"},
-			{ShaderDataType::Float2,"a_TexCoords"},
-			{ShaderDataType::Int,"a_MaterialIndex"},
-			{ShaderDataType::Int,"a_EntityID"}
-			});
-		s_Data.CubeVertexArray->AddVertexBuffer(s_Data.CubeVertexBuffer);
-
-		uint32_t* cubeIndices = SetupCubeIndices();
-		Ref<IndexBuffer> cubeIB = IndexBuffer::Create(cubeIndices, s_Data.MaxIndices);
-		s_Data.CubeVertexArray->SetIndexBuffer(cubeIB);
-		delete[] cubeIndices;
-
-		//misc.
-		s_Data.WhiteTexture = Texture2D::Create(1, 1);
-		uint32_t whiteTextureData = 0xffffffff;
-		s_Data.WhiteTexture->SetData(&whiteTextureData, sizeof(uint32_t));
-		auto slot = s_Data.TextureSlots.Reserve(1);
-		auto& ptr = slot[0];
-		ptr = s_Data.WhiteTexture;
 		// Front face
-		s_Data.CubeVertexData[0]  = { {-0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f}, {0,0}}; // Bottom-left
-		s_Data.CubeVertexData[1]  = { { 0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f}, {1,0}}; // Bottom-right
-		s_Data.CubeVertexData[2]  = { { 0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f}, {1,1}}; // Top-right
-		s_Data.CubeVertexData[3]  = { {-0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f}, {0,1}}; // Top-left
-															   		    						   
+		s_Data.CubeVertexData[0] = { {-0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f}, {0,0} }; // Bottom-left
+		s_Data.CubeVertexData[1] = { { 0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f}, {1,0} }; // Bottom-right
+		s_Data.CubeVertexData[2] = { { 0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f}, {1,1} }; // Top-right
+		s_Data.CubeVertexData[3] = { {-0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f}, {0,1} }; // Top-left
+
 		// Back face										   		    						   
-		s_Data.CubeVertexData[4]  = { {-0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {0,0}}; // Bottom-left
-		s_Data.CubeVertexData[5]  = { { 0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {1,0}}; // Bottom-right
-		s_Data.CubeVertexData[7]  = { {-0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {1,1}}; // Top-left
-		s_Data.CubeVertexData[6]  = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {0,1}}; // Top-right
-															   		    						   
+		s_Data.CubeVertexData[4] = { {-0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {0,0} }; // Bottom-left
+		s_Data.CubeVertexData[5] = { { 0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {1,0} }; // Bottom-right
+		s_Data.CubeVertexData[7] = { {-0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {1,1} }; // Top-left
+		s_Data.CubeVertexData[6] = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {0,1} }; // Top-right
+
 		// Right face										   		    						   
-		s_Data.CubeVertexData[8]  = { { 0.5f , -0.5f ,  0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {0,0}}; // Bottom-front
-		s_Data.CubeVertexData[9]  = { { 0.5f , -0.5f , -0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {1,0}}; // Bottom-back
-		s_Data.CubeVertexData[10] = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {1,1}}; // Top-back
-		s_Data.CubeVertexData[11] = { { 0.5f ,  0.5f ,  0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {0,1}}; // Top-front
-															   									   
+		s_Data.CubeVertexData[8] = { { 0.5f , -0.5f ,  0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {0,0} }; // Bottom-front
+		s_Data.CubeVertexData[9] = { { 0.5f , -0.5f , -0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {1,0} }; // Bottom-back
+		s_Data.CubeVertexData[10] = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {1,1} }; // Top-back
+		s_Data.CubeVertexData[11] = { { 0.5f ,  0.5f ,  0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {0,1} }; // Top-front
+
 		// Left face										   									   
-		s_Data.CubeVertexData[12] = { {-0.5f , -0.5f ,  0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f}, {0,0}}; // Bottom-front
-		s_Data.CubeVertexData[13] = { {-0.5f , -0.5f , -0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f}, {1,0}}; // Bottom-back
-		s_Data.CubeVertexData[14] = { {-0.5f ,  0.5f , -0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f}, {1,1}}; // Top-back
-		s_Data.CubeVertexData[15] = { {-0.5f ,  0.5f ,  0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f}, {0,1}}; // Top-front
-															   									   
+		s_Data.CubeVertexData[12] = { {-0.5f , -0.5f ,  0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f}, {0,0} }; // Bottom-front
+		s_Data.CubeVertexData[13] = { {-0.5f , -0.5f , -0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f}, {1,0} }; // Bottom-back
+		s_Data.CubeVertexData[14] = { {-0.5f ,  0.5f , -0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f}, {1,1} }; // Top-back
+		s_Data.CubeVertexData[15] = { {-0.5f ,  0.5f ,  0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f}, {0,1} }; // Top-front
+
 		// Bottom face										   									   
-		s_Data.CubeVertexData[16] = { {-0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f}, {0,0}}; // Front-left
-		s_Data.CubeVertexData[17] = { { 0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f}, {1,0}}; // Front-right
-		s_Data.CubeVertexData[18] = { { 0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f}, {1,1}}; // Back-right
-		s_Data.CubeVertexData[19] = { {-0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f}, {0,1}}; // Back-left
-															   		    					   	   
+		s_Data.CubeVertexData[16] = { {-0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f}, {0,0} }; // Front-left
+		s_Data.CubeVertexData[17] = { { 0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f}, {1,0} }; // Front-right
+		s_Data.CubeVertexData[18] = { { 0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f}, {1,1} }; // Back-right
+		s_Data.CubeVertexData[19] = { {-0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f}, {0,1} }; // Back-left
+
 		// Top face											   		    					   	   
-		s_Data.CubeVertexData[20] = { {-0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f}, {0,0}}; // Front-left
-		s_Data.CubeVertexData[21] = { { 0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f}, {1,0}}; // Front-right
-		s_Data.CubeVertexData[22] = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f}, {1,1}}; // Back-right
-		s_Data.CubeVertexData[23] = { {-0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f}, {0,1}}; // Back-left
-		
-		
-		//Materials
+		s_Data.CubeVertexData[20] = { {-0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f}, {0,0} }; // Front-left
+		s_Data.CubeVertexData[21] = { { 0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f}, {1,0} }; // Front-right
+		s_Data.CubeVertexData[22] = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f}, {1,1} }; // Back-right
+		s_Data.CubeVertexData[23] = { {-0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f}, {0,1} }; // Back-left
+		//s_Data.TextureSlots = { 0,(uint64_t)RenderCommand::QueryMaxTextureSlots(),[&](auto start,uint64_t size) {
+		//	s_Data.TextureSlotIndex = (uint32_t)size;
+		//	Flush();
+		//	}};
 
-		s_Data.MaterialTextures = Texture2DArray::Create(256, 256);
-		uint32_t init = 0xffffffff;
-		//Defualt  Diffuse
-		s_Data.MaterialTextures->PushTexture(&init, 1, 1);
-		//Default Specular
-		s_Data.MaterialTextures->PushTexture(&init, 1, 1);
-		
-		//Temp
-		{
-			s_Data.MaterialTextures->PushTexture("assets/textures/container2.png");
-			s_Data.MaterialTextures->PushTexture("assets/textures/container2_specular.png");
+		//s_Data.DefaultMaterial = CreateRef<Material>();
+		//s_Data.CameraUniformBuffer = UniformBuffer::Create(80, 0);
 
-		}
+		//switch (RendererAPI::GetAPI())
+		//{
+		//case RendererAPI::API::OpenGL:
+		//{
+		//	s_Data.CubeShader = Shader::Create("assets/shaders/Cube.glsl");
+		//	break;
+		//}
+		//case RendererAPI::API::DirectX:
+		//{
+		//	s_Data.CubeShader = Shader::Create("assets/shaders/Cube.kdShader");
+		//	break;
+		//}
+		//}
+
+		////Cubes
+		//switch (RendererAPI::GetAPI()) {
+		//case RendererAPI::API::OpenGL:
+		//{
+		//	s_Data.CubeVertexArray = VertexArray::Create();
+		//	break;
+		//}
+		//case RendererAPI::API::DirectX:
+		//{
+
+		//	s_Data.CubeVertexArray = VertexArray::Create(s_Data.CubeShader);
+		//	break;
+		//}
+		//}
+		//s_Data.CubeVertexBuffer = VertexBuffer::Create(0);
+		//s_Data.CubeVertexBuffer->SetLayout({
+		//	{ShaderDataType::Float3,"a_Position"},
+		//	{ShaderDataType::Float3,"a_Normal"},
+		//	{ShaderDataType::Float2,"a_TexCoords"},
+		//	{ShaderDataType::Int,"a_MaterialIndex"},
+		//	{ShaderDataType::Int,"a_EntityID"}
+		//	});
+		//s_Data.CubeVertexArray->AddVertexBuffer(s_Data.CubeVertexBuffer);
+
+		//uint32_t* cubeIndices = SetupCubeIndices();
+		//Ref<IndexBuffer> cubeIB = IndexBuffer::Create(cubeIndices, s_Data.MaxIndices);
+		//s_Data.CubeVertexArray->SetIndexBuffer(cubeIB);
+		//delete[] cubeIndices;
+
+		////misc.
+		//s_Data.WhiteTexture = Texture2D::Create(1, 1);
+		//uint32_t whiteTextureData = 0xffffffff;
+		//s_Data.WhiteTexture->SetData(&whiteTextureData, sizeof(uint32_t));
+		//auto slot = s_Data.TextureSlots.Reserve(1);
+		//auto& ptr = slot[0];
+		//ptr = s_Data.WhiteTexture;
+		//// Front face
+		//s_Data.CubeVertexData[0]  = { {-0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f}, {0,0}}; // Bottom-left
+		//s_Data.CubeVertexData[1]  = { { 0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f}, {1,0}}; // Bottom-right
+		//s_Data.CubeVertexData[2]  = { { 0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f}, {1,1}}; // Top-right
+		//s_Data.CubeVertexData[3]  = { {-0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  0.0f,  1.0f, 1.0f}, {0,1}}; // Top-left
+		//													   		    						   
+		//// Back face										   		    						   
+		//s_Data.CubeVertexData[4]  = { {-0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {0,0}}; // Bottom-left
+		//s_Data.CubeVertexData[5]  = { { 0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {1,0}}; // Bottom-right
+		//s_Data.CubeVertexData[7]  = { {-0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {1,1}}; // Top-left
+		//s_Data.CubeVertexData[6]  = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {0,1}}; // Top-right
+		//													   		    						   
+		//// Right face										   		    						   
+		//s_Data.CubeVertexData[8]  = { { 0.5f , -0.5f ,  0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {0,0}}; // Bottom-front
+		//s_Data.CubeVertexData[9]  = { { 0.5f , -0.5f , -0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {1,0}}; // Bottom-back
+		//s_Data.CubeVertexData[10] = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {1,1}}; // Top-back
+		//s_Data.CubeVertexData[11] = { { 0.5f ,  0.5f ,  0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {0,1}}; // Top-front
+		//													   									   
+		//// Left face										   									   
+		//s_Data.CubeVertexData[12] = { {-0.5f , -0.5f ,  0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f}, {0,0}}; // Bottom-front
+		//s_Data.CubeVertexData[13] = { {-0.5f , -0.5f , -0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f}, {1,0}}; // Bottom-back
+		//s_Data.CubeVertexData[14] = { {-0.5f ,  0.5f , -0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f}, {1,1}}; // Top-back
+		//s_Data.CubeVertexData[15] = { {-0.5f ,  0.5f ,  0.5f , 1.0f}, {-1.0f,  0.0f,  0.0f, 1.0f}, {0,1}}; // Top-front
+		//													   									   
+		//// Bottom face										   									   
+		//s_Data.CubeVertexData[16] = { {-0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f}, {0,0}}; // Front-left
+		//s_Data.CubeVertexData[17] = { { 0.5f , -0.5f ,  0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f}, {1,0}}; // Front-right
+		//s_Data.CubeVertexData[18] = { { 0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f}, {1,1}}; // Back-right
+		//s_Data.CubeVertexData[19] = { {-0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f, -1.0f,  0.0f, 1.0f}, {0,1}}; // Back-left
+		//													   		    					   	   
+		//// Top face											   		    					   	   
+		//s_Data.CubeVertexData[20] = { {-0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f}, {0,0}}; // Front-left
+		//s_Data.CubeVertexData[21] = { { 0.5f ,  0.5f ,  0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f}, {1,0}}; // Front-right
+		//s_Data.CubeVertexData[22] = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f}, {1,1}}; // Back-right
+		//s_Data.CubeVertexData[23] = { {-0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  1.0f,  0.0f, 1.0f}, {0,1}}; // Back-left
+		//
+		//
+		////Materials
+
+		//s_Data.MaterialTextures = Texture2DArray::Create(256, 256);
+		//uint32_t init = 0xffffffff;
+		////Defualt  Diffuse
+		//s_Data.MaterialTextures->PushTexture(&init, 1, 1);
+		////Default Specular
+		//s_Data.MaterialTextures->PushTexture(&init, 1, 1);
+		//
+		////Temp
+		//{
+		//	s_Data.MaterialTextures->PushTexture("assets/textures/container2.png");
+		//	s_Data.MaterialTextures->PushTexture("assets/textures/container2_specular.png");
+
+		//}
 
 
-		
+		//
 
 	}
 
@@ -255,90 +249,42 @@ namespace Kaidel {
 
 	}
 
-	void Renderer3D::BeginScene(const OrthographicCamera& camera)
+	void Renderer3D::BeginRendering(Renderer3DFlusher* flusher)
 	{
 		KD_PROFILE_FUNCTION();
 
-		s_Data.CubeShader->Bind();
-		s_Data.CubeShader->SetMat4("u_ViewProjection", camera.GetViewProjectionMatrix());
 
+		KD_CORE_ASSERT(flusher, "Cannot begin rendering without flusher");
+		
+		s_Data.Flusher = flusher;
+		s_Data.Flusher->Begin();
 		StartBatch();
 	}
+
+	void Renderer3D::EndRendering() {
+		s_Data.Flusher->End();
+	}
+
 	
-	void Renderer3D::BeginScene(const Camera& camera, const glm::mat4& transform)
-	{
-		KD_PROFILE_FUNCTION();
-
-		glm::mat4 viewProj = camera.GetProjection() * glm::inverse(transform);
-		s_Data.CameraBuffer.ViewProjection = viewProj;
-		s_Data.CameraBuffer.CameraPosition = transform*glm::vec4(0,0,0,0);
-		s_Data.CameraUniformBuffer->SetData(&s_Data.CameraBuffer, sizeof(Renderer3DData::CameraData));
-
-		StartBatch();
-	}
-
-	void Renderer3D::BeginScene(const EditorCamera& camera)
-	{
-		KD_PROFILE_FUNCTION();
-
-		s_Data.CameraBuffer.ViewProjection = camera.GetProjection() * camera.GetViewMatrix();
-		s_Data.CameraBuffer.CameraPosition = camera.GetPosition();
-		s_Data.CameraUniformBuffer->SetData(&s_Data.CameraBuffer, sizeof(Renderer3DData::CameraData));
-
-		StartBatch();
-	}
-
-	void Renderer3D::EndScene() {
-
-		Flush();
-	}
-
 	void Renderer3D::StartCubeBatch() {
-		s_Data.CubeIndexCount = 0;
-		s_Data.CubeVertexBufferArray.Reset();
-		s_Data.TextureSlotIndex = 1;
 	}
 
 	void Renderer3D::StartBatch()
 	{
-		StartCubeBatch();
 	}
 
 	void Renderer3D::Flush() {
-		std::scoped_lock<std::mutex> quadLock(s_Data.CubeMutex);
-		FlushCubes(s_Data.CubeVertexBufferArray.Get(),s_Data.CubeVertexBufferArray.Size());
+		s_Data.Flusher->Flush();
 	}
 
 	void Renderer3D::FlushCubes(CubeVertex* start,uint64_t size) {
 
-		if (s_Data.CubeIndexCount) {
-			s_Data.CubeVertexBuffer->SetData(start, (size) * sizeof(CubeVertex));
-			s_Data.CubeVertexBuffer->Bind();
-			s_Data.CubeVertexArray->GetIndexBuffer()->Bind();
-			s_Data.CameraUniformBuffer->Bind();
-			s_Data.CubeVertexArray->Bind();
-			s_Data.CubeShader->Bind();
-			s_Data.MaterialTextures->Bind(0);
-			s_Data.CubeShader->SetInt("u_MaterialTextures", 0);
-			//Bind textures
-			for (uint32_t i = 0; i < s_Data.TextureSlotIndex; ++i) {
-				s_Data.TextureSlots.Get()[i]->Bind(i);
-			}
-			RenderCommand::DrawIndexed(s_Data.CubeVertexArray, s_Data.CubeIndexCount);
-			s_Data.CubeShader->Unbind();
-			s_Data.CubeVertexArray->Unbind();
-			s_Data.CameraUniformBuffer->UnBind();
-			s_Data.CubeVertexArray->GetIndexBuffer()->Unbind();
-			s_Data.CubeVertexBuffer->Unbind();
-			s_Data.Stats.DrawCalls++;
-		}
+		
 	}
 
 	void Renderer3D::NextBatch()
 	{
-		std::scoped_lock<std::mutex> lock(s_Data.CubeMutex);
-		Flush();
-		StartBatch();
+		
 	}
 
 
@@ -368,14 +314,7 @@ namespace Kaidel {
 		
 
 		std::scoped_lock<std::mutex> lock(s_Data.CubeMutex);
-		auto bvi = s_Data.CubeVertexBufferArray.Reserve(24);
-		for (std::size_t i = 0; i < 24; ++i) {
-			bvi[i] = std::move(data[i]);
-		}
-
-
-		s_Data.CubeIndexCount += 36;
-		s_Data.Stats.CubeCount += 1;
+		Renderer3DFlusher::PushCubeVertex(data, data + 24);
 	}
 
 }

@@ -3,7 +3,6 @@
 #include "Kaidel/Core/Timestep.h"
 #include "Kaidel/Renderer/EditorCamera.h"
 #include "Kaidel/Core/UUID.h"
-#include "SceneRenderer.h"
 #include "entt.hpp"
 #include "Kaidel/Animation/Animation.h"
 class b2World;
@@ -73,8 +72,10 @@ namespace Kaidel {
 		friend class SceneSerializer;
 		friend class SceneHierarchyPanel;
 		friend class SceneRenderer;
-		static SceneRenderer m_SceneRenderer;
+		friend struct ShadowPass;
 		friend class EditorLayer;
+		friend struct GeometryPass;
+		friend static void BindLights(void* m_Context);
 		std::unordered_map<UUID, entt::entity> m_IDMap;
 	};
 

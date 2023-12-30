@@ -55,6 +55,20 @@ namespace Kaidel {
 		uint32_t m_SetCount = 0;
 		std::unordered_map<std::string, uint32_t> m_LoadedTextures;
 	};
+	class OpenGLDepth2DArray : public Depth2DArray {
+	public:
+		OpenGLDepth2DArray(uint32_t width, uint32_t height);
+		virtual ~OpenGLDepth2DArray();
 
+		virtual void Bind(uint32_t slot = 0)const override {};
+		virtual uint32_t PushDepth(uint32_t width, uint32_t height)override;
+		virtual void ClearLayer(uint32_t index, float value)override;
+
+	private:
+		void ResizeTextureArray(uint32_t newLayerCount);
+		uint32_t m_RendererID;
+		uint32_t m_Width, m_Height, m_Depth;
+		uint32_t m_SetCount = 0;
+	};
 
 }

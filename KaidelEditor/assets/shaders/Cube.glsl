@@ -177,8 +177,8 @@ vec4 ApplyLighting(Material material){
 		totalDiffuse += CalcLightDiffuse(materialDiffuse,norm, lightDir,diffuseIntensity);
 
 		//Specular
-		vec3 reflectDir = reflect(-lightDir,norm);
-		totalSpecular += materialSpecular*pow(max(dot(viewDir,reflectDir),0.0),material.Shininess) * specularIntensity;
+		vec3 halfwayDir = normalize(lightDir + viewDir);
+		totalSpecular += materialSpecular*pow(max(dot(halfwayDir,norm),0.0),material.Shininess) * specularIntensity;
 	}
 
 
@@ -189,7 +189,6 @@ vec4 ApplyLighting(Material material){
 			vec3 lightDiffuse=vec3(u_PointLights[i].DiffuseX,u_PointLights[i].DiffuseY,u_PointLights[i].DiffuseZ);
 			vec3 lightSpecular=vec3(u_PointLights[i].SpecularX,u_PointLights[i].SpecularY,u_PointLights[i].SpecularZ);
 		
-
 
 			vec3 lightPos = vec3(u_PointLights[i].PositionX,u_PointLights[i].PositionY,u_PointLights[i].PositionZ);
 			vec3 lightDir = normalize(lightPos-Input.FragPos);
@@ -206,8 +205,8 @@ vec4 ApplyLighting(Material material){
 			totalDiffuse += CalcLightDiffuse(materialDiffuse,norm,lightDir,lightDiffuse) * attenuation;
 			
 			//Specular
-			vec3 reflectDir = reflect(-lightDir,norm);
-			totalSpecular += lightSpecular * pow(max(dot(viewDir, reflectDir), 0.0), material.Shininess)*materialSpecular * attenuation;
+			vec3 halfwayDir = normalize(lightDir + viewDir);
+			totalSpecular += lightSpecular * pow(max(dot(halfwayDir,norm), 0.0), material.Shininess)*materialSpecular * attenuation;
 
 		}
 	
@@ -246,9 +245,8 @@ vec4 ApplyLighting(Material material){
 				totalDiffuse += CalcLightDiffuse(materialDiffuse,norm,lightDir,lightDiffuse)*attenuation;
 		
 				//Specular
-		
-				vec3 reflectDir = reflect(-lightDir,norm);
-				totalSpecular += lightSpecular * pow(max(dot(viewDir,reflectDir),0.0),material.Shininess)*materialSpecular * attenuation;
+				vec3 halfwayDir = normalize(lightDir + viewDir);
+				totalSpecular += lightSpecular * pow(max(dot(norm,halfwayDir),0.0),material.Shininess)*materialSpecular * attenuation;
 			
 			}
 		}

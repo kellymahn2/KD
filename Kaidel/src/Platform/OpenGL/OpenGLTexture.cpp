@@ -196,4 +196,47 @@ namespace Kaidel {
 		return scldImage;
 	}
 
+
+
+
+	OpenGLDepth2DArray::OpenGLDepth2DArray(uint32_t width, uint32_t height)
+		:m_Width(width), m_Height(height), m_Depth(2)
+	{
+		glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &m_RendererID);
+		glBindTexture(GL_TEXTURE_2D_ARRAY, m_RendererID);
+		glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_DEPTH_COMPONENT32, width, height, m_Depth);
+
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	}
+	OpenGLDepth2DArray::~OpenGLDepth2DArray(){
+		glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+		glDeleteTextures(1, &m_RendererID);
+	}
+	void OpenGLDepth2DArray::ClearLayer(uint32_t index, float value){
+		glClearTexImage(m_RendererID, index, GL_DEPTH_COMPONENT32, GL_FLOAT, &value);
+	}
+	uint32_t OpenGLDepth2DArray::PushDepth(uint32_t width, uint32_t height){
+		if (m_SetCount + 1 > m_Depth) {
+			ResizeTextureArray(m_SetCount * 2);
+		}
+		m_SetCount++;
+		return m_SetCount - 1;
+	}
+	void OpenGLDepth2DArray::ResizeTextureArray(uint32_t newLayerCount) {
+		glDeleteTextures(1, &m_RendererID);
+
+		glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &m_RendererID);
+		glBindTexture(GL_TEXTURE_2D_ARRAY, m_RendererID);
+		glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_DEPTH_COMPONENT32, m_Width, m_Height, newLayerCount);
+
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		
+		m_Depth = newLayerCount;
+	}
 }

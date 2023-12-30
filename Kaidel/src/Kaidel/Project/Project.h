@@ -9,7 +9,6 @@ namespace Kaidel {
 		std::filesystem::path AssetDirectory;
 		std::filesystem::path ScriptPath;
 		std::filesystem::path StartScene;
-
 	};
 	class Project {
 	public:
@@ -35,7 +34,6 @@ namespace Kaidel {
 		static Ref<Project> Load(const std::filesystem::path& path);
 		static bool SaveActive(const std::filesystem::path& path);
 		static Ref<Project> GetActive() { return s_ActiveProject; }
-
 
 
 	private:
