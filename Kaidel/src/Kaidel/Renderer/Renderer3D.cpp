@@ -107,8 +107,8 @@ namespace Kaidel {
 		s_Data.CubeVertexData[6] = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {0,1} }; // Top-right
 
 		// Right face										   		    						   
-		s_Data.CubeVertexData[8] = { { 0.5f , -0.5f ,  0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {0,0} }; // Bottom-front
-		s_Data.CubeVertexData[9] = { { 0.5f , -0.5f , -0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {1,0} }; // Bottom-back
+		s_Data.CubeVertexData[8]  = { { 0.5f , -0.5f ,  0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {0,0} }; // Bottom-front
+		s_Data.CubeVertexData[9]  = { { 0.5f , -0.5f , -0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {1,0} }; // Bottom-back
 		s_Data.CubeVertexData[10] = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {1,1} }; // Top-back
 		s_Data.CubeVertexData[11] = { { 0.5f ,  0.5f ,  0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {0,1} }; // Top-front
 
@@ -314,7 +314,7 @@ namespace Kaidel {
 		
 
 		std::scoped_lock<std::mutex> lock(s_Data.CubeMutex);
-		Renderer3DFlusher::PushCubeVertex(data, data + 24);
+		s_Data.Flusher->PushCubeVertex(data, data + 24);
 	}
 
 }

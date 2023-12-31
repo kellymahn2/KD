@@ -135,13 +135,16 @@ namespace Kaidel {
 		if (m_SetCount + 1 > m_Depth) {
 			ResizeTextureArray(m_SetCount * 2);
 		}
+		m_SetCount++;
 		void* img = data;
+		if (img == nullptr)
+			return m_SetCount - 1;
 		if (width != m_Width || height != m_Height) {
 			img = ScaleImage(data, width, height, m_Width, m_Height);
 		}
+	
 		glBindTexture(GL_TEXTURE_2D_ARRAY, m_RendererID);
-		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, m_SetCount, m_Width, m_Height, 1, GL_RGBA, GL_UNSIGNED_BYTE, img);
-		m_SetCount++;
+		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, m_SetCount-1, m_Width, m_Height, 1, GL_RGBA, GL_UNSIGNED_BYTE, img);
 
 		if (width != m_Width || height != m_Height) {
 			delete img;
@@ -206,17 +209,13 @@ namespace Kaidel {
 		glBindTexture(GL_TEXTURE_2D_ARRAY, m_RendererID);
 		glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_DEPTH_COMPONENT32, width, height, m_Depth);
 
-		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	}
 	OpenGLDepth2DArray::~OpenGLDepth2DArray(){
 		glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 		glDeleteTextures(1, &m_RendererID);
 	}
 	void OpenGLDepth2DArray::ClearLayer(uint32_t index, float value){
-		glClearTexImage(m_RendererID, index, GL_DEPTH_COMPONENT32, GL_FLOAT, &value);
+		glClearTexImage(m_RendererID, index, GL_DEPTH_COMPONENT, GL_FLOAT, &value);
 	}
 	uint32_t OpenGLDepth2DArray::PushDepth(uint32_t width, uint32_t height){
 		if (m_SetCount + 1 > m_Depth) {
@@ -232,11 +231,14 @@ namespace Kaidel {
 		glBindTexture(GL_TEXTURE_2D_ARRAY, m_RendererID);
 		glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_DEPTH_COMPONENT32, m_Width, m_Height, newLayerCount);
 
-		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		
 		m_Depth = newLayerCount;
+	}
+
+	void* OpenGLDepth2DArray::GetData() {
+		float* f = new float[m_Width * m_Height*m_Depth];
+		glBindTexture(GL_TEXTURE_2D_ARRAY, m_RendererID);
+		glGetTexImage(GL_TEXTURE_2D_ARRAY, 0, GL_DEPTH_COMPONENT, GL_FLOAT, f);
+		return f;
 	}
 }

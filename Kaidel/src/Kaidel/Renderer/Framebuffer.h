@@ -16,12 +16,13 @@ namespace Kaidel {
 		DEPTH24STENCIL8,
 		//TODO: Implement
 		DEPTH32,
+		DEPTH16,
 
 
 
 		// Defaults
 		DepthStencil = DEPTH24STENCIL8,
-		Depth = DEPTH32
+		Depth = DEPTH16
 	};
 
 	struct FramebufferTextureSpecification
@@ -66,13 +67,14 @@ namespace Kaidel {
 
 		virtual void ClearAttachment(uint32_t attachmentIndex, int value) = 0;
 		virtual void ClearAttachment(uint32_t attachmentIndex, const float* colors) = 0;
+		virtual void ClearDepthAttachment(float value) = 0;
 
 		virtual uint64_t GetColorAttachmentRendererID(uint32_t index = 0) const = 0;
-
+		virtual void SetDepthAttachmentFromArray(uint32_t attachmentID, uint32_t arrayIndex) = 0;
 		virtual const FramebufferSpecification& GetSpecification() const = 0;
 
 		static Ref<Framebuffer> Create(const FramebufferSpecification& spec);
-
+		
 
 	};
 

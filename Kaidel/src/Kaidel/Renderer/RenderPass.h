@@ -15,6 +15,8 @@ namespace Kaidel {
 	struct ShadowPass {
 		ShadowPassConfig PassConfig;
 		void Render();
+		void DrawCubes(Ref<Scene> scene);
+		void RenderSpotLights();
 	};
 
 	struct SceneCompositePass {

@@ -187,7 +187,7 @@ namespace Kaidel {
 	}* s_GeometryFlusherData = nullptr;
 
 
-	void Renderer3DFlusher::PushCubeVertex(CubeVertex* begin, CubeVertex* end) {
+	void GeometryFlusher::PushCubeVertex(CubeVertex* begin, CubeVertex* end) {
 		auto bvi = s_GeometryFlusherData->CubeVertexBufferArray.Reserve(end - begin);
 		std::memcpy(&bvi[0], begin, (end - begin) * sizeof(CubeVertex));
 		s_GeometryFlusherData->CubeIndexCount += 36;

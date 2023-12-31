@@ -66,11 +66,10 @@ namespace Kaidel {
 			{
 				glTexStorage2D(GL_TEXTURE_2D, 1, format, width, height);
 
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 			}
 
 			glFramebufferTexture2D(GL_FRAMEBUFFER, attachmentType, TextureTarget(multisampled), id, 0);
@@ -81,6 +80,9 @@ namespace Kaidel {
 			switch (format)
 			{
 				case FramebufferTextureFormat::DEPTH24STENCIL8:  return true;
+				case FramebufferTextureFormat::DEPTH32: return true;
+				case FramebufferTextureFormat::DEPTH16: return true;
+
 			}
 
 			return false;
@@ -110,7 +112,7 @@ namespace Kaidel {
 			else
 				m_DepthAttachmentSpecification = spec;
 		}
-
+		
 		Invalidate();
 	}
 
@@ -121,6 +123,16 @@ namespace Kaidel {
 		glDeleteTextures(1, &m_DepthAttachment);
 	}
 
+
+	void OpenGLFramebuffer::SetDepthAttachmentFromArray(uint32_t attachmentID, uint32_t arrayIndex) {
+		glBindFramebuffer(GL_FRAMEBUFFER, m_RendererID);
+		glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, attachmentID, 0, arrayIndex);
+	}
+
+	void OpenGLFramebuffer::ClearDepthAttachment(float value) {
+		glBindFramebuffer(GL_FRAMEBUFFER, m_RendererID);
+		glClear(GL_DEPTH_BUFFER_BIT);
+	}
 	void OpenGLFramebuffer::Invalidate()
 	{
 		if (m_RendererID)
@@ -165,8 +177,11 @@ namespace Kaidel {
 			Utils::BindTexture(multisample, m_DepthAttachment);
 			switch (m_DepthAttachmentSpecification.TextureFormat)
 			{
-				case FramebufferTextureFormat::DEPTH24STENCIL8:
-					Utils::AttachDepthTexture(m_DepthAttachment, m_Specification.Samples, GL_DEPTH_COMPONENT32F, GL_DEPTH_ATTACHMENT, m_Specification.Width, m_Specification.Height);
+				case FramebufferTextureFormat::DEPTH32:
+					Utils::AttachDepthTexture(m_DepthAttachment, m_Specification.Samples, GL_DEPTH_COMPONENT32, GL_DEPTH_ATTACHMENT, m_Specification.Width, m_Specification.Height);
+					break;
+				case FramebufferTextureFormat::DEPTH16:
+					Utils::AttachDepthTexture(m_DepthAttachment, m_Specification.Samples, GL_DEPTH_COMPONENT, GL_DEPTH_ATTACHMENT, m_Specification.Width, m_Specification.Height);
 					break;
 			}
 		}
@@ -177,12 +192,12 @@ namespace Kaidel {
 			GLenum buffers[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
 			glDrawBuffers(m_ColorAttachments.size(), buffers);
 		}
-		else if (m_ColorAttachments.empty())
-		{
-			// Only depth-pass
+		else {
 			glDrawBuffer(GL_NONE);
 		}
-
+		
+		if (m_Specification.Attachments.Attachments.empty())
+			return;
 		KD_CORE_ASSERT(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE, "Framebuffer is incomplete!");
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);

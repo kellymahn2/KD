@@ -8,6 +8,7 @@ namespace Kaidel {
 		virtual void Begin();
 		virtual void End();
 		virtual void Flush();
+		virtual void PushCubeVertex(CubeVertex* begin, CubeVertex* end);
 	private:
 		static void FlushCubes(CubeVertex* start, uint64_t size);
 		static void StartCubeBatch();

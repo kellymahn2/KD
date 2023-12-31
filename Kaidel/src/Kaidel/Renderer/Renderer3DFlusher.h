@@ -31,7 +31,7 @@ namespace Kaidel {
 		virtual void Begin() = 0;
 		virtual void End() = 0;
 		virtual void Flush() = 0;
-		static void PushCubeVertex(CubeVertex* begin,CubeVertex* end);
+		virtual void PushCubeVertex(CubeVertex* begin,CubeVertex* end) = 0;
 	};
 
 	

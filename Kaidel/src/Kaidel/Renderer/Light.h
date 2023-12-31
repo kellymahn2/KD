@@ -42,7 +42,8 @@ namespace Kaidel
 		glm::vec3 Ambient{ .2f };
 		glm::vec3 Diffuse{ .5f };
 		glm::vec3 Specular{ 1.0f };
-		float CutOffAngle = 0.0f;
+		//Half FOV
+		float CutOffAngle = 0.5f;
 
 		float ConstantCoefficient = 1.0f;
 		float LinearCoefficient = 0.09f;
@@ -66,7 +67,9 @@ namespace Kaidel
 			m_LightIndex = s_InternalData.size();
 			s_InternalData.emplace_back(T{});
 			s_Lights.push_back(this);
-			//s_DepthMaps->PushTexture(nullptr,_ShadowMapWidth,_ShadowMapHeight);
+			if (!s_DepthMaps)
+				s_DepthMaps = Depth2DArray::Create(_ShadowMapWidth, _ShadowMapHeight);
+			s_DepthMaps->PushDepth(_ShadowMapWidth,_ShadowMapHeight);
 		}
 		~Light() {
 			std::swap(s_InternalData[m_LightIndex], s_InternalData.back());
@@ -76,7 +79,8 @@ namespace Kaidel
 			s_Lights.pop_back();
 		}
 		T& GetLight(){ return s_InternalData[m_LightIndex]; }
-		//static inline Ref<Texture2DArray> GetDepthMaps() { return s_DepthMaps; }
+		static inline Ref<Depth2DArray> GetDepthMaps() { return s_DepthMaps; }
+		uint64_t GetIndex()const { return m_LightIndex; }
 	private:
 		static uint64_t GetLightCount() { return s_InternalData.size(); }
 		static void SetLights() {
@@ -86,7 +90,7 @@ namespace Kaidel
 		}
 		static inline std::vector<T> s_InternalData{};
 		static inline std::vector<Light*> s_Lights{};
-		//static inline Ref<Texture2DArray> s_DepthMaps = Texture2DArray::Create(_ShadowMapWidth,_ShadowMapHeight);
+		static inline Ref<Depth2DArray> s_DepthMaps;
 		uint64_t m_LightIndex;
 
 	

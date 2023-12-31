@@ -49,6 +49,15 @@ namespace Kaidel {
 		glViewport(x, y, width, height);
 	}
 
+	void OpenGLRendererAPI::GetViewport(uint32_t& x, uint32_t& y, uint32_t& width, uint32_t& height) {
+		GLint viewport[4]; // [x, y, width, height]
+		glGetIntegerv(GL_VIEWPORT, viewport);
+		x = viewport[0];
+		y = viewport[1];
+		width = viewport[2];
+		height = viewport[3];
+	}
+
 	void OpenGLRendererAPI::SetClearColor(const glm::vec4& color)
 	{
 		glClearColor(color.r, color.g, color.b, color.a);

@@ -19,9 +19,9 @@ namespace Kaidel {
 		virtual int ReadPixel(uint32_t attachmentIndex, int x, int y) override;
 
 		virtual void ClearAttachment(uint32_t attachmentIndex, int value) override;
-
+		virtual void ClearDepthAttachment(float value) override;
 		virtual uint64_t GetColorAttachmentRendererID(uint32_t index = 0) const override { KD_CORE_ASSERT(index < m_ColorAttachments.size()); return (uint64_t)m_ColorAttachments[index]; }
-
+		virtual void SetDepthAttachmentFromArray(uint32_t attachmentID, uint32_t arrayIndex);
 		virtual const FramebufferSpecification& GetSpecification() const override { return m_Specification; }
 
 

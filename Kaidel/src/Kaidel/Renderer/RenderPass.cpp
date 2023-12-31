@@ -2,6 +2,9 @@
 #include "RenderPass.h"
 #include "Kaidel/Scene/SceneRenderer.h"
 #include "Kaidel/Renderer/GeometryFlusher.h"
+#include "Kaidel/Renderer/ShadowFlusher.h"
+#include "Platform/OpenGL/OpenGLTexture.h"
+#include "RenderCommand.h"
 #include "Renderer2D.h"
 #include "Renderer3D.h"
 namespace Kaidel {
@@ -51,22 +54,104 @@ namespace Kaidel {
 		s_LightingDataUB->Bind();
 	}
 
+	void ShadowPass::RenderSpotLights() {
+		static Ref<Framebuffer> s_BidingBuffer;
+		if (!s_BidingBuffer) {
+			FramebufferSpecification spec;
+			spec.Attachments = {};
+			spec.Width = _ShadowMapWidth;
+			spec.Height = _ShadowMapHeight;
+			spec.Samples = 1;
+			s_BidingBuffer = Framebuffer::Create(spec);
+		}
+		auto view = PassConfig.Scene->m_Registry.view<TransformComponent, SpotLightComponent>();
+		auto depthMaps = SpotLight::GetDepthMaps();
+		if (!depthMaps)
+			return;
+		uint32_t oldViewportX, oldViewportY, oldViewportWidth, oldViewportHeight;
+		RenderCommand::GetViewport(oldViewportX, oldViewportY, oldViewportWidth, oldViewportHeight);
+		for (auto e : view) {
+			auto [tc, dlc] = view.get<TransformComponent, SpotLightComponent>(e);
+			auto& light = dlc.Light->GetLight();
+			glm::mat4 viewMat = glm::lookAt(light.Position, glm::normalize(light.Direction) + light.Position, glm::vec3(0, 1, 0));
+			glm::mat4 projMat = glm::perspective(glm::acos(light.CutOffAngle)*2.0f, (float)_ShadowMapWidth / (float)_ShadowMapHeight, 1.0f, 25.0f);
+
+			depthMaps->ClearLayer(dlc.Light->GetIndex(), 1.0f);
+			s_BidingBuffer->SetDepthAttachmentFromArray(depthMaps->GetRendererID(), dlc.Light->GetIndex());
+			s_BidingBuffer->Bind();
+			RenderCommand::SetViewport(0, 0, _ShadowMapWidth, _ShadowMapHeight);
+
+			ShadowFlusher flusher = { projMat * viewMat,light.Position };
+
+
+			Renderer3D::BeginRendering(&flusher);
+			DrawCubes(PassConfig.Scene);
+			JobSystem::GetMainJobSystem().Wait();
+			Renderer3D::EndRendering();
+
+			s_BidingBuffer->Unbind();
+		}
+		RenderCommand::SetViewport(oldViewportX, oldViewportY, oldViewportWidth, oldViewportHeight);
+	}
 	void ShadowPass::Render() {
 
 		BindLights(PassConfig.Scene.get());
-		
+		static Ref<Framebuffer> s_BidingBuffer;
+		if (!s_BidingBuffer) {
+			FramebufferSpecification spec;
+			spec.Attachments = {};
+			spec.Width = _ShadowMapWidth;
+			spec.Height = _ShadowMapHeight;
+			spec.Samples = 1;
+			s_BidingBuffer = Framebuffer::Create(spec);
+		}
+		RenderSpotLights();
 		{
-			auto view = PassConfig.Scene->m_Registry.view<TransformComponent, SpotLightComponent>();
-			//DirectionalLight::GetDepthMaps()->Bind(_DirectionalLightBindingSlot);
+			auto view = PassConfig.Scene->m_Registry.view<TransformComponent, DirectionalLightComponent>();
+			auto depthmaps = DirectionalLight::GetDepthMaps();
+			if (!depthmaps)
+				return;
+			uint32_t oldViewportX, oldViewportY, oldViewportWidth, oldViewportHeight;
+			RenderCommand::GetViewport(oldViewportX, oldViewportY, oldViewportWidth, oldViewportHeight);
 			for (auto e : view) {
-				auto [tc, dlc] = view.get<TransformComponent, SpotLightComponent>(e);
+				auto [tc, dlc] = view.get<TransformComponent, DirectionalLightComponent>(e);
 				auto& light = dlc.Light->GetLight();
-				glm::mat4 viewMat = glm::lookAt(light.Position, light.Direction + light.Position, glm::vec3(0, 0, 1));
-				glm::mat4 projMat = glm::perspective(light.CutOffAngle * 2.0f, (float)_ShadowMapWidth / (float)_ShadowMapHeight, 2.0f,50.0f);
+				glm::mat4 viewMat = glm::lookAt(glm::vec3(-2.0f, 4.0f, -1.0f), glm::vec3(0), glm::vec3(0, 1, 0));
+				glm::mat4 projMat = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.0f,7.5f);
 
-				
-				//Renderer3D::BeginRendering-(tc.Translation, projMat * viewMat);
+
+
+				depthmaps->ClearLayer(dlc.Light->GetIndex(),1.0f);
+				s_BidingBuffer->SetDepthAttachmentFromArray(depthmaps->GetRendererID(), dlc.Light->GetIndex());
+				s_BidingBuffer->Bind();
+
+				RenderCommand::SetViewport(0, 0, _ShadowMapWidth, _ShadowMapHeight);
+
+				ShadowFlusher flusher = { projMat * viewMat,{0,0,0} };
+
+
+				Renderer3D::BeginRendering(&flusher);
+				DrawCubes(PassConfig.Scene);
+				JobSystem::GetMainJobSystem().Wait();
+				Renderer3D::EndRendering();
+
+				s_BidingBuffer->Unbind();
 			}
+			RenderCommand::SetViewport(oldViewportX, oldViewportY, oldViewportWidth, oldViewportHeight);
+		}
+
+		}
+
+
+
+	void ShadowPass::DrawCubes(Ref<Scene> scene) {
+		static auto cubeView = scene->m_Registry.view<TransformComponent, CubeRendererComponent>();
+		cubeView = scene->m_Registry.view<TransformComponent, CubeRendererComponent>();
+		for (auto e : cubeView) {
+			JobSystem::GetMainJobSystem().Execute([e, this, &view = cubeView]() {
+				CubeRendererComponent& crc = view.get<CubeRendererComponent>(e);
+				Renderer3D::DrawCube(view.get<TransformComponent>(e).GetTransform(), crc.Material, (int)e);
+				});
 		}
 	}
 
@@ -125,7 +210,18 @@ namespace Kaidel {
 			Renderer3D::BeginRendering(&flusher);
 			DrawCubes(PassConfig.Scene);
 			JobSystem::GetMainJobSystem().Wait();
+
+			auto view = PassConfig.Scene->m_Registry.view<TransformComponent, SpotLightComponent>();
+			for (auto e : view) {
+				auto [tc, dlc] = view.get<TransformComponent, SpotLightComponent>(e);
+				auto& light = dlc.Light->GetLight();
+				Renderer3D::DrawCube(glm::translate(glm::mat4(1.0f), light.Position), nullptr);
+			}
+
 			Renderer3D::EndRendering();
+
+			
+
 		}
 
 

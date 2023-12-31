@@ -63,7 +63,8 @@ namespace Kaidel {
 		virtual void Bind(uint32_t slot = 0)const override {};
 		virtual uint32_t PushDepth(uint32_t width, uint32_t height)override;
 		virtual void ClearLayer(uint32_t index, float value)override;
-
+		uint32_t GetRendererID()const override { return m_RendererID; }
+		void* GetData();
 	private:
 		void ResizeTextureArray(uint32_t newLayerCount);
 		uint32_t m_RendererID;

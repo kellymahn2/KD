@@ -42,7 +42,7 @@ namespace Kaidel {
 		KD_INFO("Loaded Stop Button");
 
 		FramebufferSpecification fbSpec;
-		fbSpec.Attachments = { FramebufferTextureFormat::RGBA8,{FramebufferTextureFormat::RED_INTEGER,true}, FramebufferTextureFormat::DepthStencil };
+		fbSpec.Attachments = { FramebufferTextureFormat::RGBA8,{FramebufferTextureFormat::RED_INTEGER,true}, FramebufferTextureFormat::DEPTH32 };
 		fbSpec.Width = 1280;
 		fbSpec.Height = 720;
 		fbSpec.Samples = 1;
@@ -68,7 +68,7 @@ namespace Kaidel {
 
 		{
 			Entity e = m_ActiveScene->CreateEntity("Light");
-			auto& plc  = e.AddComponent<DirectionalLightComponent>();
+			auto& plc  = e.AddComponent<SpotLightComponent>();
 			
 		}
 		{
@@ -181,15 +181,7 @@ namespace Kaidel {
 
 		// Render
 		Renderer2D::ResetStats();
-		m_Framebuffer->Bind();
-		float c[4] = { .1f, .1f,.1f, 1 };
-		/*RenderCommand::SetClearColor({ 0.1f, 0.1f, 0.1f, 1 });
-		RenderCommand::Clear();*/
-		// Clear our entity ID attachment to -1
-		//Add FrameBuffer method for clearing the depth attachment
-		m_Framebuffer->ClearAttachment(0, c);
-		float d[4] = { -1,-1,-1,-1 };
-		m_Framebuffer->ClearAttachment(1, d);
+	
 
 		/*{
 			auto view = m_ActiveScene->m_Registry.view<TransformComponent, LightComponent>();
@@ -232,8 +224,18 @@ namespace Kaidel {
 			{
 
 				{
+					m_Framebuffer->Bind();
+					float c[4] = { .1f, .1f,.1f, 1 };
+					m_Framebuffer->ClearAttachment(0, c);
+					float d[4] = { -1,-1,-1,-1 };
+					m_Framebuffer->ClearAttachment(1, d);
 					GeometryPass goemetryPass = { GeometryPass::GeometryType_3D | GeometryPass::GeometryType_2D , {m_ActiveScene,m_EditorCamera.GetViewProjection(),m_EditorCamera.GetPosition()} };
 					goemetryPass.Render();
+					m_Framebuffer->Unbind();
+
+					ShadowPass shadowPass{ {m_ActiveScene} };
+					shadowPass.Render();
+
 				}
 
 				{
@@ -275,7 +277,6 @@ namespace Kaidel {
 		}
 		//int pixelData = GetCurrentPixelData(m_ViewportBounds,m_Framebuffer);
 		//m_HoveredEntity = pixelData == -1 ? Entity() : Entity((entt::entity)pixelData, m_ActiveScene.get());
-		m_Framebuffer->Unbind();
 	}
 
 	void EditorLayer::OnOverlayRender()

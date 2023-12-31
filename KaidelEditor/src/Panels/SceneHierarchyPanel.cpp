@@ -818,9 +818,9 @@ namespace Kaidel {
 
 		DrawComponent<SpotLightComponent>("Spot Light", entity, [](SpotLightComponent& component) {
 			auto& light = component.Light->GetLight();
-			float angle = glm::degrees(glm::acos(light.CutOffAngle))*2.0f;
-			if (ImGui::DragFloat("Cut Off Angle", &angle,1.0f,0.0f,360.0f)) {
-				light.CutOffAngle = glm::cos(glm::radians(angle/2.0f));
+			float angle = glm::degrees(glm::acos(light.CutOffAngle));
+			if (ImGui::DragFloat("Half Range", &angle,1.0f,0.0f,180.0f)) {
+				light.CutOffAngle = glm::cos(glm::radians(angle));
 			}
 			ImGui::DragFloat3("Direction", &light.Direction.x);
 			ImGui::DragFloat3("Ambient", &light.Ambient.x, .01f, 0.0f, 1.0f);
