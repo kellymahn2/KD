@@ -37,6 +37,7 @@ namespace Kaidel
 
 
 	struct _SpotLightInternal {
+		glm::mat4 LightViewProjection{ 1.0f };
 		glm::vec3 Position{ 0.0f };
 		glm::vec3 Direction{ 0.0f };
 		glm::vec3 Ambient{ .2f };
@@ -81,13 +82,13 @@ namespace Kaidel
 		T& GetLight(){ return s_InternalData[m_LightIndex]; }
 		static inline Ref<Depth2DArray> GetDepthMaps() { return s_DepthMaps; }
 		uint64_t GetIndex()const { return m_LightIndex; }
-	private:
 		static uint64_t GetLightCount() { return s_InternalData.size(); }
 		static void SetLights() {
 			static Ref<UAVInput> s_MaterialUAV = UAVInput::Create(s_InternalData.size(), sizeof(T));
 			s_MaterialUAV->SetBufferData(s_InternalData.data(), s_InternalData.size());
 			s_MaterialUAV->Bind(BindingSlot);
 		}
+	private:
 		static inline std::vector<T> s_InternalData{};
 		static inline std::vector<Light*> s_Lights{};
 		static inline Ref<Depth2DArray> s_DepthMaps;

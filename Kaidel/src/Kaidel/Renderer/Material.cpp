@@ -5,7 +5,7 @@
 namespace Kaidel{
     std::vector<_MaterialInternal> Material::s_InternalData;
 	std::vector<Material*> Material::s_Materials;
-    Material::Material() {
+	Material::Material() {
        m_MaterialIndex = s_InternalData.size();
        s_InternalData.emplace_back();
        s_Materials.push_back(this);

@@ -1,10 +1,10 @@
 #pragma once
 
+#include <filesystem>
 #include <string>
 #include <unordered_map>
 #include "Buffer.h"
 #include <glm/glm.hpp>
-
 namespace Kaidel {
 
 	typedef int ShaderType;
@@ -35,8 +35,9 @@ namespace Kaidel {
 
 		virtual const std::string& GetName() const = 0;
 
-		static Ref<Shader> Create(const std::string& vertexPath,const std::string& fragmentPath, const std::string& name);
-		
+		static Ref<Shader> Create(const std::filesystem::path &vertexPath, const std::filesystem::path& fragmentPath, const std::string& name = "");
+		static Ref<Shader> Create(const std::string& name,const std::string& vertexSrc, const std::string& fragmentSrc);
+
 	protected:
 		ShaderType m_ShaderType;
 	};

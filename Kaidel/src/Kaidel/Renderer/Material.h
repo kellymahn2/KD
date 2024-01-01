@@ -35,11 +35,10 @@ namespace Kaidel
 		void SetSpecular(uint32_t specular) { s_InternalData[m_MaterialIndex].Specular = specular; }
 		void SetShininess (float shininess){s_InternalData[m_MaterialIndex].Shininess = shininess;}
 		uint64_t GetIndex()const { return m_MaterialIndex; }
-
+		static void SetMaterials();
     private:
 
 		static uint64_t GetMaterialCount() { return s_InternalData.size(); }
-		static void SetMaterials();
 		static std::vector<_MaterialInternal> s_InternalData;
 		static std::vector<Material*> s_Materials;
 		uint64_t m_MaterialIndex;

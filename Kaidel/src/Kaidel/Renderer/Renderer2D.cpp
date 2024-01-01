@@ -123,7 +123,7 @@ namespace Kaidel {
 	{
 		KD_PROFILE_FUNCTION();
 		//TODO : Make the other shaders.
-		switch (RendererAPI::GetAPI()) {
+		/*switch (RendererAPI::GetAPI()) {
 		case RendererAPI::API::OpenGL:
 		{
 			s_Data.LineShader = Shader::Create("assets/shaders/Line.glsl");
@@ -139,7 +139,7 @@ namespace Kaidel {
 			s_Data.CircleShader = Shader::Create("assets/shaders/Circle.kdShader");
 			break;
 		}
-		}
+		}*/
 
 		switch (RendererAPI::GetAPI()) {
 		case RendererAPI::API::OpenGL:

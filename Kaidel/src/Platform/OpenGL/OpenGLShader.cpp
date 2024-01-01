@@ -19,16 +19,16 @@ namespace Kaidel {
 		return 0;
 	}
 
-	OpenGLShader::OpenGLShader(const std::string& vertexPath, const std::string& fragmentPath,const std::string& name)
-	{
-		KD_PROFILE_FUNCTION();
-
-		std::string vertexSrc = ReadFile(vertexPath);
-		std::string fragmentSrc = ReadFile(fragmentPath);
+	OpenGLShader::OpenGLShader(const std::filesystem::path& vertexPath, const std::filesystem::path& fragmentPath, const std::string& name) {
+		std::string vertexSrc = ReadFile(vertexPath.string());
+		std::string fragmentSrc = ReadFile(fragmentPath.string());
 		Compile({ {GL_VERTEX_SHADER,vertexSrc },{GL_FRAGMENT_SHADER,fragmentSrc} });
 		m_Name = name;
 	}
-
+	OpenGLShader::OpenGLShader(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc) {
+		Compile({ {GL_VERTEX_SHADER,vertexSrc },{GL_FRAGMENT_SHADER,fragmentSrc} });
+		m_Name = name;
+	}
 
 	OpenGLShader::~OpenGLShader()
 	{

@@ -3,7 +3,9 @@
 
 #include "Kaidel/Math/Math.h"
 #include "Kaidel/Core/Timer.h"
-#include "Kaidel/Renderer/RenderPass.h"
+#include "Kaidel/Renderer/SharedPassData.h"
+#include "Kaidel/Renderer/LightingPass.h"
+
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
@@ -74,9 +76,6 @@ namespace Kaidel {
 		{
 			Entity e = m_ActiveScene->CreateEntity("Cube");
 			auto& crc = e.AddComponent<CubeRendererComponent>();
-			crc.Material = CreateRef<Material>();
-			crc.Material->SetDiffuse(2);
-			crc.Material->SetSpecular(3);
 			//crc.Color = glm::vec4(1.0f);
 		}
 
@@ -224,17 +223,27 @@ namespace Kaidel {
 			{
 
 				{
-					m_Framebuffer->Bind();
-					float c[4] = { .1f, .1f,.1f, 1 };
-					m_Framebuffer->ClearAttachment(0, c);
-					float d[4] = { -1,-1,-1,-1 };
-					m_Framebuffer->ClearAttachment(1, d);
-					GeometryPass goemetryPass = { GeometryPass::GeometryType_3D | GeometryPass::GeometryType_2D , {m_ActiveScene,m_EditorCamera.GetViewProjection(),m_EditorCamera.GetPosition()} };
-					goemetryPass.Render();
-					m_Framebuffer->Unbind();
+					{
+						SharedPassDataConfig config;
+						config.Scene = m_ActiveScene;
+						config.CameraData.CameraPosition = m_EditorCamera.GetPosition();
+						config.CameraData.CameraViewProjection = m_EditorCamera.GetViewProjection();
+						SharedPassData passData;
+						passData.Config = config;
+						passData.SetData();
+					}
+					{
 
-					ShadowPass shadowPass{ {m_ActiveScene} };
-					shadowPass.Render();
+						LightingPassConfig config;
+						config.Width = (uint32_t)m_ViewportSize.x ? (uint32_t)m_ViewportSize.x:1280;
+						config.Height = (uint32_t)m_ViewportSize.y? (uint32_t)m_ViewportSize.y:720;
+						config.Scene = m_ActiveScene;
+						LightingPass pass;
+						pass.Config = config;
+						pass.Render();
+
+					}
+
 
 				}
 

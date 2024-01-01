@@ -75,6 +75,10 @@ namespace Kaidel {
 		friend struct ShadowPass;
 		friend class EditorLayer;
 		friend struct GeometryPass;
+		friend struct LightingPass;
+		friend struct SharedPassData;
+
+
 		friend static void BindLights(void* m_Context);
 		std::unordered_map<UUID, entt::entity> m_IDMap;
 	};
