@@ -10,31 +10,19 @@
 namespace Kaidel {
 
 	uint64_t UAVInput::s_UAVCount = 0;
-	Ref<Shader> Shader::Create(const std::string& filepath)
+	Ref<Shader> Shader::Create(const std::string& vertexPath, const std::string& fragmentPath, const std::string& name)
 	{
 		switch (Renderer::GetAPI())
 		{
 			case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
-			case RendererAPI::API::OpenGL:  return CreateRef<OpenGLShader>(filepath);
-			case RendererAPI::API::DirectX: return CreateRef<D3DShader>(filepath);
+			case RendererAPI::API::OpenGL:  return CreateRef<OpenGLShader>(vertexPath,fragmentPath,name);
+			//case RendererAPI::API::DirectX: return CreateRef<D3DShader>(filepath);
 		}
 
 		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
 		return nullptr;
 	}
 
-	Ref<Shader> Shader::Create(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc)
-	{
-		switch (Renderer::GetAPI())
-		{
-			case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
-			case RendererAPI::API::OpenGL:  return CreateRef<OpenGLShader>(name, vertexSrc, fragmentSrc);
-			case RendererAPI::API::DirectX: return CreateRef<D3DShader>(name, vertexSrc, fragmentSrc);
-		}
-
-		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
-		return nullptr;
-	}
 
 
 	Ref<UAVInput> UAVInput::Create(uint32_t count,uint32_t sizeofElement, void* data) {
@@ -86,7 +74,7 @@ namespace Kaidel {
 		Add(name, shader);
 	}
 
-	Ref<Shader> ShaderLibrary::Load(const std::string& filepath)
+	/*Ref<Shader> ShaderLibrary::Load(const std::string& filepath)
 	{
 		auto shader = Shader::Create(filepath);
 		Add(shader);
@@ -98,7 +86,7 @@ namespace Kaidel {
 		auto shader = Shader::Create(filepath);
 		Add(name, shader);
 		return shader;
-	}
+	}*/
 
 	Ref<Shader> ShaderLibrary::Get(const std::string& name)
 	{

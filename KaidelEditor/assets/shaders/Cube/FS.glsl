@@ -1,44 +1,3 @@
-// Basic Texture Shader
-
-#type vertex
-#version 460 core
-
-layout(location = 0) in vec3 a_Position;
-layout(location = 1) in vec3 a_Normal;
-layout(location = 2) in vec2 a_TexCoords;
-layout(location = 3) in int a_MaterialIndex;
-layout(location = 4) in int a_EntityID;
-
-layout(std140, binding = 0) uniform Camera
-{
-	mat4 u_ViewProjection;
-	vec3 u_CameraPosition;
-};
-
-
-
-struct VertexOutput
-{
-	vec3 FragPos;
-	vec3 Normal;
-	vec2 TexCoord;
-};
-
-layout (location = 0) out VertexOutput Output;
-layout (location = 3) out flat int v_MaterialIndex;
-layout (location = 4) out flat int v_EntityID;
-
-void main()
-{
-	Output.Normal = a_Normal;
-	Output.FragPos = a_Position;
-	Output.TexCoord = a_TexCoords;
-	v_MaterialIndex = a_MaterialIndex;
-	v_EntityID = a_EntityID;
-	gl_Position = u_ViewProjection * vec4(a_Position, 1.0);
-}
-
-#type fragment
 #version 460 core
 
 struct VertexOutput
@@ -53,7 +12,10 @@ layout (location = 3) in flat int v_MaterialIndex;
 layout (location = 4) in flat int v_EntityID;
 
 layout(location = 0) out vec4 o_Color;
-layout(location = 1) out int o_EntityID;
+layout(location = 1) out vec4 o_Ambient;
+layout(location = 2) out vec4 o_Diffuse;
+layout(location = 3) out vec4 o_Specular;
+layout(location = 4) out int o_EntityID;
 
 
 layout(std140, binding = 0) uniform Camera
@@ -76,15 +38,10 @@ struct Material{
 	float Shininess;
 };
 
-struct Light {
-    float PositionX,PositionY,PositionZ;
-    float AmbientIntensityX,AmbientIntensityY,AmbientIntensityZ;
-    float DiffuseIntensityX,DiffuseIntensityY,DiffuseIntensityZ;
-    float SpecularIntensityX,SpecularIntensityY,SpecularIntensityZ;
-};
 
 
 struct DirectionalLight{
+	mat4 LightViewProjection;
 	float DirectionX,DirectionY,DirectionZ;
     float AmbientIntensityX,AmbientIntensityY,AmbientIntensityZ;
     float DiffuseIntensityX,DiffuseIntensityY,DiffuseIntensityZ;
@@ -92,6 +49,7 @@ struct DirectionalLight{
 };
 
 struct PointLight {
+	mat4 LightViewProjection;
 	float PositionX,PositionY,PositionZ;
 	float AmbientX,AmbientY,AmbientZ;
 	float DiffuseX,DiffuseY,DiffuseZ;
@@ -104,6 +62,7 @@ struct PointLight {
 
 
 struct SpotLight {
+	mat4 LightViewProjection;
 	float PositionX,PositionY,PositionZ;
 	float DirectionX,DirectionY,DirectionZ;
 	float AmbientX,AmbientY,AmbientZ;
@@ -137,8 +96,13 @@ layout(std430,binding = 4) buffer SpotLights{
 	SpotLight u_SpotLights[];
 };
 
+struct LightCalcResult{
+	vec3 TotalAmbient;
+	vec3 TotalDiffuse;
+	vec3 TotalSpecular;
+	vec4 FragmentColor;
+};
 
-layout (binding = 0) uniform sampler2D u_Textures[32];
 
 
 vec3 CalcLightAmbient(vec3 materialAmbient,vec3 ambientIntensity){
@@ -149,7 +113,7 @@ vec3 CalcLightDiffuse(vec3 materialDiffuse,vec3 norm,vec3 lightDir,vec3 diffuseI
 	return materialDiffuse*max(dot(norm, lightDir), 0.0)*	diffuseIntensity;
 }
 
-vec4 ApplyLighting(Material material){
+LightCalcResult ApplyLighting(Material material){
 
 	vec3 totalAmbient = vec3(0.0);
 	vec3 totalDiffuse = vec3(0.0);
@@ -252,23 +216,24 @@ vec4 ApplyLighting(Material material){
 		}
 	
 	}
+	LightCalcResult res;
+	res.TotalAmbient = totalAmbient;
+	res.TotalDiffuse = totalDiffuse;
+	res.TotalSpecular = totalSpecular;
+	res.FragmentColor = materialColor;
 
-	vec3 result = totalAmbient + totalDiffuse + totalSpecular;
-	materialColor.xyz =  result * materialColor.xyz;
-
-	return materialColor;
+	return res;
 }
 
 
 void main()
 {
-	vec4 texColor = ApplyLighting(u_Materials[v_MaterialIndex]);
-	if (texColor.a == 0.0)
-		discard;
+	Material material = u_Materials[v_MaterialIndex];
+	LightCaclResult res = vec4(material.ColorX,material.ColorY,material.ColorZ,material.ColorW);
 
-
-
-
-	o_Color = texColor;
+	o_Color = res.FragmentColor;
+	o_Ambient = vec4(res.TotalAmbient,1.0);
+	o_Diffuse = vec4(res.TotalDiffuse,1.0);
+	o_Specular = vec4( res.TotalSpecular,1.0);
 	o_EntityID = v_EntityID;
 }

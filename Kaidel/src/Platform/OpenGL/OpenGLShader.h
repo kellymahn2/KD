@@ -11,8 +11,7 @@ namespace Kaidel {
 	class OpenGLShader : public Shader
 	{
 	public:
-		OpenGLShader(const std::string& filepath);
-		OpenGLShader(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc);
+		OpenGLShader(const std::string& vertexPath, const std::string& fragmentPath, const std::string& name);
 		virtual ~OpenGLShader();
 
 		virtual void Bind() const override;
