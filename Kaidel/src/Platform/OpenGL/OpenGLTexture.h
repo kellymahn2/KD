@@ -65,6 +65,8 @@ namespace Kaidel {
 		virtual void ClearLayer(uint32_t index, float value)override;
 		uint32_t GetRendererID()const override { return m_RendererID; }
 		void* GetData();
+		void PopDepth() { --m_SetCount; }
+		uint32_t GetSize()const { return m_SetCount; }
 	private:
 		void ResizeTextureArray(uint32_t newLayerCount);
 		uint32_t m_RendererID;

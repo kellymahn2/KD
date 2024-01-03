@@ -11,7 +11,6 @@ namespace Kaidel {
 	Ref<UniformBuffer> CameraDataUniformBuffer;
 	Ref<UniformBuffer> LightCountUniformBuffer;
 	Ref<Texture2DArray> MaterialTextures;
-
 	struct LightCount {
 		int PointLightCount;
 		int SpotLightCount;
@@ -32,8 +31,6 @@ namespace Kaidel {
 		if (!Initialized) {
 			Initialize();
 		}
-
-
 		//Point Lights
 		{
 			auto view = (Config.Scene)->m_Registry.view<TransformComponent, PointLightComponent>();
@@ -53,6 +50,8 @@ namespace Kaidel {
 				auto [tc, slc] = view.get<TransformComponent, SpotLightComponent>(e);
 				auto& light = slc.Light->GetLight();
 				light.Position = tc.Translation;
+				light.LightViewProjection = glm::perspective(glm::acos(light.CutOffAngle) * 2.0f, 1.0f, 0.1f, 25.0f) * glm::lookAt(tc.Translation, light.Direction, glm::vec3(0, 1, 0));
+
 			}
 		}
 

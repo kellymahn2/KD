@@ -5,6 +5,7 @@
 #include "Kaidel/Core/Timer.h"
 #include "Kaidel/Renderer/SharedPassData.h"
 #include "Kaidel/Renderer/LightingPass.h"
+#include "Kaidel/Renderer/ShadowPass.h"
 
 
 #include <imgui/imgui.h>
@@ -242,6 +243,13 @@ namespace Kaidel {
 						pass.Config = config;
 						pass.Render();
 
+					}
+					{
+						ShadowPassConfig config;
+						config.Scene = m_ActiveScene;
+						ShadowPass pass;
+						pass.Config = config;
+						pass.Render();
 					}
 
 

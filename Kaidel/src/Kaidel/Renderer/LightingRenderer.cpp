@@ -107,8 +107,8 @@ namespace Kaidel {
 			// Back face										   		    						   
 			CubeVertexData[ 4] = { {-0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {0,0}}; // Bottom-left
 			CubeVertexData[ 5] = { { 0.5f , -0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {1,0}}; // Bottom-right
-			CubeVertexData[ 7] = { {-0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {1,1}}; // Top-left
-			CubeVertexData[ 6] = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {0,1}}; // Top-right
+			CubeVertexData[ 6] = { { 0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {1,1}}; // Top-right
+			CubeVertexData[7] = { {-0.5f ,  0.5f , -0.5f , 1.0f}, { 0.0f,  0.0f, -1.0f, 1.0f}, {0,1} }; // Top-left
 
 			// Right face										   		    						   
 			CubeVertexData[ 8] = { { 0.5f , -0.5f ,  0.5f , 1.0f}, { 1.0f,  0.0f,  0.0f, 1.0f}, {0,0}}; // Bottom-front

@@ -18,6 +18,7 @@ namespace Kaidel
  //   };
 
 	struct _DirectionalLightInternal {
+		glm::mat4 LightViewProjection{ 1.0f };
 		glm::vec3 Direction = { -.2f,-1.0f,-.3f };
 		glm::vec3 Ambient{ .2f };
 		glm::vec3 Diffuse{.5f};
@@ -25,6 +26,7 @@ namespace Kaidel
 	};
 		
 	struct _PointLightInternal {
+		glm::mat4 LightViewProjection{ 1.0f };
 		glm::vec3 Position{ 0.0f };
 		glm::vec3 Ambient{ .2f };
 		glm::vec3 Diffuse{ .5f };
@@ -57,9 +59,6 @@ namespace Kaidel
 	static inline constexpr uint32_t _SpotLightBindingSlot = 4;
 	static inline constexpr uint32_t _ShadowMapWidth = 1024;
 	static inline constexpr uint32_t _ShadowMapHeight = 1024;
-	
-
-
 
 	template<typename T,uint32_t BindingSlot>
 	class Light {
@@ -68,9 +67,9 @@ namespace Kaidel
 			m_LightIndex = s_InternalData.size();
 			s_InternalData.emplace_back(T{});
 			s_Lights.push_back(this);
-			if (!s_DepthMaps)
-				s_DepthMaps = Depth2DArray::Create(_ShadowMapWidth, _ShadowMapHeight);
-			s_DepthMaps->PushDepth(_ShadowMapWidth,_ShadowMapHeight);
+			if (!s_LightDepthMaps)
+				s_LightDepthMaps = Depth2DArray::Create(_ShadowMapWidth, _ShadowMapHeight);
+			s_LightDepthMaps->PushDepth(_ShadowMapWidth,_ShadowMapHeight);
 		}
 		~Light() {
 			std::swap(s_InternalData[m_LightIndex], s_InternalData.back());
@@ -78,24 +77,25 @@ namespace Kaidel
 			s_Lights[m_LightIndex]->m_LightIndex = m_LightIndex;
 			s_InternalData.pop_back();
 			s_Lights.pop_back();
+			s_LightDepthMaps->PopDepth();
 		}
 		T& GetLight(){ return s_InternalData[m_LightIndex]; }
-		static inline Ref<Depth2DArray> GetDepthMaps() { return s_DepthMaps; }
+		static inline Ref<Depth2DArray> GetDepthMaps() { return s_LightDepthMaps; }
 		uint64_t GetIndex()const { return m_LightIndex; }
 		static uint64_t GetLightCount() { return s_InternalData.size(); }
 		static void SetLights() {
 			static Ref<UAVInput> s_MaterialUAV = UAVInput::Create(s_InternalData.size(), sizeof(T));
 			s_MaterialUAV->SetBufferData(s_InternalData.data(), s_InternalData.size());
 			s_MaterialUAV->Bind(BindingSlot);
+			if(!s_LightDepthMaps)
+				s_LightDepthMaps = Depth2DArray::Create(_ShadowMapWidth, _ShadowMapHeight);
+			s_LightDepthMaps->Bind(BindingSlot);
 		}
 	private:
 		static inline std::vector<T> s_InternalData{};
 		static inline std::vector<Light*> s_Lights{};
-		static inline Ref<Depth2DArray> s_DepthMaps;
+		static inline Ref<Depth2DArray> s_LightDepthMaps;
 		uint64_t m_LightIndex;
-
-	
-
 		friend class SceneRenderer;
 		friend static void BindLights(void* m_Context);
 	};

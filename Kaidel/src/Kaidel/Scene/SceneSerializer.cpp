@@ -367,39 +367,26 @@ namespace Kaidel {
 				}
 			}
 			out << YAML::EndSeq;
-			out << YAML::EndMap;
+			out << YAML::EndMap; // ScriptComponent
 		}
-		//if (entity.HasComponent<ScriptComponent>()) {
-		//	out << YAML::Key << "ScriptComponent";
-		//	out << YAML::BeginMap;//ScriptComponent
-		//	auto& scriptComponent = entity.GetComponent<ScriptComponent>();
-		//	out << YAML::Key << "Name" << YAML::Value << scriptComponent.Name;
+		
+		if (entity.HasComponent<SpotLightComponent>()) {
+			out << YAML::Key << "SpotLightComponent";
+			out << YAML::BeginMap; //SpotLightComponent
+			auto& light = entity.GetComponent<SpotLightComponent>().Light->GetLight();
+			out << YAML::Key << "Direction" << YAML::Value << light.Direction;
+			out << YAML::Key << "Ambient" << YAML::Value << light.Ambient;
+			out << YAML::Key << "Diffuse" << YAML::Value << light.Diffuse;
+			out << YAML::Key << "Specular" << YAML::Value << light.Specular;
+			out << YAML::Key << "CutOffAngle" << YAML::Value << light.CutOffAngle;
+			out << YAML::Key << "ConstantCoefficient" << YAML::Value << light.ConstantCoefficient;
+			out << YAML::Key << "LinearCoefficient" << YAML::Value << light.LinearCoefficient;
+			out << YAML::Key << "QuadraticCoefficient" << YAML::Value << light.QuadraticCoefficient;
 
-		//	//Fields
-		//	Ref<ScriptClass> entityClass = ScriptEngine::GetEntityClass(scriptComponent.Name);
-		//	const auto& fields = entityClass->GetFields();
-		//	if (!fields.empty()) {
-		//		out << YAML::Key << "ScriptFields"<<YAML::Value;
-		//		const auto& entityFields = ScriptEngine::GetScriptFieldMap(entity.GetUUID());
-		//		out << YAML::BeginSeq;
-		//		for (const auto& [fieldName, field] : entityFields) {
-		//			out << YAML::BeginMap;//ScriptFields
-		//			out << YAML::Key << "Name" << YAML::Value << fieldName;
-		//			out << YAML::Key << "Type" << YAML::Value << ScriptFieldTypeToString(field.Field.Type);
-		//			out << YAML::Key << "Data" << YAML::Value;
-		//			// Field has been set in editor
-		//			switch (field.Field.Type)
-		//			{
-		//			case ScriptFieldType::Float:
-		//				out<< field.GetValue<float>();
-		//				break;
-		//			}
-		//			out << YAML::EndMap;//ScriptFields
-		//		}
-		//		out << YAML::EndSeq;
-		//	}
-		//	out << YAML::EndMap;//ScriptComponent
-		//}
+			out << YAML::EndMap; //SpotLightComponent
+		}
+
+
 		out << YAML::EndMap; // Entity
 	}
 
@@ -532,6 +519,20 @@ namespace Kaidel {
 						bc2d.RestitutionThreshold = boxCollider2DComponent["RestitutionThreshold"].as<float>();
 					}
 				);
+
+				DeserializeComponent<SpotLightComponent>(deserializedEntity, "SpotLightComponent", entityNode, 
+					[](SpotLightComponent& slc,auto& entity,auto& spotLightComponent) {
+						auto light = slc.Light->GetLight();
+						light.Direction = spotLightComponent["Direction"].as<glm::vec3>();
+						light.Ambient = spotLightComponent["Ambient"].as<glm::vec3>();
+						light.Diffuse = spotLightComponent["Diffuse"].as<glm::vec3>();
+						light.Specular = spotLightComponent["Specular"].as<glm::vec3>();
+						light.CutOffAngle = spotLightComponent["CutOffAngle"].as<float>();
+						light.ConstantCoefficient = spotLightComponent["ConstantCoefficient"].as<float>();
+						light.LinearCoefficient = spotLightComponent["LinearCoefficient"].as<float>();
+						light.QuadraticCoefficient = spotLightComponent["QuadraticCoefficient"].as<float>();
+					});
+
 
 				DeserializeComponent<CircleCollider2DComponent>(deserializedEntity, "CircleCollider2DComponent", entityNode,
 					[](auto& cc2d, auto& entity, auto& circleCollider2DComponent) {
