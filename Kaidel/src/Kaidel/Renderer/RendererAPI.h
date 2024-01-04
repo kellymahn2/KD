@@ -2,6 +2,9 @@
 #include <glm/glm.hpp>
 #include "Kaidel/Renderer/VertexArray.h"
 namespace Kaidel {
+	enum class CullMode {
+		None,Front,Back,FrontAndBack
+	};
 	class RendererAPI
 	{
 	public:
@@ -21,6 +24,7 @@ namespace Kaidel {
 		virtual void DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount = 0) = 0;
 		virtual void DrawLines(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) = 0;
 		virtual void SetLineWidth(float thickness)=0;
+		virtual void SetCullMode(CullMode cullMode) = 0;
 		virtual int QueryMaxTextureSlots() = 0;
 
 		static API GetAPI() { return s_API; }

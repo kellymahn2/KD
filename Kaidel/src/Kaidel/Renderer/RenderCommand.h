@@ -39,6 +39,9 @@ namespace Kaidel {
 		{
 			s_RendererAPI->DrawLines(vertexArray, vertexCount);
 		}
+		static void SetCullMode(CullMode cullMode) {
+			s_RendererAPI->SetCullMode(cullMode);
+		}
 		static void SetLineWidth(float width) {
 			s_RendererAPI->SetLineWidth(width);
 		}

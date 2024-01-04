@@ -88,4 +88,13 @@ namespace Kaidel {
 	void OpenGLRendererAPI::SetLineWidth(float width) {
 		glLineWidth(width);
 	}
+	void OpenGLRendererAPI::SetCullMode(CullMode cullMode) {
+		switch (cullMode)
+		{
+		case Kaidel::CullMode::None:glDisable(GL_CULL_FACE);return;
+		case Kaidel::CullMode::Front:glEnable(GL_CULL_FACE); glCullFace(GL_FRONT); return;
+		case Kaidel::CullMode::Back:glEnable(GL_CULL_FACE); glCullFace(GL_BACK); return;
+		case Kaidel::CullMode::FrontAndBack:glEnable(GL_CULL_FACE); glCullFace(GL_FRONT_AND_BACK); return;
+		}
+	}
 }

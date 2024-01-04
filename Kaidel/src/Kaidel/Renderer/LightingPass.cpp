@@ -8,12 +8,23 @@ namespace Kaidel {
 
 	static Ref<Framebuffer> s_LightingFrameBuffer;
 
+	uint64_t LightingPass::GetColorAttachment() {
+		if (!s_LightingFrameBuffer) {
+			FramebufferSpecification fbSpec;
+			fbSpec.Attachments = { FramebufferTextureFormat::RGBA8 , FramebufferTextureFormat::DEPTH32 };
+			fbSpec.Samples = 1;
+			fbSpec.Width = 1280;
+			fbSpec.Height = 720;
+			s_LightingFrameBuffer = Framebuffer::Create(fbSpec);
+		}
+		return s_LightingFrameBuffer->GetColorAttachmentRendererID(0);
+	}
 	void LightingPass::Render() {
 
 
 		if (!s_LightingFrameBuffer) {
 			FramebufferSpecification fbSpec;
-			fbSpec.Attachments = { FramebufferTextureFormat::RGBA8,FramebufferTextureFormat::RGBA8 ,FramebufferTextureFormat::RGBA8 };
+			fbSpec.Attachments = { FramebufferTextureFormat::RGBA8, FramebufferTextureFormat::DEPTH32 };
 			fbSpec.Samples = 1;
 			fbSpec.Width = Config.Width;
 			fbSpec.Height = Config.Height;
@@ -24,11 +35,10 @@ namespace Kaidel {
 			s_LightingFrameBuffer->Resize(Config.Width, Config.Height);
 		}
 
+		float defColors[4] = { 0.1f,.1f,.1,1.0f };
 		s_LightingFrameBuffer->Bind();
-		float defLights[4] = { 0.0f };
-		s_LightingFrameBuffer->ClearAttachment(0, defLights);
-		s_LightingFrameBuffer->ClearAttachment(1, defLights);
-		s_LightingFrameBuffer->ClearAttachment(2, defLights);
+		s_LightingFrameBuffer->ClearAttachment(0, defColors);
+		s_LightingFrameBuffer->ClearDepthAttachment(1.0f);
 		LightingRenderer lightingRenderer;
 		//TODO: We need materials as well.
 		lightingRenderer.BeginRendering();

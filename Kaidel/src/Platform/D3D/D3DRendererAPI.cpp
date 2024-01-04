@@ -62,6 +62,9 @@ namespace Kaidel {
 	void D3DRendererAPI::SetLineWidth(float width) {
 
 	}
+	void D3DRendererAPI::SetCullMode(CullMode cullMode) {
+
+	}
 
 	int D3DRendererAPI::QueryMaxTextureSlots() {
 

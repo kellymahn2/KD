@@ -60,7 +60,7 @@ namespace Kaidel {
 		OpenGLDepth2DArray(uint32_t width, uint32_t height);
 		virtual ~OpenGLDepth2DArray();
 
-		virtual void Bind(uint32_t slot = 0)const override {};
+		virtual void Bind(uint32_t slot = 0)const override ;
 		virtual uint32_t PushDepth(uint32_t width, uint32_t height)override;
 		virtual void ClearLayer(uint32_t index, float value)override;
 		uint32_t GetRendererID()const override { return m_RendererID; }

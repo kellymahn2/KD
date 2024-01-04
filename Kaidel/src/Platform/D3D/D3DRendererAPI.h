@@ -18,6 +18,7 @@ namespace Kaidel {
 		virtual void DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount = 0) override;
 		virtual void DrawLines(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) override;
 		virtual void SetLineWidth(float thickness) override;
+		virtual void SetCullMode(CullMode cullMode)override;
 		virtual int QueryMaxTextureSlots()override;
 	private:
 		glm::vec4 m_ClearColor{1.0f};

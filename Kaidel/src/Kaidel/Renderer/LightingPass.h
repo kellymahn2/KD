@@ -15,6 +15,7 @@ namespace Kaidel {
 		LightingPassConfig Config;
 		LightingPass() = default;
 		void Render();
+		static uint64_t GetColorAttachment();
 	};
 
 }

@@ -12,12 +12,7 @@ layout (location = 0) in VertexOutput Input;
 layout(location = 3) in flat int MaterialIndex;
 
 
-layout(location = 0)out vec4 o_Ambient;
-layout(location = 1)out vec4 o_Diffuse;
-layout(location = 2)out vec4 o_Specular;
-
-
-
+layout(location = 0)out vec4 o_Color;
 
 
 layout(std140, binding = 0) uniform Camera
@@ -33,6 +28,7 @@ layout(std140, binding = 1) uniform LightingData
 	int u_SpotLightCount;
 };
 layout(binding = 0) uniform sampler2DArray u_MaterialTextures;
+layout(binding = 4) uniform sampler2DArray u_SpotLightDepthMaps;
 struct Material{
 	float ColorX,ColorY,ColorZ,ColorW;
 	int Diffuse;
@@ -62,16 +58,15 @@ struct PointLight {
 	float QuadraticCoefficient;
 };
 
-
 struct SpotLight {
 	mat4 LightViewProjection;
-	float PositionX,PositionY,PositionZ;
-	float DirectionX,DirectionY,DirectionZ;
-	float AmbientX,AmbientY,AmbientZ;
-	float DiffuseX,DiffuseY,DiffuseZ;
-	float SpecularX,SpecularY,SpecularZ;
-	float CutOffAngle;
+	vec4 Position;
+	vec4 Direction;
+	vec4 Ambient;
+	vec4 Diffuse;
+	vec4 Specular;
 
+	float CutOffAngle;
 	float ConstantCoefficient;
 	float LinearCoefficient;
 	float QuadraticCoefficient;
@@ -98,13 +93,40 @@ layout(std430,binding = 4) buffer SpotLights{
 	SpotLight u_SpotLights[];
 };
 
-struct LightCalcResult{
-	vec3 TotalAmbient;
-	vec3 TotalDiffuse;
-	vec3 TotalSpecular;
-};
 
 
+float CalcShadowValue(vec3 normal){
+
+	float totalShadow = 0.0;
+	vec2 texelSize = 1.0 / (textureSize(u_SpotLightDepthMaps,0).xy);
+    for(int i =0;i<u_SpotLightCount;++i){
+		vec3 lightPos = u_SpotLights[i].Position.xyz;
+		vec3 lightDir = normalize(lightPos - Input.FragPos);
+
+        vec4 lightSpacePos = u_SpotLights[i].LightViewProjection * vec4(Input.FragPos,1.0);
+		vec3 projCoords = lightSpacePos.xyz / lightSpacePos.w;
+		projCoords = projCoords * 0.5 + 0.5;
+		if(projCoords.z > 1.0)
+			continue;
+
+		float currentDepth = projCoords.z;
+
+		float bias = max(0.05*(1.0 - dot(normal,lightDir)),0.0);
+
+		float shadow = 0.0;
+		
+		for(int x = -1;x<=1;++x){
+			for(int y = -1;y <= 1;++y){
+				float pcfDepth = texture(u_SpotLightDepthMaps,vec3(projCoords.xy + vec2(x,y)* texelSize,i)).r;
+				shadow += currentDepth - bias > pcfDepth? 1.0 : 0.0;
+			}
+		}
+		shadow /= 9.0;
+		totalShadow += shadow;
+    }
+	totalShadow/= u_SpotLightCount;
+	return totalShadow;
+}
 
 vec3 CalcLightAmbient(vec3 materialAmbient,vec3 ambientIntensity){
 	return materialAmbient * ambientIntensity;
@@ -114,12 +136,12 @@ vec3 CalcLightDiffuse(vec3 materialDiffuse,vec3 norm,vec3 lightDir,vec3 diffuseI
 	return materialDiffuse*max(dot(norm, lightDir), 0.0)*	diffuseIntensity;
 }
 
-LightCalcResult ApplyLighting(Material material){
+vec4 ApplyLighting(Material material){
 
 	vec3 totalAmbient = vec3(0.0);
 	vec3 totalDiffuse = vec3(0.0);
 	vec3 totalSpecular = vec3(0.0);
-
+	vec4 materialColor = vec4(material.ColorX,material.ColorY,material.ColorZ,material.ColorW);
 	vec3 materialAmbient = texture(u_MaterialTextures,vec3(Input.TexCoord,material.Diffuse)).xyz;
 	vec3 materialDiffuse = materialAmbient;
 	vec3 materialSpecular = texture(u_MaterialTextures,vec3(Input.TexCoord,material.Specular)).xyz;
@@ -182,12 +204,12 @@ LightCalcResult ApplyLighting(Material material){
 	
 		for(int i =0;i<u_SpotLightCount;++i){
 		
-			vec3 lightPos = vec3(u_SpotLights[i].PositionX,u_SpotLights[i].PositionY,u_SpotLights[i].PositionZ);
+			vec3 lightPos = u_SpotLights[i].Position.xyz;
 			vec3 lightDir = normalize(lightPos - Input.FragPos);
 		
 		
-			vec3 lightDirection = vec3(u_SpotLights[i].DirectionX,u_SpotLights[i].DirectionY,u_SpotLights[i].DirectionZ);
-			vec3 lightAmbient=vec3(u_SpotLights[i].AmbientX,u_SpotLights[i].AmbientY,u_SpotLights[i].AmbientZ);
+			vec3 lightDirection = u_SpotLights[i].Direction.xyz;
+			vec3 lightAmbient= u_SpotLights[i].Ambient.xyz;
 			
 			
 			float distance = length(lightPos - Input.FragPos);
@@ -199,8 +221,8 @@ LightCalcResult ApplyLighting(Material material){
 			totalAmbient += CalcLightAmbient(materialAmbient,lightAmbient)*attenuation;
 			float theta = dot(lightDir,normalize(-lightDirection));
 			if(theta > u_SpotLights[i].CutOffAngle){
-				vec3 lightDiffuse=vec3(u_SpotLights[i].DiffuseX,u_SpotLights[i].DiffuseY,u_SpotLights[i].DiffuseZ);
-				vec3 lightSpecular=vec3(u_SpotLights[i].SpecularX,u_SpotLights[i].SpecularY,u_SpotLights[i].SpecularZ);
+				vec3 lightDiffuse= u_SpotLights[i].Diffuse.xyz;
+				vec3 lightSpecular= u_SpotLights[i].Specular.xyz;
 				
 		
 		
@@ -216,20 +238,13 @@ LightCalcResult ApplyLighting(Material material){
 		}
 	
 	}
-	LightCalcResult res;
-	res.TotalAmbient = totalAmbient;
-	res.TotalDiffuse = totalDiffuse;
-	res.TotalSpecular = totalSpecular;
+	vec4 res = vec4((totalAmbient + (1.0 - CalcShadowValue(norm))*(totalDiffuse + totalSpecular)),1.0)*materialColor;
 	return res;
 }
 
 void main(){
 
-	LightCalcResult res = ApplyLighting(u_Materials[MaterialIndex]);
-
-	o_Ambient = vec4(res.TotalAmbient,1.0);
-	o_Diffuse = vec4(res.TotalDiffuse,1.0);
-	o_Specular = vec4(res.TotalSpecular,1.0);
-
+	vec4 res = ApplyLighting(u_Materials[MaterialIndex]);
+    o_Color = res;
 }
 

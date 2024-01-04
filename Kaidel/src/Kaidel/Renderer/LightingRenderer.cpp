@@ -1,6 +1,7 @@
 #include "KDpch.h"
 #include "LightingRenderer.h"
 #include "Kaidel/Core/BoundedVector.h"
+#include "Light.h"
 #include "VertexArray.h"
 #include "Buffer.h"
 #include "Shader.h"
@@ -221,6 +222,8 @@ namespace Kaidel {
 			s_RendererData->CubeVertexBuffer->SetData(start, (size) * sizeof(CubeLightingVertex));
 			s_RendererData->CubeVertexArray->Bind();
 			s_RendererData->CubeLightingShader->Bind();
+			s_RendererData->CubeLightingShader->SetInt("u_SpotLightDepthMaps",_SpotLightBindingSlot);
+
 			RenderCommand::DrawIndexed(s_RendererData->CubeVertexArray, s_RendererData->CubeIndexCount);
 		}
 	}

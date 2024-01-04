@@ -186,7 +186,7 @@ namespace Kaidel {
 			}
 		}
 
-		if (m_ColorAttachments.size() > 1)
+		if (m_ColorAttachments.size() >= 1)
 		{
 			KD_CORE_ASSERT(m_ColorAttachments.size() <= 4);
 			GLenum buffers[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
@@ -250,13 +250,13 @@ namespace Kaidel {
 	void OpenGLFramebuffer::ClearAttachment(uint32_t attachmentIndex, const float* colors)
 	{
 		KD_CORE_ASSERT(attachmentIndex < m_ColorAttachments.size());
+		glBindFramebuffer(GL_FRAMEBUFFER, m_RendererID);
 		auto& i = m_ColorAttachmentSpecifications.at(attachmentIndex);
 		if (i.TextureFormat == FramebufferTextureFormat::RGBA8) {
 			glClearColor(colors[0], colors[1], colors[2], colors[3]);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glClear(GL_COLOR_BUFFER_BIT);
 			return;
 		}
-		ClearAttachment(attachmentIndex, *colors);
 	}
 
 }

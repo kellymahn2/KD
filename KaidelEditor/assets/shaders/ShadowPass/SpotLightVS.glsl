@@ -5,15 +5,16 @@ layout(location = 0) in vec3 a_Position;
 
 uniform int u_LightIndex;
 
+
 struct SpotLight {
 	mat4 LightViewProjection;
-	float PositionX,PositionY,PositionZ;
-	float DirectionX,DirectionY,DirectionZ;
-	float AmbientX,AmbientY,AmbientZ;
-	float DiffuseX,DiffuseY,DiffuseZ;
-	float SpecularX,SpecularY,SpecularZ;
-	float CutOffAngle;
+	vec4 Position;
+	vec4 Direction;
+	vec4 Ambient;
+	vec4 Diffuse;
+	vec4 Specular;
 
+	float CutOffAngle;
 	float ConstantCoefficient;
 	float LinearCoefficient;
 	float QuadraticCoefficient;

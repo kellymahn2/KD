@@ -208,14 +208,22 @@ namespace Kaidel {
 		glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &m_RendererID);
 		glBindTexture(GL_TEXTURE_2D_ARRAY, m_RendererID);
 		glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_DEPTH_COMPONENT32, width, height, m_Depth);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
 
 	}
 	OpenGLDepth2DArray::~OpenGLDepth2DArray(){
 		glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 		glDeleteTextures(1, &m_RendererID);
 	}
+	void OpenGLDepth2DArray::Bind(uint32_t slot)const {
+		glActiveTexture(GL_TEXTURE0 + slot);
+		glBindTexture(GL_TEXTURE_2D_ARRAY, m_RendererID);
+	}
 	void OpenGLDepth2DArray::ClearLayer(uint32_t index, float value){
-		glClearTexImage(m_RendererID, index, GL_DEPTH_COMPONENT, GL_FLOAT, &value);
+		glClearTexSubImage(m_RendererID, 0, 0, 0, index, m_Width, m_Height, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &value);
 	}
 	uint32_t OpenGLDepth2DArray::PushDepth(uint32_t width, uint32_t height){
 		if (m_SetCount + 1 > m_Depth) {
@@ -230,7 +238,10 @@ namespace Kaidel {
 		glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &m_RendererID);
 		glBindTexture(GL_TEXTURE_2D_ARRAY, m_RendererID);
 		glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_DEPTH_COMPONENT32, m_Width, m_Height, newLayerCount);
-
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
 		
 		m_Depth = newLayerCount;
 	}

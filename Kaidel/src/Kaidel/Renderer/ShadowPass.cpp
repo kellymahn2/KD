@@ -3,6 +3,7 @@
 #include "ShadowRenderer.h"
 #include "Kaidel/Core/JobSystem.h"
 #include "Kaidel/Scene/Components.h"
+#include "RenderCommand.h"
 namespace Kaidel {
 	static Ref<Framebuffer> s_ShadowFrameBuffer;
 	void ShadowPass::Render() {
@@ -21,6 +22,7 @@ namespace Kaidel {
 				depthMaps->ClearLayer(lightIndex, 1.0f);
 				s_ShadowFrameBuffer->SetDepthAttachmentFromArray(depthMaps->GetRendererID(), lightIndex);
 				s_ShadowFrameBuffer->Bind();
+				RenderCommand::SetCullMode(CullMode::Front);
 				shadowRenderer.BeginRendering(lightIndex);
 				auto cubeView = Config.Scene->m_Registry.view<TransformComponent,CubeRendererComponent>();
 				for (auto e : cubeView) {
@@ -31,6 +33,7 @@ namespace Kaidel {
 				}
 				JobSystem::GetMainJobSystem().Wait();
 				shadowRenderer.EndRendering();
+				RenderCommand::SetCullMode(CullMode::None);
 				s_ShadowFrameBuffer->Unbind();
 			}
 

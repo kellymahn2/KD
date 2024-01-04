@@ -40,11 +40,11 @@ namespace Kaidel
 
 	struct _SpotLightInternal {
 		glm::mat4 LightViewProjection{ 1.0f };
-		glm::vec3 Position{ 0.0f };
-		glm::vec3 Direction{ 0.0f };
-		glm::vec3 Ambient{ .2f };
-		glm::vec3 Diffuse{ .5f };
-		glm::vec3 Specular{ 1.0f };
+		glm::vec4 Position{ 0.0f };
+		glm::vec4 Direction{ 0.0f ,0,0,1};
+		glm::vec4 Ambient{ .2f,.2,.2,1 };
+		glm::vec4 Diffuse{ .5f ,.5,.5,1};
+		glm::vec4 Specular{ 1.0f};
 		//Half FOV
 		float CutOffAngle = 0.5f;
 
@@ -59,6 +59,20 @@ namespace Kaidel
 	static inline constexpr uint32_t _SpotLightBindingSlot = 4;
 	static inline constexpr uint32_t _ShadowMapWidth = 1024;
 	static inline constexpr uint32_t _ShadowMapHeight = 1024;
+
+	static inline float CalcLightMaxCoverage(float q,float l,float _c,float epsilon) {
+		float a = q;
+		float b = l;
+		float c = _c - epsilon;
+		float d = b * b - 4.0f * a * c;
+		if (d < 0) {
+			return INFINITY;
+		}
+		float sqD = glm::sqrt(d);
+		float x1 = std::max((-b + sqD) / (2.0f * a), 0.0f);
+		float x2 = std::max((-b  - sqD) / (2.0f * a), 0.0f);
+		return std::max(x1, x2);
+	}
 
 	template<typename T,uint32_t BindingSlot>
 	class Light {

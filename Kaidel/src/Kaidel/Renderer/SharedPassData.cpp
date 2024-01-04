@@ -49,8 +49,11 @@ namespace Kaidel {
 
 				auto [tc, slc] = view.get<TransformComponent, SpotLightComponent>(e);
 				auto& light = slc.Light->GetLight();
-				light.Position = tc.Translation;
-				light.LightViewProjection = glm::perspective(glm::acos(light.CutOffAngle) * 2.0f, 1.0f, 0.1f, 25.0f) * glm::lookAt(tc.Translation, light.Direction, glm::vec3(0, 1, 0));
+				light.Position = glm::vec4(tc.Translation,1.0f);
+				float maxCov = CalcLightMaxCoverage(light.QuadraticCoefficient, light.LinearCoefficient, light.ConstantCoefficient, 0.01f);
+				if (maxCov == 0.0f || maxCov == INFINITY)
+					maxCov = 25.0f;
+				light.LightViewProjection = glm::perspective(glm::acos(light.CutOffAngle) * 2.0f, 1.0f, 0.1f, maxCov) * glm::lookAt(tc.Translation, glm::normalize(glm::vec3(light.Direction)), glm::vec3(0, 1, 0));
 
 			}
 		}
@@ -67,5 +70,6 @@ namespace Kaidel {
 		counts.SpotLightCount = SpotLight::GetLightCount();
 		LightCountUniformBuffer->SetData(&counts, sizeof(LightCount));
 		LightCountUniformBuffer->Bind();
+		MaterialTextures->Bind(0);
 	}
 }

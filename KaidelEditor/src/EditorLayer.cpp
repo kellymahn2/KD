@@ -56,8 +56,8 @@ namespace Kaidel {
 		auto& commandLineArgs = Application::Get().GetCommandLineArgs();
 		if (commandLineArgs.Count > 1) {
 			auto projectFilePath = commandLineArgs[1];
-			OpenProject(projectFilePath);
-			//OpenScene(sceneFilePath);
+			//OpenProject(projectFilePath);
+			OpenScene(projectFilePath);
 		}
 		else {
 			//TODO: Actually create a new project
@@ -69,16 +69,28 @@ namespace Kaidel {
 		m_ConsolePanel.SetContext(::Log::GetClientLogger());
 
 
-		{
+		/*{
 			Entity e = m_ActiveScene->CreateEntity("Light");
 			auto& plc  = e.AddComponent<SpotLightComponent>();
-			
-		}
+		}*/
 		{
 			Entity e = m_ActiveScene->CreateEntity("Cube");
 			auto& crc = e.AddComponent<CubeRendererComponent>();
+			auto& tc = e.GetComponent<TransformComponent>();
+			tc.Rotation.x = glm::pi<float>() / 4.0f;
+			tc.Rotation.y = glm::pi<float>() / 4.0f;
 			//crc.Color = glm::vec4(1.0f);
 		}
+		{
+			Entity e = m_ActiveScene->CreateEntity("Wall");
+			auto& crc = e.AddComponent<CubeRendererComponent>();
+			auto & tc = e.GetComponent<TransformComponent>();
+			tc.Translation.x = 2.0f;
+			tc.Scale.y = 20.0f;
+			tc.Scale.z = 20.0f;
+			//crc.Color = glm::vec4(1.0f);
+		}
+
 
 
 		/*cs = ComputeShader::Create("assets/shaders/TestCompute2.glsl");
@@ -234,6 +246,13 @@ namespace Kaidel {
 						passData.SetData();
 					}
 					{
+						ShadowPassConfig config;
+						config.Scene = m_ActiveScene;
+						ShadowPass pass;
+						pass.Config = config;
+						pass.Render();
+					}
+					{
 
 						LightingPassConfig config;
 						config.Width = (uint32_t)m_ViewportSize.x ? (uint32_t)m_ViewportSize.x:1280;
@@ -244,14 +263,6 @@ namespace Kaidel {
 						pass.Render();
 
 					}
-					{
-						ShadowPassConfig config;
-						config.Scene = m_ActiveScene;
-						ShadowPass pass;
-						pass.Config = config;
-						pass.Render();
-					}
-
 
 				}
 
@@ -712,7 +723,7 @@ namespace Kaidel {
 
 		auto textureID = m_Framebuffer->GetColorAttachmentRendererID();
 		glm::vec4 uvs = _GetUVs();
-		ImGui::Image(reinterpret_cast<void*>(m_Framebuffer->GetColorAttachmentRendererID()), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, { uvs.x,uvs.y }, { uvs.z,uvs.w });
+		ImGui::Image(reinterpret_cast<void*>(LightingPass::GetColorAttachment()), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, { uvs.x,uvs.y }, { uvs.z,uvs.w });
 		if (ImGui::BeginDragDropTarget()) {
 			if (auto payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
 				const wchar_t* path = (const wchar_t*)payload->Data;
