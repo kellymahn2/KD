@@ -69,70 +69,33 @@ namespace Kaidel {
 		m_ConsolePanel.SetContext(::Log::GetClientLogger());
 
 
-		/*{
-			Entity e = m_ActiveScene->CreateEntity("Light");
-			auto& plc  = e.AddComponent<SpotLightComponent>();
-		}*/
-		{
-			Entity e = m_ActiveScene->CreateEntity("Cube");
-			auto& crc = e.AddComponent<CubeRendererComponent>();
-			auto& tc = e.GetComponent<TransformComponent>();
-			tc.Rotation.x = glm::pi<float>() / 4.0f;
-			tc.Rotation.y = glm::pi<float>() / 4.0f;
-			//crc.Color = glm::vec4(1.0f);
-		}
-		{
-			Entity e = m_ActiveScene->CreateEntity("Wall");
-			auto& crc = e.AddComponent<CubeRendererComponent>();
-			auto & tc = e.GetComponent<TransformComponent>();
-			tc.Translation.x = 2.0f;
-			tc.Scale.y = 20.0f;
-			tc.Scale.z = 20.0f;
-			//crc.Color = glm::vec4(1.0f);
-		}
+		///*{
+		//	Entity e = m_ActiveScene->CreateEntity("Light");
+		//	auto& plc  = e.AddComponent<SpotLightComponent>();
+		//}*/
+		//{
+		//	Entity e = m_ActiveScene->CreateEntity("Cube");
+		//	auto& crc = e.AddComponent<CubeRendererComponent>();
+		//	auto& tc = e.GetComponent<TransformComponent>();
+		//	//crc.Color = glm::vec4(1.0f);
+		//}
+		//{
+		//	Entity e = m_ActiveScene->CreateEntity("Cube2");
+		//	auto& crc = e.AddComponent<CubeRendererComponent>();
+		//	auto& tc = e.GetComponent<TransformComponent>();
+		//	tc.Translation.x = 4.0f;
+		//	//crc.Color = glm::vec4(1.0f);
+		//}
+		//{
+		//	Entity e = m_ActiveScene->CreateEntity("Wall");
+		//	auto& crc = e.AddComponent<CubeRendererComponent>();
+		//	auto & tc = e.GetComponent<TransformComponent>();
+		//	tc.Translation.x = 2.0f;
+		//	tc.Scale.y = 20.0f;
+		//	tc.Scale.z = 20.0f;
+		//	//crc.Color = glm::vec4(1.0f);
+		//}
 
-
-
-		/*cs = ComputeShader::Create("assets/shaders/TestCompute2.glsl");
-
-		tbi = TypedBufferInput::Create(TypedBufferInputDataType::RGBA8, 799, 449);
-		ub = UniformBuffer::Create(4, 0);*/
-		/*float x = 1.0f;
-		ui = UAVInput::Create(sizeof(x), &x);*/
-		
-		/*{
-			auto e = m_ActiveScene->CreateEntity();
-			e.AddComponent<CubeRendererComponent>();
-		}
-		{
-			auto e = m_ActiveScene->CreateEntity();
-			e.AddComponent<SpriteRendererComponent>();
-			e.GetComponent<TransformComponent>().Translation = glm::vec3{ 1.0 };
-		}*/
-		/*{
-			auto e = m_ActiveScene->CreateEntity();
-			auto& crc = e.AddComponent<CubeRendererComponent>();
-			crc.Color = { .8,.6,.3,1.0 };
-		}*/
-		/*Entity e = m_ActiveScene->CreateEntity();*/
-
-		/*a = CreateRef<TransformAnimationFrame>(glm::vec3{ 1,1,0 }, 2.0f);
-		ac = CreateRef<AnimationController>();*/
-		/*a = CreateRef<Animation>();
-		ap = CreateRef<AnimationPlayer>();*/
-
-		/*auto property = a->AddProperty(AnimatedPropertyType::Translate);
-		KeyFrame<AnimatedPropertyType::Translate> kf1{};
-		kf1.StartTime = 0.0f;
-		kf1.EndTime = 5.0f;
-		kf1.TargetTranslation = { 1.0f,1.0f,.0 };
-		KeyFrame<AnimatedPropertyType::Translate> kf2{};
-		kf2.StartTime = 5.0f;
-		kf2.EndTime = 8.0f;
-		kf2.TargetTranslation = { 2,1,0 };
-		property->AddKeyFrame<AnimatedPropertyType::Translate>(kf1);
-		property->AddKeyFrame<AnimatedPropertyType::Translate>(kf2);
-		auto& animationComponent = e.AddComponent<AnimationComponent>(a,ap);*/
 	}
 
 	void EditorLayer::OnDetach()
@@ -911,12 +874,12 @@ namespace Kaidel {
 	{
 		if (e.GetMouseButton() == Mouse::ButtonLeft)
 		{
-			if (m_ViewportHovered && !ImGuizmo::IsOver() && !Input::IsKeyDown(Key::LeftAlt)) {
+			/*if (m_ViewportHovered && !ImGuizmo::IsOver() && !Input::IsKeyDown(Key::LeftAlt)) {
 				m_Framebuffer->Bind();
 				int pixel = GetCurrentPixelData(m_ViewportBounds, m_Framebuffer);
 				m_SceneHierarchyPanel.SetSelectedEntity(pixel == -1 ? Entity{} : Entity{(entt::entity) pixel,m_ActiveScene.get() });
 				m_Framebuffer->Unbind();
-			}
+			}*/
 		}
 		return false;
 	}

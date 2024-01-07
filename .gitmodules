@@ -41,3 +41,6 @@
 [submodule "Kaidel/vendor/Box2D"]
 	path = Kaidel/vendor/Box2D
 	url = https://github.com/TheCherno/box2d
+[submodule "Kaidel/vendor/Assimp"]
+	path = Kaidel/vendor/Assimp
+	url = https://github.com/assimp/assimp

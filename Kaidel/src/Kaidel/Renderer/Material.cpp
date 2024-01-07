@@ -5,6 +5,7 @@
 namespace Kaidel{
     std::vector<_MaterialInternal> Material::s_InternalData;
 	std::vector<Material*> Material::s_Materials;
+
 	Material::Material() {
        m_MaterialIndex = s_InternalData.size();
        s_InternalData.emplace_back();
@@ -24,4 +25,22 @@ namespace Kaidel{
         s_MaterialUAV->SetBufferData(s_InternalData.data(),s_InternalData.size());
         s_MaterialUAV->Bind(1);
     }
+
+
+	void MaterialTextureHandler::Init() {
+		s_TexturesMap = Texture2DArray::Create(512,512);
+		uint32_t default = 0xffffffff;
+		s_TexturesMap->PushTexture(&default, 1, 1);
+		s_TexturesMap->PushTexture(&default, 1, 1);
+		s_TextureIndexMap["_Default_Diffuse"] = 0;
+		s_TextureIndexMap["_Default_Specular"] = 1;
+	}
+	uint32_t MaterialTextureHandler::LoadTexture(const std::filesystem::path& texturePath) {
+		std::string path = texturePath.string();
+		if (s_TextureIndexMap.find(path) != s_TextureIndexMap.end())
+			return s_TextureIndexMap.at(path);
+		uint32_t index = s_TexturesMap->PushTexture(path);
+		s_TextureIndexMap[path] = index;
+		return index;
+	}
 }

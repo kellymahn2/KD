@@ -223,6 +223,7 @@ namespace Kaidel {
 			s_RendererData->CubeVertexArray->Bind();
 			s_RendererData->CubeLightingShader->Bind();
 			s_RendererData->CubeLightingShader->SetInt("u_SpotLightDepthMaps",_SpotLightBindingSlot);
+			s_RendererData->CubeLightingShader->SetInt("u_MaterialTextures", 0);
 
 			RenderCommand::DrawIndexed(s_RendererData->CubeVertexArray, s_RendererData->CubeIndexCount);
 		}

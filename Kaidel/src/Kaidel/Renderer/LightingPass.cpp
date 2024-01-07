@@ -3,6 +3,7 @@
 #include "LightingRenderer.h"
 #include "Kaidel/Core/JobSystem.h"
 #include "Kaidel/Scene/Components.h"
+#include "Kaidel/Mesh/Model.h"
 namespace Kaidel {
 
 
@@ -20,7 +21,7 @@ namespace Kaidel {
 		return s_LightingFrameBuffer->GetColorAttachmentRendererID(0);
 	}
 	void LightingPass::Render() {
-
+		static Ref<Model> model;
 
 		if (!s_LightingFrameBuffer) {
 			FramebufferSpecification fbSpec;
@@ -29,8 +30,9 @@ namespace Kaidel {
 			fbSpec.Width = Config.Width;
 			fbSpec.Height = Config.Height;
 			s_LightingFrameBuffer = Framebuffer::Create(fbSpec);
+			model = Model::Load("assets/models/test/backpack.obj");
 		}
-
+		
 		if (auto spec = s_LightingFrameBuffer->GetSpecification(); (spec.Width != Config.Width || spec.Height != Config.Height)&&spec.Width>0&&spec.Height>0) {
 			s_LightingFrameBuffer->Resize(Config.Width, Config.Height);
 		}
@@ -51,7 +53,7 @@ namespace Kaidel {
 		}
 		JobSystem::GetMainJobSystem().Wait();
 		lightingRenderer.EndRendering();
-
+		model->Draw();
 		s_LightingFrameBuffer->Unbind();
 	}
 

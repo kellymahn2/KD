@@ -122,6 +122,13 @@ float CalcShadowValue(vec3 normal){
 			}
 		}
 		shadow /= 9.0;
+		//for(int x = -4;x<=4;++x){
+		//	for(int y = -4;y <= 4;++y){
+		//		float pcfDepth = texture(u_SpotLightDepthMaps,vec3(projCoords.xy + vec2(x,y)* texelSize,i)).r;
+		//		shadow += currentDepth - bias > pcfDepth? 1.0 : 0.0;
+		//	}
+		//}
+		//shadow /= 81.0;
 		totalShadow += shadow;
     }
 	totalShadow/= u_SpotLightCount;

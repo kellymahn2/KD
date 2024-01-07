@@ -10,7 +10,6 @@ namespace Kaidel {
 	CameraBufferData CameraData;
 	Ref<UniformBuffer> CameraDataUniformBuffer;
 	Ref<UniformBuffer> LightCountUniformBuffer;
-	Ref<Texture2DArray> MaterialTextures;
 	struct LightCount {
 		int PointLightCount;
 		int SpotLightCount;
@@ -20,10 +19,7 @@ namespace Kaidel {
 	static void Initialize() {
 		CameraDataUniformBuffer = UniformBuffer::Create(sizeof(CameraBufferData), 0);
 		LightCountUniformBuffer = UniformBuffer::Create(sizeof(LightCount), 1);
-		MaterialTextures = Texture2DArray::Create(512, 512);
-		uint32_t default = 0xffffffff;
-		MaterialTextures->PushTexture(&default, 1, 1);
-		MaterialTextures->PushTexture(&default, 1, 1);
+		MaterialTextureHandler::Init();
 		Initialized = true;
 	}
 
@@ -53,7 +49,7 @@ namespace Kaidel {
 				float maxCov = CalcLightMaxCoverage(light.QuadraticCoefficient, light.LinearCoefficient, light.ConstantCoefficient, 0.01f);
 				if (maxCov == 0.0f || maxCov == INFINITY)
 					maxCov = 25.0f;
-				light.LightViewProjection = glm::perspective(glm::acos(light.CutOffAngle) * 2.0f, 1.0f, 0.1f, maxCov) * glm::lookAt(tc.Translation, glm::normalize(glm::vec3(light.Direction)), glm::vec3(0, 1, 0));
+				light.LightViewProjection = glm::perspective(glm::acos(light.CutOffAngle) * 2.0f, 1.0f, 0.1f, 25.0f) * glm::lookAt(tc.Translation, glm::normalize(glm::vec3(light.Direction)), glm::vec3(0, 1, 0));
 
 			}
 		}
@@ -70,6 +66,6 @@ namespace Kaidel {
 		counts.SpotLightCount = SpotLight::GetLightCount();
 		LightCountUniformBuffer->SetData(&counts, sizeof(LightCount));
 		LightCountUniformBuffer->Bind();
-		MaterialTextures->Bind(0);
+		MaterialTextureHandler::GetTexturesMap()->Bind(0);
 	}
 }

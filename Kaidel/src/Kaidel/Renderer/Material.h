@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include <stack>
+#include <filesystem>
 namespace Kaidel
 {
 
@@ -15,6 +16,18 @@ namespace Kaidel
 	};
 
 	static inline constexpr uint32_t _MaterialTexturesBindingSlot = 0;
+
+
+	class MaterialTextureHandler {
+	public:
+		static void Init();
+		static uint32_t LoadTexture(const std::filesystem::path& texturePath);
+		static const std::unordered_map<std::string, uint32_t>& GetTextureIndexMap() { return s_TextureIndexMap; }
+		static Ref<Texture2DArray> GetTexturesMap() { return s_TexturesMap; }
+	private:
+		static inline std::unordered_map<std::string, uint32_t> s_TextureIndexMap;
+		static inline Ref<Texture2DArray> s_TexturesMap;
+	};
 
     class Material{
     public:

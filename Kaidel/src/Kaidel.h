@@ -26,6 +26,9 @@
 #include "Kaidel/Project/Project.h"
 
 
+// ---Model---------------------------
+#include "Kaidel/Mesh/Model.h"
+
 // ---Renderer------------------------
 #include "Kaidel/Renderer/Renderer.h"
 #include "Kaidel/Renderer/Renderer2D.h"

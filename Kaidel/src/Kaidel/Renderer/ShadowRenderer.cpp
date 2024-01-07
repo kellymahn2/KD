@@ -34,55 +34,70 @@ namespace Kaidel {
 			uint32_t* cubeIndices = new uint32_t[MaxIndices];
 
 			uint32_t offset = 0;
+
+			//// Front face
+			//CubeVertexData[0] = { {-0.5f , -0.5f ,  0.5f , 1.0f} }; // Bottom-left
+			//CubeVertexData[1] = { { 0.5f , -0.5f ,  0.5f , 1.0f} }; // Bottom-right
+			//CubeVertexData[2] = { { 0.5f ,  0.5f ,  0.5f , 1.0f} }; // Top-right
+			//CubeVertexData[3] = { {-0.5f ,  0.5f ,  0.5f , 1.0f} }; // Top-left
+
+			//// Back face										   		    						   
+			//CubeVertexData[4] = { {-0.5f , -0.5f , -0.5f , 1.0f} }; // Bottom-left
+			//CubeVertexData[5] = { { 0.5f , -0.5f , -0.5f , 1.0f} }; // Bottom-right
+			//CubeVertexData[6] = { { 0.5f ,  0.5f , -0.5f , 1.0f} }; // Top-right
+			//CubeVertexData[7] = { {-0.5f ,  0.5f , -0.5f , 1.0f} }; // Top-left
+
 			for (uint32_t i = 0; i < MaxIndices; i += 36)
 			{
+				//Front
 				cubeIndices[i + 0] = offset + 0;
-				cubeIndices[i + 1] = offset + 1;
+				cubeIndices[i + 1] = offset + 1;	
 				cubeIndices[i + 2] = offset + 2;
+				cubeIndices[i + 3] = offset + 2;
+				cubeIndices[i + 4] = offset + 3;
+				cubeIndices[i + 5] = offset + 0;
 
-				cubeIndices[i + 3] = offset + 0;
-				cubeIndices[i + 4] = offset + 2;
-				cubeIndices[i + 5] = offset + 3;
+				//Back
+				cubeIndices[i + 6] = offset +  4;
+				cubeIndices[i + 7] = offset +  7;
+				cubeIndices[i + 8] = offset +  6;
+				cubeIndices[i + 9] = offset +  6;
+				cubeIndices[i + 10] = offset + 5;
+				cubeIndices[i + 11] = offset + 4;
 
-				cubeIndices[i + 6] = offset + 4;
-				cubeIndices[i + 7] = offset + 5;
-				cubeIndices[i + 8] = offset + 6;
 
-				cubeIndices[i + 9] = offset + 4;
-				cubeIndices[i + 10] = offset + 6;
-				cubeIndices[i + 11] = offset + 7;
+				//Left
+				cubeIndices[i + 12] = offset + 7;
+				cubeIndices[i + 13] = offset + 4;
+				cubeIndices[i + 14] = offset + 0;
+				cubeIndices[i + 15] = offset + 0;
+				cubeIndices[i + 16] = offset + 3;
+				cubeIndices[i + 17] = offset + 7;
 
-				cubeIndices[i + 12] = offset + 0;
-				cubeIndices[i + 13] = offset + 1;
-				cubeIndices[i + 14] = offset + 5 ;
 
-				cubeIndices[i + 15] = offset + 0 ;
-				cubeIndices[i + 16] = offset + 5 ;
-				cubeIndices[i + 17] = offset + 4;
+				//Right
+				cubeIndices[i + 18] = offset + 5;
+				cubeIndices[i + 19] = offset + 6;
+				cubeIndices[i + 20] = offset + 2;
+				cubeIndices[i + 21] = offset + 2;
+				cubeIndices[i + 22] = offset + 1;
+				cubeIndices[i + 23] = offset + 5;
 
-				cubeIndices[i + 18] = offset +  2;
-				cubeIndices[i + 19] = offset +  3;
-				cubeIndices[i + 20] = offset +  7;
+				//Top
+				cubeIndices[i + 24] = offset +  6;
+				cubeIndices[i + 25] = offset +  7;
+				cubeIndices[i + 26] = offset +  3;
+				cubeIndices[i + 27] = offset +  3;
+				cubeIndices[i + 28] = offset +  2;
+				cubeIndices[i + 29] = offset +  6;
 
-				cubeIndices[i + 21] = offset +  2;
-				cubeIndices[i + 22] = offset +  7;
-				cubeIndices[i + 23] = offset +  6;
-
-				cubeIndices[i + 24] = offset +  0;
-				cubeIndices[i + 25] = offset +  3;
-				cubeIndices[i + 26] = offset +  7;
-
-				cubeIndices[i + 27] = offset +  0;
-				cubeIndices[i + 28] = offset +  7;
-				cubeIndices[i + 29] = offset +  4;
-
-				cubeIndices[i + 30] = offset + 1;
-				cubeIndices[i + 31] = offset + 2;
-				cubeIndices[i + 32] = offset + 6 ;
-
-				cubeIndices[i + 33] = offset + 1 ;
-				cubeIndices[i + 34] = offset + 6 ;
-				cubeIndices[i + 35] = offset +  5;
+				//Bottom
+				cubeIndices[i + 30] = offset + 4;
+				cubeIndices[i + 31] = offset + 5;
+				cubeIndices[i + 32] = offset + 1;
+				cubeIndices[i + 33] = offset + 1;
+				cubeIndices[i + 34] = offset + 0;
+				cubeIndices[i + 35] = offset + 4;
 
 				offset += 8;
 			}
@@ -92,15 +107,17 @@ namespace Kaidel {
 		ShadowRendererData() {
 
 			// Front face
-			CubeVertexData[0] = { {-0.5, -0.5, -0.5, 1.0f} }; // Bottom-left
-			CubeVertexData[1] = { {0.5, -0.5, -0.5, 1.0f} }; // Bottom-right
-			CubeVertexData[2] = { {0.5, 0.5, -0.5, 1.0f} }; // Top-right
-			CubeVertexData[3] = { {-0.5, 0.5, -0.5, 1.0f} }; // Top-left
+			CubeVertexData[0] = { {-0.5f , -0.5f ,  0.5f , 1.0f}}; // Bottom-left
+			CubeVertexData[1] = { { 0.5f , -0.5f ,  0.5f , 1.0f}}; // Bottom-right
+			CubeVertexData[2] = { { 0.5f ,  0.5f ,  0.5f , 1.0f}}; // Top-right
+			CubeVertexData[3] = { {-0.5f ,  0.5f ,  0.5f , 1.0f}}; // Top-left
+
 			// Back face										   		    						   
-			CubeVertexData[4] = { {-0.5, -0.5, 0.5, 1.0f} }; // Bottom-left
-			CubeVertexData[5] = { {0.5, -0.5, 0.5, 1.0f} }; // Bottom-right
-			CubeVertexData[6] = { {0.5, 0.5, 0.5, 1.0f} }; // Top-right
-			CubeVertexData[7] = { {-0.5, 0.5, 0.5, 1.0f}}; // Top-left
+			CubeVertexData[4] = { {-0.5f , -0.5f , -0.5f , 1.0f}}; // Bottom-left
+			CubeVertexData[5] = { { 0.5f , -0.5f , -0.5f , 1.0f}}; // Bottom-right
+			CubeVertexData[6] = { { 0.5f ,  0.5f , -0.5f , 1.0f}}; // Top-right
+			CubeVertexData[7] = { {-0.5f ,  0.5f , -0.5f , 1.0f}}; // Top-left
+
 			switch (RendererAPI::GetAPI())
 			{
 			case RendererAPI::API::OpenGL:
