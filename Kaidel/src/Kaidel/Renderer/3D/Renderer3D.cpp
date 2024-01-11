@@ -36,6 +36,7 @@ namespace Kaidel {
 		Ref<UniformBuffer> LightCountUniformBuffer;
 		Ref<Framebuffer> OutputBuffer;
 		Ref<Framebuffer> G_Buffers;
+		Math::Frustum Frustum;
 
 		/*BoundedVector<Ref<Model>> DrawnModels = { 0,32,[&](Ref<Model>* models,auto count) {
 				for (auto i = 0; i < count; ++i) {
@@ -71,6 +72,7 @@ namespace Kaidel {
 	void Renderer3D::Begin(const Renderer3DBeginData& beginData) {
 		s_Data.CameraBuffer.ViewProj = beginData.CameraVP;
 		s_Data.CameraBuffer.Position = beginData.CameraPosition;
+		s_Data.Frustum = Math::Frustum(beginData.CameraVP);
 		s_Data.CameraUniformBuffer->SetData(&s_Data.CameraBuffer, sizeof(Renderer3DData::CameraBufferData));
 
 		Renderer3DData::LightCount lightCount{};
@@ -115,7 +117,7 @@ namespace Kaidel {
 			s_Data.MeshShader->Bind();
 			s_Data.G_Buffers->Bind();
 			{
-				model->Draw(transform, material);
+				model->Draw(transform, material,s_Data.Frustum);
 			}
 			s_Data.G_Buffers->Unbind();
 			s_Data.DrawnModels.insert(model);

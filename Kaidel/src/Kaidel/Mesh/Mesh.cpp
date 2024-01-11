@@ -8,6 +8,18 @@ namespace Kaidel {
 	Mesh::Mesh(const std::vector<MeshVertex>& vertices, const std::vector<uint32_t> indices) 
 		:m_Vertices(vertices),m_IndexCount(indices.size())
 	{
+		glm::vec3 minPoint = vertices[0].Position;
+		glm::vec3 maxPoint = vertices[0].Position;
+		for (const auto& vertex : m_Vertices) {
+			minPoint.x = std::min(minPoint.x, vertex.Position.x);
+			minPoint.y = std::min(minPoint.y, vertex.Position.y);
+			minPoint.z = std::min(minPoint.z, vertex.Position.z);
+
+			maxPoint.x = std::max(maxPoint.x, vertex.Position.x);
+			maxPoint.y = std::max(maxPoint.y, vertex.Position.y);
+			maxPoint.z = std::max(maxPoint.z, vertex.Position.z);
+		}
+
 		Setup(indices);
 	}
 	Mesh::~Mesh() {

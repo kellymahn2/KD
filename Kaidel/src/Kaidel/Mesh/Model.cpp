@@ -57,12 +57,14 @@ namespace Kaidel {
 		return model;
 	}
 
-	void Model::Draw(const glm::mat4& transform, Ref<Material>& mat) {
+	void Model::Draw(const glm::mat4& transform, Ref<Material>& mat, const Math::Frustum& frustum) {
 		
 		//Timer timer("Total");
 		{
 			//Timer timer("Dispach");
 			JobSystem::GetMainJobSystem().Dispatch(m_Meshes.size(), 16, [&](JobDispatchArgs& args) {
+				if(frustum.IsCulled(m_Meshes[args.jobIndex].GetBoundingBox().Transform(transform)))
+					return;
 				m_Meshes[args.jobIndex].Draw(transform, mat);
 				});
 		}

@@ -1,11 +1,14 @@
 #pragma once
-#include <glm/glm.hpp>
-#include <vector>
+
 #include "Kaidel/Renderer/VertexArray.h"
 #include "Kaidel/Renderer/Buffer.h"
 #include "Kaidel/Renderer/Texture.h"
 #include "Kaidel/Renderer/Material.h"
 #include "Kaidel/Core/BoundedVector.h"
+#include "Kaidel/Math/BoundingBox.h"
+
+#include <glm/glm.hpp>
+#include <vector>
 namespace Kaidel {
 
 
@@ -26,6 +29,7 @@ namespace Kaidel {
 		Mesh() = default;
 		Mesh(const std::vector<MeshVertex>& vertices, const std::vector<uint32_t> indices);
 		Mesh(const Mesh& mesh);
+		const Math::BoundingBox& GetBoundingBox()const { return m_BoundingBox; }
 		~Mesh();
 	private:
 		std::vector<MeshVertex> m_Vertices;
@@ -40,6 +44,8 @@ namespace Kaidel {
 		void Setup(const std::vector<uint32_t>& indices);
 		void Draw(const glm::mat4& transform,Ref<Material>& mat);
 		void Flush();
+		Math::BoundingBox m_BoundingBox;
+
 		friend class Model;
 	};
 }
