@@ -1,6 +1,6 @@
 #include "KDpch.h"
 #include "Platform/OpenGL/OpenGLRendererAPI.h"
-
+#include <mutex>
 #include <glad/glad.h>
 
 namespace Kaidel {
@@ -16,8 +16,8 @@ namespace Kaidel {
 	{
 		switch (severity)
 		{
-			case GL_DEBUG_SEVERITY_HIGH:         KD_CRITICAL(message); return;
-			case GL_DEBUG_SEVERITY_MEDIUM:       KD_ERROR(message); return;
+		case GL_DEBUG_SEVERITY_HIGH:         KD_CORE_ASSERT(false, message); return;
+			case GL_DEBUG_SEVERITY_MEDIUM:       KD_CORE_ASSERT(false,message); return;
 			case GL_DEBUG_SEVERITY_LOW:          KD_WARN(message); return;
 			case GL_DEBUG_SEVERITY_NOTIFICATION: KD_TRACE(message); return;
 		}
@@ -77,6 +77,10 @@ namespace Kaidel {
 		vertexArray->Bind();
 		uint32_t count = indexCount ? indexCount : vertexArray->GetIndexBuffer()->GetCount();
 		glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
+	}
+	void OpenGLRendererAPI::DrawIndexedInstanced(const Ref<VertexArray>& vertexArray, uint32_t indexCount, uint32_t instanceCount){
+		vertexArray->Bind();
+		glDrawElementsInstanced(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, nullptr, instanceCount);
 	}
 	void OpenGLRendererAPI::DrawLines(const Ref<VertexArray>& vertexArray, uint32_t vertexCount)
 	{

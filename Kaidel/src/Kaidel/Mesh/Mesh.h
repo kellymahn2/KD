@@ -5,6 +5,7 @@
 #include "Kaidel/Renderer/Buffer.h"
 #include "Kaidel/Renderer/Texture.h"
 #include "Kaidel/Renderer/Material.h"
+#include "Kaidel/Core/BoundedVector.h"
 namespace Kaidel {
 
 
@@ -12,21 +13,33 @@ namespace Kaidel {
 		glm::vec3 Position;
 		glm::vec3 Normal;
 		glm::vec2 TexCoords;
-		int MaterialIndex;
+	};
+
+	struct MeshDrawData {
+		glm::mat4 Transform;
+		glm::mat3x4 NormalTransform;
+		glm::ivec4 MaterialID;
 	};
 
 	class Mesh {
 	public:
-		Mesh(const std::vector<MeshVertex>& vertices, const std::vector<uint32_t> indices,Ref<Material> mat);
-
+		Mesh() = default;
+		Mesh(const std::vector<MeshVertex>& vertices, const std::vector<uint32_t> indices);
+		Mesh(const Mesh& mesh);
+		~Mesh();
 	private:
 		std::vector<MeshVertex> m_Vertices;
 		Ref<VertexArray> m_VAO;
 		Ref<VertexBuffer> m_VBO;
-		Ref<Material> m_Material;
 		uint32_t m_IndexCount;
+		uint32_t m_InstanceCount = 0;
+		BoundedVector<MeshDrawData> m_DrawData = { 0,1024,[&](MeshDrawData* slot, uint64_t size) {
+			this->Flush();
+			} };;
+		Ref<UAVInput> m_UAV;
 		void Setup(const std::vector<uint32_t>& indices);
-		void Draw();
+		void Draw(const glm::mat4& transform,Ref<Material>& mat);
+		void Flush();
 		friend class Model;
 	};
 }

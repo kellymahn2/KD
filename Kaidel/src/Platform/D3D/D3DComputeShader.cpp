@@ -10,15 +10,10 @@ namespace Kaidel {
 		inline std::string GetFileContents(const std::string& filepath) {
 			std::ifstream file(filepath);
 
+			std::string content((std::istreambuf_iterator<char>(file)),
+				std::istreambuf_iterator<char>());
 
-			int length = 0;
-			file.seekg(0, std::ios_base::end);
-			length = file.tellg();
-			file.seekg(0, std::ios_base::beg);
-			std::string res;
-			res.reserve(length);
-			file.read(res.data(), length);
-			return res;
+			return content;
 		}
 		inline uint64_t GetTypedBufferInputDataSize(TypedBufferInputDataType type) {
 			switch (type)

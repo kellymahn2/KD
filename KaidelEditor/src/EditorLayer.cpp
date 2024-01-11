@@ -96,8 +96,18 @@ namespace Kaidel {
 		//	//crc.Color = glm::vec4(1.0f);
 		//}
 
-	}
+		{
+			Timer timer("Model Loading");
+			model = Model::Load("assets/models/test/backpack.obj");
+		}
+		{
+			Timer timer("Material Loading");
+			mat = CreateRef<Material>();
+			mat->SetDiffuse(MaterialTextureHandler::LoadTexture("assets/models/test/diffuse.jpg"));
+			mat->SetSpecular(MaterialTextureHandler::LoadTexture("assets/models/test/specular.jpg"));
+		}
 
+	}
 	void EditorLayer::OnDetach()
 	{
 		KD_PROFILE_FUNCTION();
@@ -199,7 +209,7 @@ namespace Kaidel {
 			{
 
 				{
-					{
+					/*{
 						SharedPassDataConfig config;
 						config.Scene = m_ActiveScene;
 						config.CameraData.CameraPosition = m_EditorCamera.GetPosition();
@@ -225,7 +235,45 @@ namespace Kaidel {
 						pass.Config = config;
 						pass.Render();
 
+					}*/
+
+
+					{
+						auto view = m_ActiveScene->m_Registry.view<TransformComponent, SpotLightComponent>();
+						for (auto e : view) {
+							auto [tc, slc] = view.get<TransformComponent, SpotLightComponent>(e);
+							slc.Light->GetLight().Position = glm::vec4(tc.Translation,1.0f);
+						}
 					}
+
+					Renderer3DBeginData data;
+					data.OutputBuffer = m_Framebuffer;
+					data.CameraPosition = m_EditorCamera.GetPosition();
+					data.CameraVP = m_EditorCamera.GetViewProjection();
+					{
+						{
+
+						Renderer3D::Begin(data);
+						}
+
+						{
+							static float f = 0.0f;
+							for (uint32_t i = 0; i < 16; ++i) {
+								for (uint32_t j = 0; j < 16; ++j) {
+									Renderer3D::DrawModel(glm::translate(glm::mat4(1.0f), glm::vec3(i * 5.0f, j * 5.0f, 0)) * glm::rotate(glm::mat4(1.0f),f,glm::vec3(0,0,1)), model, mat);
+								}
+							}
+							f += ts * 2.0f;
+						}
+						/*Renderer3D::DrawModel(glm::mat4(1.0f), model, mat);
+						Renderer3D::DrawModel(glm::translate(glm::mat4(1.0f),glm::vec3(10,0,0)), model, mat);*/
+
+						{
+							Renderer3D::End();
+						}
+					}
+
+
 
 				}
 
@@ -644,25 +692,13 @@ namespace Kaidel {
 		ImGui::End();
 		ImGui::Begin("Stats");
 
-		std::string name = "None";
-		//if (m_HoveredEntity)
-			//name = m_HoveredEntity.GetComponent<TagComponent>().Tag;
-		ImGui::Text("Hovered Entity: %s, %d", name.c_str(),m_HoveredEntity.operator entt::id_type());
 		ImGui::Text("Gizmo Mode : %d", m_GizmoType);
 		auto stats = Renderer2D::GetStats();
-		ImGui::Text("Renderer2D Stats:");
-		ImGui::Text("Draw Calls: %d", stats.DrawCalls);
-		ImGui::Text("Quads: %d", stats.QuadCount);
-		ImGui::Text("Vertices: %d", stats.GetTotalVertexCount());
-		ImGui::Text("Indices: %d", stats.GetTotalIndexCount());
 		ImGui::Text("Frame Rate: %.3f", ImGui::GetIO().Framerate);
-		ImGui::Text("Selected Entity: %d", m_SceneHierarchyPanel.GetSelectedEntity().operator entt::entity());
-		ImGui::Text("%f,%f", m_ViewportSize.x, m_ViewportSize.y);
-		//ImGui::Text("%f", a->GetTime());
-		auto t = m_Icons.IconStop;
-		ImGui::Image((void*)t->GetRendererID(), ImVec2{ (float)t->GetWidth(),(float)t->GetHeight() });
+		for (const auto& [name, data] : Timer::GetTimerData()) {
+			ImGui::Text("%s", data.c_str());
+		}
 		ImGui::End();
-
 	}
 	static void UpdateBounds(glm::vec2 bounds[2]) {
 		auto viewportMinRegion = ImGui::GetWindowContentRegionMin();
@@ -686,7 +722,7 @@ namespace Kaidel {
 
 		auto textureID = m_Framebuffer->GetColorAttachmentRendererID();
 		glm::vec4 uvs = _GetUVs();
-		ImGui::Image(reinterpret_cast<void*>(LightingPass::GetColorAttachment()), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, { uvs.x,uvs.y }, { uvs.z,uvs.w });
+		ImGui::Image(reinterpret_cast<void*>(textureID), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, { uvs.x,uvs.y }, { uvs.z,uvs.w });
 		if (ImGui::BeginDragDropTarget()) {
 			if (auto payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
 				const wchar_t* path = (const wchar_t*)payload->Data;

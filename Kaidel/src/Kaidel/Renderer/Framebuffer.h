@@ -12,6 +12,9 @@ namespace Kaidel {
 		RGBA8,
 		RED_INTEGER,
 
+		//Position/Normals
+		RGBA32F,
+
 		// Depth/stencil
 		DEPTH24STENCIL8,
 		//TODO: Implement
@@ -54,6 +57,11 @@ namespace Kaidel {
 		bool SwapChainTarget = false;
 	};
 
+	enum ImageBindigMode_ {
+		ImageBindigMode_None = 0,ImageBindingMode_Write = 1<<0,ImageBindingMode_Read = 1<<1 
+	};
+
+	typedef int ImageBindingMode;
 	class Framebuffer
 	{
 	public:
@@ -70,8 +78,10 @@ namespace Kaidel {
 		virtual void ClearDepthAttachment(float value) = 0;
 
 		virtual uint64_t GetColorAttachmentRendererID(uint32_t index = 0) const = 0;
-		virtual void SetDepthAttachmentFromArray(uint32_t attachmentID, uint32_t arrayIndex) = 0;
+		virtual void SetDepthAttachmentFromArray(uint32_t attachmentIndex, uint32_t arrayIndex) = 0;
 		virtual const FramebufferSpecification& GetSpecification() const = 0;
+		virtual void BindColorAttachmentToSlot(uint32_t attachmentIndex, uint32_t slot)=0;
+		virtual void BindColorAttachmentToImageSlot(uint32_t attachmnetIndex, uint32_t slot, ImageBindingMode bindingMode)=0;
 
 		static Ref<Framebuffer> Create(const FramebufferSpecification& spec);
 		

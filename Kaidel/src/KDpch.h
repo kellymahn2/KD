@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Kaidel/Core/PlatformDetection.h"
+#include "Kaidel/Core/Timer.h"
+#include "Kaidel/Core/JobSystem.h"
 
 #ifdef KD_PLATFORM_WINDOWS
 	#ifndef NOMINMAX

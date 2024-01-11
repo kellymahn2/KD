@@ -23,6 +23,8 @@ namespace Kaidel {
 		virtual uint64_t GetColorAttachmentRendererID(uint32_t index = 0) const override { KD_CORE_ASSERT(index < m_ColorAttachments.size()); return (uint64_t)m_ColorAttachments[index]; }
 		virtual void SetDepthAttachmentFromArray(uint32_t attachmentID, uint32_t arrayIndex);
 		virtual const FramebufferSpecification& GetSpecification() const override { return m_Specification; }
+		virtual void BindColorAttachmentToSlot(uint32_t attachmnetIndex, uint32_t slot)override;
+		virtual void BindColorAttachmentToImageSlot(uint32_t attachmnetIndex, uint32_t slot,ImageBindingMode bindingMode)override;
 
 
 		void ClearAttachment(uint32_t attachmentIndex, const float* colors) override;

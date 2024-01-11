@@ -81,12 +81,19 @@ private:
 
 
 // Core log macros
+#ifdef KD_DEBUG
 #define KD_CORE_TRACE(...)    ((::Log::CoreConsole*)::Log::GetCoreLogger().get())->Trace(__VA_ARGS__)
 #define KD_CORE_INFO(...)     ((::Log::CoreConsole*)::Log::GetCoreLogger().get())->Info(__VA_ARGS__)
 #define KD_CORE_WARN(...)     ((::Log::CoreConsole*)::Log::GetCoreLogger().get())->Warn(__VA_ARGS__)
 #define KD_CORE_ERROR(...)    ((::Log::CoreConsole*)::Log::GetCoreLogger().get())->Error(__VA_ARGS__)
 #define KD_CORE_CRITICAL(...) ((::Log::CoreConsole*)::Log::GetCoreLogger().get())->Critical(__VA_ARGS__)
-
+#else
+#define KD_CORE_TRACE(...)    
+#define KD_CORE_INFO(...)     
+#define KD_CORE_WARN(...)     
+#define KD_CORE_ERROR(...)    
+#define KD_CORE_CRITICAL(...) 
+#endif
 // Client log macros
 #define KD_TRACE(...)         ((::Log::ClientConsole*)::Log::GetClientLogger().get())->Trace(__VA_ARGS__)
 #define KD_INFO(...)          ((::Log::ClientConsole*)::Log::GetClientLogger().get())->Info(__VA_ARGS__)

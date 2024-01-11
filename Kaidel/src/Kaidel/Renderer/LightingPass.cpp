@@ -53,7 +53,7 @@ namespace Kaidel {
 		}
 		JobSystem::GetMainJobSystem().Wait();
 		lightingRenderer.EndRendering();
-		model->Draw();
+		//model->Draw();
 		s_LightingFrameBuffer->Unbind();
 	}
 

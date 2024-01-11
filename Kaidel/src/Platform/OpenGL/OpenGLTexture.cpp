@@ -1,10 +1,14 @@
 #include "KDpch.h"
 #include "Platform/OpenGL/OpenGLTexture.h"
-
+#include "Kaidel/Core/Timer.h"
 #include <stb_image.h>
 #include <stb_image_resize.h>
 
 namespace Kaidel {
+
+
+
+
 
 	OpenGLTexture2D::OpenGLTexture2D(uint32_t width, uint32_t height)
 		: m_Width(width), m_Height(height)
@@ -110,6 +114,15 @@ namespace Kaidel {
 		glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &m_RendererID);
 		glBindTexture(GL_TEXTURE_2D_ARRAY, m_RendererID);
 		glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_RGBA8, width, height, m_Depth);
+
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_R, GL_REPEAT);
+
+
+
 	}
 	OpenGLTexture2DArray::~OpenGLTexture2DArray() {
 		glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
@@ -127,80 +140,97 @@ namespace Kaidel {
 			delete img;
 		}
 	}
+	//TODO: Fix this not valid.
 	void OpenGLTexture2DArray::Bind(uint32_t slot)const {
 		glActiveTexture(GL_TEXTURE0 + slot);
 		glBindTexture(GL_TEXTURE_2D_ARRAY, m_RendererID);
 	}
-	uint32_t OpenGLTexture2DArray::PushTexture(void* data, uint32_t width, uint32_t height) {
-		if (m_SetCount + 1 > m_Depth) {
-			ResizeTextureArray(m_SetCount * 2);
-		}
-		m_SetCount++;
-		void* img = data;
-		if (img == nullptr)
-			return m_SetCount - 1;
-		if (width != m_Width || height != m_Height) {
-			img = ScaleImage(data, width, height, m_Width, m_Height);
-		}
-	
-		glBindTexture(GL_TEXTURE_2D_ARRAY, m_RendererID);
-		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, m_SetCount-1, m_Width, m_Height, 1, GL_RGBA, GL_UNSIGNED_BYTE, img);
 
-		if (width != m_Width || height != m_Height) {
-			delete img;
+	uint32_t OpenGLTexture2DArray::PushLoadedTexture(void* data) {
+		if (m_SetCount + 1 > m_Depth) {
+			Timer timer(("Resizing"));
+			ResizeTextureArray((m_SetCount * 2));
 		}
-		return m_SetCount - 1;
+		Timer timer("Pushing Texture");
+		glBindTexture(GL_TEXTURE_2D_ARRAY, m_RendererID);
+		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, m_SetCount, m_Width, m_Height, 1, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		return m_SetCount++;
+	}
+	uint32_t OpenGLTexture2DArray::PushTexture(void* data, uint32_t width, uint32_t height) {
+		if (width != m_Width || height != m_Height) {
+			uint8_t* sclImage = new uint8_t[m_Width * m_Height * 4];
+			KD_CORE_ASSERT(stbir_resize_uint8((uint8_t*)data, width, height, 0, sclImage, m_Width, m_Height, 0, 4) == 1);
+			uint32_t index = PushLoadedTexture(sclImage);
+			delete[] sclImage;
+			return index;
+		}
+		return PushLoadedTexture(data);
 	}
 	uint32_t OpenGLTexture2DArray::PushTexture(const std::string& src) {
 		if (m_LoadedTextures.find(src) != m_LoadedTextures.end()) {
 			return m_LoadedTextures.at(src);
 		}
-		void* data = LoadImageScaled(src, m_Width, m_Height);
-		uint32_t index = PushTexture(data, m_Width,m_Height);
+
+		int w, h, channels;
+		uint8_t* data;
+		{
+			Timer timer("Image Loading");
+			data = stbi_load(src.c_str(), &w, &h, &channels, 4);
+		}
+		KD_CORE_ASSERT(data);
+		if (w != m_Width || h != m_Height) {
+			Timer timer(fmt::format("Scaling image from {},{} To {},{}", w, h, m_Width, m_Height));
+			uint8_t* sclImage = new uint8_t[m_Width*m_Height*4];
+			KD_CORE_ASSERT(stbir_resize_uint8(data, w, h, 0, sclImage, m_Width, m_Height, 0, 4) == 1);
+			stbi_image_free(data);
+			uint32_t index  = PushLoadedTexture(sclImage);
+			delete[] sclImage;
+			m_LoadedTextures[src] = index;
+			return index;
+		}
+
+		uint32_t index = PushLoadedTexture(data);
 		stbi_image_free(data);
 		m_LoadedTextures[src] = index;
 		return index;
 	}
 	void OpenGLTexture2DArray::ResizeTextureArray(uint32_t newLayerCount) {
-		std::vector<uint8_t> existingData(m_Width * m_Width * m_Depth * 4);
+		/*std::vector<uint8_t> existingData(m_Width * m_Width * m_Depth * 4);
 		glBindTexture(GL_TEXTURE_2D_ARRAY, m_RendererID);
 		glGetTexImage(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA, GL_UNSIGNED_BYTE, existingData.data());
 		glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
-		glDeleteTextures(1, &m_RendererID);
+		glDeleteTextures(1, &m_RendererID);*/
 
-		glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &m_RendererID);
-		glBindTexture(GL_TEXTURE_2D_ARRAY, m_RendererID);
+		//glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &m_RendererID);
+
+		uint32_t newTexture = 0;
+		glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &newTexture);
+		glBindTexture(GL_TEXTURE_2D_ARRAY, newTexture);
 		glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_RGBA8, m_Width, m_Height, newLayerCount);
 
-		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, m_Width, m_Height,m_SetCount, GL_RGBA, GL_UNSIGNED_BYTE, existingData.data());
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_R, GL_REPEAT);
+
+		glCopyImageSubData(m_RendererID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, newTexture,GL_TEXTURE_2D_ARRAY , 0, 0, 0, 0, m_Width, m_Height, m_SetCount);
+		
+		
+		glDeleteTextures(1, &m_RendererID);
+		m_RendererID = newTexture;
+		//glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, m_Width, m_Height,m_SetCount, GL_RGBA, GL_UNSIGNED_BYTE, existingData.data());
 		m_Depth = newLayerCount;
 
 	}
-
-	void* OpenGLTexture2DArray::LoadImageScaled(const std::string& path, uint32_t width, uint32_t height)
-	{
-		int w, h, channels;
-		stbi_set_flip_vertically_on_load(1);
-		void* orgImage = stbi_load(path.c_str(), &w, &h, &channels, 4);
-		KD_CORE_ASSERT(orgImage, "Failed to load image");
-		if (w != width || h != height) {
-			void* scldImage = ScaleImage(orgImage, w, h, width, height);
-			stbi_image_free(orgImage);
-			return scldImage;
-		}
-		return orgImage;
-	}
-
 	void* OpenGLTexture2DArray::ScaleImage(void* orgImage, uint32_t orgWidth, uint32_t orgHeight, uint32_t newWidth, uint32_t newHeight)
 	{
+		Timer timer(fmt::format("Scaling From {},{} To {},{}", orgWidth, orgHeight, newWidth, newHeight));
 		uint8_t* scldImage = new uint8_t[newWidth * newHeight * 4];
 		KD_CORE_ASSERT(stbir_resize_uint8((const uint8_t*)orgImage, orgWidth, orgHeight, 0, scldImage, newWidth, newHeight, 0, 4)==1
 			,"Failed to scale image from ({},{}) to ({},{})",orgWidth,orgHeight,newWidth,newHeight);
 		return scldImage;
 	}
-
-
-
 
 	OpenGLDepth2DArray::OpenGLDepth2DArray(uint32_t width, uint32_t height)
 		:m_Width(width), m_Height(height), m_Depth(2)
@@ -212,7 +242,6 @@ namespace Kaidel {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 		float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
-
 	}
 	OpenGLDepth2DArray::~OpenGLDepth2DArray(){
 		glBindTexture(GL_TEXTURE_2D_ARRAY, 0);

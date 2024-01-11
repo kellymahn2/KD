@@ -27,6 +27,7 @@ namespace Kaidel {
 		static void AttachColorTexture(uint32_t id, int samples, GLenum internalFormat, GLenum format, uint32_t width, uint32_t height, int index)
 		{
 			bool multisampled = samples > 1;
+			BindTexture(multisampled, id);
 			if (multisampled)
 			{
 				glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samples, internalFormat, width, height, GL_TRUE);
@@ -93,11 +94,25 @@ namespace Kaidel {
 			switch (format)
 			{
 				case FramebufferTextureFormat::RGBA8:       return GL_RGBA8;
-				case FramebufferTextureFormat::RED_INTEGER: return GL_RED_INTEGER;
+				case FramebufferTextureFormat::RED_INTEGER: return GL_R32I;
+				case FramebufferTextureFormat::RGBA32F: return GL_RGBA32F;
+
 			}
 
 			KD_CORE_ASSERT(false);
 			return 0;
+		}
+
+		static GLenum KaidelImageBindingToGL(ImageBindingMode bindingMode) {
+			if (bindingMode & ImageBindingMode_Read) {
+				if (bindingMode & ImageBindingMode_Write) {
+					return GL_READ_WRITE;
+				}
+				return GL_READ_ONLY;
+			}
+			if (bindingMode & ImageBindingMode_Write) {
+				return GL_WRITE_ONLY;
+			}
 		}
 
 	}
@@ -116,6 +131,13 @@ namespace Kaidel {
 		Invalidate();
 	}
 
+	void OpenGLFramebuffer::BindColorAttachmentToSlot(uint32_t attachmnetIndex, uint32_t slot) {
+		glBindTextureUnit(slot, m_ColorAttachments[attachmnetIndex]);
+	}
+
+	void OpenGLFramebuffer::BindColorAttachmentToImageSlot(uint32_t attachmnetIndex, uint32_t slot, ImageBindingMode bindingMode) {
+		glBindImageTexture(slot,m_ColorAttachments[attachmnetIndex], 0, GL_FALSE, 0, Utils::KaidelImageBindingToGL(bindingMode), Utils::KaidelFBTextureFormatToGL(m_ColorAttachmentSpecifications[attachmnetIndex].TextureFormat));
+	}
 	OpenGLFramebuffer::~OpenGLFramebuffer()
 	{
 		glDeleteFramebuffers(1, &m_RendererID);
@@ -167,6 +189,8 @@ namespace Kaidel {
 					case FramebufferTextureFormat::RED_INTEGER:
 						Utils::AttachColorTexture(m_ColorAttachments[i], m_Specification.Samples, GL_R32I, GL_RED_INTEGER, m_Specification.Width, m_Specification.Height, i);
 						break;
+					case FramebufferTextureFormat::RGBA32F:
+						Utils::AttachColorTexture(m_ColorAttachments[i], m_Specification.Samples, GL_RGBA32F, GL_RGBA, m_Specification.Width, m_Specification.Height, i);
 				}
 			}
 		}
@@ -181,7 +205,7 @@ namespace Kaidel {
 					Utils::AttachDepthTexture(m_DepthAttachment, m_Specification.Samples, GL_DEPTH_COMPONENT32, GL_DEPTH_ATTACHMENT, m_Specification.Width, m_Specification.Height);
 					break;
 				case FramebufferTextureFormat::DEPTH16:
-					Utils::AttachDepthTexture(m_DepthAttachment, m_Specification.Samples, GL_DEPTH_COMPONENT, GL_DEPTH_ATTACHMENT, m_Specification.Width, m_Specification.Height);
+					Utils::AttachDepthTexture(m_DepthAttachment, m_Specification.Samples, GL_DEPTH_COMPONENT16, GL_DEPTH_ATTACHMENT, m_Specification.Width, m_Specification.Height);
 					break;
 			}
 		}

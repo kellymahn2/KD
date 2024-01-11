@@ -140,7 +140,7 @@ namespace Kaidel {
 			break;
 		}
 		}*/
-
+		s_Data.QuadShader = Shader::Create(std::filesystem::path("assets/shaders/Quad/VS.glsl"),std::filesystem::path("assets/shaders/Quad/FS.glsl"));
 		switch (RendererAPI::GetAPI()) {
 		case RendererAPI::API::OpenGL:
 		{

@@ -1,5 +1,6 @@
 #include "KDpch.h"
 #include "Model.h"
+#include "Kaidel/Core/JobSystem.h"
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
@@ -7,15 +8,17 @@ namespace Kaidel {
 
 
 	void Model::ProcessNode(aiNode* node, const aiScene* scene) {
+		uint32_t s = m_Meshes.size();
+		m_Meshes.resize(node->mNumMeshes+s);
 		for (uint32_t i = 0; i < node->mNumMeshes; ++i) {
 			aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-			m_Meshes.push_back(ProcessMesh(mesh,scene));
+			ProcessMesh(mesh,scene,m_Meshes[s+i]);
 		}
 		for (uint32_t i = 0; i < node->mNumChildren; ++i) {
 			ProcessNode(node->mChildren[i], scene);
 		}
 	}
-	Mesh Model::ProcessMesh(aiMesh* mesh, const aiScene* scene) {
+	void Model::ProcessMesh(aiMesh* mesh, const aiScene* scene,Mesh& m) {
 		std::vector<MeshVertex> vertices;
 		std::vector<uint32_t> indices;
 		for (uint32_t i = 0; i < mesh->mNumVertices; ++i) {
@@ -39,8 +42,9 @@ namespace Kaidel {
 			for (unsigned int j = 0; j < face.mNumIndices; j++)
 				indices.push_back(face.mIndices[j]);
 		}
-		Ref<Material> mat = CreateRef<Material>();
-		return Mesh(vertices, indices, mat);
+		m.m_Vertices = vertices;
+		m.m_IndexCount = indices.size();
+		m.Setup(indices);
 	}
 	Ref<Model> Model::Load(const std::filesystem::path& modelPath) {
 
@@ -53,9 +57,26 @@ namespace Kaidel {
 		return model;
 	}
 
-	void Model::Draw() {
-		for (uint32_t i = 0; i < m_Meshes.size(); ++i)
-			m_Meshes[i].Draw();
-	}
+	void Model::Draw(const glm::mat4& transform, Ref<Material>& mat) {
+		
+		//Timer timer("Total");
+		{
+			//Timer timer("Dispach");
+			JobSystem::GetMainJobSystem().Dispatch(m_Meshes.size(), 16, [&](JobDispatchArgs& args) {
+				m_Meshes[args.jobIndex].Draw(transform, mat);
+				});
+		}
 
+		{
+			//Timer timer("Wait");
+			JobSystem::GetMainJobSystem().Wait();
+		}
+		/*for (uint32_t i = 0; i < m_Meshes.size(); ++i) {
+			m_Meshes[i].Draw(transform, mat);
+		}*/
+	}
+	void Model::Flush() {
+		for (uint32_t i = 0; i < m_Meshes.size(); ++i)
+			m_Meshes[i].Flush();
+	}
 }

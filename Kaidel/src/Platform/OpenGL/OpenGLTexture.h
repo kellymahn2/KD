@@ -48,7 +48,7 @@ namespace Kaidel {
 
 	private:
 		void ResizeTextureArray(uint32_t newLayerCount);
-		void* LoadImageScaled(const std::string& path, uint32_t width, uint32_t height);
+		uint32_t PushLoadedTexture(void* data);
 		void* ScaleImage(void* orgImage, uint32_t orgWidth, uint32_t orgHeight, uint32_t newWidth, uint32_t newHeight);
 		uint32_t m_RendererID;
 		uint32_t m_Width, m_Height, m_Depth;

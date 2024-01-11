@@ -21,6 +21,6 @@
 	#define KD_ASSERT(check,...) {if(!(check)){KD_ERROR(__VA_ARGS__);__debugbreak();}}
 	#define KD_CORE_ASSERT(check,...) {if(!(check)){KD_CORE_ERROR(__VA_ARGS__);__debugbreak();}}
 #else
-	#define KD_ASSERT(...)
-	#define KD_CORE_ASSERT(...)
+	#define KD_ASSERT(check,...)check
+	#define KD_CORE_ASSERT(check,...)check
 #endif
