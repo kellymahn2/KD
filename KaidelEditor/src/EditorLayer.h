@@ -66,6 +66,7 @@ namespace Kaidel {
 		Ref<Scene> m_ActiveScene;
 		Ref<Scene> m_EditorScene, m_RuntimeScene,m_SimulationScene;
 
+		Entity ent;
 		
 		Entity m_HoveredEntity;
 
@@ -103,7 +104,11 @@ namespace Kaidel {
 		};
 		SceneState m_SceneState=SceneState::Edit;
 		Ref<Model> model;
+		Ref<Model> model2;
 		Ref<Material> mat;
+
+
+		float n = .5, f = 25;
 	};
 
 }

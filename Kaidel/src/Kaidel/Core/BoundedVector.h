@@ -46,7 +46,14 @@ namespace Kaidel {
 			m_ActualEnd = m_Internal.begin()._Ptr + newSize;
 			return BoundedVector_Iterator<T>(oldEnd, size);
 		}
-
+		bool CanReserveWithoutOverflow(uint64_t size) {
+			uint64_t newSize = (m_ActualEnd - m_Internal.begin()._Ptr) + size;
+			//Make sure we dont go the max size
+			if (newSize > m_MaxSize) {
+				return false;
+			}
+			return true;
+		}
 		void Reset() {
 			m_ActualEnd = m_Internal.begin()._Ptr;
 		}

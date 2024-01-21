@@ -25,7 +25,7 @@ namespace Kaidel {
 
 		// Defaults
 		DepthStencil = DEPTH24STENCIL8,
-		Depth = DEPTH16
+		Depth = DEPTH32
 	};
 
 	struct FramebufferTextureSpecification

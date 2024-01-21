@@ -43,8 +43,8 @@ namespace Kaidel {
 		
 		virtual void SetTextureData(void* data, uint32_t width, uint32_t height, uint32_t index) override;
 		virtual void Bind(uint32_t slot = 0)const override;
-		virtual uint32_t PushTexture(void* data, uint32_t width, uint32_t height)override;
-		virtual uint32_t PushTexture(const std::string& src)override;
+		virtual uint32_t PushTexture(void* data, uint32_t width, uint32_t height,bool shouldFlip)override;
+		virtual uint32_t PushTexture(const std::string& src,bool shouldFlip)override;
 
 	private:
 		void ResizeTextureArray(uint32_t newLayerCount);

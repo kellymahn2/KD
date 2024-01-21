@@ -38,8 +38,8 @@ namespace Kaidel {
 		
 		virtual void SetTextureData(void* data, uint32_t width,uint32_t height,uint32_t index) = 0;
 		virtual void Bind(uint32_t slot = 0)const = 0;
-		virtual uint32_t PushTexture(void* data, uint32_t width,uint32_t height) = 0;
-		virtual uint32_t PushTexture(const std::string& src) = 0;
+		virtual uint32_t PushTexture(void* data, uint32_t width,uint32_t height,bool shouldFlip = true) = 0;
+		virtual uint32_t PushTexture(const std::string& src,bool shouldFlip = true) = 0;
 		static Ref<Texture2DArray> Create(uint32_t width, uint32_t height);
 	};
 

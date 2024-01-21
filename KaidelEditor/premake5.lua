@@ -28,18 +28,18 @@ project "KaidelEditor"
 		"Kaidel"
 	}
 	defines{
-		"YAML_CPP_STATIC_DEFINE"
+		"YAML_CPP_STATIC_DEFINE",
 	}
 	filter "system:windows"
 		systemversion "latest"
 
 	filter "configurations:Debug"
-		defines "KD_DIST"
+		defines "KD_DEBUG"
 		runtime "Debug"
 		symbols "on"
 
 	filter "configurations:Release"
-		defines "KD_DIST"
+		defines "KD_RELEASE"
 		runtime "Release"
 		optimize "on"
 

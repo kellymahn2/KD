@@ -13,11 +13,11 @@ namespace Kaidel{
     }
 	Material::~Material() {
 		if (!s_InternalData.empty()) {
-		std::swap(s_InternalData[m_MaterialIndex],s_InternalData.back());
-		std::swap(s_Materials[m_MaterialIndex],s_Materials.back());
-		s_Materials[m_MaterialIndex]->m_MaterialIndex = m_MaterialIndex;
-		s_InternalData.pop_back();
-		s_Materials.pop_back();
+			std::swap(s_InternalData[m_MaterialIndex],s_InternalData.back());
+			std::swap(s_Materials[m_MaterialIndex],s_Materials.back());
+			s_Materials[m_MaterialIndex]->m_MaterialIndex = m_MaterialIndex;
+			s_InternalData.pop_back();
+			s_Materials.pop_back();
 		}
     }
     void Material::SetMaterials(){
@@ -26,9 +26,13 @@ namespace Kaidel{
         s_MaterialUAV->Bind(1);
     }
 
+	uint32_t MaterialTextureHandler::LoadTexture(void* data, uint32_t width, uint32_t height) {
+		return s_TexturesMap->PushTexture(data, width, height,false);
+	}
+
 
 	void MaterialTextureHandler::Init() {
-		s_TexturesMap = Texture2DArray::Create(4096,4096);
+		s_TexturesMap = Texture2DArray::Create(1024,1024);
 		uint32_t default = 0xffffffff;
 		s_TexturesMap->PushTexture(&default, 1, 1);
 		s_TexturesMap->PushTexture(&default, 1, 1);
@@ -39,7 +43,7 @@ namespace Kaidel{
 		std::string path = texturePath.string();
 		if (s_TextureIndexMap.find(path) != s_TextureIndexMap.end())
 			return s_TextureIndexMap.at(path);
-		uint32_t index = s_TexturesMap->PushTexture(path);
+		uint32_t index = s_TexturesMap->PushTexture(path,false);
 		s_TextureIndexMap[path] = index;
 		return index;
 	}

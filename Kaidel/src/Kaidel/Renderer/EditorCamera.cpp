@@ -13,7 +13,7 @@
 namespace Kaidel {
 
 	EditorCamera::EditorCamera(float fov, float aspectRatio, float nearClip, float farClip)
-		: m_FOV(fov), m_AspectRatio(aspectRatio), m_NearClip(nearClip), m_FarClip(farClip), Camera(glm::perspective(glm::radians(fov), aspectRatio, nearClip, farClip))
+		: m_FOV(fov), m_AspectRatio(aspectRatio), m_NearClip(nearClip), m_FarClip(farClip), Camera(glm::infinitePerspective(glm::radians(m_FOV), m_AspectRatio, m_NearClip))
 	{
 		UpdateView();
 	}
@@ -21,7 +21,7 @@ namespace Kaidel {
 	void EditorCamera::UpdateProjection()
 	{
 		m_AspectRatio = m_ViewportWidth / m_ViewportHeight;
-		m_Projection = glm::perspective(glm::radians(m_FOV), m_AspectRatio, m_NearClip, m_FarClip);
+		m_Projection = glm::infinitePerspective(glm::radians(m_FOV), m_AspectRatio, m_NearClip);
 	}
 
 	void EditorCamera::UpdateView()

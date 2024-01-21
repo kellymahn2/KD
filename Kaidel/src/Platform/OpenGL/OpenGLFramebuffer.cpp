@@ -170,6 +170,13 @@ namespace Kaidel {
 		glCreateFramebuffers(1, &m_RendererID);
 		glBindFramebuffer(GL_FRAMEBUFFER, m_RendererID);
 
+
+		if (m_Specification.Attachments.Attachments.empty())
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER,m_RendererID);
+			glDrawBuffer(GL_NONE);
+		}
+
 		bool multisample = m_Specification.Samples > 1;
 
 		// Attachments

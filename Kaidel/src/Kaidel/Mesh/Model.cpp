@@ -4,81 +4,217 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include <stb_image.h>
+
+
+
+extern int stbi__vertically_flip_on_load_global;
+
 namespace Kaidel {
 
 
-	void Model::ProcessNode(aiNode* node, const aiScene* scene) {
-		uint32_t s = m_Meshes.size();
-		m_Meshes.resize(node->mNumMeshes+s);
-		for (uint32_t i = 0; i < node->mNumMeshes; ++i) {
-			aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-			ProcessMesh(mesh,scene,m_Meshes[s+i]);
-		}
-		for (uint32_t i = 0; i < node->mNumChildren; ++i) {
-			ProcessNode(node->mChildren[i], scene);
-		}
-	}
-	void Model::ProcessMesh(aiMesh* mesh, const aiScene* scene,Mesh& m) {
-		std::vector<MeshVertex> vertices;
-		std::vector<uint32_t> indices;
-		for (uint32_t i = 0; i < mesh->mNumVertices; ++i) {
-			MeshVertex vertex{};
-			vertex.Position = { mesh->mVertices[i].x,mesh->mVertices[i].y,mesh->mVertices[i].z };
-			if(mesh->HasNormals())
-				vertex.Normal = { mesh->mNormals[i].x,mesh->mNormals[i].y,mesh->mNormals[i].z };
 
-			if (mesh->mTextureCoords[0]) {
 
-				vertex.TexCoords = { mesh->mTextureCoords[0][i].x,mesh->mTextureCoords[0][i].y };
+	namespace Utils {
+
+		static void ProcessMesh(aiMesh* assimpMesh, const aiScene* scene, Mesh& kdMesh,const std::unordered_map<uint32_t,Ref<Material>>& mats) {
+			std::vector<MeshVertex> vertices;
+			std::vector<uint32_t> indices;
+			for (uint32_t i = 0; i < assimpMesh->mNumVertices; ++i) {
+				MeshVertex vertex{};
+				vertex.Position = { assimpMesh->mVertices[i].x,assimpMesh->mVertices[i].y,assimpMesh->mVertices[i].z };
+				if (assimpMesh->HasNormals())
+					vertex.Normal = { assimpMesh->mNormals[i].x,assimpMesh->mNormals[i].y,assimpMesh->mNormals[i].z };
+
+				if (assimpMesh->mTextureCoords[0]) {
+
+					vertex.TexCoords = { assimpMesh->mTextureCoords[0][i].x,assimpMesh->mTextureCoords[0][i].y };
+				}
+				else {
+					vertex.TexCoords = { 0,0 };
+				}
+				vertices.push_back(vertex);
+			}
+
+			for (uint32_t i = 0; i < assimpMesh->mNumFaces; ++i) {
+				aiFace face = assimpMesh->mFaces[i];
+				for (unsigned int j = 0; j < face.mNumIndices; j++)
+					indices.push_back(face.mIndices[j]);
+			}
+
+
+			Ref<Material> mat = {};
+
+			auto it = mats.find(assimpMesh->mMaterialIndex);
+			if (it != mats.end())
+				mat = it->second;
+			
+			kdMesh = Mesh(assimpMesh->mName.C_Str(),vertices, indices, mat);
+		}
+
+		static RecursiveTree<ModelData>* GetLeast(RecursiveTree<ModelData>* root) {
+
+			if (!root->Data.Meshes.empty())
+				return root;
+
+			for (uint32_t i = 0; i < root->SubTrees.size();++i) {
+				if (GetLeast(&root->SubTrees[i]))
+					return root;
+
+			}
+			return nullptr;
+		}
+
+		static uint64_t ProcessNode(aiNode* node, const aiScene* scene, RecursiveTree<ModelData>& modelData, const std::unordered_map<uint32_t, Ref<Material>>& mats) {
+			if (!node) {
+				return 0;
+			}
+
+			// Process meshes at this node
+			uint64_t nodeMeshCount = 0;
+			for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
+				aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
+				modelData.Data.Meshes.emplace_back();
+				 ProcessMesh(mesh, scene, modelData.Data.Meshes.back(),mats);
+				 nodeMeshCount++;
+			}
+
+			// Recursively process child nodes
+			for (unsigned int i = 0; i < node->mNumChildren; ++i) {
+				RecursiveTree<ModelData> model;
+				model.Data.ModelName = node->mName.C_Str();
+				nodeMeshCount += ProcessNode(node->mChildren[i], scene, model,mats);
+				RecursiveTree<ModelData>* least = GetLeast(&model);
+				if(least)
+					modelData.AddChild(*least);
+			}
+			return nodeMeshCount;
+		}
+
+		static void ProcessTextures(const aiScene* scene, std::unordered_map<uint32_t, uint32_t>& embeddedTexturesByIndex, std::unordered_map<std::string, uint32_t>& embeddedTexturesByName,bool flipUVs) {
+			for (uint32_t i = 0; i < scene->mNumTextures; ++i) {
+				aiTexture* texture = scene->mTextures[i];
+				/*for (uint32_t j = 0; j < texture->mWidth; ++j) {
+					for (uint32_t k = 0; k < texture->mHeight; ++k) {
+						std::swap(texture->pcData->r, texture->pcData->b);
+					}
+				}*/
+				uint32_t textureIndex;
+				//Compressed
+				if (texture->mHeight == 0) {
+					int x, y, channels;
+
+					
+					stbi_set_flip_vertically_on_load(flipUVs);
+
+					uint8_t* decomp = stbi_load_from_memory((const uint8_t*)texture->pcData, texture->mWidth, &x, &y, &channels, 4);
+
+					KD_CORE_ASSERT(decomp);
+					textureIndex = MaterialTextureHandler::LoadTexture(decomp, x, y);
+					
+					
+					stbi_image_free(decomp);
+				}
+				//Decompressed
+				else
+				{
+					textureIndex = MaterialTextureHandler::LoadTexture(texture->pcData, texture->mWidth, texture->mHeight);
+				}
+
+				if (texture->mFilename.length > 0) {
+					embeddedTexturesByName[texture->mFilename.C_Str()] = textureIndex;
+				}
+				embeddedTexturesByIndex[i] = textureIndex;
+			}
+		}
+
+		static bool SetMaterialTexture(const aiMaterial* assimpMat, Ref<Material> kdMat, aiTextureType textureType, const aiScene* scene, const std::unordered_map<uint32_t, uint32_t>& embeddedTexturesByIndex, const std::unordered_map<std::string, uint32_t>& embeddedTexturesByName) {
+			aiString path;
+			if (assimpMat->GetTextureCount(textureType) == 0)
+				return false;
+			if (assimpMat->GetTexture(textureType, 0, &path) != aiReturn_SUCCESS)
+				return false;
+
+			if (path.length <= 0)
+				return false;
+			if (path.data[0] == '*') {
+				uint32_t textureIndex = atoi(path.data + 1);
+				auto it = embeddedTexturesByIndex.find(textureIndex);
+				if (it != embeddedTexturesByIndex.end()) {
+
+					switch (textureType)
+					{
+					case aiTextureType_DIFFUSE: kdMat->SetDiffuse(it->second); break;
+					case aiTextureType_SPECULAR:kdMat->SetSpecular(it->second); break;	
+					}
+					return true;
+				}
+			
 			}
 			else {
-				vertex.TexCoords = { 0,0 };
+				auto it = embeddedTexturesByName.find(path.C_Str());
+				if (it != embeddedTexturesByName.end()) {
+
+					switch (textureType)
+					{
+					case aiTextureType_DIFFUSE: kdMat->SetDiffuse(it->second); break;
+					case aiTextureType_SPECULAR:kdMat->SetSpecular(it->second); break;
+					}
+					return true;
+				}
 			}
-			vertices.push_back(vertex);
+
+			return false;
 		}
 
-		for (uint32_t i = 0; i < mesh->mNumFaces; ++i) {
-			aiFace face = mesh->mFaces[i];
-			for (unsigned int j = 0; j < face.mNumIndices; j++)
-				indices.push_back(face.mIndices[j]);
+		static std::unordered_map<uint32_t, Ref<Material>> ProcessMaterials(const aiScene* scene, const std::unordered_map<uint32_t, uint32_t>& embeddedTexturesByIndex, const std::unordered_map<std::string, uint32_t>& embeddedTexturesByName) {
+			std::unordered_map<uint32_t, Ref<Material>> result;
+			for (uint32_t i = 0; i < scene->mNumMaterials; ++i) {
+				aiMaterial* assimpMat = scene->mMaterials[i];
+				Ref<Material> kdMat = CreateRef<Material>();
+				bool diffuseLoaded = SetMaterialTexture(assimpMat, kdMat, aiTextureType_DIFFUSE, scene, embeddedTexturesByIndex, embeddedTexturesByName);
+					bool specularLoaded = SetMaterialTexture(assimpMat, kdMat, aiTextureType_SPECULAR, scene, embeddedTexturesByIndex, embeddedTexturesByName);
+				if (diffuseLoaded || specularLoaded)
+					result[i] = kdMat;
+			}
+			return result;
 		}
-		m.m_Vertices = vertices;
-		m.m_IndexCount = indices.size();
-		m.Setup(indices);
 	}
-	Ref<Model> Model::Load(const std::filesystem::path& modelPath) {
 
-
+	
+	Ref<Model> Model::Load(const std::filesystem::path& modelPath, bool flipUVs) {
 		Assimp::Importer importer;
-		const aiScene* scene = importer.ReadFile(modelPath.string(), aiProcess_Triangulate | aiProcess_FlipUVs);
+		const aiScene* scene = importer.ReadFile(modelPath.string(), aiProcess_Triangulate  | aiProcess_EmbedTextures);
 		KD_ASSERT(scene && ((scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) == 0) && scene->mRootNode, "Couldn't load model at path {} with error {}",modelPath.string(),importer.GetErrorString());
 		Ref<Model> model = CreateRef<Model>();
-		model->ProcessNode(scene->mRootNode, scene);
+		model->m_ModelPath = modelPath;
+		std::unordered_map<uint32_t, uint32_t> embeddedTexturesByIndex;
+		std::unordered_map<std::string, uint32_t> embeddedTexturesByName;
+		{
+			Timer timer("Proccessing Textures");
+			Utils::ProcessTextures(scene, embeddedTexturesByIndex,embeddedTexturesByName,flipUVs);
+		}
+		std::unordered_map<uint32_t, Ref<Material>> mats;
+		{
+			Timer timer("Material Loading");
+			mats = Utils::ProcessMaterials(scene, embeddedTexturesByIndex,embeddedTexturesByName);
+		}
+
+			
+		model->m_MeshCount = Utils::ProcessNode(scene->mRootNode, scene, model->m_ModelDatas,mats);
+		
+		importer.FreeScene();
+
 		return model;
 	}
 
-	void Model::Draw(const glm::mat4& transform, Ref<Material>& mat, const Math::Frustum& frustum) {
-		
-		//Timer timer("Total");
-		{
-			//Timer timer("Dispach");
-			JobSystem::GetMainJobSystem().Dispatch(m_Meshes.size(), 16, [&](JobDispatchArgs& args) {
-				if(frustum.IsCulled(m_Meshes[args.jobIndex].GetBoundingBox().Transform(transform)))
-					return;
-				m_Meshes[args.jobIndex].Draw(transform, mat);
-				});
-		}
 
-		{
-			//Timer timer("Wait");
-			JobSystem::GetMainJobSystem().Wait();
-		}
-		/*for (uint32_t i = 0; i < m_Meshes.size(); ++i) {
-			m_Meshes[i].Draw(transform, mat);
-		}*/
+
+	void Model::Draw(const glm::mat4& transform, Ref<Material>& mat, const Math::Frustum& frustum) {
+			
 	}
 	void Model::Flush() {
-		for (uint32_t i = 0; i < m_Meshes.size(); ++i)
-			m_Meshes[i].Flush();
+		/*for (uint32_t i = 0; i < m_Meshes.size(); ++i)
+			m_Meshes[i].Flush();*/
 	}
 }

@@ -22,6 +22,7 @@ namespace Kaidel
 	public:
 		static void Init();
 		static uint32_t LoadTexture(const std::filesystem::path& texturePath);
+		static uint32_t LoadTexture(void* data,uint32_t width,uint32_t height);
 		static const std::unordered_map<std::string, uint32_t>& GetTextureIndexMap() { return s_TextureIndexMap; }
 		static Ref<Texture2DArray> GetTexturesMap() { return s_TexturesMap; }
 	private:

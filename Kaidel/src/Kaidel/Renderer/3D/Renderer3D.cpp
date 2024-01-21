@@ -5,6 +5,7 @@
 #include "Kaidel/Renderer/VertexArray.h"
 #include "Kaidel/Renderer/Buffer.h"
 #include "Kaidel/Renderer/UniformBuffer.h"
+#include "Kaidel/Renderer/RenderCommand.h"
 #include "Kaidel/Renderer/Light.h"
 #include "Kaidel/Core/Timer.h"
 #include<unordered_set>
@@ -38,32 +39,63 @@ namespace Kaidel {
 		Ref<Framebuffer> G_Buffers;
 		Math::Frustum Frustum;
 
+		std::mutex PushMutex;
 		/*BoundedVector<Ref<Model>> DrawnModels = { 0,32,[&](Ref<Model>* models,auto count) {
 				for (auto i = 0; i < count; ++i) {
 					(models[i])->Flush();
 				} 
 			} 
 		};*/
-		std::unordered_set<Ref<Model>> DrawnModels;
+		std::unordered_set<Mesh*> DrawnModels;
+
+		Ref<Depth2DArray> ShadowMapBuffers;
+
+		Ref<Shader> ShadowMapShader;
+
+		Ref<Framebuffer> ShadowMapFrameBuffer;
+
+		
 	};
+
+	
 
 	Renderer3DData s_Data;
 
 
+	void Renderer3D::SetupPrimitives() {
+
+
+
+	}
+
 	void Renderer3D::Init() {
 		using fs = std::filesystem::path;
-		s_Data.MeshShader = Shader::Create(fs::path("assets/shaders/GeometryPass/Mesh_VS.glsl"), fs::path("assets/shaders/GeometryPass/Mesh_FS.glsl"), "Mesh");
+		s_Data.MeshShader = Shader::Create(FileSystem::path("assets/shaders/GeometryPass/Mesh_VS.glsl"), FileSystem::path("assets/shaders/GeometryPass/Mesh_FS.glsl"), "Mesh");
 		s_Data.CameraUniformBuffer = UniformBuffer::Create(80, 0);
 		s_Data.LightCountUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::LightCount), 1);
-		FramebufferSpecification fbSpec{};
-		fbSpec.Width = 1280;
-		fbSpec.Height = 720;
-		fbSpec.Samples = 1;
-		fbSpec.Attachments = { FramebufferTextureFormat::RGBA32F,FramebufferTextureFormat::RGBA32F ,FramebufferTextureFormat::RED_INTEGER,FramebufferTextureFormat::RGBA8 ,FramebufferTextureFormat::Depth};
-		s_Data.G_Buffers = Framebuffer::Create(fbSpec);
+		{
+			FramebufferSpecification fbSpec{};
+			fbSpec.Width = 1280;
+			fbSpec.Height = 720;
+			fbSpec.Samples = 1;
+			fbSpec.Attachments = { FramebufferTextureFormat::RGBA32F,FramebufferTextureFormat::RGBA32F ,FramebufferTextureFormat::RED_INTEGER,FramebufferTextureFormat::RGBA8 ,FramebufferTextureFormat::Depth };
+			s_Data.G_Buffers = Framebuffer::Create(fbSpec);
+		}
 		s_Data.SceneCompositeShader = ComputeShader::Create("assets/shaders/LightingPass/Mesh_CS.glsl");
 		s_Data.DefaultMaterial = CreateRef<Material>();
+		s_Data.ShadowMapShader = Shader::Create(FileSystem::path("assets/shaders/ShadowPass/Mesh_VS.glsl"), FileSystem::path("assets/shaders/ShadowPass/Mesh_FS.glsl"));
+		{
+			FramebufferSpecification fbSpec{};
+			fbSpec.Width = _ShadowMapWidth;
+			fbSpec.Height = _ShadowMapHeight;
+			s_Data.ShadowMapFrameBuffer = Framebuffer::Create(fbSpec);
+		}
 		MaterialTextureHandler::Init();
+
+
+
+
+
 	}
 	void Renderer3D::Shutdown() {
 
@@ -72,7 +104,7 @@ namespace Kaidel {
 	void Renderer3D::Begin(const Renderer3DBeginData& beginData) {
 		s_Data.CameraBuffer.ViewProj = beginData.CameraVP;
 		s_Data.CameraBuffer.Position = beginData.CameraPosition;
-		s_Data.Frustum = Math::Frustum(beginData.CameraVP);
+		s_Data.Frustum.ExtractPlanesFromProjectionView(s_Data.CameraBuffer.ViewProj);
 		s_Data.CameraUniformBuffer->SetData(&s_Data.CameraBuffer, sizeof(Renderer3DData::CameraBufferData));
 
 		Renderer3DData::LightCount lightCount{};
@@ -87,11 +119,14 @@ namespace Kaidel {
 
 		s_Data.G_Buffers->Bind();
 		s_Data.G_Buffers->ClearDepthAttachment(1.0f);
-		float defaults[4] = { 0.0f };
-		s_Data.G_Buffers->ClearAttachment(0, defaults);
-		s_Data.G_Buffers->ClearAttachment(1, defaults);
-		s_Data.G_Buffers->ClearAttachment(2, defaults);
-		s_Data.G_Buffers->ClearAttachment(3, defaults);
+		glm::vec4 defaults = glm::vec4{ 0.0f };
+		s_Data.G_Buffers->ClearAttachment(0, &defaults.x);
+		s_Data.G_Buffers->ClearAttachment(1, &defaults.x);
+		s_Data.G_Buffers->ClearAttachment(2, &defaults.x);
+		s_Data.G_Buffers->ClearAttachment(3, &defaults.x);
+
+		/*defaults = glm::vec4{-1.0f};
+		s_Data.G_Buffers->ClearAttachment(4, &defaults.x);*/
 
 
 		Material::SetMaterials();
@@ -102,35 +137,88 @@ namespace Kaidel {
 		s_Data.CameraUniformBuffer->Bind();
 
 		s_Data.DrawnModels.clear();
+
 	}
-	void Renderer3D::DrawCube(const glm::mat4& transform, Ref<Material> material) {
+
+	static void RenderingPipeline(Mesh* mesh) {
+
+
+	}
+
+	void Renderer3D::FlushMesh(Mesh* mesh) {
+	
 		
+		if (mesh->m_InstanceCount == 0)
+			return;
+		//Geometry Pass
+		{
+			s_Data.G_Buffers->Bind();
+			s_Data.MeshShader->Bind();
+			mesh->m_UAV->SetBufferData(mesh->m_DrawData.Get(), mesh->m_DrawData.Size());
+			mesh->m_UAV->Bind(5);
+			RenderCommand::DrawIndexedInstanced(mesh->m_VAO, mesh->m_IndexCount, mesh->m_InstanceCount);
+			s_Data.G_Buffers->Unbind();
+		}
+
+
+		//Shadow Pass
+		{
+			s_Data.ShadowMapShader->Bind();
+
+			auto spotlightDepthMaps = SpotLight::GetDepthMaps();
+
+			for (auto& light : SpotLight::GetLights()) {
+
+
+				s_Data.ShadowMapShader->SetInt("u_LightIndex", light->GetIndex());
+				s_Data.ShadowMapShader->SetInt("u_LightBindingSlot", _SpotLightBindingSlot);
+
+				s_Data.ShadowMapFrameBuffer->Bind();
+				s_Data.ShadowMapFrameBuffer->SetDepthAttachmentFromArray(spotlightDepthMaps->GetRendererID(), light->GetIndex());
+				RenderCommand::SetCullMode(CullMode::Front);
+				RenderCommand::DrawIndexedInstanced(mesh->m_VAO, mesh->m_IndexCount, mesh->m_InstanceCount);
+				RenderCommand::SetCullMode(CullMode::None);
+				s_Data.ShadowMapFrameBuffer->Unbind();
+			}
+		}
+
+		mesh->m_InstanceCount = 0;
+		mesh->m_DrawData.Reset();
+
 	}
-	void Renderer3D::DrawModel(const glm::mat4& transform, Ref<Model> model,Ref<Material> material) {
+
+	void Renderer3D::DrawMesh(const glm::mat4& transform, Mesh* mesh, Ref<Material> material) {
 
 		if (!material)
 		{
-			DrawModel(transform, model, s_Data.DefaultMaterial);
+			DrawMesh(transform, mesh, s_Data.DefaultMaterial);
 			return;
 		}
 		{
-			s_Data.MeshShader->Bind();
-			s_Data.G_Buffers->Bind();
-			{
-				model->Draw(transform, material,s_Data.Frustum);
-			}
-			s_Data.G_Buffers->Unbind();
-			s_Data.DrawnModels.insert(model);
+			
+			//if (s_Data.Frustum.IsAABBInFrustum(transform, mesh->GetBoundingBox())) {
+				
+				//Model needs flush
+				if (!mesh->Draw(transform, material)) {
+					FlushMesh(mesh);
+					mesh->Draw(transform, material);
+				}
+				//It doesn't
+				else {
+					s_Data.DrawnModels.insert(mesh);
+				}
+			//}
 		}
 	}
+
 	void Renderer3D::End() {
+
 		{
-			s_Data.MeshShader->Bind();
-			s_Data.G_Buffers->Bind();
-			for (auto& model : s_Data.DrawnModels) {
-				model->Flush();
+			for (auto& mesh : s_Data.DrawnModels) {
+				FlushMesh(mesh);
 			}
-			s_Data.G_Buffers->Unbind();
+
+			s_Data.DrawnModels.clear();
 		}
 
 		{
@@ -143,9 +231,11 @@ namespace Kaidel {
 			s_Data.G_Buffers->BindColorAttachmentToImageSlot(3, 3, ImageBindingMode_Read);
 
 			s_Data.OutputBuffer->BindColorAttachmentToImageSlot(0, 4, ImageBindingMode_Write);
+			
+			SpotLight::GetDepthMaps()->Bind(_SpotLightBindingSlot);
 
 			const auto& outputSpec = s_Data.OutputBuffer->GetSpecification();
-			s_Data.SceneCompositeShader->Execute(outputSpec.Width / 32 + 1, outputSpec.Height / 32 + 1, 1);
+			s_Data.SceneCompositeShader->Execute(glm::ceil((float)outputSpec.Width / 32.0f), glm::ceil((float)outputSpec.Height / 32.0f), 1);
 			s_Data.SceneCompositeShader->Wait();
 		}
 	}

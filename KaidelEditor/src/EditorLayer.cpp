@@ -22,6 +22,9 @@
 
 #include "imguizmo/ImGuizmo.h"
 
+#include <forward_list>
+
+#include <random>
 
 namespace Kaidel {
 	glm::vec4 _GetUVs();
@@ -69,44 +72,39 @@ namespace Kaidel {
 		m_ConsolePanel.SetContext(::Log::GetClientLogger());
 
 
-		///*{
-		//	Entity e = m_ActiveScene->CreateEntity("Light");
-		//	auto& plc  = e.AddComponent<SpotLightComponent>();
-		//}*/
-		//{
-		//	Entity e = m_ActiveScene->CreateEntity("Cube");
-		//	auto& crc = e.AddComponent<CubeRendererComponent>();
-		//	auto& tc = e.GetComponent<TransformComponent>();
-		//	//crc.Color = glm::vec4(1.0f);
-		//}
-		//{
-		//	Entity e = m_ActiveScene->CreateEntity("Cube2");
-		//	auto& crc = e.AddComponent<CubeRendererComponent>();
-		//	auto& tc = e.GetComponent<TransformComponent>();
-		//	tc.Translation.x = 4.0f;
-		//	//crc.Color = glm::vec4(1.0f);
-		//}
-		//{
-		//	Entity e = m_ActiveScene->CreateEntity("Wall");
-		//	auto& crc = e.AddComponent<CubeRendererComponent>();
-		//	auto & tc = e.GetComponent<TransformComponent>();
-		//	tc.Translation.x = 2.0f;
-		//	tc.Scale.y = 20.0f;
-		//	tc.Scale.z = 20.0f;
-		//	//crc.Color = glm::vec4(1.0f);
-		//}
 
 		{
-			Timer timer("Model Loading");
+			//Timer timer("Model Loading");
 			model = Model::Load("assets/models/test/backpack.obj");
+			model2 = Model::Load("assets/models/test/Erika_Archer.fbx",true);
+
 		}
 		{
-			Timer timer("Material Loading");
+			/*Timer timer("Material Loading");
 			mat = CreateRef<Material>();
 			mat->SetDiffuse(MaterialTextureHandler::LoadTexture("assets/models/test/diffuse.jpg"));
-			mat->SetSpecular(MaterialTextureHandler::LoadTexture("assets/models/test/specular.jpg"));
+			mat->SetSpecular(MaterialTextureHandler::LoadTexture("assets/models/test/specular.jpg"));*/
 		}
-
+		//Entity entity = m_ActiveScene->CreateModelEntity(model2);
+		Entity entity2 = m_ActiveScene->CreateModelEntity(model);
+		entity2.GetComponent<TransformComponent>().Translation = glm::vec3(1.0f, 0, 0);
+		//m_ActiveScene->CreateModelEntity(model);
+		{
+			ent = m_ActiveScene->CreateEntity();
+			auto& mc = ent.AddComponent<MeshComponent>();
+			mc.Mesh = &Primitives::CubePrimitive;
+			auto& tc = ent.GetComponent<TransformComponent>();
+			tc.Scale.y = 20.0f;
+			tc.Scale.z = 15.0f;
+			tc.Translation.x = 5.0f;
+		}
+		/*
+		{
+			ent = m_ActiveScene->CreateEntity();
+			auto& mc = ent.AddComponent<MeshComponent>();
+			mc.Mesh = &Primitives::CubePrimitive;
+			auto& tc = ent.GetComponent<TransformComponent>();
+		}*/
 	}
 	void EditorLayer::OnDetach()
 	{
@@ -150,58 +148,9 @@ namespace Kaidel {
 		// Update
 		if(m_SceneState==SceneState::Edit)
 			m_EditorCamera.OnUpdate(ts);
-		
-
-		/*{
-			ub->SetData(&totalTime, 4, 0);
-			ub->Bind();
-			cs->SetTypedBufferInput(tbi, TypedBufferAccessMode::ReadWrite, 0);
-			cs->SetUAVInput(ui,0);
-			cs->Bind();
-			cs->Execute(ceil(m_ViewportSize.x/8),ceil(m_ViewportSize.y/8), 1);
-			cs->Wait();
-			totalTime += ts;
-		}*/
-
 
 		// Render
 		Renderer2D::ResetStats();
-	
-
-		/*{
-			auto view = m_ActiveScene->m_Registry.view<TransformComponent, LightComponent>();
-			Renderer2D::BeginScene(m_EditorCamera);
-			for (auto e : view) {
-				Renderer2D::DrawQuad(glm::translate(glm::mat4(1.0f),view.get<LightComponent>(e).Light->GetPosition()), 
-					glm::vec4(1.0f), 0, -1);
-			}
-			Renderer2D::EndScene();
-		}*/
-		/*Renderer2D::BeginScene(m_EditorCamera);
-		Renderer2D::DrawQuad(glm::translate(glm::mat4(1.0f), glm::vec3{ 0,0,0 }), {1,0,0,1}, 4, -1);
-		Renderer2D::DrawQuad(glm::translate(glm::mat4(1.0f), glm::vec3{ .5f,.5f,-.5f }), { 0,1,0,1 }, 0, -1);
-
-		Renderer2D::EndScene();*/
-
-
-		//Renderer2D::BeginScene(m_EditorCamera);
-		//Renderer2D::DrawQuad(glm::mat4(1.0f), { 0.6f,.8f,.5f,1.0f }, 0);
-		//Renderer2D::EndScene();
-		//glm::mat4 r = m_EditorCamera.GetProjection()* m_EditorCamera.GetViewMatrix();
-		//ub->SetData(&r[0][0], sizeof(glm::mat4));
-		//float p[] = {
-		//	0.f, 0.5f, 0.0f,	.0f,.0f,1.0f,1.0f,
-		//	0.5f, -0.5f, 0.0f,	1.0f,.0f,.0f,1.0f,
-		//	-0.5f, -0.5f, 0.0f, .0f,1.0f,.0f,1.0f,
-		//};
-		//vb->SetData(p, sizeof(p));
-		//vb->Bind();
-		////s_Data.QuadVertexBuffer->SetData(s_Data.QuadVertexBufferBase, dataSize);
-		//ib->Bind();
-		//ub->Bind();
-		//va->Bind();
-		//s->Bind();
-		//RenderCommand::DrawIndexed(va, 3);
 		// Update scene
 		switch (m_SceneState)
 		{
@@ -209,62 +158,42 @@ namespace Kaidel {
 			{
 
 				{
-					/*{
-						SharedPassDataConfig config;
-						config.Scene = m_ActiveScene;
-						config.CameraData.CameraPosition = m_EditorCamera.GetPosition();
-						config.CameraData.CameraViewProjection = m_EditorCamera.GetViewProjection();
-						SharedPassData passData;
-						passData.Config = config;
-						passData.SetData();
-					}
-					{
-						ShadowPassConfig config;
-						config.Scene = m_ActiveScene;
-						ShadowPass pass;
-						pass.Config = config;
-						pass.Render();
-					}
-					{
-
-						LightingPassConfig config;
-						config.Width = (uint32_t)m_ViewportSize.x ? (uint32_t)m_ViewportSize.x:1280;
-						config.Height = (uint32_t)m_ViewportSize.y? (uint32_t)m_ViewportSize.y:720;
-						config.Scene = m_ActiveScene;
-						LightingPass pass;
-						pass.Config = config;
-						pass.Render();
-
-					}*/
-
-
 					{
 						auto view = m_ActiveScene->m_Registry.view<TransformComponent, SpotLightComponent>();
 						for (auto e : view) {
 							auto [tc, slc] = view.get<TransformComponent, SpotLightComponent>(e);
-							slc.Light->GetLight().Position = glm::vec4(tc.Translation,1.0f);
+							auto& light = slc.Light->GetLight();
+
+							light.LightViewProjection = glm::infinitePerspective(2.0f * glm::acos(light.CutOffAngle), 1.0f, .5f) * glm::lookAt(glm::vec3(light.Position),glm::vec3(light.Position + glm::normalize(light.Direction)),glm::vec3(0.0f,1.0f,0.0f));
+							light.Position = glm::vec4(tc.Translation, 1.0f);
 						}
 					}
-
 					Renderer3DBeginData data;
+
 					data.OutputBuffer = m_Framebuffer;
 					data.CameraPosition = m_EditorCamera.GetPosition();
 					data.CameraVP = m_EditorCamera.GetViewProjection();
+
 					{
 						{
 
-						Renderer3D::Begin(data);
+							Renderer3D::Begin(data);
+						}
+						uint32_t drawnMeshCount = 0;
+						{
+							auto view = m_ActiveScene->m_Registry.view<TransformComponent, MeshComponent>();
+							for (auto e : view) {
+								auto [tc, mc] = view.get<TransformComponent, MeshComponent>(e);
+								auto meshMat = mc.Mesh->GetMaterial();
+								if (auto p = m_ActiveScene->m_Registry.try_get<MaterialComponent>(e); p != nullptr)
+									meshMat = p->Material;
+								Renderer3D::DrawMesh(tc.GetTransform(), mc.Mesh,meshMat);
+								++drawnMeshCount;
+							}
 						}
 
-						{
-							static float f = 0.0f;
-							for (uint32_t i = 0; i < 16; ++i) {
-								for (uint32_t j = 0; j < 16; ++j) {
-									Renderer3D::DrawModel(glm::translate(glm::mat4(1.0f), glm::vec3(i * 5.0f, j * 5.0f, 0)) * glm::rotate(glm::mat4(1.0f),f,glm::vec3(0,0,1)), model, mat);
-								}
-							}
-							f += ts * 2.0f;
-						}
+
+
 						/*Renderer3D::DrawModel(glm::mat4(1.0f), model, mat);
 						Renderer3D::DrawModel(glm::translate(glm::mat4(1.0f),glm::vec3(10,0,0)), model, mat);*/
 
@@ -272,23 +201,6 @@ namespace Kaidel {
 							Renderer3D::End();
 						}
 					}
-
-
-
-				}
-
-				{
-						
-				}
-
-				{
-
-
-				}
-
-				{
-
-
 
 				}
 
@@ -698,6 +610,11 @@ namespace Kaidel {
 		for (const auto& [name, data] : Timer::GetTimerData()) {
 			ImGui::Text("%s", data.c_str());
 		}
+
+		ImGui::DragFloat("n", &n,.01);
+		ImGui::DragFloat("f", &f, .01);
+
+
 		ImGui::End();
 	}
 	static void UpdateBounds(glm::vec2 bounds[2]) {
@@ -811,12 +728,6 @@ namespace Kaidel {
 		ImGui::PopStyleVar(3);
 		ImGui::PopStyleColor(3);
 	}
-
-
-
-
-
-
 
 	void EditorLayer::OnEvent(Event& e)
 	{

@@ -1,8 +1,10 @@
 #pragma once
 
-#include <memory>
 
 #include "Kaidel/Core/PlatformDetection.h"
+
+#include <memory>
+#include <filesystem>
 
 #pragma warning(disable: 4996)
 #pragma warning(disable: 4005)
@@ -63,7 +65,7 @@ namespace Kaidel {
 
 	}
 	
-	
+	namespace FileSystem = std::filesystem;
 }
 
 #include "Kaidel/Core/Log.h"

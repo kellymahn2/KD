@@ -18,9 +18,7 @@ namespace Kaidel {
 		/*switch (RendererAPI::GetAPI())
 		{
 		case RendererAPI::API::OpenGL: {*/
-			return glm::translate(glm::mat4(1.0f), pos)
-				* rotation
-				* glm::scale(glm::mat4(1.0f), scl);
+		return glm::translate(glm::mat4(1.0f), pos) * rotation * glm::scale(glm::mat4(1.0f), scl);
 		/*	}
 			case RendererAPI::API::DirectX: {
 				glm::vec3 npos = pos ;
@@ -31,8 +29,7 @@ namespace Kaidel {
 					* glm::scale(glm::mat4(1.0f), scl);
 			}
 			}*/
-		KD_CORE_ASSERT(false);
-		return {};
+		
 	}
 	glm::vec4 _GetUVs() {
 		switch (RendererAPI::GetAPI())

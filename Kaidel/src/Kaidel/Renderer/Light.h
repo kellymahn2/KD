@@ -57,8 +57,8 @@ namespace Kaidel
 	static inline constexpr uint32_t _PointLightBindingSlot = 2;
 	static inline constexpr uint32_t _DirectionalLightBindingSlot = 3;
 	static inline constexpr uint32_t _SpotLightBindingSlot = 4;
-	static inline constexpr uint32_t _ShadowMapWidth = 1024;
-	static inline constexpr uint32_t _ShadowMapHeight = 1024;
+	static inline constexpr uint32_t _ShadowMapWidth = 2048;
+	static inline constexpr uint32_t _ShadowMapHeight = 2048;
 
 	static inline float CalcLightMaxCoverage(float q,float l,float _c,float epsilon) {
 		float a = q;
@@ -103,8 +103,14 @@ namespace Kaidel
 			s_MaterialUAV->Bind(BindingSlot);
 			if(!s_LightDepthMaps)
 				s_LightDepthMaps = Depth2DArray::Create(_ShadowMapWidth, _ShadowMapHeight);
+			for (auto& light : s_Lights) {
+				s_LightDepthMaps->ClearLayer(light->m_LightIndex, 1.0f);
+			}
 			s_LightDepthMaps->Bind(BindingSlot);
 		}
+
+		static inline const std::vector<Light*>& GetLights(){ return s_Lights; }
+
 	private:
 		static inline std::vector<T> s_InternalData{};
 		static inline std::vector<Light*> s_Lights{};

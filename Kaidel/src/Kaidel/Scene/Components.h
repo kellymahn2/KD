@@ -5,6 +5,7 @@
 #include "Kaidel/Animation/Animation.h"
 #include "Kaidel/Renderer/Light.h"
 #include "Kaidel/Renderer/Material.h"
+#include "Kaidel/Mesh/Mesh.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -140,6 +141,13 @@ namespace Kaidel {
 
 	};
 
+
+	struct MaterialComponent {
+		Ref<Material> Material;
+		MaterialComponent() = default;
+		MaterialComponent(const MaterialComponent&) = default;
+	};
+
 	struct PointLightComponent {
 		using LightType = PointLight;
 		Ref<LightType> Light;
@@ -219,8 +227,14 @@ namespace Kaidel {
 		}
 	};
 
+	struct MeshComponent {
+		Mesh* Mesh;
+		MeshComponent() = default;
+		MeshComponent(const MeshComponent&) = default;
+	};
+	
+	
 	//Physics
-
 	struct Rigidbody2DComponent {
 		enum class BodyType {
 			Static=0,Dynamic,Kinematic

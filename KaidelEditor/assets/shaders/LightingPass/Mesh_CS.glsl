@@ -54,6 +54,50 @@ layout(std430,binding = 1) buffer Materials{
 	Material u_Materials[];
 };
 
+layout(binding = 4) uniform sampler2DArray u_SpotLightDepthMaps;
+
+
+float CalcShadowValue(vec3 position,vec3 normal){
+	
+	float totalShadow = 1.0;
+
+	{
+	
+		for(int i = 0;i < u_SpotLightCount; ++i){
+			vec4 posInLightSpace = u_SpotLights[i].LightViewProjection * vec4(position,1.0);
+			vec3 projectedCoords = posInLightSpace.xyz / posInLightSpace.w;
+
+			
+			projectedCoords = projectedCoords * .5 + .5;
+
+
+			if(projectedCoords.z > 1.0)
+				continue;
+
+			float closestDepth = texture(u_SpotLightDepthMaps,vec3(projectedCoords.xy,float(i))).r;
+			float currentDepth = projectedCoords.z;
+
+			vec3 lightDir = normalize(u_SpotLights[i].Position.xyz - position);
+			float bias = max(0.05 * (1.0 - dot(normal,lightDir)),0.005);
+
+			float shadow = 0.0;
+
+			vec2 texelSize = 1.0 / textureSize(u_SpotLightDepthMaps,0).xy;
+			for(int j = -1;j<=1;++j){
+				
+				for(int k = -1;k<=1;++k){
+					float pcfDepth = texture(u_SpotLightDepthMaps,vec3(projectedCoords.xy + vec2(j,k)*texelSize,float(i))).r;
+					shadow += currentDepth  - bias > pcfDepth ? 1.0 : 0.0;
+				}
+			}
+			shadow /= 9.0;
+
+			totalShadow *= (1.0 - shadow);
+		}
+	}
+
+	return totalShadow;
+}
 
 
 void main() {
@@ -88,11 +132,10 @@ void main() {
 			float distance = length(lightPos - position);
 			float attenuation = 1.0/(u_SpotLights[i].ConstantCoefficient+u_SpotLights[i].LinearCoefficient*distance+
 			u_SpotLights[i].QuadraticCoefficient*(distance*distance));
+			attenuation = 1.0;
 
 			//Ambient
 			totalAmbient += lightAmbient * diffuse * attenuation;
-
-
 			
 			float theta = dot(lightDir,normalize(-lightDirection));
 			if(theta > u_SpotLights[i].CutOffAngle){
@@ -111,7 +154,13 @@ void main() {
 	
 	}
 
-	vec3 res = totalAmbient + totalDiffuse + totalSpecular;
+	float shadow = CalcShadowValue(position,normal);
+
+	vec3 res = totalAmbient + (shadow)*(totalDiffuse + totalSpecular);
+
+
+
+
     vec4 resultColor = vec4(materialColor.xyz * (res),1.0);
     imageStore(outputImage, texelCoord, resultColor);
 	

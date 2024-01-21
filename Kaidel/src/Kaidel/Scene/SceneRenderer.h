@@ -18,11 +18,6 @@ namespace Kaidel {
 			return *this;
 		}
 	private:
-		void Bind();
-		void DrawQuads();
-		void DrawCircles();
-		void DrawLines();
-		void DrawCubes();
 		uint64_t m_QuadInsertIndex = 0;
 		uint64_t m_CircleInsertIndex = 0;
 		uint64_t m_LineInsertIndex = 0;

@@ -115,11 +115,11 @@ namespace Kaidel {
 		glBindTexture(GL_TEXTURE_2D_ARRAY, m_RendererID);
 		glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_RGBA8, width, height, m_Depth);
 
-		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_R, GL_REPEAT);
+			glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+			glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+			glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_R, GL_REPEAT);
 
 
 
@@ -156,7 +156,7 @@ namespace Kaidel {
 		glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, m_SetCount, m_Width, m_Height, 1, GL_RGBA, GL_UNSIGNED_BYTE, data);
 		return m_SetCount++;
 	}
-	uint32_t OpenGLTexture2DArray::PushTexture(void* data, uint32_t width, uint32_t height) {
+	uint32_t OpenGLTexture2DArray::PushTexture(void* data, uint32_t width, uint32_t height,bool shouldFlip) {
 		if (width != m_Width || height != m_Height) {
 			uint8_t* sclImage = new uint8_t[m_Width * m_Height * 4];
 			KD_CORE_ASSERT(stbir_resize_uint8((uint8_t*)data, width, height, 0, sclImage, m_Width, m_Height, 0, 4) == 1);
@@ -166,7 +166,7 @@ namespace Kaidel {
 		}
 		return PushLoadedTexture(data);
 	}
-	uint32_t OpenGLTexture2DArray::PushTexture(const std::string& src) {
+	uint32_t OpenGLTexture2DArray::PushTexture(const std::string& src, bool shouldFlip) {
 		if (m_LoadedTextures.find(src) != m_LoadedTextures.end()) {
 			return m_LoadedTextures.at(src);
 		}
@@ -175,6 +175,7 @@ namespace Kaidel {
 		uint8_t* data;
 		{
 			Timer timer("Image Loading");
+			stbi_set_flip_vertically_on_load(shouldFlip);
 			data = stbi_load(src.c_str(), &w, &h, &channels, 4);
 		}
 		KD_CORE_ASSERT(data);

@@ -7,12 +7,12 @@
 
 #include "Kaidel/Renderer/UniformBuffer.h"
 #include "Kaidel\Renderer\Renderer2D.h"
-#include "Kaidel\Renderer\Renderer3D.h"
+#include "Kaidel\Renderer\3D\Renderer3D.h"
 #include "Kaidel\Core\JobSystem.h"
 #include "Kaidel/Core/Timer.h"
-
-#include "Kaidel/Renderer/Material.h"
 #include "Kaidel/Renderer/Light.h"
+#include "Kaidel/Renderer/Material.h"
+
 #include <glm/gtx/compatibility.hpp>
 #include <chrono>
 #include <cmath>
@@ -26,16 +26,10 @@ namespace Kaidel {
 
 	void SceneRenderer::Reset()
 	{
-		m_QuadInsertIndex = 0;
-		m_CircleInsertIndex = 0;
-		m_LineInsertIndex = 0;
-	}
-
-	void Tesselate() {
-
-
 	}
 	
+
+
 	void SceneRenderer::Render()
 	{
 		

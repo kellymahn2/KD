@@ -1,97 +1,68 @@
 #pragma once
 #include <glm/glm.hpp>
-#include <array>
-namespace Math {
-
-	struct BoundingBox {
-		glm::vec3 MinPoint;
-		glm::vec3 MaxPoint;
-
-		inline bool IsInside(const glm::vec3& point)const {
-			return point.x >= MinPoint.x && point.x <= MaxPoint.x &&
-				point.y >= MinPoint.y && point.y <= MaxPoint.y &&
-				point.z >= MinPoint.z && point.z <= MaxPoint.z;
-		}
-		inline bool Intersects(const BoundingBox& other) const {
-			return (MinPoint.x <= other.MaxPoint.x && MaxPoint.x >= other.MinPoint.x) &&
-				(MinPoint.y <= other.MaxPoint.y && MaxPoint.y >= other.MinPoint.y) &&
-				(MinPoint.z <= other.MaxPoint.z && MaxPoint.z >= other.MinPoint.z);
-		}
-		BoundingBox Transform(const glm::mat4& transformMatrix) const {
-			glm::vec3 transformedMin = glm::vec3(transformMatrix * glm::vec4(MinPoint, 1.0f));
-			glm::vec3 transformedMax = glm::vec3(transformMatrix * glm::vec4(MaxPoint, 1.0f));
-			glm::vec3 newMin = glm::min(transformedMin, transformedMax);
-			glm::vec3 newMax = glm::max(transformedMin, transformedMax);
-			return BoundingBox{ newMin, newMax };
-		}
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/matrix_access.hpp>
+namespace Math{
+	// Definition of the AABB struct
+	struct AABB {
+		glm::vec3 Min;  // Minimum corner of the AABB
+		glm::vec3 Max;  // Maximum corner of the AABB
 	};
-
-
 	struct Frustum {
-		glm::vec4 Left, Right, Top, Bottom, Near, Far;
-		Frustum() = default;
-		Frustum(const glm::mat4& viewProjMatrix) {
-			// Left plane
-			Left = viewProjMatrix[3] + viewProjMatrix[0];
-			// Right plane
-			Right = viewProjMatrix[3] - viewProjMatrix[0];
-			// Top plane
-			Top = viewProjMatrix[3] - viewProjMatrix[1];
-			// Bottom plane
-			Bottom = viewProjMatrix[3] + viewProjMatrix[1];
-			// Near plane
-			Near = viewProjMatrix[3] + viewProjMatrix[2];
-			// Far plane
-			Far = viewProjMatrix[3] - viewProjMatrix[2];
+		glm::vec4 Planes[6];  // Array to store the six frustum planes
+		glm::mat4 ViewProjectionMatrix;
+		// Method to extract frustum planes from Projection * View matrix
+		void ExtractPlanesFromProjectionView(const glm::mat4& viewProjectionMatrix) {
+			Planes[0] = viewProjectionMatrix[3] + viewProjectionMatrix[0];  // Left
+			Planes[1] = viewProjectionMatrix[3] - viewProjectionMatrix[0];  // Right
+			Planes[2] = viewProjectionMatrix[3] - viewProjectionMatrix[1];  // Bottom
+			Planes[3] = viewProjectionMatrix[3] + viewProjectionMatrix[1];  // Top
+			Planes[4] = viewProjectionMatrix[3] - viewProjectionMatrix[2];  // Near
+			Planes[5] = viewProjectionMatrix[3] + viewProjectionMatrix[2];  // Far
 
-
-			//Normalize the planes
-			normalizePlane(Left);
-			normalizePlane(Right);
-			normalizePlane(Top);
-			normalizePlane(Bottom);
-			normalizePlane(Near);
-			normalizePlane(Far);
-
+			// Normalize the plane normals
+			for (int i = 0; i < 6; ++i) {
+				Planes[i] /= glm::length(glm::vec3(Planes[i]));
+			}
+			ViewProjectionMatrix = viewProjectionMatrix;
 		}
 
-		inline bool IsCulled(const BoundingBox& boundingBox)const {
-			glm::vec3 corners[8] = {
-			{boundingBox.MinPoint.x, boundingBox.MinPoint.y, boundingBox.MinPoint.z},
-			{boundingBox.MinPoint.x, boundingBox.MinPoint.y, boundingBox.MaxPoint.z},
-			{boundingBox.MinPoint.x, boundingBox.MaxPoint.y, boundingBox.MinPoint.z},
-			{boundingBox.MinPoint.x, boundingBox.MaxPoint.y, boundingBox.MaxPoint.z},
-			{boundingBox.MaxPoint.x, boundingBox.MinPoint.y, boundingBox.MinPoint.z},
-			{boundingBox.MaxPoint.x, boundingBox.MinPoint.y, boundingBox.MaxPoint.z},
-			{boundingBox.MaxPoint.x, boundingBox.MaxPoint.y, boundingBox.MinPoint.z},
-			{boundingBox.MaxPoint.x, boundingBox.MaxPoint.y, boundingBox.MaxPoint.z},
-			};
+		// Method to check if AABB is in frustum with object transformation
+		bool IsAABBInFrustum(const glm::mat4& modelMatix, const AABB& aabb) const {
+			// Transform the AABB corners by the object's transformation matrix
+			glm::vec4 Corners[8];
+			Corners[0] = ViewProjectionMatrix * modelMatix * glm::vec4(aabb.Min.x, aabb.Min.y, aabb.Min.z, 1.0f);
+			Corners[1] = ViewProjectionMatrix * modelMatix * glm::vec4(aabb.Max.x, aabb.Min.y, aabb.Min.z, 1.0f);
+			Corners[2] = ViewProjectionMatrix * modelMatix * glm::vec4(aabb.Min.x, aabb.Max.y, aabb.Min.z, 1.0f);
+			Corners[3] = ViewProjectionMatrix * modelMatix * glm::vec4(aabb.Max.x, aabb.Max.y, aabb.Min.z, 1.0f);
+			Corners[4] = ViewProjectionMatrix * modelMatix * glm::vec4(aabb.Min.x, aabb.Min.y, aabb.Max.z, 1.0f);
+			Corners[5] = ViewProjectionMatrix * modelMatix * glm::vec4(aabb.Max.x, aabb.Min.y, aabb.Max.z, 1.0f);
+			Corners[6] = ViewProjectionMatrix * modelMatix * glm::vec4(aabb.Min.x, aabb.Max.y, aabb.Max.z, 1.0f);
+			Corners[7] = ViewProjectionMatrix * modelMatix * glm::vec4(aabb.Max.x, aabb.Max.y, aabb.Max.z, 1.0f);
 
-			for (const auto& corner : corners) {
-				bool insideFrustum = true;
-				for (const auto& plane : { Left, Right, Top, Bottom, Near, Far }) {
-					if (glm::dot(plane, glm::vec4(corner, 1.0f)) < 0) {
-						insideFrustum = false;
-						break;
+			for (uint32_t i = 0; i < 8; ++i) {
+				Corners[i] /= Corners[i].w;
+			}
+			// Check each frustum plane against the transformed AABB
+			for (int i = 0; i < 6; ++i) {
+				int InsideCount = 8;  // Number of AABB corners inside the frustum plane
+
+				for (int j = 0; j < 8; ++j) {
+					if (glm::dot(glm::vec3(Planes[i]), glm::vec3(Corners[j])) + Planes[i].w < 0.0f) {
+						// AABB corner is outside the frustum plane
+						InsideCount--;
 					}
 				}
 
-				if (insideFrustum) {
+				if (InsideCount == 0) {
+					// AABB is completely outside the frustum
 					return false;
 				}
 			}
 
+			// AABB is at least partially inside the frustum
 			return true;
 		}
-
-	private:
-		void  normalizePlane(glm::vec4& plane) {
-			float length = glm::length(glm::vec3(plane));
-			plane /= length;
-		}
-	
 	};
-
-
 
 }

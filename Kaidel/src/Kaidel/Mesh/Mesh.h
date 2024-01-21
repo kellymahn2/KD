@@ -6,16 +6,17 @@
 #include "Kaidel/Renderer/Material.h"
 #include "Kaidel/Core/BoundedVector.h"
 #include "Kaidel/Math/BoundingBox.h"
-
+#include "Kaidel/Renderer/Material.h"
 #include <glm/glm.hpp>
 #include <vector>
+
 namespace Kaidel {
 
 
 	struct MeshVertex {
-		glm::vec3 Position;
-		glm::vec3 Normal;
-		glm::vec2 TexCoords;
+		glm::vec3 Position{};
+		glm::vec3 Normal{};
+		glm::vec2 TexCoords{};
 	};
 
 	struct MeshDrawData {
@@ -24,28 +25,42 @@ namespace Kaidel {
 		glm::ivec4 MaterialID;
 	};
 
+
+
 	class Mesh {
 	public:
 		Mesh() = default;
-		Mesh(const std::vector<MeshVertex>& vertices, const std::vector<uint32_t> indices);
+		Mesh(const std::string& meshName,const std::vector<MeshVertex>& vertices, const std::vector<uint32_t> indices,Ref<Material> mat);
 		Mesh(const Mesh& mesh);
-		const Math::BoundingBox& GetBoundingBox()const { return m_BoundingBox; }
-		~Mesh();
+		const Math::AABB& GetBoundingBox()const { return m_BoundingBox; }
+		const std::string& GetMeshName()const { return m_MeshName; }
+		bool Draw(const glm::mat4& transform,Ref<Material>& mat);
+		void Flush();
+		const glm::vec3& GetCenter()const { return m_Center; }
+		
+		Ref<Material> GetMaterial() { return m_Material; }
+
 	private:
 		std::vector<MeshVertex> m_Vertices;
 		Ref<VertexArray> m_VAO;
 		Ref<VertexBuffer> m_VBO;
-		uint32_t m_IndexCount;
+		uint32_t m_IndexCount = 0;
 		uint32_t m_InstanceCount = 0;
 		BoundedVector<MeshDrawData> m_DrawData = { 0,1024,[&](MeshDrawData* slot, uint64_t size) {
 			this->Flush();
 			} };;
 		Ref<UAVInput> m_UAV;
 		void Setup(const std::vector<uint32_t>& indices);
-		void Draw(const glm::mat4& transform,Ref<Material>& mat);
-		void Flush();
-		Math::BoundingBox m_BoundingBox;
+
+		Math::AABB m_BoundingBox{};
+		std::string m_MeshName;
+		bool m_Flushed = false;
+		glm::vec3 m_Center;
+
+		Ref<Material> m_Material;
 
 		friend class Model;
+		friend class Renderer3D;
 	};
+
 }

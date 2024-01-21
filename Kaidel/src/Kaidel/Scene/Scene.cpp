@@ -224,6 +224,42 @@ namespace Kaidel {
 		m_IDMap[uuid] = entity.operator entt::entity();
 		return entity;
 	}
+	
+	void Scene::CreateModelOnEntity(RecursiveTree<ModelData>& modelData, Entity entity) {
+		if (modelData.SubTrees.empty()) {
+			uint32_t i = 1;
+			for (auto& mesh : modelData.Data.Meshes) {
+				Entity child = CreateEntity("Mesh " + std::to_string(i));
+				auto& tc = child.GetComponent<TransformComponent>();
+				auto& mc = child.AddComponent<MeshComponent>();
+				auto& mat = child.AddComponent<MaterialComponent>();
+				mat.Material = mesh.GetMaterial();
+				tc.Translation = mesh.GetCenter();
+				mc.Mesh = &mesh;
+				child.AddParent(entity.GetUUID());
+				entity.AddChild(child.GetUUID());
+				++i;
+			}
+		}
+		else {
+			uint32_t i = 1;
+			for (auto& subTree : modelData.SubTrees) {
+				Entity child = CreateEntity("Child " + std::to_string(i));
+				CreateModelOnEntity(subTree, child);
+				entity.AddChild(child.GetUUID());
+				child.AddParent(entity.GetUUID());
+				++i;
+			}
+		}
+	}
+
+	Entity Scene::CreateModelEntity(Ref<Model> model) {
+		auto& subMeshes = model->m_ModelDatas;
+		Entity res = CreateEntity(subMeshes.Data.ModelName);
+		CreateModelOnEntity(subMeshes, res);
+		return res;
+	}
+
 
 	Entity Scene::GetEntity(UUID id)
 	{
@@ -437,6 +473,7 @@ namespace Kaidel {
 	DEF_COMPONENT_ADD(ChildComponent)
 	DEF_COMPONENT_ADD(LineRendererComponent)
 	DEF_COMPONENT_ADD(CubeRendererComponent)
-	
+	DEF_COMPONENT_ADD(MeshComponent)
+	DEF_COMPONENT_ADD(MaterialComponent)
 
 }

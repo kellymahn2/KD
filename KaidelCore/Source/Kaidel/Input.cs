@@ -8,7 +8,6 @@ namespace KaidelCore
 {
 	public enum KeyCode
 	{
-		// From glfw3.h
 		Space = 32,
 		Apostrophe = 39, /* ' */
 		Comma = 44, /* , */
@@ -140,6 +139,10 @@ namespace KaidelCore
 		RightSuper = 347,
 		Menu = 348
 	}
+
+
+
+
 	public enum MouseCode
 	{
 		// From glfw3.h
@@ -157,6 +160,18 @@ namespace KaidelCore
 		ButtonRight = Button1,
 		ButtonMiddle = Button2
 	}
+
+
+	public enum MouseLockMode
+	{
+		Locked,
+		Unlocked
+	}
+	public enum MouseVisibilityMode
+	{
+		Visible,Hidden
+	}
+
 
 	public class Input
 	{

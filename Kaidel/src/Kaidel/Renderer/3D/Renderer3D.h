@@ -20,11 +20,13 @@ namespace Kaidel {
 		static void Begin(const Renderer3DBeginData& beginData);
 
 		static void DrawCube(const glm::mat4& transform, Ref<Material> material);
-		static void DrawModel(const glm::mat4& transform, Ref<Model> model,Ref<Material> material);
-		
+		static void DrawMesh(const glm::mat4& transform, Mesh* mesh, Ref<Material> material);
 		static void End();
-	private:
+
 		static void RenderingPipeLine();
+	private:
+		static void SetupPrimitives();
+		static void FlushMesh(Mesh* mesh);
 		friend struct Renderer3DData;
 	};
 }
