@@ -79,6 +79,8 @@ namespace Kaidel {
 		glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
 	}
 	void OpenGLRendererAPI::DrawIndexedInstanced(const Ref<VertexArray>& vertexArray, uint32_t indexCount, uint32_t instanceCount){
+		if (instanceCount == 1)
+			DrawIndexed(vertexArray, indexCount);
 		vertexArray->Bind();
 		glDrawElementsInstanced(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, nullptr, instanceCount);
 	}

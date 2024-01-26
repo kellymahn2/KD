@@ -3,7 +3,7 @@
 #include "Kaidel/Renderer/Framebuffer.h"
 #include "Kaidel/Renderer/Material.h"
 #include "Kaidel/Mesh/Model.h"
-
+#include "Kaidel/Assets/Asset.h"
 #include <glm/glm.hpp>
 namespace Kaidel {
 
@@ -13,6 +13,13 @@ namespace Kaidel {
 		Ref<Framebuffer> OutputBuffer;
 	};
 
+	struct Renderer3DStats {
+		uint64_t GeometryPassDrawCount = 0;
+		uint64_t ShadowPassDrawCount = 0;
+		uint64_t PushCount = 0;
+	};
+
+
 	class Renderer3D {
 	public:
 		static void Init();
@@ -20,13 +27,15 @@ namespace Kaidel {
 		static void Begin(const Renderer3DBeginData& beginData);
 
 		static void DrawCube(const glm::mat4& transform, Ref<Material> material);
-		static void DrawMesh(const glm::mat4& transform, Mesh* mesh, Ref<Material> material);
+		static void DrawMesh(const glm::mat4& transform, AssetHandle<Mesh> mesh, Ref<Material> material);
 		static void End();
 
 		static void RenderingPipeLine();
+		static void ResetStats();
+		static Renderer3DStats& GetStats();
 	private:
 		static void SetupPrimitives();
-		static void FlushMesh(Mesh* mesh);
+		static void FlushMesh(AssetHandle<Mesh>  mesh);
 		friend struct Renderer3DData;
 	};
 }

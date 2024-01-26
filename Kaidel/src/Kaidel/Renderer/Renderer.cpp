@@ -66,7 +66,8 @@ namespace Kaidel {
 				23, 22, 21,
 				21, 20, 23,
 			};
-			Primitives::CubePrimitive = Mesh("Cube", vertices, indices, {});
+			Ref<Material> mat = {};
+			Primitives::CubePrimitive = CreateRef<Mesh>("Cube", vertices, indices, mat,glm::vec3(0,0,0));
 		}
 
 		Renderer3D::Init();

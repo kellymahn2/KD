@@ -77,7 +77,7 @@ namespace Kaidel {
 				SpriteRendererComponent, 
 				CircleRendererComponent ,CircleCollider2DComponent,
 				CameraComponent,
-				BoxCollider2DComponent, Rigidbody2DComponent,AnimationComponent,
+				BoxCollider2DComponent, Rigidbody2DComponent,
 				NativeScriptComponent, ScriptComponent,ParentComponent,ChildComponent 
 				,LineRendererComponent,CubeRendererComponent,DirectionalLightComponent>
 				(entity, srcReg, e); });
@@ -177,12 +177,12 @@ namespace Kaidel {
 
 	void Scene::UpdateAnimations(float ts)
 	{
-		for (auto e : m_Registry.view<AnimationComponent>()) {
+		/*for (auto e : m_Registry.view<AnimationComponent>()) {
 			Entity entity{ e,this };
 			auto& ac = entity.GetComponent<AnimationComponent>();
 			if (ac.Animation && ac.AnimationController && ac.Animation->GetState() == AnimationState::Playing)
 				ac.AnimationController->Update(entity,ts,ac.Animation);
-		}
+		}*/
 	}
 
 
@@ -225,8 +225,35 @@ namespace Kaidel {
 		return entity;
 	}
 	
-	void Scene::CreateModelOnEntity(RecursiveTree<ModelData>& modelData, Entity entity) {
-		if (modelData.SubTrees.empty()) {
+	void Scene::CreateModelOnEntity(const std::vector<AssetHandle<Mesh>>& modelData, Entity entity) {
+	
+		uint32_t i = 1;
+		for (auto& handle : modelData) {
+			Entity child = CreateEntity("Mesh " + std::to_string(i));
+			auto& tc = child.GetComponent<TransformComponent>();
+			auto& mc = child.AddComponent<MeshComponent>();
+			auto& mat = child.AddComponent<MaterialComponent>();
+			mat.Material = handle.Handle->GetMaterial();
+			tc.Translation = handle->GetCenter();
+			mc.Mesh = handle;
+			child.AddParent(entity.GetUUID());
+			entity.AddChild(child.GetUUID());
+			++i;
+		}
+		
+		/*auto& handle = modelData[1];
+
+		Entity child = CreateEntity("Mesh " + std::to_string(1));
+		auto& tc = child.GetComponent<TransformComponent>();
+		auto& mc = child.AddComponent<MeshComponent>();
+		auto& mat = child.AddComponent<MaterialComponent>();
+		mat.Material = handle.Handle->GetMaterial();
+		tc.Translation = handle->GetCenter();
+		mc.Mesh = handle;
+		child.AddParent(entity.GetUUID());
+		entity.AddChild(child.GetUUID());*/
+
+		/*if (modelData.SubTrees.empty()) {
 			uint32_t i = 1;
 			for (auto& mesh : modelData.Data.Meshes) {
 				Entity child = CreateEntity("Mesh " + std::to_string(i));
@@ -250,12 +277,12 @@ namespace Kaidel {
 				child.AddParent(entity.GetUUID());
 				++i;
 			}
-		}
+		}*/
 	}
 
 	Entity Scene::CreateModelEntity(Ref<Model> model) {
-		auto& subMeshes = model->m_ModelDatas;
-		Entity res = CreateEntity(subMeshes.Data.ModelName);
+		auto& subMeshes = model->m_MeshHandles;
+		Entity res = CreateEntity("Entity");
 		CreateModelOnEntity(subMeshes, res);
 		return res;
 	}
@@ -295,7 +322,7 @@ namespace Kaidel {
 			if (ac.Animation)
 				ac.Animation->Reset();
 		}*/
-		{
+		/*{
 			for (auto e : m_Registry.view<AnimationComponent>()) {
 				auto& ac = m_Registry.get<AnimationComponent>(e);
 				Entity entity{ e,this };
@@ -304,7 +331,7 @@ namespace Kaidel {
 					ac.AnimationController->Play(ac.Animation);
 				}
 			}
-		}
+		}*/
 
 		//Instantiate all scripts
 		auto view = m_Registry.view<ScriptComponent>();
@@ -436,21 +463,7 @@ namespace Kaidel {
 	{
 		component.Camera.SetViewportSize(m_ViewportWidth, m_ViewportHeight);
 	}
-	template<>
-	void Scene::OnComponentAdded<AnimationComponent>(Entity entity, AnimationComponent& component)
-	{
-		//NOTE : Added properties should go here.
-		if (!component.Animation)
-			return;
-		for (auto& [propertyType,property] : component.Animation->m_AnimatedProperties) {
-			switch ((AnimatedPropertyType)propertyType)
-			{
-			case AnimatedPropertyType::Translate : {
-				AddDefaultTranslation(entity.GetComponent<TransformComponent>().Translation, entity.GetUUID());
-			}
-			}
-		}
-	}
+	
 	template<>
 	void Scene::OnComponentAdded<DirectionalLightComponent>(Entity entity, DirectionalLightComponent& component) {
 		if (!GetMainDirectionalLight()) {

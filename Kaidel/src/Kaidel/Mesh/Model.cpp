@@ -1,5 +1,9 @@
 #include "KDpch.h"
 #include "Model.h"
+#include "Kaidel/Assets/AssetManager.h"
+
+
+
 #include "Kaidel/Core/JobSystem.h"
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
@@ -17,22 +21,95 @@ namespace Kaidel {
 
 	namespace Utils {
 
-		static void ProcessMesh(aiMesh* assimpMesh, const aiScene* scene, Mesh& kdMesh,const std::unordered_map<uint32_t,Ref<Material>>& mats) {
+		//static void ProcessMesh(aiMesh* assimpMesh, const aiScene* scene, Asset<Mesh>& kdMesh, const std::unordered_map<uint32_t, Ref<Material>>& mats, aiMatrix4x4 parentMat) {
+		//	std::vector<MeshVertex> vertices;
+		//	std::vector<uint32_t> indices;
+		//	for (uint32_t i = 0; i < assimpMesh->mNumVertices; ++i) {
+		//		MeshVertex vertex{};
+		//		
+		//		vertex.Position = { assimpMesh->mVertices[i].x,assimpMesh->mVertices[i].y,assimpMesh->mVertices[i].z };
+		//		if (assimpMesh->HasNormals())
+		//			vertex.Normal = { assimpMesh->mNormals[i].x,assimpMesh->mNormals[i].y,assimpMesh->mNormals[i].z };
+
+		//		if (assimpMesh->mTextureCoords[0]) {
+
+		//			vertex.TexCoords = { assimpMesh->mTextureCoords[0][i].x,assimpMesh->mTextureCoords[0][i].y };
+		//		}
+		//		else {
+		//			vertex.TexCoords = { 0,0 };
+		//		}
+		//		vertices.push_back(vertex);
+		//	}
+
+		//	for (uint32_t i = 0; i < assimpMesh->mNumFaces; ++i) {
+		//		aiFace face = assimpMesh->mFaces[i];
+		//		for (unsigned int j = 0; j < face.mNumIndices; j++)
+		//			indices.push_back(face.mIndices[j]);
+		//	}
+
+
+		//	Ref<Material> mat = {};
+
+		//	auto it = mats.find(assimpMesh->mMaterialIndex);
+		//	if (it != mats.end())
+		//		mat = it->second;
+		//	
+		//	aiVector3D center = parentMat * aiVector3D(0, 0, 0);
+		//	kdMesh = Asset<Mesh>(CreateRef<Mesh>(assimpMesh->mName.C_Str(),vertices, indices, mat,glm::vec3(center.x,center.y,center.z)));
+		//	
+		//}
+
+		//
+		//static uint64_t ProcessNode(aiNode* node, const aiScene* scene, std::vector<AssetHandle<Mesh>>& meshIDs, const std::unordered_map<uint32_t, Ref<Material>>& mats, aiMatrix4x4 parentMat = {}) {
+		//	if (!node) {
+		//		return 0;
+		//	}
+
+		//	aiMatrix4x4 currentTransform = parentMat * node->mTransformation;
+		//	// Process meshes at this node
+		//	uint64_t nodeMeshCount = 0;
+		//	for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
+		//		aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
+		//		Asset<Mesh> kdMesh;
+		//		ProcessMesh(mesh, scene, kdMesh,mats,currentTransform);
+		//		nodeMeshCount++;
+		//		meshIDs.emplace_back(kdMesh);
+
+		//	}
+
+		//	// Recursively process child nodes
+		//	for (unsigned int i = 0; i < node->mNumChildren; ++i) {
+		//		nodeMeshCount += ProcessNode(node->mChildren[i], scene, meshIDs,mats,currentTransform);
+		//	}
+		//	return nodeMeshCount;
+		//}
+
+		static void ProcessMesh(aiMesh* assimpMesh, const aiScene* scene, Asset<Mesh>& kdMesh, const std::unordered_map<uint32_t, Ref<Material>>& mats, aiMatrix4x4 parentMat) {
 			std::vector<MeshVertex> vertices;
 			std::vector<uint32_t> indices;
+			
+			aiVector3D center{ 0,0,0 };
+
+
+			if (!assimpMesh->mNumVertices)
+				return;
+
 			for (uint32_t i = 0; i < assimpMesh->mNumVertices; ++i) {
 				MeshVertex vertex{};
-				vertex.Position = { assimpMesh->mVertices[i].x,assimpMesh->mVertices[i].y,assimpMesh->mVertices[i].z };
+				vertex.Position = { assimpMesh->mVertices[i].x, assimpMesh->mVertices[i].y, assimpMesh->mVertices[i].z };
+
+				center += assimpMesh->mVertices[i];
+
 				if (assimpMesh->HasNormals())
-					vertex.Normal = { assimpMesh->mNormals[i].x,assimpMesh->mNormals[i].y,assimpMesh->mNormals[i].z };
+					vertex.Normal = { assimpMesh->mNormals[i].x, assimpMesh->mNormals[i].y, assimpMesh->mNormals[i].z };
 
 				if (assimpMesh->mTextureCoords[0]) {
-
-					vertex.TexCoords = { assimpMesh->mTextureCoords[0][i].x,assimpMesh->mTextureCoords[0][i].y };
+					vertex.TexCoords = { assimpMesh->mTextureCoords[0][i].x, assimpMesh->mTextureCoords[0][i].y };
 				}
 				else {
-					vertex.TexCoords = { 0,0 };
+					vertex.TexCoords = { 0, 0 };
 				}
+
 				vertices.push_back(vertex);
 			}
 
@@ -42,55 +119,45 @@ namespace Kaidel {
 					indices.push_back(face.mIndices[j]);
 			}
 
-
 			Ref<Material> mat = {};
 
 			auto it = mats.find(assimpMesh->mMaterialIndex);
 			if (it != mats.end())
 				mat = it->second;
-			
-			kdMesh = Mesh(assimpMesh->mName.C_Str(),vertices, indices, mat);
+
+			center /= static_cast<float>(assimpMesh->mNumVertices);
+
+			center = parentMat * center;
+
+			glm::vec3 c = { center.x,center.y,center.z };
+
+			kdMesh = Asset<Mesh>(CreateRef<Mesh>(assimpMesh->mName.C_Str(), vertices, indices, mat, c));
 		}
 
-		static RecursiveTree<ModelData>* GetLeast(RecursiveTree<ModelData>* root) {
-
-			if (!root->Data.Meshes.empty())
-				return root;
-
-			for (uint32_t i = 0; i < root->SubTrees.size();++i) {
-				if (GetLeast(&root->SubTrees[i]))
-					return root;
-
-			}
-			return nullptr;
-		}
-
-		static uint64_t ProcessNode(aiNode* node, const aiScene* scene, RecursiveTree<ModelData>& modelData, const std::unordered_map<uint32_t, Ref<Material>>& mats) {
+		static uint64_t ProcessNode(aiNode* node, const aiScene* scene, std::vector<AssetHandle<Mesh>>& meshIDs, const std::unordered_map<uint32_t, Ref<Material>>& mats, aiMatrix4x4 parentMat = aiMatrix4x4()) {
 			if (!node) {
 				return 0;
 			}
+
+			aiMatrix4x4 currentTransform = parentMat * node->mTransformation;
 
 			// Process meshes at this node
 			uint64_t nodeMeshCount = 0;
 			for (unsigned int i = 0; i < node->mNumMeshes; ++i) {
 				aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-				modelData.Data.Meshes.emplace_back();
-				 ProcessMesh(mesh, scene, modelData.Data.Meshes.back(),mats);
-				 nodeMeshCount++;
+				Asset<Mesh> kdMesh;
+				ProcessMesh(mesh, scene, kdMesh, mats, currentTransform);
+				nodeMeshCount++;
+				meshIDs.emplace_back(kdMesh);
 			}
 
 			// Recursively process child nodes
 			for (unsigned int i = 0; i < node->mNumChildren; ++i) {
-				RecursiveTree<ModelData> model;
-				model.Data.ModelName = node->mName.C_Str();
-				nodeMeshCount += ProcessNode(node->mChildren[i], scene, model,mats);
-				RecursiveTree<ModelData>* least = GetLeast(&model);
-				if(least)
-					modelData.AddChild(*least);
+				nodeMeshCount += ProcessNode(node->mChildren[i], scene, meshIDs, mats, currentTransform);
 			}
+
 			return nodeMeshCount;
 		}
-
 		static void ProcessTextures(const aiScene* scene, std::unordered_map<uint32_t, uint32_t>& embeddedTexturesByIndex, std::unordered_map<std::string, uint32_t>& embeddedTexturesByName,bool flipUVs) {
 			for (uint32_t i = 0; i < scene->mNumTextures; ++i) {
 				aiTexture* texture = scene->mTextures[i];
@@ -184,7 +251,7 @@ namespace Kaidel {
 	
 	Ref<Model> Model::Load(const std::filesystem::path& modelPath, bool flipUVs) {
 		Assimp::Importer importer;
-		const aiScene* scene = importer.ReadFile(modelPath.string(), aiProcess_Triangulate  | aiProcess_EmbedTextures);
+		const aiScene* scene = importer.ReadFile(modelPath.string(), aiProcess_Triangulate  | aiProcess_EmbedTextures | aiProcess_GenNormals);
 		KD_ASSERT(scene && ((scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) == 0) && scene->mRootNode, "Couldn't load model at path {} with error {}",modelPath.string(),importer.GetErrorString());
 		Ref<Model> model = CreateRef<Model>();
 		model->m_ModelPath = modelPath;
@@ -199,9 +266,8 @@ namespace Kaidel {
 			Timer timer("Material Loading");
 			mats = Utils::ProcessMaterials(scene, embeddedTexturesByIndex,embeddedTexturesByName);
 		}
-
 			
-		model->m_MeshCount = Utils::ProcessNode(scene->mRootNode, scene, model->m_ModelDatas,mats);
+		model->m_MeshCount = Utils::ProcessNode(scene->mRootNode, scene, model->m_MeshHandles,mats);
 		
 		importer.FreeScene();
 

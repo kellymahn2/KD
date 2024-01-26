@@ -103,8 +103,8 @@ namespace Kaidel {
 			Edit = 0, Play = 1 , Simulate = 2
 		};
 		SceneState m_SceneState=SceneState::Edit;
-		Ref<Model> model;
-		Ref<Model> model2;
+		Asset<Model> model;
+		Asset<Model> model2;
 		Ref<Material> mat;
 
 

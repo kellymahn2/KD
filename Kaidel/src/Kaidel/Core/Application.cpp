@@ -89,8 +89,7 @@ namespace Kaidel {
 
 		while (m_Running)
 		{
-			KD_PROFILE_SCOPE("RunLoop");
-
+			
 			float time = glfwGetTime();
 			Timestep timestep = time - m_LastFrameTime;
 			m_LastFrameTime = time;
@@ -100,7 +99,6 @@ namespace Kaidel {
 				ExecuteMainThreadQueue();
 
 				{
-					KD_PROFILE_SCOPE("LayerStack OnUpdate");
 
 					for (Layer* layer : m_LayerStack)
 						layer->OnUpdate(timestep);

@@ -3,9 +3,9 @@
 #include "Kaidel/Core/Timestep.h"
 #include "Kaidel/Renderer/EditorCamera.h"
 #include "Kaidel/Core/UUID.h"
+#include "Kaidel/Assets/Asset.h"
 #include "Kaidel/Mesh/Model.h"
 #include "entt.hpp"
-#include "Kaidel/Animation/Animation.h"
 class b2World;
 
 namespace Kaidel {
@@ -65,7 +65,7 @@ namespace Kaidel {
 	private:
 
 		Entity GetMainDirectionalLight();
-		void Scene::CreateModelOnEntity(RecursiveTree<ModelData>& modelData, Entity entity);
+		void Scene::CreateModelOnEntity(const std::vector<AssetHandle<Mesh>>& meshIDs, Entity entity);
 		entt::registry m_Registry;
 		uint32_t m_ViewportWidth = 0, m_ViewportHeight = 0;
 		b2World* m_PhysicsWorld = nullptr;

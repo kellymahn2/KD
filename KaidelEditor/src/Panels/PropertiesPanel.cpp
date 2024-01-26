@@ -1,6 +1,6 @@
 #include "SceneHierarchyPanel.h"
 #include "Kaidel/Scripting/ScriptEngine.h"
-
+#include "Kaidel/Assets/AssetManager.h"
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
@@ -391,6 +391,7 @@ namespace Kaidel {
 			DrawAddComponentItems<PointLightComponent>(entity, "Point Light");
 			DrawAddComponentItems<SpotLightComponent>(entity, "Spot Light");
 
+			DrawAddComponentItems<MeshComponent>(entity, "Mesh Renderer");
 
 			//DrawAddComponentItems<ParentComponent>(m_SelectionContext, "Parent");
 			//DrawAddComponentItems<ChildComponent>(m_SelectionContext, "Child");
@@ -496,9 +497,64 @@ namespace Kaidel {
 
 
 		DrawComponent<MeshComponent>("Mesh Renderer", entity, [](MeshComponent& component) {
-			ImGui::Text(component.Mesh->GetMeshName().c_str());
+			/*ImGui::Text(component.Mesh->GetMeshName().c_str());
 			ImGui::Text("Min: (%f, %f, %f)",component.Mesh->GetBoundingBox().Min.x, component.Mesh->GetBoundingBox().Min.y, component.Mesh->GetBoundingBox().Min.z);
-			ImGui::Text("Max: (%f, %f, %f)", component.Mesh->GetBoundingBox().Max.x, component.Mesh->GetBoundingBox().Max.y, component.Mesh->GetBoundingBox().Max.z);
+			ImGui::Text("Max: (%f, %f, %f)", component.Mesh->GetBoundingBox().Max.x, component.Mesh->GetBoundingBox().Max.y, component.Mesh->GetBoundingBox().Max.z);*/
+
+			static bool isChooserOpen = false;
+
+			if (component.Mesh) {
+				
+				const std::string& meshName = component.Mesh->GetMeshName();
+				
+				ImGui::Text("Asset ID: %s", std::to_string(component.Mesh.Handle.GetAssetID().operator size_t()).c_str());
+				ImGui::BeginDisabled();
+				ImGui::InputText("##meshName", (char*)meshName.data(), meshName.length());
+				ImGui::EndDisabled();
+				ImGui::SameLine();
+				if (ImGui::Button("##chooser")) {
+					isChooserOpen = !isChooserOpen;
+				}
+			}
+
+
+			if (isChooserOpen) {
+
+				ImGui::Begin("Meshes");
+
+				const auto& assetMap = Asset<Model>::GetAssetMap();
+
+				const int modelTreeFlags = ImGuiTreeNodeFlags_SpanAvailWidth;
+
+
+				for (const auto& [id, modelPtr] : assetMap) {
+					const auto& model = modelPtr;
+					
+					bool modelOpen = ImGui::TreeNodeEx(model->GetModelPath().string().c_str(), modelTreeFlags);
+
+
+					if (modelOpen) {
+						const auto& meshes = model->GetModelData();
+						
+						for (auto& m : meshes) {
+							bool meshOpen = ImGui::TreeNodeEx(m->GetMeshName().c_str(), modelTreeFlags | ImGuiTreeNodeFlags_Leaf);
+
+							if (ImGui::IsItemClicked()) {
+								component.Mesh = m;
+							}
+							if (meshOpen) {
+								ImGui::TreePop();
+							}
+						}
+						ImGui::TreePop();
+					}
+					
+
+				}
+
+				ImGui::End();
+			}
+
 			});
 		DrawComponent<CircleRendererComponent>("Circle Renderer", entity, [](CircleRendererComponent& component) {
 			ImGui::ColorEdit4("Color", glm::value_ptr(component.Color));

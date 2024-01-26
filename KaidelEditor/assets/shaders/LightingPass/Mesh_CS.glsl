@@ -3,11 +3,11 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 
 
-layout(binding = 0, rgba32f) readonly uniform image2D inputPosition;
-layout(binding = 1, rgba32f) readonly uniform image2D inputNormal;
-layout(binding = 2, r32i) uniform iimage2D inputIndex;
-layout(binding = 3, rgba8) readonly uniform image2D inputAlbedo;
-layout(binding = 4, rgba8) writeonly uniform image2D outputImage;
+layout(binding = 0, rgba32f) restrict readonly uniform image2D inputPosition;
+layout(binding = 1, rgba32f) restrict readonly uniform image2D inputNormal;
+layout(binding = 2, r32i) restrict readonly uniform iimage2D inputIndex;
+layout(binding = 3, rgba8) restrict readonly uniform image2D inputAlbedo;
+layout(binding = 4, rgba8) restrict writeonly uniform image2D outputImage;
 
 
 layout(std140, binding = 0) uniform Camera
@@ -74,7 +74,6 @@ float CalcShadowValue(vec3 position,vec3 normal){
 			if(projectedCoords.z > 1.0)
 				continue;
 
-			float closestDepth = texture(u_SpotLightDepthMaps,vec3(projectedCoords.xy,float(i))).r;
 			float currentDepth = projectedCoords.z;
 
 			vec3 lightDir = normalize(u_SpotLights[i].Position.xyz - position);
@@ -154,8 +153,9 @@ void main() {
 	
 	}
 
-	float shadow = CalcShadowValue(position,normal);
+	float shadow =CalcShadowValue(position,normal);
 
+	//float shadow = 1.0;
 	vec3 res = totalAmbient + (shadow)*(totalDiffuse + totalSpecular);
 
 

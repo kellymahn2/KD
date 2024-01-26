@@ -6,6 +6,7 @@
 #include "Kaidel/Renderer/SharedPassData.h"
 #include "Kaidel/Renderer/LightingPass.h"
 #include "Kaidel/Renderer/ShadowPass.h"
+#include "Kaidel/Assets/Asset.h"
 
 
 #include <imgui/imgui.h>
@@ -75,35 +76,33 @@ namespace Kaidel {
 
 		{
 			//Timer timer("Model Loading");
+			const auto& m = Asset<Model>::GetAssetMap();
+			const auto& m2 = Asset<Mesh>::GetAssetMap();
 			model = Model::Load("assets/models/test/backpack.obj");
-			model2 = Model::Load("assets/models/test/Erika_Archer.fbx",true);
+			int x = 3;
+			//model2 = Model::Load("assets/models/test/Erika_Archer.fbx",true);
 
 		}
-		{
-			/*Timer timer("Material Loading");
-			mat = CreateRef<Material>();
-			mat->SetDiffuse(MaterialTextureHandler::LoadTexture("assets/models/test/diffuse.jpg"));
-			mat->SetSpecular(MaterialTextureHandler::LoadTexture("assets/models/test/specular.jpg"));*/
-		}
-		//Entity entity = m_ActiveScene->CreateModelEntity(model2);
-		Entity entity2 = m_ActiveScene->CreateModelEntity(model);
-		entity2.GetComponent<TransformComponent>().Translation = glm::vec3(1.0f, 0, 0);
-		//m_ActiveScene->CreateModelEntity(model);
-		{
+
+		Entity e = m_ActiveScene->CreateModelEntity(model.GetContainer());
+		/*uint32_t i = 1;
+		for (auto& handle : model->GetModelData()) {
+			Entity e = m_ActiveScene->CreateEntity(handle->GetMeshName());
+			auto& tc = e.GetComponent<TransformComponent>();
+			auto& mc = e.AddComponent<MeshComponent>();
+			auto& mat = e.AddComponent<MaterialComponent>();
+			mat.Material = handle.Handle->GetMaterial();
+			mc.Mesh = handle;
+			++i;
+		}*/
+		/*{
 			ent = m_ActiveScene->CreateEntity();
 			auto& mc = ent.AddComponent<MeshComponent>();
-			mc.Mesh = &Primitives::CubePrimitive;
+			mc.Mesh = Primitives::CubePrimitive;
 			auto& tc = ent.GetComponent<TransformComponent>();
 			tc.Scale.y = 20.0f;
 			tc.Scale.z = 15.0f;
 			tc.Translation.x = 5.0f;
-		}
-		/*
-		{
-			ent = m_ActiveScene->CreateEntity();
-			auto& mc = ent.AddComponent<MeshComponent>();
-			mc.Mesh = &Primitives::CubePrimitive;
-			auto& tc = ent.GetComponent<TransformComponent>();
 		}*/
 	}
 	void EditorLayer::OnDetach()
@@ -156,7 +155,6 @@ namespace Kaidel {
 		{
 			case SceneState::Edit:
 			{
-
 				{
 					{
 						auto view = m_ActiveScene->m_Registry.view<TransformComponent, SpotLightComponent>();
@@ -176,7 +174,6 @@ namespace Kaidel {
 
 					{
 						{
-
 							Renderer3D::Begin(data);
 						}
 						uint32_t drawnMeshCount = 0;
@@ -184,10 +181,12 @@ namespace Kaidel {
 							auto view = m_ActiveScene->m_Registry.view<TransformComponent, MeshComponent>();
 							for (auto e : view) {
 								auto [tc, mc] = view.get<TransformComponent, MeshComponent>(e);
-								auto meshMat = mc.Mesh->GetMaterial();
+								if (!mc.Mesh)
+									continue;
+								auto meshMat = mc.Mesh.Handle->GetMaterial();
 								if (auto p = m_ActiveScene->m_Registry.try_get<MaterialComponent>(e); p != nullptr)
 									meshMat = p->Material;
-								Renderer3D::DrawMesh(tc.GetTransform(), mc.Mesh,meshMat);
+								Renderer3D::DrawMesh(tc.GetTransform(), mc.Mesh, meshMat);
 								++drawnMeshCount;
 							}
 						}
@@ -218,14 +217,16 @@ namespace Kaidel {
 			}
 		}
 		
-		if (m_Debug) {
+		const auto& c = AccumulativeTimer::GetTimers();
+
+		/*if (m_Debug) {
 			OnOverlayRender();
 		}
 		
 		if (Entity selectedEntity = m_SceneHierarchyPanel.GetSelectedEntity(); selectedEntity && m_SceneState == SceneState::Edit)
 		{
 			DrawSelectedEntityOutline(selectedEntity);
-		}
+		}*/
 		//int pixelData = GetCurrentPixelData(m_ViewportBounds,m_Framebuffer);
 		//m_HoveredEntity = pixelData == -1 ? Entity() : Entity((entt::entity)pixelData, m_ActiveScene.get());
 	}
@@ -607,15 +608,22 @@ namespace Kaidel {
 		ImGui::Text("Gizmo Mode : %d", m_GizmoType);
 		auto stats = Renderer2D::GetStats();
 		ImGui::Text("Frame Rate: %.3f", ImGui::GetIO().Framerate);
-		for (const auto& [name, data] : Timer::GetTimerData()) {
-			ImGui::Text("%s", data.c_str());
+		for (const auto& [name, data] : AccumulativeTimer::GetTimers()) {
+			float ns = data;
+			float ms = (float)ns * 1e-6;
+			float s = (float)ns * 1e-9;
+			ImGui::Text("%s Took :(%.3f ns,%.3f ms,%.3f s)",name.c_str(), ns, ms, s);
 		}
 
-		ImGui::DragFloat("n", &n,.01);
-		ImGui::DragFloat("f", &f, .01);
+		AccumulativeTimer::ResetTimers();
 
+
+		ImGui::Text("Renderer3D Stats:");
+		ImGui::Text("Geometry Pass Draw Call Count: %d", Renderer3D::GetStats().GeometryPassDrawCount);
+		ImGui::Text("Push Count: %d", Renderer3D::GetStats().PushCount);
 
 		ImGui::End();
+		Renderer3D::ResetStats();
 	}
 	static void UpdateBounds(glm::vec2 bounds[2]) {
 		auto viewportMinRegion = ImGui::GetWindowContentRegionMin();

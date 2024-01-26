@@ -4,19 +4,11 @@
 namespace Kaidel {
 
 
-	Mesh::Mesh(const std::string& meshName,const std::vector<MeshVertex>& vertices, const std::vector<uint32_t> indices,Ref<Material> mat) 
+	Mesh::Mesh(const std::string& meshName,const std::vector<MeshVertex>& vertices, const std::vector<uint32_t> indices,Ref<Material> mat,glm::vec3 center)
 		:m_Vertices(vertices),m_IndexCount(indices.size()),m_Material(mat),m_MeshName(meshName)
 	{
 
 		KD_CORE_ASSERT(!vertices.empty());
-		glm::vec3 center{ 0.0f };
-
-		for (auto& vertex : m_Vertices) {
-			center += vertex.Position;
-		}
-		
-		center /= static_cast<float>(vertices.size());
-
 
 		for (auto& vertex : m_Vertices) {
 			vertex.Position -= center;	

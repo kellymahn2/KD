@@ -2,10 +2,10 @@
 #include "SceneCamera.h"
 #include "Kaidel/Renderer/Texture.h"
 #include "Kaidel/Core/UUID.h"
-#include "Kaidel/Animation/Animation.h"
 #include "Kaidel/Renderer/Light.h"
 #include "Kaidel/Renderer/Material.h"
 #include "Kaidel/Mesh/Mesh.h"
+#include "Kaidel/Assets/Asset.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -63,17 +63,6 @@ namespace Kaidel {
 	};
 
 
-	struct AnimationComponent {
-		Ref<Animation> Animation;
-		Ref<AnimationPlayer> AnimationController;
-		AnimationComponent() = default;
-		AnimationComponent(Ref<Kaidel::Animation> anim, Ref<AnimationPlayer> player) 
-			: Animation(anim),AnimationController(player)
-		{
-
-		}
-		AnimationComponent(const AnimationComponent&) = default;
-	};
 	//2D
 
 	struct SpriteRendererComponent
@@ -228,7 +217,7 @@ namespace Kaidel {
 	};
 
 	struct MeshComponent {
-		Mesh* Mesh;
+		AssetHandle<Mesh> Mesh;
 		MeshComponent() = default;
 		MeshComponent(const MeshComponent&) = default;
 	};

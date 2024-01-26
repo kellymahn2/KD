@@ -46,20 +46,27 @@ namespace Kaidel {
 				} 
 			} 
 		};*/
-		std::unordered_set<Mesh*> DrawnModels;
+		std::vector<AssetHandle<Mesh>> DrawnModels;
 
 		Ref<Depth2DArray> ShadowMapBuffers;
 
 		Ref<Shader> ShadowMapShader;
 
 		Ref<Framebuffer> ShadowMapFrameBuffer;
-
+		Renderer3DStats Stats;
 		
 	};
 
 	
 
 	Renderer3DData s_Data;
+
+	void Renderer3D::ResetStats() {
+		s_Data.Stats = Renderer3DStats{};
+	}
+	Renderer3DStats& Renderer3D::GetStats() {
+		return s_Data.Stats;
+	}
 
 
 	void Renderer3D::SetupPrimitives() {
@@ -145,41 +152,54 @@ namespace Kaidel {
 
 	}
 
-	void Renderer3D::FlushMesh(Mesh* mesh) {
+	void Renderer3D::FlushMesh(AssetHandle<Mesh> mesh) {
 	
 		
 		if (mesh->m_InstanceCount == 0)
 			return;
 		//Geometry Pass
 		{
+			//Timer timer("Geometry Pass");
 			s_Data.G_Buffers->Bind();
 			s_Data.MeshShader->Bind();
 			mesh->m_UAV->SetBufferData(mesh->m_DrawData.Get(), mesh->m_DrawData.Size());
 			mesh->m_UAV->Bind(5);
+			RenderCommand::SetCullMode(CullMode::Back);
 			RenderCommand::DrawIndexedInstanced(mesh->m_VAO, mesh->m_IndexCount, mesh->m_InstanceCount);
+			RenderCommand::SetCullMode(CullMode::None);
+			s_Data.Stats.GeometryPassDrawCount++;
 			s_Data.G_Buffers->Unbind();
+
 		}
 
 
 		//Shadow Pass
 		{
+
+
 			s_Data.ShadowMapShader->Bind();
 
 			auto spotlightDepthMaps = SpotLight::GetDepthMaps();
+			s_Data.ShadowMapFrameBuffer->Bind();
+			RenderCommand::SetCullMode(CullMode::Front);
 
 			for (auto& light : SpotLight::GetLights()) {
-
-
-				s_Data.ShadowMapShader->SetInt("u_LightIndex", light->GetIndex());
-				s_Data.ShadowMapShader->SetInt("u_LightBindingSlot", _SpotLightBindingSlot);
-
-				s_Data.ShadowMapFrameBuffer->Bind();
-				s_Data.ShadowMapFrameBuffer->SetDepthAttachmentFromArray(spotlightDepthMaps->GetRendererID(), light->GetIndex());
-				RenderCommand::SetCullMode(CullMode::Front);
-				RenderCommand::DrawIndexedInstanced(mesh->m_VAO, mesh->m_IndexCount, mesh->m_InstanceCount);
-				RenderCommand::SetCullMode(CullMode::None);
-				s_Data.ShadowMapFrameBuffer->Unbind();
+				SCOPED_TIMER(Shadow Map Rendering Loop)
+				{
+					//SCOPED_TIMER(Setting Light Index)
+					s_Data.ShadowMapShader->SetInt("u_LightIndex", light->GetIndex());
+				}
+				{
+					//SCOPED_TIMER(Setting Depth Map);
+					s_Data.ShadowMapFrameBuffer->SetDepthAttachmentFromArray(spotlightDepthMaps->GetRendererID(), light->GetIndex());
+				}
+				{
+					//SCOPED_TIMER(Rendering Shadow Maps)
+					RenderCommand::DrawIndexedInstanced(mesh->m_VAO, mesh->m_IndexCount, mesh->m_InstanceCount);
+				}
 			}
+			RenderCommand::SetCullMode(CullMode::None);
+			s_Data.ShadowMapFrameBuffer->Unbind();
 		}
 
 		mesh->m_InstanceCount = 0;
@@ -187,7 +207,18 @@ namespace Kaidel {
 
 	}
 
-	void Renderer3D::DrawMesh(const glm::mat4& transform, Mesh* mesh, Ref<Material> material) {
+	template<typename T>
+	bool Find(const std::vector<T>& v, const T& value) {
+		for (auto& val : v) {
+			if (val == value)
+				return true;
+		}
+		return false;
+	}
+
+
+
+	void Renderer3D::DrawMesh(const glm::mat4& transform, AssetHandle<Mesh> mesh, Ref<Material> material) {
 
 		if (!material)
 		{
@@ -195,18 +226,23 @@ namespace Kaidel {
 			return;
 		}
 		{
-			
 			//if (s_Data.Frustum.IsAABBInFrustum(transform, mesh->GetBoundingBox())) {
-				
+
+
+				s_Data.Stats.PushCount++;
+				auto& c = s_Data.DrawnModels;
+				if (!Find(s_Data.DrawnModels,mesh)) {
+					s_Data.DrawnModels.push_back(mesh);
+				}
+
 				//Model needs flush
 				if (!mesh->Draw(transform, material)) {
 					FlushMesh(mesh);
 					mesh->Draw(transform, material);
 				}
-				//It doesn't
-				else {
-					s_Data.DrawnModels.insert(mesh);
-				}
+
+
+
 			//}
 		}
 	}
@@ -214,6 +250,7 @@ namespace Kaidel {
 	void Renderer3D::End() {
 
 		{
+			auto& c = s_Data.DrawnModels;
 			for (auto& mesh : s_Data.DrawnModels) {
 				FlushMesh(mesh);
 			}
@@ -222,7 +259,6 @@ namespace Kaidel {
 		}
 
 		{
-
 			s_Data.SceneCompositeShader->Bind();
 
 			s_Data.G_Buffers->BindColorAttachmentToImageSlot(0, 0, ImageBindingMode_Read);

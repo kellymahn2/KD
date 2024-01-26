@@ -57,8 +57,8 @@ namespace Kaidel
 	static inline constexpr uint32_t _PointLightBindingSlot = 2;
 	static inline constexpr uint32_t _DirectionalLightBindingSlot = 3;
 	static inline constexpr uint32_t _SpotLightBindingSlot = 4;
-	static inline constexpr uint32_t _ShadowMapWidth = 2048;
-	static inline constexpr uint32_t _ShadowMapHeight = 2048;
+	static inline constexpr uint32_t _ShadowMapWidth = 1024;
+	static inline constexpr uint32_t _ShadowMapHeight = 1024;
 
 	static inline float CalcLightMaxCoverage(float q,float l,float _c,float epsilon) {
 		float a = q;

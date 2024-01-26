@@ -6,7 +6,6 @@ layout(location = 2)in vec2 a_TexCoords;
 
 
 uniform int u_LightIndex;
-uniform int u_LightBindingSlot;
 
 struct SpotLight {
 	mat4 LightViewProjection;
@@ -48,11 +47,6 @@ layout(std140,binding = 5) buffer DrawData{
 
 void main(){
 
-	switch(u_LightBindingSlot){
-		case 4:{
-			gl_Position = u_SpotLights[u_LightIndex].LightViewProjection * u_DrawData[gl_InstanceID].Transform * vec4(a_Position,1.0);
-		}
-		break;
-	}
+	gl_Position = u_SpotLights[u_LightIndex].LightViewProjection * u_DrawData[gl_InstanceID].Transform * vec4(a_Position,1.0);
 	
 }

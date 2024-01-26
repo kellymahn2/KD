@@ -30,15 +30,21 @@ namespace Kaidel {
 	class Mesh {
 	public:
 		Mesh() = default;
-		Mesh(const std::string& meshName,const std::vector<MeshVertex>& vertices, const std::vector<uint32_t> indices,Ref<Material> mat);
+		Mesh(const std::string& meshName,const std::vector<MeshVertex>& vertices, const std::vector<uint32_t> indices,Ref<Material> mat,glm::vec3 center);
 		Mesh(const Mesh& mesh);
+		~Mesh() {
+			int x = 3;
+		}
 		const Math::AABB& GetBoundingBox()const { return m_BoundingBox; }
 		const std::string& GetMeshName()const { return m_MeshName; }
 		bool Draw(const glm::mat4& transform,Ref<Material>& mat);
 		void Flush();
 		const glm::vec3& GetCenter()const { return m_Center; }
 		
-		Ref<Material> GetMaterial() { return m_Material; }
+		Ref<Material> GetMaterial() const { return m_Material; }
+
+		
+
 
 	private:
 		std::vector<MeshVertex> m_Vertices;
