@@ -488,5 +488,5 @@ namespace Kaidel {
 	DEF_COMPONENT_ADD(CubeRendererComponent)
 	DEF_COMPONENT_ADD(MeshComponent)
 	DEF_COMPONENT_ADD(MaterialComponent)
-
+	DEF_COMPONENT_ADD(AnimationPlayerComponent)
 }

@@ -165,7 +165,7 @@ namespace Kaidel {
 	{
 		return DragScalar(label, ImGuiDataType_Float, v, v_speed, &v_min, &v_max, format, flags, drawFlags);
 	}
-	static void DrawVec3Control(const std::string& label, glm::vec3& values, float resetValue = 0.0f, float columnWidth = 100.0f)
+	void DrawVec3Control(const std::string& label, glm::vec3& values, float resetValue = 0.0f, float columnWidth = 100.0f)
 	{
 		ImGuiIO& io = ImGui::GetIO();
 		auto boldFont = io.Fonts->Fonts[0];
@@ -477,6 +477,32 @@ namespace Kaidel {
 					ImGui::Checkbox("Fixed Aspect Ratio", &component.FixedAspectRatio);
 				}
 			});
+
+		DrawComponent<AnimationPlayerComponent>("Animation Player", entity, [](AnimationPlayerComponent& component) {
+
+			const int stateCount = 3;
+			const char* states[stateCount] = { "Playing" ,"Paused","Stopped" };
+
+			const char* state = states[(int)component.State];
+			if (ImGui::BeginCombo("State", state)) {
+				for (int i = 0; i < stateCount; ++i) {
+					bool isSelected = states[i] == state;
+					if (ImGui::Selectable(states[i], &isSelected)) {
+						state = states[i];
+						switch ((AnimationPlayerComponent::PlayerState)i)
+						{
+						case AnimationPlayerComponent::PlayerState::Stopped	:component.Time = 0.0f;break;
+						}
+						component.State = (AnimationPlayerComponent::PlayerState)i;
+					}
+					if (isSelected)
+						ImGui::SetItemDefaultFocus();
+				}
+				ImGui::EndCombo();
+			}
+
+		});
+
 
 		//Renderers
 		DrawComponent<SpriteRendererComponent>("Sprite Renderer", entity, [](auto& component)

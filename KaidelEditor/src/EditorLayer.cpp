@@ -72,19 +72,30 @@ namespace Kaidel {
 		m_SceneHierarchyPanel.RegisterFieldRenderers();
 		m_ConsolePanel.SetContext(::Log::GetClientLogger());
 
+		anim = CreateRef<Animation>(InterpolationFunction::QuadraticBezier);
+		anim->PushTranslation({ {0.0f,0.0f,0.0f} }, 0);
+		anim->PushTranslation({ {3.0f,3.0f,0.0f} }, 5.0f);
+		anim->PushTranslation({ {3.0f,-3.0f,0.0f} }, 10.0f);
+		anim->PushTranslation({ {6.0f,-3.0f,0.0f} }, 15.0f);
+
 
 
 		{
 			//Timer timer("Model Loading");
 			const auto& m = Asset<Model>::GetAssetMap();
 			const auto& m2 = Asset<Mesh>::GetAssetMap();
-			model = Model::Load("assets/models/test/backpack.obj");
+			//model = Model::Load("assets/models/test/backpack.obj");
 			int x = 3;
 			//model2 = Model::Load("assets/models/test/Erika_Archer.fbx",true);
 
 		}
 
-		Entity e = m_ActiveScene->CreateModelEntity(model.GetContainer());
+		Entity e = m_ActiveScene->CreateEntity();
+		auto& mc = e.AddComponent<MeshComponent>();
+		mc.Mesh = Primitives::CubePrimitive;
+		auto& apc = e.AddComponent<AnimationPlayerComponent>();
+		apc.Time = 0.0f;
+		apc.Anim = anim;
 		/*uint32_t i = 1;
 		for (auto& handle : model->GetModelData()) {
 			Entity e = m_ActiveScene->CreateEntity(handle->GetMeshName());
@@ -155,6 +166,27 @@ namespace Kaidel {
 		{
 			case SceneState::Edit:
 			{
+				
+				
+				{
+					auto view = m_ActiveScene->m_Registry.view<AnimationPlayerComponent>();
+					for (auto e : view) {
+						auto& ac = view.get<AnimationPlayerComponent>(e);
+						if (!ac.Anim||ac.State != AnimationPlayerComponent::PlayerState::Playing)
+							continue;
+						
+						Entity entity{ e,m_ActiveScene.get() };
+						AnimationPlayerSettings settings{ entity,ac.Time };
+						ac.Anim->Update(settings);
+						ac.Time += ts;
+						
+					}
+				}
+
+
+
+				
+				
 				{
 					{
 						auto view = m_ActiveScene->m_Registry.view<TransformComponent, SpotLightComponent>();

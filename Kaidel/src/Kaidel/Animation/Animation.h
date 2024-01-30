@@ -1,223 +1,317 @@
 #pragma once
 
-
-#include "Kaidel/Assets/Assets.h"
-#include "Kaidel/Core/UUID.h"
 #include "Kaidel/Core/Base.h"
-
-
-
-#include <vector>
-#include <list>
-#include <chrono>
+#include <EnTT.hpp>
 #include <glm/glm.hpp>
-#include <map>
+
+
+#include <unordered_map>
+#include <vector>
+
+
+
+
 namespace Kaidel {
 
-	namespace AnimationPropertyTypes {
-		struct Translation {
-			glm::vec3 TargetTranslation;
-		};
-	}
 	class Entity;
-	void ApplyTranslation(glm::vec3* current, glm::vec3* target, float t, Entity& entity);
-	void AddDefaultTranslation(const glm::vec3& default, UUID id);
-	void SetDefaultTranslation(Entity& entity);
 
-
-
-	
-
-
-	enum class AnimationPropertyState {
-		Playing,Paused,Stopped,Finished = Stopped
+	enum class InterpolationFunction {
+		None,
+		LinearBezier,
+		QuadraticBezier,
+		CubicBezier,
+		Spline,
 	};
-	enum class AnimationState{
-		Playing, Paused, Stopped, Finished = Stopped
-	};
-	enum class AnimatedPropertyType {
-		None,Translate
-	};
-	
+
+	template<typename T>
 	struct KeyFrame {
-		struct {
-			uint8_t Data[80];
-			float StartTime;
-			float EndTime;
-			template<typename T>
-			inline T& Get() {
-				return *(reinterpret_cast<T*>(Data));
+		T KeyFrameValue;
+		std::vector<T> Intermediates;
+		InterpolationFunction Function;
+
+		T GetValue(const KeyFrame<T>& next, float time) {
+			float t = (time - Timer) / (next.Timer - Timer);
+
+			if (t < 0.0f)
+				t = 0.0f;
+			if (t > 1.0f)
+				t = 1.0f;
+			switch (Function)
+			{
+			case InterpolationFunction::LinearBezier: {
+				const T& p0 = KeyFrameValue;
+				const T& p1 = next.KeyFrameValue;
+				return (1.0f - t) * p0 + t * p1;
 			}
-		}AnimationData;
+			case InterpolationFunction::QuadraticBezier: {
+				const T& p0 = KeyFrameValue;
+				const T& p1 = Intermediates[0];
+				const T& p2 = next.KeyFrameValue;
+				return (1.0f - t) * (1.0f - t)*p0 + 2 * (1.0f - t) * t * p1 + t * t * p2;
+			}
+			case InterpolationFunction::CubicBezier:
+				break;
+			case InterpolationFunction::Spline:
+				break;
+			}
+			return {};
+		}
+
+		float Timer;
+		bool IsComplete;
 	};
 
 
+	template<typename T>
+	T Lerp(const T& p0, const T& p1, float t) {
+		return (1.0f - t) * p0 + t * p1;
+	}
 
 
 
 
+	template<typename T>
+	struct AnimationProperty {
 
-
-
-	
-
-
-
-	class AnimatedProperty{
-	public:
-		
-		~AnimatedProperty() = default;
-		void AddKeyFrame(const KeyFrame& keyFrame) {
-			m_KeyFrames.push_back(keyFrame);
-			m_Duration = keyFrame.AnimationData.EndTime;
-		}
-		void SetPropertyType(AnimatedPropertyType type) {
-			m_Type = type;
-		}
-		AnimatedPropertyType GetPropertyType() const{
-			return m_Type;
-		}
-		AnimationPropertyState Update(float deltaTime) {
-			if (m_State != AnimationPropertyState::Playing)
-				return m_State;
-			m_CurrentTime += deltaTime;
-			m_DeltaTime = deltaTime;
-			if (m_CurrentTime >= m_Duration) {
-				m_CurrentTime = m_Duration;
-				m_State = AnimationPropertyState::Finished;
-			}
-			else {
-				if (m_CurrentFrame + 1 < m_KeyFrames.size()&&m_KeyFrames[m_CurrentFrame+1].AnimationData.StartTime <= m_CurrentTime) {
-					++m_CurrentFrame;
-				}
-			}
-			return m_State;
-		}
-		void Apply(Entity& entity) {
-			if (m_State != AnimationPropertyState::Playing)
-				return;
-			float t = (m_CurrentTime - GetCurrentKeyFrame().AnimationData.StartTime) / (GetCurrentKeyFrame().AnimationData.EndTime - GetCurrentKeyFrame().AnimationData.StartTime);
-			if (m_CurrentFrame == 0) {
-
-				switch(m_Type){
-					case AnimatedPropertyType::Translate:
+		void Push(const T& value, float time, InterpolationFunction function) {
+			uint64_t findIndex = GetKeyFrameIndexAtTime(time);
+			if (findIndex == -1) {
+				KeyFrame<T> frame;
+				frame.IsComplete = false;
+				frame.Timer = time;
+				frame.Function = function;
+				frame.KeyFrameValue = value;
+				uint64_t insertIndex = FrameStorage.size();
+				FrameStorage.push_back(frame);
+				std::sort(FrameStorage.begin(), FrameStorage.end(), [](const KeyFrame<T>& a, const KeyFrame<T>& b)
 					{
-						ApplyTranslation(nullptr, &GetCurrentKeyFrame<AnimationPropertyTypes::Translation>().TargetTranslation, t, entity);
-						break;
-					}
-				}
+						if (a.Timer < b.Timer)
+							return true;
+						if (a.Timer >= b.Timer)
+							return false;
+					});
+				ResolveIntermediates(insertIndex - 1);
+				Duration = std::max(time, Duration);
 			}
 			else {
-				switch (m_Type) {
-					case AnimatedPropertyType::Translate: {
-						auto& aptt = m_KeyFrames[m_CurrentFrame - 1].AnimationData.Get< AnimationPropertyTypes::Translation>();
-						ApplyTranslation( &aptt.TargetTranslation, &GetCurrentKeyFrame<AnimationPropertyTypes::Translation>()
-							.TargetTranslation, t, entity);
-						break;
-
-					}
-				}
+				FrameStorage[findIndex].KeyFrameValue = value;
+				ResolveIntermediates(findIndex - 1);
+				ResolveIntermediates(findIndex);
 			}
+		}
 
-			//KeyFrame<_PropertyType>::Apply(m_KeyFrames.at(m_CurrentFrame), m_DeltaTime, entity);
+		void ResolveIntermediates(uint64_t index) {
+			if (index < 0 || index >= FrameStorage.size() - 1)
+				return;
+			KeyFrame<T>& first = FrameStorage[index];
+			first.Intermediates.clear();
+			KeyFrame<T>& second = FrameStorage[index + 1];
+			switch (first.Function)
+			{
+			case InterpolationFunction::LinearBezier: {}break;
+			case InterpolationFunction::QuadraticBezier: {
+				T p1 = Lerp<T>(first.KeyFrameValue, second.KeyFrameValue, .5f);
+				first.Intermediates.push_back(p1);
+			}break;
+			case InterpolationFunction::CubicBezier: {
+				T p1 = Lerp<T>(first.KeyFrameValue, second.KeyFrameValue, 1.0f / 3.0f);
+				T p2 = Lerp<T>(first.KeyFrameValue, second.KeyFrameValue, 2.0f / 3.0f);
+				first.Intermediates.push_back(p1);
+				first.Intermediates.push_back(p2);
+			}break;
+			case InterpolationFunction::Spline: {}break;
+			}
 		}
-		void Play() {
-			m_State = AnimationPropertyState::Playing;
-			m_CurrentTime = 0.0f;
-			m_CurrentFrame = 0;
+
+
+		bool KeyFrameExistsAtTime(float time) {
+			for (auto& frame : FrameStorage) {
+				if (frame.Timer == time)
+					return true;
+			}
+			return false;
 		}
-		void Pause() {
-			m_State = AnimationPropertyState::Paused;
+
+		uint64_t GetKeyFrameIndexAtTime(float time) {
+			for (uint64_t i = 0; i < FrameStorage.size(); ++i) {
+				if (FrameStorage[i].Timer == time)
+					return i;
+			}
+			return -1;
 		}
-		void Stop() {
-			m_State = AnimationPropertyState::Stopped;
-			m_CurrentFrame = 0;
+
+		uint64_t GetKeyFrameIndexAtTimeApprox(float time) {
+			if (FrameStorage.empty())
+				return -1;
+			for (uint64_t i = FrameStorage.size() - 1; i >= 0; --i) {
+				if (FrameStorage[i].Timer <= time)
+					return i;
+			}
+			return -1;
 		}
-		bool IsFinished() {
-			return m_State == AnimationPropertyState::Finished;
+
+		float Duration = 0.0f;
+		uint64_t KeyFrameCount = 0;
+		std::vector<KeyFrame<T>> FrameStorage;
+	};
+
+
+
+
+	struct TranslationData {
+		glm::vec3 TargetTranslation;
+
+		// Addition operator overload
+		TranslationData operator+(const TranslationData& rhs) const {
+			TranslationData result;
+			result.TargetTranslation = TargetTranslation + rhs.TargetTranslation;
+			return result;
 		}
-	private:
-		float GetParemeter() {
-			return (m_DeltaTime) / (m_KeyFrames[m_CurrentFrame].AnimationData.EndTime - m_KeyFrames[m_CurrentFrame].AnimationData.StartTime);
+
+		// Subtraction operator overload
+		TranslationData operator-(const TranslationData& rhs) const {
+			TranslationData result;
+			result.TargetTranslation = TargetTranslation - rhs.TargetTranslation;
+			return result;
 		}
-		KeyFrame& GetCurrentKeyFrame() { 
-			return m_KeyFrames.at(m_CurrentFrame); 
+
+		// Global multiplication by a float operator overload
+		friend TranslationData operator*(float scalar, const TranslationData& data) {
+			TranslationData result;
+			result.TargetTranslation = scalar * data.TargetTranslation;
+			return result;
 		}
+	};
+
+	struct RotationData {
+		glm::vec3 TargetRotation;
+
+		// Addition operator overload
+		RotationData operator+(const RotationData& rhs) const {
+			RotationData result;
+			result.TargetRotation = TargetRotation + rhs.TargetRotation;
+			return result;
+		}
+
+		// Subtraction operator overload
+		RotationData operator-(const RotationData& rhs) const {
+			RotationData result;
+			result.TargetRotation = TargetRotation - rhs.TargetRotation;
+			return result;
+		}
+
+		// Global multiplication by a float operator overload
+		friend RotationData operator*(float scalar, const RotationData& data) {
+			RotationData result;
+			result.TargetRotation = scalar * data.TargetRotation;
+			return result;
+		}
+	};
+
+	struct ScaleData {
+		glm::vec3 TargetScale;
+
+		// Addition operator overload
+		ScaleData operator+(const ScaleData& rhs) const {
+			ScaleData result;
+			result.TargetScale = TargetScale + rhs.TargetScale;
+			return result;
+		}
+
+		// Subtraction operator overload
+		ScaleData operator-(const ScaleData& rhs) const {
+			ScaleData result;
+			result.TargetScale = TargetScale - rhs.TargetScale;
+			return result;
+		}
+
+		// Global multiplication by a float operator overload
+		friend ScaleData operator*(float scalar, const ScaleData& data) {
+			ScaleData result;
+			result.TargetScale = scalar * data.TargetScale;
+			return result;
+		}
+	};
+
+
+
+	//Used further down the line
+	struct AnimationPlayerSettings {
+		Entity& Entity;
+		float Time;
+
+	};
+
+	class Animation {
+	public:
+		Animation(InterpolationFunction func)
+			:m_Function(func)
+		{
+			m_RegistryKey = s_Registry.create();
+		}
+
+		void PushTranslation(const TranslationData& data,float time) {
+			Push(data, time);
+		}
+
+		void PushRotation(const RotationData& data, float time) {
+			Push(data, time);
+		}
+
+		void PushScale(const ScaleData& data, float time) {
+			Push(data, time);
+		}
+
+		void Update(const AnimationPlayerSettings& settings) {
+			if (settings.Time > m_AnimationDuration)
+				return;
+			
+			UpdateTranslations(settings);
+			UpdateRotations(settings);
+			UpdateScales(settings);
+		}
+
 		template<typename T>
-		T& GetCurrentKeyFrame() {
-			return m_KeyFrames.at(m_CurrentFrame).AnimationData.Get<T>();
+		AnimationProperty<T>* GetPropertyMap() {
+			return s_Registry.try_get<AnimationProperty<T>>(m_RegistryKey);
 		}
-		std::vector<KeyFrame> m_KeyFrames;
-		float m_Duration = 0;
-		float m_DeltaTime = 0;
-		float m_CurrentTime = 0;
-		uint64_t m_CurrentFrame = 0;
-		AnimationPropertyState m_State = AnimationPropertyState::Stopped;
-		AnimatedPropertyType m_Type;
-	};
 
-	class Animation : public _Asset {
-	public:
-		AnimatedProperty& AddProperty(AnimatedPropertyType propertyType) { 
-			auto& animatedProperty =  m_AnimatedProperties[(uint64_t)propertyType];
-			animatedProperty.SetPropertyType(propertyType);
-			return animatedProperty;
-		}
-		AnimationState Update(float ts) {
-			AnimationState state = AnimationState::Finished;
-			for (auto& [propertyType, animatedProperty] : m_AnimatedProperties) {
-					state = (AnimationState) animatedProperty.Update(ts);
-			}
-			m_CurrentTime += ts;
-			m_AnimationState = state;
-			return state;
-		}
-		void Apply(Entity& entity) {
-			for (auto& [propertyType, animatedProperty] : m_AnimatedProperties) {
-				animatedProperty.Apply(entity);
-			}
-		}
-		void Play() {
-			m_AnimationState = AnimationState::Playing;
-			for (auto& [propertyType, animatedProperty] : m_AnimatedProperties) {
-				animatedProperty.Play();
-			}
-			m_CurrentTime = 0.0f;
-		}
-		float GetTime() { return m_CurrentTime; }
-		AnimationState GetState() { return m_AnimationState; }
-		inline virtual std::string GetAssetName()override {
-			return m_AssetName;
-		}
+
+		entt::entity GetEnTTID()const { return m_RegistryKey; }
+
+
+		const entt::registry& GetRegistry() const { return s_Registry; }
 	private:
-		AnimationState m_AnimationState;
-		std::unordered_map<uint64_t,AnimatedProperty> m_AnimatedProperties;
-		float m_CurrentTime;
-		friend class Scene;
-		std::string m_AssetName;
-	};
 
-	class AnimationPlayer : public _Asset {
-	public:
-		void Play(Ref<Animation> animation) {
-			m_AnimationsPlaying.push_back(animation);
-			animation->Play();
+		template<typename T>
+		void Push(const T& frame, float time) {
+			if (AnimationProperty<T>* ptr = s_Registry.try_get<AnimationProperty<T>>(m_RegistryKey); ptr != nullptr) {
+				ptr->Push(frame, time,m_Function);
+				m_AnimationDuration = std::max(m_AnimationDuration, ptr->Duration);
+				return;
+			}
+			AnimationProperty<T>& ap = s_Registry.emplace<AnimationProperty<T>>(m_RegistryKey);
+			ap.Push(frame, time,m_Function);
+			m_AnimationDuration = std::max(m_AnimationDuration, ap.Duration);
 		}
-		void Update(Entity& entity,float ts,Ref<Animation> anim) {
-			auto it = std::find(m_AnimationsPlaying.begin(), m_AnimationsPlaying.end(), anim);
-			KD_CORE_ASSERT(it!= m_AnimationsPlaying.end());
-			auto state = anim->Update(ts);
-			anim->Apply(entity);
-			if (state == AnimationState::Finished)
-				m_AnimationsPlaying.erase(it);
-		}
-		inline virtual std::string GetAssetName() {
-			return m_AssetName;
-		}
+
+		void UpdateTranslations(const AnimationPlayerSettings& settings);
+		void UpdateRotations(const AnimationPlayerSettings & settings);
+		void UpdateScales(const AnimationPlayerSettings& settings);
+
+
+
 	private:
-		std::list<Ref<Animation>> m_AnimationsPlaying;
-		std::string m_AssetName;
+
+		entt::entity m_RegistryKey{ entt::null };
+
+		float m_AnimationDuration = 0.0f;
+
+		InterpolationFunction m_Function = InterpolationFunction::None;
+
+		static entt::registry s_Registry;
+
 	};
 
-	
+
 }

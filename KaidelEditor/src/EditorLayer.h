@@ -106,7 +106,7 @@ namespace Kaidel {
 		Asset<Model> model;
 		Asset<Model> model2;
 		Ref<Material> mat;
-
+		Asset<Animation> anim;
 
 		float n = .5, f = 25;
 	};

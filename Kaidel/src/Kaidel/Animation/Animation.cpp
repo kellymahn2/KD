@@ -1,41 +1,44 @@
 #include "KDpch.h"
 #include "Animation.h"
 #include "Kaidel/Scene/Entity.h"
-#include "Kaidel/Scene/Scene.h"
+#include "Kaidel/Scene/Components.h"
 namespace Kaidel {
-
-	static std::unordered_map<UUID, glm::vec3> s_StartTranslationMap;
-	
-
-	void ApplyTranslation(glm::vec3* current, glm::vec3* target, float t, Entity& entity)
-	{
-		auto& tc = entity.GetComponent<TransformComponent>();
-		glm::vec3 newT;
-		if (current) {
-			newT = glm::mix(*current, *target, t);
+	entt::registry Animation::s_Registry;
+		
+	/*glm::vec3 LinearBezier(const std::vector<_Points>& controlPoints, T t) {
+		uint32_t n = controlPoints.size() - 1;
+		glm::vec3 result{ 0.0f };
+		T oneMinusT = 1.0f - t;
+		for (uint32_t i = 0; i <= n; ++i) {
+			result += (CalcBinomialCoefficient(n, i) * std::pow(oneMinusT, (T)(n - i)) * std::pow(t, (T)i)) * controlPoints[i].Position;
 		}
-		else {
-			auto it = s_StartTranslationMap.find(entity.GetUUID());
-			if(it!=s_StartTranslationMap.end())
-				newT = glm::mix(it->second, *target, t);
-			else
-				newT = glm::mix({0,0,0}, *target, t);
-		}
-		auto deltaT = newT - tc.Translation;
-		MoveEntity(entity, entity.GetScene(), deltaT, glm::vec3{ 0 });
-	}
+		return result;
+	}*/
 
-	void AddDefaultTranslation(const glm::vec3& default, UUID id)
-	{
-		s_StartTranslationMap[id] = default;
-	}
-
-	void SetDefaultTranslation(Entity& entity)
-	{
-		auto it = s_StartTranslationMap.find(entity.GetUUID());
-		if (it == s_StartTranslationMap.end())
+	void Animation::UpdateTranslations(const AnimationPlayerSettings& settings){
+		
+		if (m_Function == InterpolationFunction::None)
 			return;
-		entity.GetComponent<TransformComponent>().Translation = it->second;
+		
+		AnimationProperty<TranslationData>* property = s_Registry.try_get<AnimationProperty<TranslationData>>(m_RegistryKey);
+		if (!property)
+			return;
+		if (!settings.Entity.HasComponent<TransformComponent>())
+			return;
+		if (property->Duration <= settings.Time)
+			return;
+		auto& tc = settings.Entity.GetComponent<TransformComponent>();
+		glm::vec3 interpolatedValue{};
+		uint64_t frameIndex = property->GetKeyFrameIndexAtTimeApprox(settings.Time);
+		if (frameIndex == -1)
+			return;
+		auto newPos = property->FrameStorage[frameIndex].GetValue(property->FrameStorage[frameIndex+1],settings.Time);
+		MoveEntity(settings.Entity, settings.Entity.GetScene(), newPos.TargetTranslation - tc.Translation, { 0,0,0 });
 	}
-
+	void Animation::UpdateRotations(const AnimationPlayerSettings& settings){
+	
+	}
+	void Animation::UpdateScales(const AnimationPlayerSettings& settings) {
+	
+	}
 }

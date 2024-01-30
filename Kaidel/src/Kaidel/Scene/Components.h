@@ -1,5 +1,6 @@
 #pragma once
 #include "SceneCamera.h"
+#include "Kaidel/Animation/Animation.h"
 #include "Kaidel/Renderer/Texture.h"
 #include "Kaidel/Core/UUID.h"
 #include "Kaidel/Renderer/Light.h"
@@ -14,7 +15,6 @@
 
 
 namespace Kaidel {
-
 
 	struct IDComponent {
 		UUID ID;
@@ -222,6 +222,20 @@ namespace Kaidel {
 		MeshComponent(const MeshComponent&) = default;
 	};
 	
+
+	struct AnimationPlayerComponent {
+		enum class PlayerState {
+			Playing,
+			Paused,
+			Stopped,
+		};
+		float Time = 0.0f;
+		AssetHandle<Animation> Anim;
+		PlayerState State = PlayerState::Stopped;
+		AnimationPlayerComponent() = default;
+		AnimationPlayerComponent(const AnimationPlayerComponent&) = default;
+	};
+
 	
 	//Physics
 	struct Rigidbody2DComponent {
