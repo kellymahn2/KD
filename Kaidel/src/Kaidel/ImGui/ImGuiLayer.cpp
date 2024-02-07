@@ -131,7 +131,6 @@ namespace Kaidel {
 
 	void ImGuiLayer::End()
 	{
-		KD_PROFILE_FUNCTION();
 
 		ImGuiIO& io = ImGui::GetIO();
 		Application& app = Application::Get();

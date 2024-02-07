@@ -14,7 +14,7 @@ namespace Kaidel {
 
 	void Console::Log(const Message& message)
 	{
-		if (m_Messages.size() >= 1500)
+		if (m_Messages.size() >= 300)
 			Clear();
 		m_Messages.push_back(message);
 	}

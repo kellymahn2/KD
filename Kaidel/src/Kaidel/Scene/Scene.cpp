@@ -3,8 +3,6 @@
 
 #include "Scene.h"
 #include "Components.h"
-#include "Kaidel/Renderer/Renderer2D.h"
-#include "Kaidel/Renderer/Renderer3D.h"
 #include "ScriptableEntity.h"
 #include "Entity.h"
 #include "SceneRenderer.h"

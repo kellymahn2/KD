@@ -21,7 +21,7 @@ struct Material{
 
 
 
-layout(binding = 0) uniform sampler2DArray u_MaterialTextures;
+	layout(binding = 0) uniform sampler2DArray u_MaterialTextures;
 layout(std430,binding = 1) buffer Materials{
 	Material u_Materials[];
 };

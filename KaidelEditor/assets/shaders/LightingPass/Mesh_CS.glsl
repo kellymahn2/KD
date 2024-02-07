@@ -9,7 +9,6 @@ layout(binding = 2, r32i) restrict readonly uniform iimage2D inputIndex;
 layout(binding = 3, rgba8) restrict readonly uniform image2D inputAlbedo;
 layout(binding = 4, rgba8) restrict writeonly uniform image2D outputImage;
 
-
 layout(std140, binding = 0) uniform Camera
 {
 	mat4 u_ViewProjection;
@@ -38,8 +37,8 @@ struct SpotLight {
 
 struct Material{
 	float ColorX,ColorY,ColorZ,ColorW;
-	int Diffuse;
-	int Specular;
+	uint Diffuse;
+	uint Specular;
 	float Shininess;
 };
 
@@ -157,9 +156,6 @@ void main() {
 
 	//float shadow = 1.0;
 	vec3 res = totalAmbient + (shadow)*(totalDiffuse + totalSpecular);
-
-
-
 
     vec4 resultColor = vec4(materialColor.xyz * (res),1.0);
     imageStore(outputImage, texelCoord, resultColor);

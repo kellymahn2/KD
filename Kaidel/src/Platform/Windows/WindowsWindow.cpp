@@ -54,7 +54,8 @@ namespace Kaidel {
 
 		{
 			KD_PROFILE_SCOPE("glfwCreateWindow");
-		#if defined(KD_DEBUG)
+#define KD_DEBUG
+		#ifdef KD_DEBUG
 			if (Renderer::GetAPI() == RendererAPI::API::OpenGL)
 				glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 		#endif
@@ -175,8 +176,6 @@ namespace Kaidel {
 
 	void WindowsWindow::OnUpdate()
 	{
-		KD_PROFILE_FUNCTION();
-
 		glfwPollEvents();
 		m_Context->SwapBuffers();
 	}

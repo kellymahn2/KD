@@ -3,6 +3,10 @@ layout(location = 0)in vec3 a_Position;
 layout(location = 1)in vec3 a_Normal;
 layout(location = 2)in vec2 a_TexCoords;
 
+layout(location = 3) in mat4 a_Transform;
+layout(location = 7) in mat3 a_NormalTransform;
+layout(location = 10) in int a_MaterialID;
+
 
 struct VSOutput{
 	vec3 Position;
@@ -31,12 +35,17 @@ layout(location = 0)out VSOutput Output;
 layout(location = 3)out flat int u_MatIndex;
 
 
+
 void main(){
-	vec4 WorldPos = u_DrawData[gl_InstanceID].Transform*vec4(a_Position,1.0);
+	mat4 transform = a_Transform;
+	mat3 normal = a_NormalTransform;
+	int matID = a_MaterialID;
+
+	vec4 WorldPos = transform *vec4(a_Position,1.0);
 	Output.Position = WorldPos.xyz;
 	Output.TexCoords = a_TexCoords;
-	Output.Normal = (u_DrawData[gl_InstanceID].NormalTransform * a_Normal);
+	Output.Normal = (normal * a_Normal);
 	Output.Normal = normalize(Output.Normal);
-	u_MatIndex = u_DrawData[gl_InstanceID].MaterialID;
+	u_MatIndex = matID;
 	gl_Position = u_ViewProjection * WorldPos;
 }

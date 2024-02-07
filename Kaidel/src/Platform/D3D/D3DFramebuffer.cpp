@@ -139,7 +139,7 @@ namespace Kaidel {
 				case FramebufferTextureFormat::RGBA8:
 					colorBufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 					break;
-				case FramebufferTextureFormat::RED_INTEGER:
+				case FramebufferTextureFormat::R32I:
 					colorBufferDesc.Format = DXGI_FORMAT_R32_SINT;
 					break;
 				}

@@ -80,6 +80,7 @@ namespace Kaidel {
 						element.Normalized ? GL_TRUE : GL_FALSE,
 						layout.GetStride(),
 						(const void*)element.Offset);
+					glVertexAttribDivisor(m_VertexBufferIndex, element.Divisor);
 					m_VertexBufferIndex++;
 					break;
 				}
@@ -95,6 +96,7 @@ namespace Kaidel {
 						ShaderDataTypeToOpenGLBaseType(element.Type),
 						layout.GetStride(),
 						(const void*)element.Offset);
+					glVertexAttribDivisor(m_VertexBufferIndex, element.Divisor);
 					m_VertexBufferIndex++;
 					break;
 				}
@@ -105,13 +107,14 @@ namespace Kaidel {
 					for (uint8_t i = 0; i < count; i++)
 					{
 						glEnableVertexAttribArray(m_VertexBufferIndex);
+						uint32_t offset = (element.Offset + sizeof(float) * count * i);
 						glVertexAttribPointer(m_VertexBufferIndex,
-							count,
+							count ,
 							ShaderDataTypeToOpenGLBaseType(element.Type),
 							element.Normalized ? GL_TRUE : GL_FALSE,
 							layout.GetStride(),
-							(const void*)(element.Offset + sizeof(float) * count * i));
-						glVertexAttribDivisor(m_VertexBufferIndex, 1);
+							(const void*)offset);
+						glVertexAttribDivisor(m_VertexBufferIndex, element.Divisor);
 						m_VertexBufferIndex++;
 					}
 					break;
@@ -120,7 +123,6 @@ namespace Kaidel {
 					KD_CORE_ASSERT(false, "Unknown ShaderDataType!");
 			}
 		}
-
 		m_VertexBuffers.push_back(vertexBuffer);
 	}
 

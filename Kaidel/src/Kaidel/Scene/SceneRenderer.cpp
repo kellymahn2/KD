@@ -6,7 +6,7 @@
 
 
 #include "Kaidel/Renderer/UniformBuffer.h"
-#include "Kaidel\Renderer\Renderer2D.h"
+#include "Kaidel\Renderer\2D\Renderer2D.h"
 #include "Kaidel\Renderer\3D\Renderer3D.h"
 #include "Kaidel\Core\JobSystem.h"
 #include "Kaidel/Core/Timer.h"

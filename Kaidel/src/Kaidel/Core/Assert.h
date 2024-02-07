@@ -3,7 +3,7 @@
 #include "Kaidel/Core/Base.h"
 #include "Kaidel/Core/Log.h"
 #include <filesystem>
-
+#define KD_ENABLE_ASSERTS 1
 #ifdef KD_ENABLE_ASSERTS
 
 	// Alteratively we could use the same "default" message for both "WITH_MSG" and "NO_MSG" and

@@ -25,17 +25,25 @@ namespace Kaidel {
 			return component;
 		}
 
-		template<typename T>
-		T& GetComponent()
-		{
-			KD_CORE_ASSERT(HasComponent<T>(), "Entity does not have component!");
-			return m_Scene->m_Registry.get<T>(m_EntityHandle);
+		template<typename... Components>
+		decltype(auto) AddComponents() {
+			return std::tie(AddComponent<Components>()...);
 		}
 
-		template<typename T>
-		bool HasComponent()
+		template<typename... T>
+		decltype(auto) GetComponent()
 		{
-			return m_Scene->m_Registry.try_get<T>(m_EntityHandle)!=nullptr;
+			KD_CORE_ASSERT(HasComponents<T...>(), "Entity does not have component!");
+			return m_Scene->m_Registry.get<T...>(m_EntityHandle);
+		}
+		template<typename T>
+		bool HasComponent() {
+			return m_Scene->m_Registry.try_get<T>(m_EntityHandle) != nullptr;
+		}
+		template<typename... T>
+		bool HasComponents()
+		{
+			return (HasComponent<T>()&&...);
 		}
 
 		template<typename T>

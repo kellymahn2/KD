@@ -26,7 +26,6 @@ namespace Kaidel {
 		static void Shutdown();
 		static void Begin(const Renderer3DBeginData& beginData);
 
-		static void DrawCube(const glm::mat4& transform, Ref<Material> material);
 		static void DrawMesh(const glm::mat4& transform, AssetHandle<Mesh> mesh, Ref<Material> material);
 		static void End();
 

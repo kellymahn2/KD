@@ -28,7 +28,7 @@ namespace Kaidel {
 	void OpenGLRendererAPI::Init()
 	{
 		KD_PROFILE_FUNCTION();
-
+#define KD_DEBUG
 	#ifdef KD_DEBUG
 		glEnable(GL_DEBUG_OUTPUT);
 		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -79,8 +79,10 @@ namespace Kaidel {
 		glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
 	}
 	void OpenGLRendererAPI::DrawIndexedInstanced(const Ref<VertexArray>& vertexArray, uint32_t indexCount, uint32_t instanceCount){
-		if (instanceCount == 1)
+		/*if (instanceCount == 1) {
 			DrawIndexed(vertexArray, indexCount);
+			return;
+		}*/
 		vertexArray->Bind();
 		glDrawElementsInstanced(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, nullptr, instanceCount);
 	}

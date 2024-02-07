@@ -6,7 +6,7 @@
 #include "Platform/D3D/D3DTexture.h"
 namespace Kaidel {
 
-	Ref<Texture2D> Texture2D::Create(uint32_t width, uint32_t height)
+	Ref<Texture2D> Texture2D::Create(uint32_t width, uint32_t height, TextureFormat format)
 	{
 		switch (Renderer::GetAPI())
 		{
@@ -21,8 +21,8 @@ namespace Kaidel {
 
 	Ref<Texture2D> Texture2D::Create(const std::string& path)
 	{
-		if (s_Map.find(path) == s_Map.end()) {
 
+		if (s_Map.find(path) == s_Map.end()) {
 			switch (Renderer::GetAPI())
 			{
 				case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;

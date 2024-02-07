@@ -16,6 +16,7 @@ namespace Kaidel
 	};
 
 	static inline constexpr uint32_t _MaterialTexturesBindingSlot = 0;
+	static inline constexpr uint32_t _MaterialInternalBindingSlot = 1;
 
 
 	class MaterialTextureHandler {
@@ -57,6 +58,5 @@ namespace Kaidel
 		static std::vector<Material*> s_Materials;
 		uint64_t m_MaterialIndex;
 		friend class SceneRenderer;
-		friend static void BindLights(void* m_Context);
     }; 
 } 

@@ -57,5 +57,6 @@ namespace Kaidel {
 
 	private:
 		uint32_t m_RendererID = 0;
+		uint32_t m_LocalX, m_LocalY, m_LocalZ;
 	};
 }

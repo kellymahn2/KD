@@ -140,7 +140,6 @@ namespace Kaidel {
 			delete img;
 		}
 	}
-	//TODO: Fix this not valid.
 	void OpenGLTexture2DArray::Bind(uint32_t slot)const {
 		glActiveTexture(GL_TEXTURE0 + slot);
 		glBindTexture(GL_TEXTURE_2D_ARRAY, m_RendererID);

@@ -363,42 +363,7 @@ namespace Kaidel {
 			}
 		}
 
-		ImGui::SameLine();
-		ImGui::PushItemWidth(-1);
-
-		if (ImGui::Button("Add Component"))
-			ImGui::OpenPopup("AddComponent");
-
-		if (ImGui::BeginPopup("AddComponent"))
-		{
-			//DrawAddComponentItems<ScriptComponent>(entity, "Script Component");
-			if (ImGui::MenuItem("Script Component")) {
-				entity.AddScript();
-			}
-			DrawAddComponentItems<CameraComponent>(entity, "Camera");
-			DrawAddComponentItems<SpriteRendererComponent, LineRendererComponent, CircleRendererComponent, CubeRendererComponent>(entity, "Sprite Renderer");
-			DrawAddComponentItems<CircleRendererComponent, LineRendererComponent, SpriteRendererComponent, CubeRendererComponent>(entity, "Circle Renderer");
-			DrawAddComponentItems<Rigidbody2DComponent>(entity, "Rigidbody 2D");
-			DrawAddComponentItems<BoxCollider2DComponent>(entity, "Box Collider 2D");
-			DrawAddComponentItems<CircleCollider2DComponent>(entity, "Circle Collider 2D");
-			DrawAddComponentItems<LineRendererComponent, CircleRendererComponent, SpriteRendererComponent, CubeRendererComponent>(entity, "Line Renderer", [](LineRendererComponent& lrc) {
-				lrc.Points = { LineRendererComponent::Point{ {0,0,0} }, LineRendererComponent::Point{ {1,1,0} } };
-				lrc.RecalculateFinalPoints();
-				});
-			//DrawAddComponentItems<LightComponent>(entity, "Light");
-			DrawAddComponentItems<CubeRendererComponent, LineRendererComponent, CircleRendererComponent, SpriteRendererComponent >(entity, "Cube Renderer");
-			DrawAddComponentItems<DirectionalLightComponent>(entity, "Directional Light");
-			DrawAddComponentItems<PointLightComponent>(entity, "Point Light");
-			DrawAddComponentItems<SpotLightComponent>(entity, "Spot Light");
-
-			DrawAddComponentItems<MeshComponent>(entity, "Mesh Renderer");
-
-			//DrawAddComponentItems<ParentComponent>(m_SelectionContext, "Parent");
-			//DrawAddComponentItems<ChildComponent>(m_SelectionContext, "Child");
-			ImGui::EndPopup();
-		}
-
-		ImGui::PopItemWidth();
+		
 		ImGui::Text(std::to_string(m_SelectionContext.GetUUID().operator uint64_t()).c_str());
 		DrawComponent<TransformComponent>("Transform", entity, [&entity, scene = m_Context](auto& component)
 			{
@@ -822,5 +787,42 @@ namespace Kaidel {
 				//TODO: Add functionality for other types
 
 			});
+
+			ImGui::PushItemWidth(-1);
+
+			if (ImGui::Button("Add Component"))
+				ImGui::OpenPopup("AddComponent");
+
+			if (ImGui::BeginPopup("AddComponent"))
+			{
+				//DrawAddComponentItems<ScriptComponent>(entity, "Script Component");
+				if (ImGui::MenuItem("Script Component")) {
+					entity.AddScript();
+				}
+				DrawAddComponentItems<CameraComponent>(entity, "Camera");
+				DrawAddComponentItems<SpriteRendererComponent, LineRendererComponent, CircleRendererComponent, CubeRendererComponent>(entity, "Sprite Renderer");
+				DrawAddComponentItems<CircleRendererComponent, LineRendererComponent, SpriteRendererComponent, CubeRendererComponent>(entity, "Circle Renderer");
+				DrawAddComponentItems<Rigidbody2DComponent>(entity, "Rigidbody 2D");
+				DrawAddComponentItems<BoxCollider2DComponent>(entity, "Box Collider 2D");
+				DrawAddComponentItems<CircleCollider2DComponent>(entity, "Circle Collider 2D");
+				DrawAddComponentItems<LineRendererComponent, CircleRendererComponent, SpriteRendererComponent, CubeRendererComponent>(entity, "Line Renderer", [](LineRendererComponent& lrc) {
+					lrc.Points = { LineRendererComponent::Point{ {0,0,0} }, LineRendererComponent::Point{ {1,1,0} } };
+					lrc.RecalculateFinalPoints();
+					});
+				//DrawAddComponentItems<LightComponent>(entity, "Light");
+				DrawAddComponentItems<CubeRendererComponent, LineRendererComponent, CircleRendererComponent, SpriteRendererComponent >(entity, "Cube Renderer");
+				DrawAddComponentItems<DirectionalLightComponent>(entity, "Directional Light");
+				DrawAddComponentItems<PointLightComponent>(entity, "Point Light");
+				DrawAddComponentItems<SpotLightComponent>(entity, "Spot Light");
+
+				DrawAddComponentItems<MeshComponent>(entity, "Mesh Renderer");
+
+				//DrawAddComponentItems<ParentComponent>(m_SelectionContext, "Parent");
+				//DrawAddComponentItems<ChildComponent>(m_SelectionContext, "Child");
+				ImGui::EndPopup();
+			}
+
+			ImGui::PopItemWidth();
+
 	}
 }

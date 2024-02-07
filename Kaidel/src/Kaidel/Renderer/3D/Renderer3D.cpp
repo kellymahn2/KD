@@ -76,7 +76,6 @@ namespace Kaidel {
 	}
 
 	void Renderer3D::Init() {
-		using fs = std::filesystem::path;
 		s_Data.MeshShader = Shader::Create(FileSystem::path("assets/shaders/GeometryPass/Mesh_VS.glsl"), FileSystem::path("assets/shaders/GeometryPass/Mesh_FS.glsl"), "Mesh");
 		s_Data.CameraUniformBuffer = UniformBuffer::Create(80, 0);
 		s_Data.LightCountUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::LightCount), 1);
@@ -85,7 +84,7 @@ namespace Kaidel {
 			fbSpec.Width = 1280;
 			fbSpec.Height = 720;
 			fbSpec.Samples = 1;
-			fbSpec.Attachments = { FramebufferTextureFormat::RGBA32F,FramebufferTextureFormat::RGBA32F ,FramebufferTextureFormat::RED_INTEGER,FramebufferTextureFormat::RGBA8 ,FramebufferTextureFormat::Depth };
+			fbSpec.Attachments = { FramebufferTextureFormat::RGBA32F,FramebufferTextureFormat::RGBA32F ,FramebufferTextureFormat::R32I,FramebufferTextureFormat::RGBA8 ,FramebufferTextureFormat::Depth};
 			s_Data.G_Buffers = Framebuffer::Create(fbSpec);
 		}
 		s_Data.SceneCompositeShader = ComputeShader::Create("assets/shaders/LightingPass/Mesh_CS.glsl");
@@ -98,11 +97,6 @@ namespace Kaidel {
 			s_Data.ShadowMapFrameBuffer = Framebuffer::Create(fbSpec);
 		}
 		MaterialTextureHandler::Init();
-
-
-
-
-
 	}
 	void Renderer3D::Shutdown() {
 
@@ -124,7 +118,6 @@ namespace Kaidel {
 			s_Data.G_Buffers->Resize(outputSpec.Width, outputSpec.Height);
 		}
 
-		s_Data.G_Buffers->Bind();
 		s_Data.G_Buffers->ClearDepthAttachment(1.0f);
 		glm::vec4 defaults = glm::vec4{ 0.0f };
 		s_Data.G_Buffers->ClearAttachment(0, &defaults.x);
@@ -162,10 +155,11 @@ namespace Kaidel {
 			//Timer timer("Geometry Pass");
 			s_Data.G_Buffers->Bind();
 			s_Data.MeshShader->Bind();
-			mesh->m_UAV->SetBufferData(mesh->m_DrawData.Get(), mesh->m_DrawData.Size());
-			mesh->m_UAV->Bind(5);
+			mesh->m_PerInstanceVBO->SetData(mesh->m_DrawData.Get(), mesh->m_DrawData.Size() * sizeof(MeshDrawData));
 			RenderCommand::SetCullMode(CullMode::Back);
-			RenderCommand::DrawIndexedInstanced(mesh->m_VAO, mesh->m_IndexCount, mesh->m_InstanceCount);
+			{
+				RenderCommand::DrawIndexedInstanced(mesh->m_VAO, mesh->m_IndexCount, mesh->m_InstanceCount);
+			}
 			RenderCommand::SetCullMode(CullMode::None);
 			s_Data.Stats.GeometryPassDrawCount++;
 			s_Data.G_Buffers->Unbind();
@@ -175,28 +169,15 @@ namespace Kaidel {
 
 		//Shadow Pass
 		{
-
-
 			s_Data.ShadowMapShader->Bind();
 
 			auto spotlightDepthMaps = SpotLight::GetDepthMaps();
 			s_Data.ShadowMapFrameBuffer->Bind();
 			RenderCommand::SetCullMode(CullMode::Front);
-
 			for (auto& light : SpotLight::GetLights()) {
-				SCOPED_TIMER(Shadow Map Rendering Loop)
-				{
-					//SCOPED_TIMER(Setting Light Index)
-					s_Data.ShadowMapShader->SetInt("u_LightIndex", light->GetIndex());
-				}
-				{
-					//SCOPED_TIMER(Setting Depth Map);
-					s_Data.ShadowMapFrameBuffer->SetDepthAttachmentFromArray(spotlightDepthMaps->GetRendererID(), light->GetIndex());
-				}
-				{
-					//SCOPED_TIMER(Rendering Shadow Maps)
-					RenderCommand::DrawIndexedInstanced(mesh->m_VAO, mesh->m_IndexCount, mesh->m_InstanceCount);
-				}
+				s_Data.ShadowMapShader->SetInt("u_LightIndex", light->GetIndex());
+				s_Data.ShadowMapFrameBuffer->SetDepthAttachmentFromArray(spotlightDepthMaps->GetRendererID(), light->GetIndex());
+				RenderCommand::DrawIndexedInstanced(mesh->m_VAO, mesh->m_IndexCount, mesh->m_InstanceCount);
 			}
 			RenderCommand::SetCullMode(CullMode::None);
 			s_Data.ShadowMapFrameBuffer->Unbind();
@@ -273,6 +254,10 @@ namespace Kaidel {
 			const auto& outputSpec = s_Data.OutputBuffer->GetSpecification();
 			s_Data.SceneCompositeShader->Execute(glm::ceil((float)outputSpec.Width / 32.0f), glm::ceil((float)outputSpec.Height / 32.0f), 1);
 			s_Data.SceneCompositeShader->Wait();
+
+			s_Data.OutputBuffer->CopyDepthAttachment(s_Data.G_Buffers);
+
+
 		}
 	}
 	void Renderer3D::RenderingPipeLine() {

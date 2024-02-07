@@ -23,7 +23,7 @@ namespace Kaidel{
     void Material::SetMaterials(){
         static Ref<UAVInput> s_MaterialUAV = UAVInput::Create(s_InternalData.size(),sizeof(_MaterialInternal));
         s_MaterialUAV->SetBufferData(s_InternalData.data(),s_InternalData.size());
-        s_MaterialUAV->Bind(1);
+        s_MaterialUAV->Bind(_MaterialInternalBindingSlot);
     }
 
 	uint32_t MaterialTextureHandler::LoadTexture(void* data, uint32_t width, uint32_t height) {

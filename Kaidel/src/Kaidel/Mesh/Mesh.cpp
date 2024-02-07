@@ -47,22 +47,29 @@ namespace Kaidel {
 		m_Center = mesh.m_Center;
 		m_MeshName = mesh.m_MeshName;
 		m_Material = mesh.m_Material;
+		m_PerInstanceVBO = mesh.m_PerInstanceVBO;
 	}
 	void Mesh::Setup(const std::vector<uint32_t>& indices) {
 		m_VAO = VertexArray::Create();
 		m_VBO = VertexBuffer::Create((float*)m_Vertices.data(),m_Vertices.size() * sizeof(MeshVertex));
+		m_PerInstanceVBO = VertexBuffer::Create(1024*sizeof(MeshDrawData));
 		Ref<IndexBuffer> ib = IndexBuffer::Create((uint32_t*)indices.data(), indices.size());
 		m_VBO->SetLayout({
 			{ShaderDataType::Float3,"a_Position"},
 			{ShaderDataType::Float3,"a_Normal"},
 			{ShaderDataType::Float2,"a_TexCoords"},
 			});
+		m_PerInstanceVBO->SetLayout({
+			{ShaderDataType::Mat4,"a_Transform",1},
+			{ShaderDataType::Mat3,"a_NormalTransform",1},
+			{ShaderDataType::Int,"a_MaterialID",1}
+			});
 		m_VAO->AddVertexBuffer(m_VBO);
+		m_VAO->AddVertexBuffer(m_PerInstanceVBO);
 		m_VAO->SetIndexBuffer(ib);
 		m_UAV = UAVInput::Create(0, sizeof(MeshDrawData), nullptr);
 	}
 	bool Mesh::Draw(const glm::mat4& transform, Ref<Material>& mat) {
-		
 		if (!m_DrawData.CanReserveWithoutOverflow(1))
 			return false;
 
@@ -71,9 +78,9 @@ namespace Kaidel {
 		bvi[0].Transform = transform;
 		bvi[0].NormalTransform = normalTransform;
 		if (mat)
-			bvi[0].MaterialID.x = mat->GetIndex();
+			bvi[0].MaterialID= mat->GetIndex();
 		else
-			bvi[0].MaterialID.x = 0;
+			bvi[0].MaterialID= 0;
 		m_InstanceCount++;
 		return true;
 	}

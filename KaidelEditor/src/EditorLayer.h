@@ -62,7 +62,7 @@ namespace Kaidel {
 
 		
 		Console m_DebugConsole;
-		Ref<Framebuffer> m_Framebuffer;
+		Ref<Framebuffer> m_3DOutputFramebuffer,m_2DOutputFrameBuffer,m_OutputBuffer;
 		Ref<Scene> m_ActiveScene;
 		Ref<Scene> m_EditorScene, m_RuntimeScene,m_SimulationScene;
 
@@ -88,7 +88,7 @@ namespace Kaidel {
 		SceneHierarchyPanel m_SceneHierarchyPanel;
 		ContentBrowserPanel m_ContentBrowserPanel;
 		ConsolePanel m_ConsolePanel;
-
+		Ref<ComputeShader> m_2D3DCompositeShader;
 
 		struct Icons {
 			Ref<Texture2D> IconPlay;
@@ -102,11 +102,14 @@ namespace Kaidel {
 		enum class SceneState {
 			Edit = 0, Play = 1 , Simulate = 2
 		};
+
+
+
 		SceneState m_SceneState=SceneState::Edit;
 		Asset<Model> model;
 		Asset<Model> model2;
-		Ref<Material> mat;
 		Asset<Animation> anim;
+		Ref<Material2D>	 mat;
 
 		float n = .5, f = 25;
 	};

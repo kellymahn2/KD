@@ -32,14 +32,14 @@ namespace Kaidel {
 	{
 		std::string Name;
 		ShaderDataType Type;
+		uint32_t Divisor;
 		uint32_t Size;
 		size_t Offset;
 		bool Normalized;
-
 		BufferElement() = default;
 
-		BufferElement(ShaderDataType type, const std::string& name, bool normalized = false)
-			: Name(name), Type(type), Size(ShaderDataTypeSize(type)), Offset(0), Normalized(normalized)
+		BufferElement(ShaderDataType type, const std::string& name,uint32_t divisor = 0,bool normalized = false)
+			: Name(name), Type(type), Size(ShaderDataTypeSize(type)), Offset(0), Divisor(divisor), Normalized(normalized)
 		{
 		}
 

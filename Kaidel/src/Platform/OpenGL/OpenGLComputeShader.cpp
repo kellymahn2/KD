@@ -19,7 +19,6 @@ namespace Kaidel {
 			res.back() = 0;
 			return res;
 		}
-
 	}
 
 
@@ -113,17 +112,6 @@ namespace Kaidel {
 	}
 	void OpenGLTypedBufferInput::Unbind() const {
 	}
-
-
-
-
-
-
-
-
-
-
-	
 	OpenGLComputeShader::OpenGLComputeShader(const std::string& filepath)
 	{
 		std::string s = Utils::GetFileContents(filepath);
@@ -175,8 +163,12 @@ namespace Kaidel {
 				return;
 			}
 		}
+		int32_t localSize[3];
+		glGetProgramiv(m_RendererID, GL_COMPUTE_WORK_GROUP_SIZE, localSize);
 
-
+		m_LocalX = localSize[0];
+		m_LocalY = localSize[1];
+		m_LocalZ = localSize[2];
 		glDeleteShader(csShader);
 
 	}
@@ -195,9 +187,6 @@ namespace Kaidel {
 
 	void OpenGLComputeShader::SetUAVInput(Ref<UAVInput> uav, uint32_t slot) {
 		uav->Bind(slot);
-		/*auto bufferName = std::string("a_UAV") + std::to_string(UAVInput::s_UAVCount);
-		GLuint bufferIndex = glGetProgramResourceIndex(m_RendererID, GL_SHADER_STORAGE_BLOCK, bufferName.c_str());
-		glShaderStorageBlockBinding(m_RendererID, bufferIndex, slot);*/
 	}
 	void OpenGLComputeShader::SetTypedBufferInput(Ref<TypedBufferInput> tbi, uint32_t slot) {
 		tbi->Bind(slot);

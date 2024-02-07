@@ -127,6 +127,7 @@ namespace Kaidel {
 				m_SelectionContext = entity;
 			}
 			if (opened) {
+				SCOPED_TIMER(Scene Hierarchy);
 				for (auto& child : entity.GetComponent<ParentComponent>().Children) {
 					DrawEntityNode(m_Context->GetEntity(child));
 				}

@@ -1,6 +1,6 @@
 #include "KDpch.h"
 #include "Kaidel/Renderer/Renderer.h"
-#include "Kaidel/Renderer/Renderer2D.h"
+#include "Kaidel/Renderer/2D/Renderer2D.h"
 #include "Kaidel/Renderer/3D/Renderer3D.h"
 #include "Kaidel/Renderer/Primitives.h"
 namespace Kaidel {
@@ -76,8 +76,8 @@ namespace Kaidel {
 
 	void Renderer::Shutdown()
 	{
-		Renderer3D::Shutdown();
 		Renderer2D::Shutdown();
+		Renderer3D::Shutdown();
 	}
 
 	void Renderer::OnWindowResize(uint32_t width, uint32_t height)
@@ -85,14 +85,6 @@ namespace Kaidel {
 		RenderCommand::SetViewport(0, 0, width, height);
 	}
 
-	void Renderer::BeginScene(OrthographicCamera& camera)
-	{
-		s_SceneData->ViewProjectionMatrix = camera.GetViewProjectionMatrix();
-	}
-
-	void Renderer::EndScene()
-	{
-	}
 
 	void Renderer::Submit(const Ref<Shader>& shader, const Ref<VertexArray>& vertexArray, const glm::mat4& transform)
 	{

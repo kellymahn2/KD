@@ -21,8 +21,8 @@ namespace Kaidel {
 
 	struct MeshDrawData {
 		glm::mat4 Transform;
-		glm::mat3x4 NormalTransform;
-		glm::ivec4 MaterialID;
+		glm::mat3 NormalTransform;
+		int MaterialID;
 	};
 
 
@@ -50,6 +50,7 @@ namespace Kaidel {
 		std::vector<MeshVertex> m_Vertices;
 		Ref<VertexArray> m_VAO;
 		Ref<VertexBuffer> m_VBO;
+		Ref<VertexBuffer> m_PerInstanceVBO;
 		uint32_t m_IndexCount = 0;
 		uint32_t m_InstanceCount = 0;
 		BoundedVector<MeshDrawData> m_DrawData = { 0,1024,[&](MeshDrawData* slot, uint64_t size) {
@@ -62,7 +63,6 @@ namespace Kaidel {
 		std::string m_MeshName;
 		bool m_Flushed = false;
 		glm::vec3 m_Center;
-
 		Ref<Material> m_Material;
 
 		friend class Model;

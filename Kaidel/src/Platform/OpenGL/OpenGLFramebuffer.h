@@ -25,11 +25,16 @@ namespace Kaidel {
 		virtual const FramebufferSpecification& GetSpecification() const override { return m_Specification; }
 		virtual void BindColorAttachmentToSlot(uint32_t attachmnetIndex, uint32_t slot)override;
 		virtual void BindColorAttachmentToImageSlot(uint32_t attachmnetIndex, uint32_t slot,ImageBindingMode bindingMode)override;
+		virtual void BindDepthAttachmentToSlot(uint32_t slot)override;
+		virtual void CopyColorAttachment(uint32_t dstAttachmentIndex,uint32_t srcAttachmentIndex,Ref<Framebuffer> src) override;
+		virtual void CopyDepthAttachment(Ref<Framebuffer> src) override;
 
 
 		void ClearAttachment(uint32_t attachmentIndex, const float* colors) override;
 
 	private:
+
+
 		uint32_t m_RendererID = 0;
 		FramebufferSpecification m_Specification;
 
