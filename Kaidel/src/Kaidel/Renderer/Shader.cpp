@@ -12,7 +12,7 @@ namespace Kaidel {
 	uint64_t UAVInput::s_UAVCount = 0;
 
 
-	Ref<Shader> Shader::Create(const std::filesystem::path& vertexPath, const std::filesystem::path& fragmentPath, const std::string& name){
+	Ref<Shader> Shader::CreateFromPath(const std::filesystem::path& vertexPath, const std::filesystem::path& fragmentPath, const std::string& name){
 		switch (Renderer::GetAPI())
 		{
 		case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
@@ -23,7 +23,7 @@ namespace Kaidel {
 		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
 		return nullptr;
 	}
-	Ref<Shader> Shader::Create(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc) {
+	Ref<Shader> Shader::CreateFromSrc(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc) {
 		switch (Renderer::GetAPI())
 		{
 		case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;

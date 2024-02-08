@@ -49,7 +49,7 @@ namespace Kaidel {
 		}
 		void Init() {
 			using path = FileSystem::path;
-			SpriteShader = Shader::Create(path("assets/shaders/GeometryPass/Geometry_Sprite_VS_2D.glsl"), path("assets/shaders/GeometryPass/Geometry_Sprite_FS_2D.glsl"));
+			SpriteShader = Shader::CreateFromPath(path("assets/shaders/GeometryPass/Geometry_Sprite_VS_2D.glsl"), path("assets/shaders/GeometryPass/Geometry_Sprite_FS_2D.glsl"));
 			//Vertex Array Object
 			{
 				SpriteVAO = VertexArray::Create();
@@ -66,7 +66,7 @@ namespace Kaidel {
 
 			//Vertex Buffer Object
 			{
-				SpriteVBO = VertexBuffer::Create(MaxSpriteVertices);
+				SpriteVBO = VertexBuffer::Create(0);
 				SpriteVBO->SetLayout({
 					{ShaderDataType::Float3,"a_Position"},
 					{ShaderDataType::Float2,"a_TexCoords"},
@@ -103,10 +103,24 @@ namespace Kaidel {
 		uint32_t LinesWaitingForRender = 0;
 		
 		BoundedVector<LineVertex> Vertices = { 0,MaxLineVertices,[](auto data,uint64_t size) {
-
-
-		} };
+			Renderer2D::FlushLines();
+		}};
 		void Init() {
+			LineShader = Shader::CreateFromPath("assets/shaders/GeometryPass/Geometry_Line_VS_2D.glsl", "assets/shaders/GeometryPass/Geometry_Line_VS_2D.glsl");
+			//Vertex Array Object
+			{
+				LineVAO = VertexArray::Create();
+			}
+
+			//Vertex Buffer Object
+			{
+				LineVBO = VertexBuffer::Create(0);
+				LineVBO->SetLayout({
+					{ShaderDataType::Float3,"a_Position"},
+					{ShaderDataType::Float4,"a_Color"}
+				});
+				LineVAO->AddVertexBuffer(LineVBO);
+			}
 
 		}
 	};

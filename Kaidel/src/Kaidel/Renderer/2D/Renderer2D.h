@@ -30,6 +30,8 @@ namespace Kaidel {
 		static void End();
 	private:
 		static void FlushSprites();
+		static void FlushLines();
 		friend struct SpriteRendererData;
+		friend struct LineRendererData;
 	};
 }
