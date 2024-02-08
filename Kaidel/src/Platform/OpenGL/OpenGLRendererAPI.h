@@ -19,6 +19,8 @@ namespace Kaidel {
 		virtual void SetLineWidth(float thickness) override;
 		virtual void SetCullMode(CullMode cullMode)override;
 		virtual int QueryMaxTextureSlots()override;
+		virtual void SetPatchVertexCount(uint32_t count)override;
+
 	};
 
 

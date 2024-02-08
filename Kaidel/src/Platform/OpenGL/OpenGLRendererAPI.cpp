@@ -103,4 +103,9 @@ namespace Kaidel {
 		case Kaidel::CullMode::FrontAndBack:glEnable(GL_CULL_FACE); glCullFace(GL_FRONT_AND_BACK); return;
 		}
 	}
+
+	void OpenGLRendererAPI::SetPatchVertexCount(uint32_t count) {
+		glPatchParameteri(GL_PATCH_VERTICES, count);
+	}
+
 }

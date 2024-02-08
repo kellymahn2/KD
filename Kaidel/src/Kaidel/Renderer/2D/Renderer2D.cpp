@@ -84,8 +84,6 @@ namespace Kaidel {
 				DefaultSpriteVertices[3] = { {-.5f, .5f,.0f} ,glm::vec2{0,1},0 };
 			}
 		}
-
-
 	};
 
 
@@ -181,6 +179,8 @@ namespace Kaidel {
 		Material2DTextureHandler::GetTexturesMap()->Bind(0);
 		Material2D::SetMaterials();
 	}
+
+#pragma region Sprite
 	void Renderer2D::DrawSprite(const glm::mat4& transform, Ref<Material2D> material){
 
 		if (!material) {
@@ -216,6 +216,16 @@ namespace Kaidel {
 		}
 		s_Renderer2DData.SpriteRendererData.Vertices.Reset();
 	}
+
+#pragma endregion
+
+
+	void Renderer2D::DrawBezier(std::vector<glm::vec3> points, glm::vec4 color, float increment = 0.001) {
+
+
+	}
+
+
 
 	void Renderer2D::End() {
 		FlushSprites();

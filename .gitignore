@@ -15,3 +15,8 @@ bin-int/
 KaidelEditor/SandboxProject/assets/scripts/Binaries
 KaidelEditor/SandboxProject/assets/scripts/Intermediates/Debug
 SandboxProject/scripts/KaidelEditor/Resources/Scripts/Intermediates/Debug
+KaidelEditor/assets/models/test/bugatti/bugatti.blend
+KaidelEditor/assets/models/test/bugatti/bugatti.mtl
+KaidelEditor/assets/models/test/bugatti/bugatti.obj
+KaidelEditor/assets/models/test/bugatti/README.txt
+KaidelEditor/assets/models

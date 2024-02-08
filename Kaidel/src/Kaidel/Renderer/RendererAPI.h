@@ -27,6 +27,7 @@ namespace Kaidel {
 		virtual void SetLineWidth(float thickness)=0;
 		virtual void SetCullMode(CullMode cullMode) = 0;
 		virtual int QueryMaxTextureSlots() = 0;
+		virtual void SetPatchVertexCount(uint32_t count) = 0;
 
 		static API GetAPI() { return s_API; }
 		static Scope<RendererAPI> Create();

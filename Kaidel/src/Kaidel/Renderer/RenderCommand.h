@@ -51,6 +51,11 @@ namespace Kaidel {
 		static int QueryMaxTextureSlots() {
 			return s_RendererAPI->QueryMaxTextureSlots();
 		}
+
+		static void SetPatchVertexCount(uint32_t count) {
+			s_RendererAPI->SetPatchVertexCount(count);
+		}
+
 	private:
 		static Scope<RendererAPI> s_RendererAPI;
 	};
