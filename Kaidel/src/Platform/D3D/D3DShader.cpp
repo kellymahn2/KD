@@ -9,7 +9,8 @@ namespace Kaidel {
 
 	static ShaderType ShaderTypeFromString(const std::string& type)
 	{
-		return type == "vertex"?Shader::ShaderType_Vertex: type=="fragment" ? Shader::ShaderType_Pixel: type=="geometry" ? Shader::ShaderType_Geometry: Shader::ShaderType_Compute;
+		//return type == "vertex"?Shader::ShaderType_Vertex: type=="fragment" ? Shader::ShaderType_Pixel: type=="geometry" ? Shader::ShaderType_Geometry: Shader::ShaderType_Compute;
+		return ShaderType::VertexShader;
 	}
 
 	D3DShader::D3DShader(const std::string& filepath)
@@ -22,7 +23,7 @@ namespace Kaidel {
 	D3DShader::D3DShader(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc)
 		: m_Name(name)
 	{
-		Compile({ {ShaderType_Vertex,vertexSrc},{ShaderType_Pixel,fragmentSrc} });
+		//Compile({ {ShaderType_Vertex,vertexSrc},{ShaderType_Pixel,fragmentSrc} });
 	}
 
 	D3DShader::~D3DShader()
@@ -96,88 +97,88 @@ namespace Kaidel {
 
 	void D3DShader::Compile(const std::unordered_map<ShaderType, std::string>& shaderSources)
 	{
-		auto d3dContext = D3DContext::Get();
-		auto compilationFlags = 0;
-#ifdef KD_DEBUG
-		compilationFlags |= D3DCOMPILE_DEBUG;
-#endif // KD_DEBUG
-
-		if (shaderSources.find(ShaderType_Vertex)!=shaderSources.end()) {
-			auto& vss = shaderSources.at(ShaderType_Vertex);
-			auto res = D3DCompile(
-				vss.data(),
-				vss.length(),
-				nullptr,
-				nullptr,
-				nullptr,
-				"main",
-				"vs_5_0",
-				compilationFlags, 0,
-				&m_VSBlob, nullptr);
-			D3DASSERT(d3dContext->GetDevice()->CreateVertexShader(m_VSBlob->GetBufferPointer(),
-				m_VSBlob->GetBufferSize(), nullptr, &m_VertexShader));
-			m_ShaderType |= ShaderType_Vertex;
-		}
-		if (shaderSources.find(ShaderType_Pixel) != shaderSources.end()) {
-
-			auto& pss = shaderSources.at(ShaderType_Pixel);
-			D3DASSERT(D3DCompile(
-				pss.data(),
-				pss.length(),
-				nullptr,
-				nullptr,
-				nullptr,
-				"main",
-				"ps_5_0",
-				compilationFlags, 0,
-				&m_PSBlob, nullptr));
-			D3DASSERT(d3dContext->GetDevice()->CreatePixelShader(m_PSBlob->GetBufferPointer(),
-				m_PSBlob->GetBufferSize(), nullptr, &m_PixelShader));
-			m_ShaderType |= ShaderType_Pixel;
-		}
-		if (shaderSources.find(ShaderType_Geometry) != shaderSources.end()) {
-			auto& gss = shaderSources.at(ShaderType_Geometry);
-			D3DASSERT(D3DCompile(
-				gss.data(),
-				gss.length(),
-				nullptr,
-				nullptr,
-				nullptr,
-				"main",
-				"gs_5_0",
-				compilationFlags,
-				0,
-				&m_GSBlob,
-				nullptr));
-			D3DASSERT(d3dContext->GetDevice()->CreateGeometryShader(m_GSBlob->GetBufferPointer(),
-				m_GSBlob->GetBufferSize(), nullptr, &m_GeometryShader));
-			m_ShaderType |= ShaderType_Geometry;
-		}
-		if (shaderSources.find(ShaderType_Compute) != shaderSources.end()) {
-			auto& css = shaderSources.at(ShaderType_Compute);
-			D3DASSERT(D3DCompile(
-				css.data(),
-				css.length(),
-				nullptr,
-				nullptr,
-				nullptr,
-				"main",
-				"cs_5_0",
-				compilationFlags,
-				0,
-				&m_CSBlob,
-				nullptr
-			));
-			D3DASSERT(d3dContext->GetDevice()->CreateComputeShader(m_CSBlob->GetBufferPointer(),
-				m_CSBlob->GetBufferSize(), nullptr, &m_ComputeShader));
-			m_ShaderType |= ShaderType_Compute;
-		}
+//		auto d3dContext = D3DContext::Get();
+//		auto compilationFlags = 0;
+//#ifdef KD_DEBUG
+//		compilationFlags |= D3DCOMPILE_DEBUG;
+//#endif // KD_DEBUG
+//
+//		if (shaderSources.find(ShaderType_Vertex)!=shaderSources.end()) {
+//			auto& vss = shaderSources.at(ShaderType_Vertex);
+//			auto res = D3DCompile(
+//				vss.data(),
+//				vss.length(),
+//				nullptr,
+//				nullptr,
+//				nullptr,
+//				"main",
+//				"vs_5_0",
+//				compilationFlags, 0,
+//				&m_VSBlob, nullptr);
+//			D3DASSERT(d3dContext->GetDevice()->CreateVertexShader(m_VSBlob->GetBufferPointer(),
+//				m_VSBlob->GetBufferSize(), nullptr, &m_VertexShader));
+//			m_ShaderType |= ShaderType_Vertex;
+//		}
+//		if (shaderSources.find(ShaderType_Pixel) != shaderSources.end()) {
+//
+//			auto& pss = shaderSources.at(ShaderType_Pixel);
+//			D3DASSERT(D3DCompile(
+//				pss.data(),
+//				pss.length(),
+//				nullptr,
+//				nullptr,
+//				nullptr,
+//				"main",
+//				"ps_5_0",
+//				compilationFlags, 0,
+//				&m_PSBlob, nullptr));
+//			D3DASSERT(d3dContext->GetDevice()->CreatePixelShader(m_PSBlob->GetBufferPointer(),
+//				m_PSBlob->GetBufferSize(), nullptr, &m_PixelShader));
+//			m_ShaderType |= ShaderType_Pixel;
+//		}
+//		if (shaderSources.find(ShaderType_Geometry) != shaderSources.end()) {
+//			auto& gss = shaderSources.at(ShaderType_Geometry);
+//			D3DASSERT(D3DCompile(
+//				gss.data(),
+//				gss.length(),
+//				nullptr,
+//				nullptr,
+//				nullptr,
+//				"main",
+//				"gs_5_0",
+//				compilationFlags,
+//				0,
+//				&m_GSBlob,
+//				nullptr));
+//			D3DASSERT(d3dContext->GetDevice()->CreateGeometryShader(m_GSBlob->GetBufferPointer(),
+//				m_GSBlob->GetBufferSize(), nullptr, &m_GeometryShader));
+//			m_ShaderType |= ShaderType_Geometry;
+//		}
+//		if (shaderSources.find(ShaderType_Compute) != shaderSources.end()) {
+//			auto& css = shaderSources.at(ShaderType_Compute);
+//			D3DASSERT(D3DCompile(
+//				css.data(),
+//				css.length(),
+//				nullptr,
+//				nullptr,
+//				nullptr,
+//				"main",
+//				"cs_5_0",
+//				compilationFlags,
+//				0,
+//				&m_CSBlob,
+//				nullptr
+//			));
+//			D3DASSERT(d3dContext->GetDevice()->CreateComputeShader(m_CSBlob->GetBufferPointer(),
+//				m_CSBlob->GetBufferSize(), nullptr, &m_ComputeShader));
+//			m_ShaderType |= ShaderType_Compute;
+//		}
 
 	}
 
 	void D3DShader::Bind() const
 	{
-		auto d3dContext = D3DContext::Get();
+		/*auto d3dContext = D3DContext::Get();
 		if(m_ShaderType&ShaderType_Vertex)
 			d3dContext->GetDeviceContext()->VSSetShader(m_VertexShader, nullptr, 0);
 		if (m_ShaderType & ShaderType_Pixel)
@@ -185,12 +186,12 @@ namespace Kaidel {
 		if (m_ShaderType & ShaderType_Geometry)
 		d3dContext->GetDeviceContext()->GSSetShader(m_GeometryShader, nullptr, 0);
 		if (m_ShaderType & ShaderType_Compute)
-			d3dContext->GetDeviceContext()->CSSetShader(m_ComputeShader, nullptr, 0);
+			d3dContext->GetDeviceContext()->CSSetShader(m_ComputeShader, nullptr, 0);*/
 	}
 
 	void D3DShader::Unbind() const
 	{
-		auto d3dContext = D3DContext::Get();
+		/*auto d3dContext = D3DContext::Get();
 		if (m_ShaderType & ShaderType_Vertex)
 			d3dContext->GetDeviceContext()->VSSetShader(nullptr, nullptr, 0);
 		if (m_ShaderType & ShaderType_Pixel)
@@ -198,7 +199,7 @@ namespace Kaidel {
 		if (m_ShaderType & ShaderType_Geometry)
 			d3dContext->GetDeviceContext()->GSSetShader(nullptr, nullptr, 0);
 		if (m_ShaderType & ShaderType_Compute)
-			d3dContext->GetDeviceContext()->CSSetShader(nullptr, nullptr, 0);
+			d3dContext->GetDeviceContext()->CSSetShader(nullptr, nullptr, 0);*/
 	}
 
 	void D3DShader::SetInt(const std::string& name, int value)

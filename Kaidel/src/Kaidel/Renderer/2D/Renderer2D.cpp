@@ -10,7 +10,6 @@
 
 namespace Kaidel {
 
-
 	struct SpriteRendererData {
 		static inline constexpr uint32_t MaxSprites = 2048;
 		static inline constexpr uint32_t MaxSpriteVertices = MaxSprites * 4;
@@ -49,7 +48,7 @@ namespace Kaidel {
 		}
 		void Init() {
 			using path = FileSystem::path;
-			SpriteShader = Shader::CreateFromPath(path("assets/shaders/GeometryPass/Geometry_Sprite_VS_2D.glsl"), path("assets/shaders/GeometryPass/Geometry_Sprite_FS_2D.glsl"));
+			SpriteShader = Shader::Create({ {"assets/shaders/GeometryPass/Geometry_Sprite_VS_2D.glsl",ShaderType::VertexShader}, {"assets/shaders/GeometryPass/Geometry_Sprite_FS_2D.glsl",ShaderType::FragmentShader} });
 			//Vertex Array Object
 			{
 				SpriteVAO = VertexArray::Create();
@@ -86,7 +85,6 @@ namespace Kaidel {
 		}
 	};
 
-
 	struct LineRendererData {
 		static inline constexpr uint32_t MaxLines = 2048;
 		static inline constexpr uint32_t MaxLineVertices = MaxLines * 2;
@@ -95,16 +93,16 @@ namespace Kaidel {
 		Ref<VertexArray> LineVAO;
 		Ref<VertexBuffer> LineVBO;
 		Ref<Shader> LineShader;
-		
-		
+
+
 		uint32_t RenderedLineCount = 0;
 		uint32_t LinesWaitingForRender = 0;
-		
+
 		BoundedVector<LineVertex> Vertices = { 0,MaxLineVertices,[](auto data,uint64_t size) {
 			Renderer2D::FlushLines();
-		}};
+		} };
 		void Init() {
-			LineShader = Shader::CreateFromPath("assets/shaders/GeometryPass/Geometry_Line_VS_2D.glsl", "assets/shaders/GeometryPass/Geometry_Line_VS_2D.glsl");
+			LineShader = Shader::Create({ { "assets/shaders/GeometryPass/Geometry_Line_VS_2D.glsl" ,ShaderType::VertexShader}, {"assets/shaders/GeometryPass/Geometry_Line_FS_2D.glsl",ShaderType::FragmentShader }});
 			//Vertex Array Object
 			{
 				LineVAO = VertexArray::Create();
@@ -116,9 +114,84 @@ namespace Kaidel {
 				LineVBO->SetLayout({
 					{ShaderDataType::Float3,"a_Position"},
 					{ShaderDataType::Float4,"a_Color"}
-				});
+					});
 				LineVAO->AddVertexBuffer(LineVBO);
 			}
+
+		}
+	};
+
+	struct BezierRendererData {
+		
+		Ref<Shader> BezierShader;
+
+		Ref<VertexArray> BezierVAO;
+		Ref<VertexBuffer> BezierVBO;
+
+		void Init() {
+
+			ShaderSpecification bezierShaderSpecification;
+
+			bezierShaderSpecification.Definitions = {
+				{"assets/shaders/GeometryPass/Geometry_Bezier_VS_2D.glsl",ShaderType::VertexShader},
+				{"assets/shaders/GeometryPass/Geometry_Bezier_FS_2D.glsl",ShaderType::FragmentShader},
+				{"assets/shaders/GeometryPass/Geometry_Bezier_TES_2D.glsl",ShaderType::TessellationEvaluationShader}
+			};
+
+			BezierShader = Shader::Create(bezierShaderSpecification);
+			
+			//Vertex Array Object
+			{
+				BezierVAO = VertexArray::Create();
+			}
+
+			//Vertex Buffer Object
+			{
+				BezierVBO = VertexBuffer::Create(0);
+				BezierVBO->SetLayout({
+					{ShaderDataType::Float3,"a_Position"}
+					});
+				BezierVAO->AddVertexBuffer(BezierVBO);
+			}
+			
+		}
+	};
+
+	struct PointRendererData {
+
+		static inline constexpr uint32_t MaxPoints = 2048;
+
+		Ref<Shader> PointShader;
+		Ref<VertexArray> PointVAO;
+		Ref<VertexBuffer> PointVBO;
+
+
+		uint32_t RenderedPointCount = 0;
+		uint32_t PointsWaitingForRender = 0;
+
+		BoundedVector<PointVertex> Vertices = { 0,MaxPoints,[](auto ptr,auto size) {
+			Renderer2D::FlushPoints();
+		}};
+
+		void Init() {
+			PointShader = Shader::Create({ {"assets/shaders/GeometryPass/Geometry_Point_VS_2D.glsl",ShaderType::VertexShader},{"assets/shaders/GeometryPass/Geometry_Point_FS_2D.glsl",ShaderType::FragmentShader} });
+			
+			//Vertex Array Object
+			{
+				PointVAO = VertexArray::Create();
+			}
+
+			//Vertex Buffer Object
+			{
+				PointVBO = VertexBuffer::Create(0);
+				PointVBO->SetLayout({
+					{ShaderDataType::Float3,"a_Position"},
+					{ShaderDataType::Float4,"a_Color"}
+				});
+				PointVAO->AddVertexBuffer(PointVBO);
+				
+			}
+
 
 		}
 	};
@@ -126,7 +199,7 @@ namespace Kaidel {
 
 	struct Renderer2DData {
 
-		
+
 		Ref<Framebuffer> OutputBuffer;
 
 		struct Camera {
@@ -139,16 +212,33 @@ namespace Kaidel {
 		Ref<Material2D> DefaultMaterial;
 		SpriteRendererData SpriteRendererData;
 		LineRendererData LineRendererData;
+		BezierRendererData BezierRendererData;
+		PointRendererData PointRendererData;
 	};
 
 
 	static Renderer2DData s_Renderer2DData;
-	
-	void Renderer2D::Init(){
-		
+
+	void Renderer2D::Init() {
+
 		//Sprite Renderer Init
 		{
 			s_Renderer2DData.SpriteRendererData.Init();
+		}
+
+		//Line Renderer Init
+		{
+			s_Renderer2DData.LineRendererData.Init();
+		}
+
+		//Bezier Renderer Init
+		{
+			s_Renderer2DData.BezierRendererData.Init();
+		}
+
+		//Point Renderer Init
+		{
+			s_Renderer2DData.PointRendererData.Init();
 		}
 
 		//Camera Uniform Buffer
@@ -160,28 +250,32 @@ namespace Kaidel {
 		{
 			s_Renderer2DData.DefaultMaterial = CreateRef<Material2D>();
 		}
+
 		//Material2D Textures
 		{
 			Material2DTextureHandler::Init();
 		}
+	}
+	void Renderer2D::Shutdown() {
 
 	}
-	void Renderer2D::Shutdown(){
-
-	}
-	void Renderer2D::Begin(const Renderer2DBeginData& beginData){
+	void Renderer2D::Begin(const Renderer2DBeginData& beginData) {
 		s_Renderer2DData.OutputBuffer = beginData.OutputBuffer;
 		s_Renderer2DData.CameraBuffer.CameraViewProjection = beginData.CameraVP;
 		s_Renderer2DData.CameraUniformBuffer->SetData(&s_Renderer2DData.CameraBuffer, sizeof(Renderer2DData::Camera));
 		s_Renderer2DData.CameraUniformBuffer->Bind();
 		s_Renderer2DData.SpriteRendererData.SpritesWaitingForRender = 0;
 		s_Renderer2DData.SpriteRendererData.RenderedSpriteCount = 0;
+		s_Renderer2DData.LineRendererData.LinesWaitingForRender = 0;
+		s_Renderer2DData.LineRendererData.RenderedLineCount = 0;
+		s_Renderer2DData.PointRendererData.PointsWaitingForRender = 0;
+		s_Renderer2DData.PointRendererData.RenderedPointCount = 0;
 		Material2DTextureHandler::GetTexturesMap()->Bind(0);
 		Material2D::SetMaterials();
 	}
 
 #pragma region Sprite
-	void Renderer2D::DrawSprite(const glm::mat4& transform, Ref<Material2D> material){
+	void Renderer2D::DrawSprite(const glm::mat4& transform, Ref<Material2D> material) {
 
 		if (!material) {
 			DrawSprite(transform, s_Renderer2DData.DefaultMaterial);
@@ -190,7 +284,7 @@ namespace Kaidel {
 
 		SpriteVertex vertex[4];
 		for (uint32_t i = 0; i < 4; ++i) {
-			vertex[i].Position = transform * glm::vec4(s_Renderer2DData.SpriteRendererData.DefaultSpriteVertices[i].Position,1.0f);
+			vertex[i].Position = transform * glm::vec4(s_Renderer2DData.SpriteRendererData.DefaultSpriteVertices[i].Position, 1.0f);
 			vertex[i].TexCoords = s_Renderer2DData.SpriteRendererData.DefaultSpriteVertices[i].TexCoords;
 			vertex[i].MaterialID = material->GetIndex();
 		}
@@ -218,17 +312,109 @@ namespace Kaidel {
 	}
 
 #pragma endregion
+#pragma region Bezier
 
+	static void GetSegmentCount(float totalSegmentCount, float* lineCount, float* segmentPerLineCount) {
+		float maxTessLevel = RenderCommand::QueryMaxTessellationLevel();
+		for (float i = 1.0f; i < maxTessLevel; i += 1.0f) {
+			for (float j = 1.0f; j < maxTessLevel; j += 1.0f) {
+				if (i * j >= totalSegmentCount) {
+					*lineCount = i;
+					*segmentPerLineCount = j;
+					return;
+				}
+			}
+		}
+		*lineCount = maxTessLevel;
+		*segmentPerLineCount = maxTessLevel;
+	}
 
-	void Renderer2D::DrawBezier(std::vector<glm::vec3> points, glm::vec4 color, float increment = 0.001) {
+	void Renderer2D::DrawBezier(const glm::mat4& transform, const std::vector<glm::vec3>& points, const glm::vec4& color, float increment) {
 
+		glm::mat4 mvp = s_Renderer2DData.CameraBuffer.CameraViewProjection * transform;
+		s_Renderer2DData.BezierRendererData.BezierVBO->SetData(points.data(), points.size() * sizeof(glm::vec3));
+		s_Renderer2DData.BezierRendererData.BezierShader->Bind();
+		s_Renderer2DData.BezierRendererData.BezierShader->SetMat4("u_MVP", s_Renderer2DData.CameraBuffer.CameraViewProjection * transform);
+
+		s_Renderer2DData.BezierRendererData.BezierShader->SetInt("u_NumControlPoints", points.size());
+		s_Renderer2DData.BezierRendererData.BezierShader->SetFloat4("u_Color",color);
+
+		float totalNumSegments = ceilf(1.0f / (float)increment);
+		float numLines;
+		float numSegmentsPerLine;
+		
+		GetSegmentCount(totalNumSegments, &numLines, &numSegmentsPerLine);
+
+		s_Renderer2DData.OutputBuffer->Bind();
+		RenderCommand::SetCullMode(CullMode::None);
+		RenderCommand::SetPatchVertexCount(points.size());
+		RenderCommand::SetDefaultTessellationLevels({ numLines,numSegmentsPerLine,1.0,1.0 });
+		RenderCommand::DrawPatches(s_Renderer2DData.BezierRendererData.BezierVAO, points.size());
+		RenderCommand::SetPatchVertexCount(3);
+		RenderCommand::SetDefaultTessellationLevels();
+		s_Renderer2DData.OutputBuffer->Unbind();
 
 	}
 
+#pragma endregion
+#pragma region Line
 
+	void Renderer2D::DrawLine(const glm::vec3& p0, const glm::vec3& p1, const glm::vec4& color) {
+		LineVertex vertices[2];
+		vertices[0].Position = p0;
+		vertices[0].Color = color;
+		vertices[1].Position = p1;
+		vertices[1].Color = color;
+
+		auto bvi = s_Renderer2DData.LineRendererData.Vertices.Reserve(2);
+		bvi[0] = vertices[0];
+		bvi[1] = vertices[1];
+		++s_Renderer2DData.LineRendererData.LinesWaitingForRender;
+	}
+
+	void Renderer2D::FlushLines() {
+		if (s_Renderer2DData.LineRendererData.LinesWaitingForRender) {
+			s_Renderer2DData.OutputBuffer->Bind();
+			s_Renderer2DData.LineRendererData.LineVBO->SetData(s_Renderer2DData.LineRendererData.Vertices.Get(), s_Renderer2DData.LineRendererData.Vertices.Size() * sizeof(LineVertex));
+			s_Renderer2DData.LineRendererData.LineShader->Bind();
+			RenderCommand::SetCullMode(CullMode::None);
+			RenderCommand::DrawLines(s_Renderer2DData.LineRendererData.LineVAO, s_Renderer2DData.LineRendererData.Vertices.Size());
+			s_Renderer2DData.LineRendererData.RenderedLineCount+= s_Renderer2DData.LineRendererData.LinesWaitingForRender;
+			s_Renderer2DData.LineRendererData.LinesWaitingForRender = 0;
+			s_Renderer2DData.OutputBuffer->Unbind();
+		}
+		s_Renderer2DData.LineRendererData.Vertices.Reset();
+	}
+
+#pragma endregion
+#pragma region Point
+
+	void Renderer2D::DrawPoint(const glm::vec3& position, const glm::vec4& color) {
+		auto bvi = s_Renderer2DData.PointRendererData.Vertices.Reserve(1);
+		bvi[0] = { position,color };
+		++s_Renderer2DData.PointRendererData.PointsWaitingForRender;
+	}
+
+	void Renderer2D::FlushPoints() {
+		if (s_Renderer2DData.PointRendererData.PointsWaitingForRender) {
+			s_Renderer2DData.OutputBuffer->Bind();
+			s_Renderer2DData.PointRendererData.PointVBO->SetData(s_Renderer2DData.PointRendererData.Vertices.Get(), s_Renderer2DData.PointRendererData.Vertices.Size()*sizeof(PointVertex));
+			s_Renderer2DData.PointRendererData.PointShader->Bind();
+			RenderCommand::SetCullMode(CullMode::None);
+			RenderCommand::DrawPoints(s_Renderer2DData.PointRendererData.PointVAO, s_Renderer2DData.PointRendererData.PointsWaitingForRender);
+			s_Renderer2DData.PointRendererData.RenderedPointCount += s_Renderer2DData.PointRendererData.PointsWaitingForRender;
+			s_Renderer2DData.PointRendererData.PointsWaitingForRender = 0;
+			s_Renderer2DData.OutputBuffer->Unbind();
+		}
+		s_Renderer2DData.PointRendererData.Vertices.Reset();
+	}
+
+#pragma endregion
 
 	void Renderer2D::End() {
 		FlushSprites();
+		FlushLines();
+		FlushPoints();
 	}
 
 }

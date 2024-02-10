@@ -16,8 +16,8 @@ namespace Kaidel {
 	{
 		switch (severity)
 		{
-		case GL_DEBUG_SEVERITY_HIGH:         KD_CORE_ASSERT(false, message); return;
-			case GL_DEBUG_SEVERITY_MEDIUM:       KD_CORE_ASSERT(false,message); return;
+			case GL_DEBUG_SEVERITY_HIGH:         KD_CORE_ASSERT(false, message); return;
+			case GL_DEBUG_SEVERITY_MEDIUM:       KD_ERROR(false,message); return;
 			case GL_DEBUG_SEVERITY_LOW:          KD_WARN(message); return;
 			case GL_DEBUG_SEVERITY_NOTIFICATION: KD_TRACE(message); return;
 		}
@@ -27,8 +27,6 @@ namespace Kaidel {
 
 	void OpenGLRendererAPI::Init()
 	{
-		KD_PROFILE_FUNCTION();
-#define KD_DEBUG
 	#ifdef KD_DEBUG
 		glEnable(GL_DEBUG_OUTPUT);
 		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -40,6 +38,8 @@ namespace Kaidel {
 		glDepthFunc(GL_LEQUAL);
 		//glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_DEPTH_TEST);
+		float data[6];
+		glGetFloatv(GL_MAX_TESS_GEN_LEVEL, data);
 	}
 
 	void OpenGLRendererAPI::SetViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
@@ -71,6 +71,11 @@ namespace Kaidel {
 		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxTextures);
 		return maxTextures;
 	}
+	float OpenGLRendererAPI::QueryMaxTessellationLevel() {
+		float maxTessLevel;
+		glGetFloatv(GL_MAX_TESS_GEN_LEVEL, &maxTessLevel);
+		return maxTessLevel;
+	}
 
 	void OpenGLRendererAPI::DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount)
 	{
@@ -91,9 +96,25 @@ namespace Kaidel {
 		vertexArray->Bind();
 		glDrawArrays(GL_LINES, 0,vertexCount);
 	}
+	void OpenGLRendererAPI::DrawPatches(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) {
+		vertexArray->Bind();
+		glDrawArrays(GL_PATCHES, 0, vertexCount);
+	}
+
+	void OpenGLRendererAPI::DrawPoints(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) {
+		vertexArray->Bind();
+		glDrawArrays(GL_POINTS, 0, vertexCount);
+	}
+
 	void OpenGLRendererAPI::SetLineWidth(float width) {
 		glLineWidth(width);
 	}
+
+	void OpenGLRendererAPI::SetPointSize(float pixelSize) {
+		glPointSize(pixelSize);
+	}
+
+
 	void OpenGLRendererAPI::SetCullMode(CullMode cullMode) {
 		switch (cullMode)
 		{
@@ -106,6 +127,11 @@ namespace Kaidel {
 
 	void OpenGLRendererAPI::SetPatchVertexCount(uint32_t count) {
 		glPatchParameteri(GL_PATCH_VERTICES, count);
+	}
+	void OpenGLRendererAPI::SetDefaultTessellationLevels(const glm::vec4& outer, const glm::vec2& inner) {
+		glPatchParameterfv(GL_PATCH_DEFAULT_OUTER_LEVEL, &outer.x);
+		glPatchParameterfv(GL_PATCH_DEFAULT_INNER_LEVEL, &inner.x);
+
 	}
 
 }

@@ -83,7 +83,7 @@ namespace Kaidel {
 	struct FramebufferAttachmentSpecification
 	{
 		FramebufferAttachmentSpecification() = default;
-		FramebufferAttachmentSpecification(std::initializer_list<FramebufferTextureSpecification> attachments)
+		FramebufferAttachmentSpecification(const std::initializer_list<FramebufferTextureSpecification>& attachments)
 			: Attachments(attachments) {}
 
 		std::vector<FramebufferTextureSpecification> Attachments;

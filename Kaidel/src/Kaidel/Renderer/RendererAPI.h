@@ -24,11 +24,16 @@ namespace Kaidel {
 		virtual void DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount = 0) = 0;
 		virtual void DrawIndexedInstanced(const Ref<VertexArray>& vertexArray, uint32_t indexCount, uint32_t instanceCount) = 0;
 		virtual void DrawLines(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) = 0;
+		virtual void DrawPatches(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) = 0;
+		virtual void DrawPoints(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) = 0;
+
 		virtual void SetLineWidth(float thickness)=0;
+		virtual void SetPointSize(float pixelSize) = 0;
 		virtual void SetCullMode(CullMode cullMode) = 0;
 		virtual int QueryMaxTextureSlots() = 0;
+		virtual float QueryMaxTessellationLevel() = 0;
 		virtual void SetPatchVertexCount(uint32_t count) = 0;
-
+		virtual void SetDefaultTessellationLevels(const glm::vec4 & outer, const glm::vec2 & inner) = 0;
 		static API GetAPI() { return s_API; }
 		static Scope<RendererAPI> Create();
 	private:

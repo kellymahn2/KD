@@ -12,28 +12,15 @@ namespace Kaidel {
 	uint64_t UAVInput::s_UAVCount = 0;
 
 
-	Ref<Shader> Shader::CreateFromPath(const std::filesystem::path& vertexPath, const std::filesystem::path& fragmentPath, const std::string& name){
+	Ref<Shader> Shader::Create(const ShaderSpecification& specification) {
 		switch (Renderer::GetAPI())
 		{
-		case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
-		case RendererAPI::API::OpenGL:  return CreateRef<OpenGLShader>(vertexPath,fragmentPath,name);
-			//case RendererAPI::API::DirectX: return CreateRef<D3DShader>(filepath);
+		case RendererAPI::API::OpenGL:  return CreateRef<OpenGLShader>(specification);
 		}
-
 		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
 		return nullptr;
 	}
-	Ref<Shader> Shader::CreateFromSrc(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc) {
-		switch (Renderer::GetAPI())
-		{
-		case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
-		case RendererAPI::API::OpenGL:  return CreateRef<OpenGLShader>(name,vertexSrc,fragmentSrc);
-			//case RendererAPI::API::DirectX: return CreateRef<D3DShader>(filepath);
-		}
 
-		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
-		return nullptr;
-	}
 
 
 
@@ -72,44 +59,6 @@ namespace Kaidel {
 		KD_CORE_ASSERT(false, "Unkown RendererAPI!");
 
 		return nullptr;
-	}
-
-	
-	void ShaderLibrary::Add(const std::string& name, const Ref<Shader>& shader)
-	{
-		KD_CORE_ASSERT(!Exists(name), "Shader already exists!");
-		m_Shaders[name] = shader;
-	}
-
-	void ShaderLibrary::Add(const Ref<Shader>& shader)
-	{
-		auto& name = shader->GetName();
-		Add(name, shader);
-	}
-
-	/*Ref<Shader> ShaderLibrary::Load(const std::string& filepath)
-	{
-		auto shader = Shader::Create(filepath);
-		Add(shader);
-		return shader;
-	}
-
-	Ref<Shader> ShaderLibrary::Load(const std::string& name, const std::string& filepath)
-	{
-		auto shader = Shader::Create(filepath);
-		Add(name, shader);
-		return shader;
-	}*/
-
-	Ref<Shader> ShaderLibrary::Get(const std::string& name)
-	{
-		KD_CORE_ASSERT(Exists(name), "Shader not found!");
-		return m_Shaders[name];
-	}
-
-	bool ShaderLibrary::Exists(const std::string& name) const
-	{
-		return m_Shaders.find(name) != m_Shaders.end();
 	}
 
 }

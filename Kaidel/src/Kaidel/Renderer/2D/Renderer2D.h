@@ -14,8 +14,15 @@ namespace Kaidel {
 	struct LineVertex {
 		glm::vec3 Position;
 		glm::vec4 Color;
-		//X:Increment, Y:Start, Z:End, W:Index
-		glm::vec4 PatchDef;
+	};
+
+	struct BezierVertex {
+		glm::vec3 Position;
+	};
+
+	struct PointVertex {
+		glm::vec3 Position;
+		glm::vec4 Color;
 	};
 
 	struct Renderer2DBeginData {
@@ -29,12 +36,17 @@ namespace Kaidel {
 		static void Shutdown();
 		static void Begin(const Renderer2DBeginData& beginData);
 		static void DrawSprite(const glm::mat4& transform, Ref<Material2D> material);
-		static void DrawBezier(std::vector<glm::vec3> points, glm::vec4 color, float increment = 0.001);
+		static void DrawBezier(const glm::mat4& transform,const std::vector<glm::vec3>& points, const glm::vec4& color, float increment = 0.001);
+		static void DrawLine(const glm::vec3& p0, const glm::vec3& p1, const glm::vec4& color);
+		static void DrawPoint(const glm::vec3& position, const glm::vec4& color);
 		static void End();
 	private:
 		static void FlushSprites();
 		static void FlushLines();
+		static void FlushPoints();
 		friend struct SpriteRendererData;
 		friend struct LineRendererData;
+		friend struct PointRendererData;
+
 	};
 }

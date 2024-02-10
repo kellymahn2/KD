@@ -42,18 +42,43 @@ namespace Kaidel {
 		{
 			s_RendererAPI->DrawLines(vertexArray, vertexCount);
 		}
+
+		static void DrawPatches(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) {
+			s_RendererAPI->DrawPatches(vertexArray, vertexCount);
+		}
+
+		static void DrawPoints(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) {
+			s_RendererAPI->DrawPoints(vertexArray, vertexCount);
+		}
+
 		static void SetCullMode(CullMode cullMode) {
 			s_RendererAPI->SetCullMode(cullMode);
 		}
 		static void SetLineWidth(float width) {
 			s_RendererAPI->SetLineWidth(width);
 		}
+
+
+		static void SetPointSize(float pixelSize) {
+			s_RendererAPI->SetPointSize(pixelSize);
+		}
+
+
 		static int QueryMaxTextureSlots() {
 			return s_RendererAPI->QueryMaxTextureSlots();
+		}
+		
+		static float QueryMaxTessellationLevel() {
+			return s_RendererAPI->QueryMaxTessellationLevel();
 		}
 
 		static void SetPatchVertexCount(uint32_t count) {
 			s_RendererAPI->SetPatchVertexCount(count);
+		}
+
+
+		static void SetDefaultTessellationLevels(const glm::vec4& outer={1,1,1,1}, const glm::vec2& inner= {1,1}) {
+			s_RendererAPI->SetDefaultTessellationLevels(outer, inner);
 		}
 
 	private:

@@ -121,6 +121,7 @@ namespace Kaidel {
 			}break;
 			case InterpolationFunction::Spline: {}break;
 			}
+			IntermdiateFrameCount += first.Intermediates.size();
 		}
 
 
@@ -152,6 +153,7 @@ namespace Kaidel {
 
 		float Duration = 0.0f;
 		uint64_t KeyFrameCount = 0;
+		uint64_t IntermdiateFrameCount = 0;
 		std::vector<KeyFrame<T>> FrameStorage;
 	};
 

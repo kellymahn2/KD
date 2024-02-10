@@ -7,18 +7,35 @@
 #include <glm/glm.hpp>
 namespace Kaidel {
 
-	typedef int ShaderType;
+
+	enum class ShaderType {
+		None,
+		VertexShader,
+		FragmentShader,
+		GeometryShader,
+		TessellationControlShader,
+		TessellationEvaluationShader,
+		PixelShader = FragmentShader
+	};
+
+	struct ShaderDefinition {
+		std::string ControlString;
+		ShaderType ShaderType;
+		bool IsPath = true;
+	};
+
+	struct ShaderSpecification {
+		ShaderSpecification() = default;
+		ShaderSpecification(const std::initializer_list<ShaderDefinition>& definitions,const std::string& shaderName = "")
+			:Definitions(definitions),ShaderName(shaderName) {}
+		std::vector<ShaderDefinition> Definitions;
+		std::string ShaderName;
+	};
+
+
 	class Shader
 	{
 	public:
-
-		enum ShaderType_ {
-			ShaderType_Vertex = 1<<0,
-			ShaderType_Pixel = 1<<1,
-			ShaderType_Fragment = ShaderType_Pixel,
-			ShaderType_Geometry = 1<<2,
-			ShaderType_Compute = 1<<3
-		};
 
 		virtual ~Shader() = default;
 
@@ -32,21 +49,12 @@ namespace Kaidel {
 		virtual void SetFloat3(const std::string& name, const glm::vec3& value) = 0;
 		virtual void SetFloat4(const std::string& name, const glm::vec4& value) = 0;
 		virtual void SetMat4(const std::string& name, const glm::mat4& value) = 0;
-
 		virtual const std::string& GetName() const = 0;
+		virtual const ShaderSpecification& GetSpecification()const = 0;
 
-		static Ref<Shader> CreateFromPath(const std::filesystem::path &vertexPath, const std::filesystem::path& fragmentPath, const std::string& name = "");
-		static Ref<Shader> CreateFromSrc(const std::string& name,const std::string& vertexSrc, const std::string& fragmentSrc);
-
-	protected:
-		ShaderType m_ShaderType;
+		static Ref<Shader> Create(const ShaderSpecification& specification);
 	};
 
-	enum class ComputeShaderInputType {
-		None =0,
-		TypedBuffer = 1,
-		UAV = 2
-	};
 	
 	enum class TypedBufferInputDataType {
 		None = 0,
@@ -69,6 +77,8 @@ namespace Kaidel {
 		friend class OpenGLComputeShader;
 		friend class D3DComputeShader;
 	};
+
+
 	class UAVInput{
 	public:
 		static Ref<UAVInput> Create(uint32_t count,uint32_t sizeofElement,void* data = nullptr);
@@ -106,22 +116,6 @@ namespace Kaidel {
 		virtual void Wait() const = 0;
 	private:
 
-	};
-
-
-	class ShaderLibrary
-	{
-	public:
-		void Add(const std::string& name, const Ref<Shader>& shader);
-		void Add(const Ref<Shader>& shader);
-		Ref<Shader> Load(const std::string& filepath);
-		Ref<Shader> Load(const std::string& name, const std::string& filepath);
-
-		Ref<Shader> Get(const std::string& name);
-
-		bool Exists(const std::string& name) const;
-	private:
-		std::unordered_map<std::string, Ref<Shader>> m_Shaders;
 	};
 
 }

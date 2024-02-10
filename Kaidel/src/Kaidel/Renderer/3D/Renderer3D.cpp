@@ -76,7 +76,7 @@ namespace Kaidel {
 	}
 
 	void Renderer3D::Init() {
-		s_Data.MeshShader = Shader::CreateFromPath(FileSystem::path("assets/shaders/GeometryPass/Mesh_VS.glsl"), FileSystem::path("assets/shaders/GeometryPass/Mesh_FS.glsl"), "Mesh");
+		s_Data.MeshShader = Shader::Create({ {{"assets/shaders/GeometryPass/Mesh_VS.glsl",ShaderType::VertexShader} , {"assets/shaders/GeometryPass/Mesh_FS.glsl",ShaderType::FragmentShader}}, "Mesh" });
 		s_Data.CameraUniformBuffer = UniformBuffer::Create(80, 0);
 		s_Data.LightCountUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::LightCount), 1);
 		{
@@ -89,7 +89,7 @@ namespace Kaidel {
 		}
 		s_Data.SceneCompositeShader = ComputeShader::Create("assets/shaders/LightingPass/Mesh_CS.glsl");
 		s_Data.DefaultMaterial = CreateRef<Material>();
-		s_Data.ShadowMapShader = Shader::CreateFromPath(FileSystem::path("assets/shaders/ShadowPass/Mesh_VS.glsl"), FileSystem::path("assets/shaders/ShadowPass/Mesh_FS.glsl"));
+		s_Data.ShadowMapShader = Shader::Create({ {"assets/shaders/ShadowPass/Mesh_VS.glsl",ShaderType::VertexShader} ,{"assets/shaders/ShadowPass/Mesh_FS.glsl",ShaderType::FragmentShader} });
 		{
 			FramebufferSpecification fbSpec{};
 			fbSpec.Width = _ShadowMapWidth;

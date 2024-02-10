@@ -11,8 +11,7 @@ namespace Kaidel {
 	class OpenGLShader : public Shader
 	{
 	public:
-		OpenGLShader(const std::filesystem::path& vertexPath, const std::filesystem::path& fragmentPath, const std::string& name );
-		OpenGLShader(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc);
+		OpenGLShader(const ShaderSpecification& specification);
 
 		virtual ~OpenGLShader();
 
@@ -27,11 +26,8 @@ namespace Kaidel {
 		virtual void SetFloat4(const std::string& name, const glm::vec4& value) override;
 		virtual void SetMat4(const std::string& name, const glm::mat4& value) override;
 
-		virtual const std::string& GetName() const override { return m_Name; }
-
-
-
-
+		virtual const std::string& GetName() const override { return m_Specification.ShaderName; }
+		virtual const ShaderSpecification& GetSpecification()const  override { return m_Specification; }
 
 	private:
 		void UploadUniformInt(const std::string& name, int value);
@@ -44,12 +40,9 @@ namespace Kaidel {
 
 		void UploadUniformMat3(const std::string& name, const glm::mat3& matrix);
 		void UploadUniformMat4(const std::string& name, const glm::mat4& matrix);
-		std::string ReadFile(const std::string& filepath);
-		std::unordered_map<GLenum, std::string> PreProcess(const std::string& source);
-		void Compile(const std::unordered_map<GLenum, std::string>& shaderSources);
 	private:
 		uint32_t m_RendererID;
-		std::string m_Name;
+		ShaderSpecification m_Specification;
 	};
 
 }

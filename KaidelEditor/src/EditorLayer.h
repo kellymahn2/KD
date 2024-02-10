@@ -3,6 +3,7 @@
 #include "Kaidel.h"
 #include "Panels/SceneHierarchyPanel.h"
 #include "Panels/ContentBrowserPanel.h"
+#include "Panels/AnimationPanel.h"
 #include "Panels/ConsolePanel.h"
 #include "Kaidel/Renderer/EditorCamera.h"
 #include "Kaidel\Renderer\UniformBuffer.h"
@@ -88,6 +89,7 @@ namespace Kaidel {
 		SceneHierarchyPanel m_SceneHierarchyPanel;
 		ContentBrowserPanel m_ContentBrowserPanel;
 		ConsolePanel m_ConsolePanel;
+		AnimationPanel m_AnimationPanel;
 		Ref<ComputeShader> m_2D3DCompositeShader;
 
 		struct Icons {
@@ -110,7 +112,7 @@ namespace Kaidel {
 		Asset<Model> model2;
 		Asset<Animation> anim;
 		Ref<Material2D>	 mat;
-
+		
 		float n = .5, f = 25;
 	};
 

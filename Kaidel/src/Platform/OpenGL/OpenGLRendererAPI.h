@@ -16,11 +16,18 @@ namespace Kaidel {
 		virtual void DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount = 0) override;
 		virtual void DrawIndexedInstanced(const Ref<VertexArray>& vertexArray, uint32_t indexCount, uint32_t instanceCount)override;
 		virtual void DrawLines(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) override;
+		virtual void DrawPatches(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) override;
+		virtual void DrawPoints(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) override;
+
+
+
 		virtual void SetLineWidth(float thickness) override;
+		virtual void SetPointSize(float pixelSize) override;
 		virtual void SetCullMode(CullMode cullMode)override;
 		virtual int QueryMaxTextureSlots()override;
+		virtual float QueryMaxTessellationLevel()override;
 		virtual void SetPatchVertexCount(uint32_t count)override;
-
+		virtual void SetDefaultTessellationLevels(const glm::vec4& outer, const glm::vec2& inner)override;
 	};
 
 

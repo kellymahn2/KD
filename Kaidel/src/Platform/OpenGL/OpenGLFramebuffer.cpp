@@ -1,6 +1,7 @@
 #include "KDpch.h"
 #include "Platform/OpenGL/OpenGLFramebuffer.h"
 
+#include <GLFW/glfw3.h>
 #include <glad/glad.h>
 
 namespace Kaidel {
@@ -269,9 +270,23 @@ namespace Kaidel {
 
 	OpenGLFramebuffer::~OpenGLFramebuffer()
 	{
-		glDeleteFramebuffers(1, &m_RendererID);
-		glDeleteTextures(m_ColorAttachments.size(), m_ColorAttachments.data());
-		glDeleteTextures(1, &m_DepthAttachment);
+		if (m_RendererID)
+		{
+			Unbind();
+			if (m_ColorAttachments.size())
+				glDeleteTextures(m_ColorAttachments.size(), m_ColorAttachments.data());
+			if (m_DepthAttachment)
+				glDeleteTextures(1, &m_DepthAttachment);
+
+			if (glfwGetCurrentContext() != NULL) {
+				std::cout << "Here\n";
+			}
+
+			glDeleteFramebuffers(1, &m_RendererID);
+
+			m_ColorAttachments.clear();
+			m_DepthAttachment = 0;
+		}
 	}
 
 
@@ -290,12 +305,17 @@ namespace Kaidel {
 	{
 		if (m_RendererID)
 		{
+			Unbind();
+			if (m_ColorAttachments.size())
+				glDeleteTextures(m_ColorAttachments.size(), m_ColorAttachments.data());
+			if (m_DepthAttachment)
+				glDeleteTextures(1, &m_DepthAttachment);
+
 			glDeleteFramebuffers(1, &m_RendererID);
-			glDeleteTextures(m_ColorAttachments.size(), m_ColorAttachments.data());
-			glDeleteTextures(1, &m_DepthAttachment);
 			
 			m_ColorAttachments.clear();
 			m_DepthAttachment = 0;
+			m_RendererID = 0;
 		}
 
 		glCreateFramebuffers(1, &m_RendererID);

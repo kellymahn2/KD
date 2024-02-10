@@ -35,8 +35,6 @@ namespace Kaidel {
 	void EditorLayer::OnAttach()
 	{
 
-		
-
 		m_Icons.IconPlay = Texture2D::Create("Resources/Icons/PlayButton.png");
 		KD_INFO("Loaded Play Button");
 		m_Icons.IconPause = Texture2D::Create("Resources/Icons/PauseButton.png");
@@ -72,6 +70,7 @@ namespace Kaidel {
 			fbSpec.Samples = 1;
 			m_OutputBuffer = Framebuffer::Create(fbSpec);
 		}
+	
 		m_2D3DCompositeShader = ComputeShader::Create("assets/shaders/Composite_CS_2D3D.glsl");
 		m_ActiveScene = CreateRef<Scene>();
 		m_EditorScene = m_ActiveScene;
@@ -93,17 +92,15 @@ namespace Kaidel {
 
 		anim = CreateRef<Animation>(InterpolationFunction::QuadraticBezier);
 		anim->PushTranslation({ {0.0f,0.0f,0.0f} }, 0);
-		anim->PushTranslation({ {3.0f,3.0f,0.0f} }, 5.0f);
-		anim->PushTranslation({ {3.0f,-3.0f,0.0f} }, 10.0f);
-		anim->PushTranslation({ {6.0f,-3.0f,0.0f} }, 15.0f);
-
-
+		anim->PushTranslation({ {0.0f,0.0f,0.0f} }, 5.0f);
+		anim->GetPropertyMap<TranslationData>()->FrameStorage[0].Intermediates[0].TargetTranslation = { 1.5f,1.5f,0.f };
+		m_AnimationPanel.SetSelectedAnimation(anim);
 
 		{
 			//Timer timer("Model Loading");
 			const auto& m = Asset<Model>::GetAssetMap();
 			const auto& m2 = Asset<Mesh>::GetAssetMap();
-			model = Model::Load("assets/models/test/backpack.obj");
+			//model = Model::Load("assets/models/test/backpack.obj");
 			int x = 3;
 			//model2 = Model::Load("assets/models/test/Erika_Archer.fbx",true);
 
@@ -125,7 +122,7 @@ namespace Kaidel {
 			apc.Anim = anim;
 			e.GetComponent<TransformComponent>().Translation.z = 5.0f;
 		}*/
-		{Entity e = m_ActiveScene->CreateModelEntity(model.GetContainer()); }
+		//{Entity e = m_ActiveScene->CreateModelEntity(model.GetContainer()); }
 		//{Entity e = m_ActiveScene->CreateModelEntity(model.GetContainer()); MoveEntity(e, m_ActiveScene.get(), {5,0,0}, {0,0,0}); }
 
 		/*{
@@ -183,6 +180,7 @@ namespace Kaidel {
 		return -1;
 	}
 	static float t = 0.0f;
+	static float increment = 0.001;
 	void EditorLayer::OnUpdate(Timestep ts)
 	{
 		KD_PROFILE_FUNCTION();
@@ -290,10 +288,15 @@ namespace Kaidel {
 							auto [tc, src] = view.get<TransformComponent, SpriteRendererComponent>(e);
 							Renderer2D::DrawSprite(tc.GetTransform(), mat);
 						}
+						RenderCommand::SetPointSize(40.0f);
+						Renderer2D::DrawBezier(glm::mat4{ 1.0f }, { {0,0,0},{3,3,0},{6,0,0} }, { .2,.6,.5,1.0 }, increment);
+
 
 						Renderer2D::End();
 					}
 				}
+
+
 
 
 				m_2D3DCompositeShader->Bind();
@@ -466,6 +469,8 @@ namespace Kaidel {
 		m_SceneHierarchyPanel.OnImGuiRender();
 		m_ContentBrowserPanel.OnImGuiRender();
 		m_ConsolePanel.OnImGuiRender();
+		m_AnimationPanel.OnImGuiRender();
+
 		ShowDebugWindow();
 		ShowViewport();
 		UI_Toolbar();
@@ -702,6 +707,21 @@ namespace Kaidel {
 		//Renderer2D::EndScene();
 	}
 
+	static void GetSegmentCount(float totalSegmentCount, float* lineCount, float* segmentPerLineCount) {
+		float maxTessLevel = RenderCommand::QueryMaxTessellationLevel();
+		for (float i = 1.0f; i < maxTessLevel; i += 1.0f) {
+			for (float j = 1.0f; j < maxTessLevel; j += 1.0f) {
+				if (i * j >= totalSegmentCount) {
+					*lineCount = i;
+					*segmentPerLineCount = j;
+					return;
+				}
+			}
+		}
+		*lineCount = maxTessLevel;
+		*segmentPerLineCount = maxTessLevel;
+	}
+
 	void EditorLayer::ShowDebugWindow()
 	{
 		ImGui::Begin("Styler");
@@ -728,6 +748,14 @@ namespace Kaidel {
 		ImGui::Text("Renderer3D Stats:");
 		ImGui::Text("Geometry Pass Draw Call Count: %d", Renderer3D::GetStats().GeometryPassDrawCount);
 		ImGui::Text("Push Count: %d", Renderer3D::GetStats().PushCount);
+		ImGui::DragFloat("Increment", &increment, 0.00001f,0,0,"%.8f");
+
+		float totalNumSegments = ceilf(1.0f / (float)increment);
+		float numLines;
+		float numSegmentsPerLine;
+
+		GetSegmentCount(totalNumSegments, &numLines, &numSegmentsPerLine);
+		ImGui::TextWrapped("Number Of Lines: %.3f , Number Of Segments Per Line: %.3f", numLines, numSegmentsPerLine);
 
 		ImGui::End();
 		Renderer3D::ResetStats();
