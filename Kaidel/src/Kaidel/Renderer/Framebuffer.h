@@ -128,6 +128,11 @@ namespace Kaidel {
 		virtual void CopyColorAttachment(uint32_t dstAttachmentIndex, uint32_t srcAttachmentIndex, Ref<Framebuffer> src) = 0;
 		virtual void CopyDepthAttachment(Ref<Framebuffer> src) = 0;
 
+		virtual void DisableColorAttachment(uint32_t attachmentIndex) = 0;
+		virtual void EnableColorAttachment(uint32_t attachmentIndex) = 0;
+
+		virtual void ReadValues(uint32_t attachemntIndex, uint32_t x, uint32_t y, uint32_t w, uint32_t h, void* output) = 0;
+
 		static Ref<Framebuffer> Create(const FramebufferSpecification& spec);
 		
 

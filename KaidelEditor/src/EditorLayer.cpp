@@ -93,7 +93,6 @@ namespace Kaidel {
 		anim = CreateRef<Animation>(InterpolationFunction::QuadraticBezier);
 		anim->PushTranslation({ {0.0f,0.0f,0.0f} }, 0);
 		anim->PushTranslation({ {0.0f,0.0f,0.0f} }, 5.0f);
-		anim->GetPropertyMap<TranslationData>()->FrameStorage[0].Intermediates[0].TargetTranslation = { 1.5f,1.5f,0.f };
 		m_AnimationPanel.SetSelectedAnimation(anim);
 
 		{
@@ -106,11 +105,10 @@ namespace Kaidel {
 
 		}
 
-		/*Entity e = m_ActiveScene->CreateEntity();
+		Entity e = m_ActiveScene->CreateEntity();
 		auto& mc = e.AddComponent<MeshComponent>();
 		mc.Mesh = Primitives::CubePrimitive;
-		e.GetComponent<TransformComponent>().Translation.x = 5.0f;*/
-
+		e.AddComponent<AnimationPlayerComponent>().Anim = anim;
 		/*auto& apc = e.AddComponent<AnimationPlayerComponent>();
 		apc.Time = 0.0f;
 		apc.Anim = anim;
@@ -288,8 +286,6 @@ namespace Kaidel {
 							auto [tc, src] = view.get<TransformComponent, SpriteRendererComponent>(e);
 							Renderer2D::DrawSprite(tc.GetTransform(), mat);
 						}
-						RenderCommand::SetPointSize(40.0f);
-						Renderer2D::DrawBezier(glm::mat4{ 1.0f }, { {0,0,0},{3,3,0},{6,0,0} }, { .2,.6,.5,1.0 }, increment);
 
 
 						Renderer2D::End();
@@ -875,7 +871,6 @@ namespace Kaidel {
 	void EditorLayer::OnEvent(Event& e)
 	{
 		m_EditorCamera.OnEvent(e);
-
 		EventDispatcher dispatcher(e);
 		dispatcher.Dispatch<KeyPressedEvent>(KD_BIND_EVENT_FN(EditorLayer::OnKeyPressed));
 		dispatcher.Dispatch<MouseButtonPressedEvent>(KD_BIND_EVENT_FN(EditorLayer::OnMouseButtonPressed));

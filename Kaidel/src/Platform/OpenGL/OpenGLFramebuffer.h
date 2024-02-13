@@ -29,8 +29,11 @@ namespace Kaidel {
 		virtual void CopyColorAttachment(uint32_t dstAttachmentIndex,uint32_t srcAttachmentIndex,Ref<Framebuffer> src) override;
 		virtual void CopyDepthAttachment(Ref<Framebuffer> src) override;
 
+		virtual void DisableColorAttachment(uint32_t attachmentIndex) override;
+		virtual void EnableColorAttachment(uint32_t attachmentIndex) override;
 
 		void ClearAttachment(uint32_t attachmentIndex, const float* colors) override;
+		virtual void ReadValues(uint32_t attachemntIndex, uint32_t x, uint32_t y, uint32_t w, uint32_t h, void* output) override;
 
 	private:
 
@@ -42,6 +45,7 @@ namespace Kaidel {
 		FramebufferTextureSpecification m_DepthAttachmentSpecification = FramebufferTextureFormat::None;
 
 		std::vector<uint32_t> m_ColorAttachments;
+		std::vector<uint32_t> m_DrawBuffers;
 		uint32_t m_DepthAttachment = 0;
 
 	};

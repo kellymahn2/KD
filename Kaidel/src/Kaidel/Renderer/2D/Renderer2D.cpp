@@ -11,9 +11,7 @@
 namespace Kaidel {
 
 	struct SpriteRendererData {
-		static inline constexpr uint32_t MaxSprites = 2048;
-		static inline constexpr uint32_t MaxSpriteVertices = MaxSprites * 4;
-		static inline constexpr uint32_t MaxSpriteIndices = MaxSprites * 6;
+		
 
 		SpriteVertex DefaultSpriteVertices[4];
 
@@ -86,8 +84,7 @@ namespace Kaidel {
 	};
 
 	struct LineRendererData {
-		static inline constexpr uint32_t MaxLines = 2048;
-		static inline constexpr uint32_t MaxLineVertices = MaxLines * 2;
+		
 
 
 		Ref<VertexArray> LineVAO;
@@ -159,7 +156,6 @@ namespace Kaidel {
 
 	struct PointRendererData {
 
-		static inline constexpr uint32_t MaxPoints = 2048;
 
 		Ref<Shader> PointShader;
 		Ref<VertexArray> PointVAO;
@@ -259,6 +255,16 @@ namespace Kaidel {
 	void Renderer2D::Shutdown() {
 
 	}
+	
+	Ref<Material2D> Renderer2D::GetDefaultMaterial() {
+		return s_Renderer2DData.DefaultMaterial;
+	}
+
+
+	Ref<Framebuffer> Renderer2D::GetOutputFramebuffer() {
+		return s_Renderer2DData.OutputBuffer;
+	}
+
 	void Renderer2D::Begin(const Renderer2DBeginData& beginData) {
 		s_Renderer2DData.OutputBuffer = beginData.OutputBuffer;
 		s_Renderer2DData.CameraBuffer.CameraViewProjection = beginData.CameraVP;
@@ -276,7 +282,6 @@ namespace Kaidel {
 
 #pragma region Sprite
 	void Renderer2D::DrawSprite(const glm::mat4& transform, Ref<Material2D> material) {
-
 		if (!material) {
 			DrawSprite(transform, s_Renderer2DData.DefaultMaterial);
 			return;
@@ -314,7 +319,7 @@ namespace Kaidel {
 #pragma endregion
 #pragma region Bezier
 
-	static void GetSegmentCount(float totalSegmentCount, float* lineCount, float* segmentPerLineCount) {
+	void Renderer2D::GetSegmentCount(float totalSegmentCount, float* lineCount, float* segmentPerLineCount) {
 		float maxTessLevel = RenderCommand::QueryMaxTessellationLevel();
 		for (float i = 1.0f; i < maxTessLevel; i += 1.0f) {
 			for (float j = 1.0f; j < maxTessLevel; j += 1.0f) {

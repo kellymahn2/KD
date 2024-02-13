@@ -17,7 +17,7 @@ namespace Kaidel {
 		switch (severity)
 		{
 			case GL_DEBUG_SEVERITY_HIGH:         KD_CORE_ASSERT(false, message); return;
-			case GL_DEBUG_SEVERITY_MEDIUM:       KD_ERROR(false,message); return;
+			case GL_DEBUG_SEVERITY_MEDIUM:       KD_ERROR(message); return;
 			case GL_DEBUG_SEVERITY_LOW:          KD_WARN(message); return;
 			case GL_DEBUG_SEVERITY_NOTIFICATION: KD_TRACE(message); return;
 		}

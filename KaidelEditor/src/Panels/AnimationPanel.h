@@ -13,9 +13,13 @@ namespace Kaidel {
 		void SetSelectedAnimation(AssetHandle<Animation> anim) { m_SelectedAnimation = anim; }
 		AssetHandle<Animation> GetSelectedAnimation() { return m_SelectedAnimation; }
 		
+
 	private:
 		AssetHandle<Animation> m_SelectedAnimation;
 		glm::vec2 m_ViewportSize{ 1280.0f,720.0f };
+		glm::vec2 m_ImagePos{ 0,0 };
+		glm::vec2 m_LastFrameMousePos{ 0,0 };
 		Ref<Framebuffer> outputBuffer;
+		uint32_t m_CurrentControlPointBeingEdited = -1;
 	};
 }
