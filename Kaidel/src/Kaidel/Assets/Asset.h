@@ -76,6 +76,9 @@ namespace Kaidel {
 		_AssetType* operator ->() { return m_AssetData.operator->(); }
 		const _AssetType* operator ->() const { return m_AssetData.operator->(); }
 
+		_AssetType& operator*() { return *m_AssetData; }
+		const _AssetType& operator*() const { return *m_AssetData; }
+
 		_ContainerType& GetContainer() { return m_AssetData; }
 
 		UUID GetAssetID() const { return m_AssetID; }
@@ -124,6 +127,9 @@ namespace Kaidel {
 
 		T* operator ->() { return Handle.operator->(); }
 		const T* operator ->() const { return Handle.operator->(); }
+
+		T& operator*() { return Handle.operator*(); }
+		const T& operator*() const { return Handle.operator*(); }
 
 
 		AssetHandle(const Asset<T>& asset)

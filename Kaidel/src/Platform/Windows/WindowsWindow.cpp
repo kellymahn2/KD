@@ -22,21 +22,18 @@ namespace Kaidel {
 
 	WindowsWindow::WindowsWindow(const WindowProps& props)
 	{
-		KD_PROFILE_FUNCTION();
 
 		Init(props);
 	}
 
 	WindowsWindow::~WindowsWindow()
 	{
-		KD_PROFILE_FUNCTION();
 
 		Shutdown();
 	}
 
 	void WindowsWindow::Init(const WindowProps& props)
 	{
-		KD_PROFILE_FUNCTION();
 
 		m_Data.Title = props.Title;
 		m_Data.Width = props.Width;
@@ -46,14 +43,12 @@ namespace Kaidel {
 
 		if (s_GLFWWindowCount == 0)
 		{
-			KD_PROFILE_SCOPE("glfwInit");
 			int success = glfwInit();
 			KD_CORE_ASSERT(success, "Could not initialize GLFW!");
 			glfwSetErrorCallback(GLFWErrorCallback);
 		}
 
 		{
-			KD_PROFILE_SCOPE("glfwCreateWindow");
 #define KD_DEBUG
 		#ifdef KD_DEBUG
 			if (Renderer::GetAPI() == RendererAPI::API::OpenGL)
@@ -163,7 +158,6 @@ namespace Kaidel {
 
 	void WindowsWindow::Shutdown()
 	{
-		KD_PROFILE_FUNCTION();
 
 		glfwDestroyWindow(m_Window);
 		--s_GLFWWindowCount;
@@ -182,7 +176,6 @@ namespace Kaidel {
 
 	void WindowsWindow::SetVSync(bool enabled)
 	{
-		KD_PROFILE_FUNCTION();
 
 		if (enabled)
 			glfwSwapInterval(1);

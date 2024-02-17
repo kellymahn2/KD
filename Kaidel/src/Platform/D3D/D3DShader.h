@@ -1,19 +1,21 @@
 #pragma once
 
-#include "Kaidel/Renderer/Shader.h"
+#include "Kaidel/Renderer/GraphicsAPI/Shader.h"
+#include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
 #include <glm/glm.hpp>
 #include <d3d11.h>
 #include <d3dx11.h>
 #include <d3dx10.h>
-
 typedef unsigned int GLenum;
+
 namespace Kaidel {
 
 	class D3DShader : public Shader
 	{
 	public:
-		D3DShader(const std::string& filepath);
-		D3DShader(const std::string& name, const std::string& vertexSrc, const std::string& fragmentSrc);
+		
+		D3DShader(const ShaderSpecification& spec);
+		
 		virtual ~D3DShader();
 
 		virtual void Bind() const override;
@@ -27,7 +29,7 @@ namespace Kaidel {
 		virtual void SetFloat4(const std::string& name, const glm::vec4& value) override;
 		virtual void SetMat4(const std::string& name, const glm::mat4& value) override;
 
-		virtual const std::string& GetName() const override { return m_Name; }
+		virtual const std::string& GetName() const override { return m_Specification.ShaderName; }
 
 		void UploadUniformInt(const std::string& name, int value);
 		void UploadUniformIntArray(const std::string& name, int* values, uint32_t count);
@@ -40,28 +42,11 @@ namespace Kaidel {
 		void UploadUniformMat3(const std::string& name, const glm::mat3& matrix);
 		void UploadUniformMat4(const std::string& name, const glm::mat4& matrix);
 		ID3DBlob* GetVSBlob()const { return m_VSBlob; }
-		ID3DBlob* GetPSBlob()const { return m_PSBlob; }
-
-
-
-	
-
-
 	private:
-		std::string ReadFile(const std::string& filepath);
-		std::unordered_map<ShaderType, std::string> PreProcess(const std::string& source);
-		void Compile(const std::unordered_map<ShaderType, std::string>& shaderSources);
-	private:
-		uint32_t m_RendererID;
-		ID3D11VertexShader* m_VertexShader = nullptr;
-		ID3D11PixelShader* m_PixelShader = nullptr;
-		ID3D11GeometryShader* m_GeometryShader = nullptr;
-		ID3D11ComputeShader* m_ComputeShader = nullptr;
-		ID3DBlob* m_VSBlob = nullptr;
-		ID3DBlob* m_PSBlob = nullptr;
-		ID3DBlob* m_GSBlob = nullptr;
-		ID3DBlob* m_CSBlob = nullptr;
-		std::string m_Name;
+		std::unordered_map<ShaderType, void*> m_Shaders;
+		ID3DBlob* m_VSBlob;
+		ShaderSpecification m_Specification;
+		std::vector<byte> m_UniformBytes;
 	};
 
 }

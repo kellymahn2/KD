@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Kaidel/Renderer/Framebuffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
 
 namespace Kaidel {
 

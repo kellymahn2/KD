@@ -1,6 +1,6 @@
 #pragma once
 #include "Kaidel/Core/Console.h"
-#include "Kaidel/Renderer/Texture.h"
+#include "Kaidel/Renderer/GraphicsAPI/Texture.h"
 namespace Kaidel {
 	class ConsolePanel {
 	public:

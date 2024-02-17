@@ -10,17 +10,11 @@ int main(int argc, char** argv)
 {
 	Log::Init();
 
-	KD_PROFILE_BEGIN_SESSION("Startup", "KaidelProfile-Startup.json");
 	auto app = Kaidel::CreateApplication({argc,argv});
-	KD_PROFILE_END_SESSION();
 
-	KD_PROFILE_BEGIN_SESSION("Runtime", "KaidelProfile-Runtime.json");
 	app->Run();
-	KD_PROFILE_END_SESSION();
 
-	KD_PROFILE_BEGIN_SESSION("Shutdown", "KaidelProfile-Shutdown.json");
 	delete app;
-	KD_PROFILE_END_SESSION();
 }
 #ifdef KAIDEL_DIST
 int __stdcall WinMain(

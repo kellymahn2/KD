@@ -1,6 +1,7 @@
 #include "KDpch.h"
 #include "Mesh.h"
 #include "Kaidel/Renderer/RenderCommand.h"
+#include "Kaidel/Renderer/3D/Renderer3D.h"
 namespace Kaidel {
 
 
@@ -48,9 +49,9 @@ namespace Kaidel {
 		m_MeshName = mesh.m_MeshName;
 		m_Material = mesh.m_Material;
 		m_PerInstanceVBO = mesh.m_PerInstanceVBO;
+		m_IBO = mesh.m_IBO;
 	}
 	void Mesh::Setup(const std::vector<uint32_t>& indices) {
-		m_VAO = VertexArray::Create();
 		m_VBO = VertexBuffer::Create((float*)m_Vertices.data(),m_Vertices.size() * sizeof(MeshVertex));
 		m_PerInstanceVBO = VertexBuffer::Create(1024*sizeof(MeshDrawData));
 		Ref<IndexBuffer> ib = IndexBuffer::Create((uint32_t*)indices.data(), indices.size());
@@ -64,10 +65,14 @@ namespace Kaidel {
 			{ShaderDataType::Mat3,"a_NormalTransform",1},
 			{ShaderDataType::Int,"a_MaterialID",1}
 			});
-		m_VAO->AddVertexBuffer(m_VBO);
-		m_VAO->AddVertexBuffer(m_PerInstanceVBO);
-		m_VAO->SetIndexBuffer(ib);
+		
+		VertexArraySpecification spec;
+		spec.VertexBuffers = { m_VBO,m_PerInstanceVBO };
+		spec.IndexBuffer = ib;
+		spec.UsedShader = Renderer3D::GetMeshShader();
+		m_VAO = VertexArray::Create(spec);
 		m_UAV = UAVInput::Create(0, sizeof(MeshDrawData), nullptr);
+		m_IBO = ib;
 	}
 	bool Mesh::Draw(const glm::mat4& transform, Ref<Material>& mat) {
 		if (!m_DrawData.CanReserveWithoutOverflow(1))

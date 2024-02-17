@@ -14,7 +14,6 @@ namespace Kaidel {
 
 	void OpenGLContext::Init()
 	{
-		KD_PROFILE_FUNCTION();
 		glfwMakeContextCurrent(m_WindowHandle);
 		int status = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
 		KD_CORE_ASSERT(status, "Failed to initialize Glad!");
@@ -28,7 +27,6 @@ namespace Kaidel {
 
 	void OpenGLContext::SwapBuffers()
 	{
-		KD_PROFILE_FUNCTION();
 
 		glfwSwapBuffers(m_WindowHandle);
 	}

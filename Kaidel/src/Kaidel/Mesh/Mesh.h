@@ -1,12 +1,11 @@
 #pragma once
 
-#include "Kaidel/Renderer/VertexArray.h"
-#include "Kaidel/Renderer/Buffer.h"
-#include "Kaidel/Renderer/Texture.h"
-#include "Kaidel/Renderer/Material.h"
+#include "Kaidel/Renderer/GraphicsAPI/VertexArray.h"
+#include "Kaidel/Renderer/GraphicsAPI/Buffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/Texture.h"
+#include "Kaidel/Renderer/3D/Material.h"
 #include "Kaidel/Core/BoundedVector.h"
 #include "Kaidel/Math/BoundingBox.h"
-#include "Kaidel/Renderer/Material.h"
 #include <glm/glm.hpp>
 #include <vector>
 
@@ -51,6 +50,7 @@ namespace Kaidel {
 		Ref<VertexArray> m_VAO;
 		Ref<VertexBuffer> m_VBO;
 		Ref<VertexBuffer> m_PerInstanceVBO;
+		Ref<IndexBuffer> m_IBO;
 		uint32_t m_IndexCount = 0;
 		uint32_t m_InstanceCount = 0;
 		BoundedVector<MeshDrawData> m_DrawData = { 0,1024,[&](MeshDrawData* slot, uint64_t size) {

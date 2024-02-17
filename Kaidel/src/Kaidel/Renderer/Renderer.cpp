@@ -9,9 +9,13 @@ namespace Kaidel {
 
 	void Renderer::Init()
 	{
-		KD_PROFILE_FUNCTION();
 
 		RenderCommand::Init();
+
+
+		Renderer3D::Init();
+		Renderer2D::Init();
+
 
 		{
 			const std::vector<MeshVertex> vertices = {
@@ -70,8 +74,7 @@ namespace Kaidel {
 			Primitives::CubePrimitive = CreateRef<Mesh>("Cube", vertices, indices, mat,glm::vec3(0,0,0));
 		}
 
-		Renderer3D::Init();
-		Renderer2D::Init();
+		
 	}
 
 	void Renderer::Shutdown()

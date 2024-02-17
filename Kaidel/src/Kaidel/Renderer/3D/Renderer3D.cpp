@@ -2,11 +2,11 @@
 #include "Renderer3D.h"
 
 #include "Kaidel/Core/BoundedVector.h"
-#include "Kaidel/Renderer/VertexArray.h"
-#include "Kaidel/Renderer/Buffer.h"
-#include "Kaidel/Renderer/UniformBuffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/VertexArray.h"
+#include "Kaidel/Renderer/GraphicsAPI/Buffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
 #include "Kaidel/Renderer/RenderCommand.h"
-#include "Kaidel/Renderer/Light.h"
+#include "Kaidel/Renderer/3D/Light.h"
 #include "Kaidel/Core/Timer.h"
 #include<unordered_set>
 namespace Kaidel {
@@ -20,6 +20,12 @@ namespace Kaidel {
 
 
 		Ref<Shader> MeshShader;
+
+		Ref<VertexArray> MeshVAO;
+		Ref<VertexBuffer> MeshVBO;
+		Ref<VertexBuffer> PerInstanceVBO;
+		Ref<IndexBuffer> MeshIBO;
+
 		Ref<ComputeShader> SceneCompositeShader;
 		struct CameraBufferData {
 			glm::mat4 ViewProj;
@@ -46,6 +52,9 @@ namespace Kaidel {
 				} 
 			} 
 		};*/
+
+
+
 		std::vector<AssetHandle<Mesh>> DrawnModels;
 
 		Ref<Depth2DArray> ShadowMapBuffers;
@@ -94,8 +103,36 @@ namespace Kaidel {
 			FramebufferSpecification fbSpec{};
 			fbSpec.Width = _ShadowMapWidth;
 			fbSpec.Height = _ShadowMapHeight;
+			fbSpec.Attachments = { FramebufferTextureFormat::Depth };
 			s_Data.ShadowMapFrameBuffer = Framebuffer::Create(fbSpec);
 		}
+
+
+		{
+
+			s_Data.MeshVBO = VertexBuffer::Create(0);
+			s_Data.MeshVBO->SetLayout({
+			{ShaderDataType::Float3,"a_Position"},
+			{ShaderDataType::Float3,"a_Normal"},
+			{ShaderDataType::Float2,"a_TexCoords"},
+				});
+			s_Data.PerInstanceVBO = VertexBuffer::Create(1024 * sizeof(MeshDrawData));
+			s_Data.PerInstanceVBO->SetLayout({
+				{ShaderDataType::Mat4,"a_Transform",1},
+				{ShaderDataType::Mat3,"a_NormalTransform",1},
+				{ShaderDataType::Int,"a_MaterialID",1}
+				});
+
+			s_Data.MeshIBO = IndexBuffer::Create(nullptr, 0);
+
+			VertexArraySpecification spec;
+			spec.VertexBuffers = { s_Data.MeshVBO,s_Data.PerInstanceVBO };
+			spec.UsedShader = s_Data.MeshShader;
+			spec.IndexBuffer = s_Data.MeshIBO;
+			s_Data.MeshVAO = VertexArray::Create(spec);
+
+		}
+
 		MaterialTextureHandler::Init();
 	}
 	void Renderer3D::Shutdown() {
@@ -145,6 +182,11 @@ namespace Kaidel {
 
 	}
 
+	Ref<Shader> Renderer3D::GetMeshShader() {
+		return s_Data.MeshShader;
+	}
+
+
 	void Renderer3D::FlushMesh(AssetHandle<Mesh> mesh) {
 	
 		
@@ -152,13 +194,16 @@ namespace Kaidel {
 			return;
 		//Geometry Pass
 		{
+			SCOPED_TIMER(Geometry Pass)
 			//Timer timer("Geometry Pass");
 			s_Data.G_Buffers->Bind();
 			s_Data.MeshShader->Bind();
-			mesh->m_PerInstanceVBO->SetData(mesh->m_DrawData.Get(), mesh->m_DrawData.Size() * sizeof(MeshDrawData));
+			s_Data.PerInstanceVBO->SetData(mesh->m_DrawData.Get(), mesh->m_DrawData.Size() * sizeof(MeshDrawData));
+			s_Data.MeshVBO->SetData(mesh->m_Vertices.data(), mesh->m_Vertices.size() * sizeof(MeshVertex));
+			s_Data.MeshVAO->SetIndexBuffer(mesh->m_IBO);
 			RenderCommand::SetCullMode(CullMode::Back);
 			{
-				RenderCommand::DrawIndexedInstanced(mesh->m_VAO, mesh->m_IndexCount, mesh->m_InstanceCount);
+				RenderCommand::DrawIndexedInstanced(s_Data.MeshVAO, mesh->m_IndexCount, mesh->m_InstanceCount);
 			}
 			RenderCommand::SetCullMode(CullMode::None);
 			s_Data.Stats.GeometryPassDrawCount++;
@@ -169,15 +214,15 @@ namespace Kaidel {
 
 		//Shadow Pass
 		{
+			SCOPED_TIMER(Shadow Pass)
 			s_Data.ShadowMapShader->Bind();
-
 			auto spotlightDepthMaps = SpotLight::GetDepthMaps();
 			s_Data.ShadowMapFrameBuffer->Bind();
 			RenderCommand::SetCullMode(CullMode::Front);
 			for (auto& light : SpotLight::GetLights()) {
 				s_Data.ShadowMapShader->SetInt("u_LightIndex", light->GetIndex());
 				s_Data.ShadowMapFrameBuffer->SetDepthAttachmentFromArray(spotlightDepthMaps->GetRendererID(), light->GetIndex());
-				RenderCommand::DrawIndexedInstanced(mesh->m_VAO, mesh->m_IndexCount, mesh->m_InstanceCount);
+				RenderCommand::DrawIndexedInstanced(s_Data.MeshVAO, mesh->m_IndexCount, mesh->m_InstanceCount);
 			}
 			RenderCommand::SetCullMode(CullMode::None);
 			s_Data.ShadowMapFrameBuffer->Unbind();

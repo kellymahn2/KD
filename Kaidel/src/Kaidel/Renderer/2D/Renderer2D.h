@@ -1,6 +1,6 @@
 #pragma once
-#include "Kaidel/Renderer/Framebuffer.h"
-#include "Kaidel/Renderer/Material2D.h"
+#include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
+#include "Kaidel/Renderer/2D/Material2D.h"
 #include "Kaidel/Core/BoundedVector.h"
 #include <glm/glm.hpp>
 
@@ -158,16 +158,9 @@ namespace Kaidel {
 		static void EndCustomPoint() {
 			FlushPoints<T, RendererID>();
 		}
-
-	private:
 		static void FlushSprites();
 		static void FlushLines();
 		static void FlushPoints();
-
-		static Ref<Material2D> GetDefaultMaterial();
-		static Ref<Framebuffer> GetOutputFramebuffer();
-		static void GetSegmentCount(float totalSegmentCount, float* lineCount, float* segmentPerLineCount);
-
 		template<typename T, uint64_t RendererID>
 		static void FlushSprites() {
 			using CustomRenderer = CustomSpriteRendererData<T, RendererID>;
@@ -189,43 +182,51 @@ namespace Kaidel {
 			vertices.Reset();
 		}
 
-		template<typename T,uint64_t RendererID>
+		template<typename T, uint64_t RendererID>
 		static void FlushLines() {
-			using CustomRenderer = CustomLineRendererData<T,RendererID>;
+			using CustomRenderer = CustomLineRendererData<T, RendererID>;
 
 			CustomRenderer2D& customRenderer = CustomRenderer::CustomRenderer;
 
 			BoundedVector<T>& vertices = CustomRenderer::Vertices;
 			Ref<Framebuffer> outputBuffer = GetOutputFramebuffer();
-			if(CustomRenderer::LinesWaitingForRender){
+			if (CustomRenderer::LinesWaitingForRender) {
 				outputBuffer->Bind();
-				customRenderer.VBO->SetData(vertices.Get(),vertices.Size()* sizeof(T));
+				customRenderer.VBO->SetData(vertices.Get(), vertices.Size() * sizeof(T));
 				customRenderer.Shader->Bind();
-				RenderCommand::DrawLines(customRenderer.VAO,CustomRenderer::LinesWaitingForRender * 2);
+				RenderCommand::DrawLines(customRenderer.VAO, CustomRenderer::LinesWaitingForRender * 2);
 				CustomRenderer::RenderedLineCount += CustomRenderer::LinesWaitingForRender;
 				CustomRenderer::LinesWaitingForRender = 0;
 				outputBuffer->Unbind();
 			}
 			vertices.Reset();
 		}
-		template<typename T,uint64_t RendererID>
-		static void FlushPoints(){
-			using CustomRenderer = CustomPointRendererData<T,RendererID>;
+		template<typename T, uint64_t RendererID>
+		static void FlushPoints() {
+			using CustomRenderer = CustomPointRendererData<T, RendererID>;
 			CustomRenderer2D& customRenderer = CustomRenderer::CustomRenderer;
 
 			BoundedVector<T>& vertices = CustomRenderer::Vertices;
 			Ref<Framebuffer> outputBuffer = GetOutputFramebuffer();
-			if(CustomRenderer::PointsWaitingForRender){
+			if (CustomRenderer::PointsWaitingForRender) {
 				outputBuffer->Bind();
-				customRenderer.VBO->SetData(vertices.Get(),vertices.Size() * sizeof(T));
+				customRenderer.VBO->SetData(vertices.Get(), vertices.Size() * sizeof(T));
 				customRenderer.Shader->Bind();
-				RenderCommand::DrawPoints(customRenderer.VAO,vertices.Size());
+				RenderCommand::DrawPoints(customRenderer.VAO, vertices.Size());
 				CustomRenderer::RenderedPointCount += CustomRenderer::PointsWaitingForRender;
 				CustomRenderer::PointsWaitingForRender = 0;
 				outputBuffer->Unbind();
 			}
 			vertices.Reset();
 		}
+	private:
+		
+
+		static Ref<Material2D> GetDefaultMaterial();
+		static Ref<Framebuffer> GetOutputFramebuffer();
+		static void GetSegmentCount(float totalSegmentCount, float* lineCount, float* segmentPerLineCount);
+
+		
 
 	private:
 		friend struct SpriteRendererData;

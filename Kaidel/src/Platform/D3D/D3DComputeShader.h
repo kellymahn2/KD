@@ -1,5 +1,5 @@
 #pragma once
-#include "Kaidel/Renderer/Shader.h"
+#include "Kaidel/Renderer/GraphicsAPI/Shader.h"
 
 #include <d3d11.h>
 #include <d3dx11.h>

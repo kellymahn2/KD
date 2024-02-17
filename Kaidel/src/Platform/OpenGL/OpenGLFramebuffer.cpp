@@ -293,7 +293,6 @@ namespace Kaidel {
 	void OpenGLFramebuffer::SetDepthAttachmentFromArray(uint32_t attachmentID, uint32_t arrayIndex) {
 		glBindFramebuffer(GL_FRAMEBUFFER, m_RendererID);
 		glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, attachmentID, 0, arrayIndex);
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
 	void OpenGLFramebuffer::ClearDepthAttachment(float value) {
@@ -362,10 +361,8 @@ namespace Kaidel {
 		else {
 			glDrawBuffer(GL_NONE);
 		}
-		
-		if (m_Specification.Attachments.Attachments.empty())
-			return;
-		KD_CORE_ASSERT(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE, "Framebuffer is incomplete!");
+
+		KD_CORE_ASSERT((m_DepthAttachmentSpecification.TextureFormat == FramebufferTextureFormat::None && m_DrawBuffers.empty()) || glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE, "Framebuffer is incomplete!");
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}

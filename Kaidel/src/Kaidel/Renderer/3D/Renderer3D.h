@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Kaidel/Renderer/Framebuffer.h"
-#include "Kaidel/Renderer/Material.h"
+#include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
+#include "Kaidel/Renderer/3D/Material.h"
 #include "Kaidel/Mesh/Model.h"
 #include "Kaidel/Assets/Asset.h"
 #include <glm/glm.hpp>
@@ -32,6 +32,8 @@ namespace Kaidel {
 		static void RenderingPipeLine();
 		static void ResetStats();
 		static Renderer3DStats& GetStats();
+		static Ref<Shader> GetMeshShader();
+
 	private:
 		static void SetupPrimitives();
 		static void FlushMesh(AssetHandle<Mesh>  mesh);

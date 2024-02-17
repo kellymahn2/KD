@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Kaidel/Renderer/Shader.h"
+#include "Kaidel/Renderer/GraphicsAPI/Shader.h"
 #include <glm/glm.hpp>
 
 // TODO: REMOVE!

@@ -12,7 +12,6 @@ namespace Kaidel {
 	OpenGLVertexBuffer::OpenGLVertexBuffer(uint32_t size)
 		:m_MaxSize(size)
 	{
-		KD_PROFILE_FUNCTION();
 
 		glCreateBuffers(1, &m_RendererID);
 		glBindBuffer(GL_ARRAY_BUFFER, m_RendererID);
@@ -21,7 +20,6 @@ namespace Kaidel {
 
 	OpenGLVertexBuffer::OpenGLVertexBuffer(float* vertices, uint32_t size)
 	{
-		KD_PROFILE_FUNCTION();
 
 		glCreateBuffers(1, &m_RendererID);
 		glBindBuffer(GL_ARRAY_BUFFER, m_RendererID);
@@ -30,21 +28,18 @@ namespace Kaidel {
 
 	OpenGLVertexBuffer::~OpenGLVertexBuffer()
 	{
-		KD_PROFILE_FUNCTION();
 
 		glDeleteBuffers(1, &m_RendererID);
 	}
 
 	void OpenGLVertexBuffer::Bind() const
 	{
-		KD_PROFILE_FUNCTION();
 
 		glBindBuffer(GL_ARRAY_BUFFER, m_RendererID);
 	}
 
 	void OpenGLVertexBuffer::Unbind() const
 	{
-		KD_PROFILE_FUNCTION();
 
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
@@ -70,7 +65,6 @@ namespace Kaidel {
 	OpenGLIndexBuffer::OpenGLIndexBuffer(uint32_t* indices, uint32_t count)
 		: m_Count(count)
 	{
-		KD_PROFILE_FUNCTION();
 
 		glCreateBuffers(1, &m_RendererID);
 		
@@ -82,21 +76,18 @@ namespace Kaidel {
 
 	OpenGLIndexBuffer::~OpenGLIndexBuffer()
 	{
-		KD_PROFILE_FUNCTION();
 
 		glDeleteBuffers(1, &m_RendererID);
 	}
 
 	void OpenGLIndexBuffer::Bind() const
 	{
-		KD_PROFILE_FUNCTION();
 
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_RendererID);
 	}
 
 	void OpenGLIndexBuffer::Unbind() const
 	{
-		KD_PROFILE_FUNCTION();
 
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	}

@@ -32,7 +32,6 @@
 
 #include "Kaidel/Core/Log.h"
 
-#include "Kaidel/Debug/Instrumentor.h"
 
 #ifdef KD_PLATFORM_WINDOWS
 	#include <Windows.h>

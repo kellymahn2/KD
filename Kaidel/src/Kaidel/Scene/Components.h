@@ -1,10 +1,11 @@
 #pragma once
 #include "SceneCamera.h"
 #include "Kaidel/Animation/Animation.h"
-#include "Kaidel/Renderer/Texture.h"
+#include "Kaidel/Renderer/GraphicsAPI/Texture.h"
 #include "Kaidel/Core/UUID.h"
-#include "Kaidel/Renderer/Light.h"
-#include "Kaidel/Renderer/Material.h"
+#include "Kaidel/Renderer/3D/Light.h"
+#include "Kaidel/Renderer/3D/Material.h"
+#include "Kaidel/ParticleSystem/ParticleSystem.h"
 #include "Kaidel/Mesh/Mesh.h"
 #include "Kaidel/Assets/Asset.h"
 #include <glm/glm.hpp>
@@ -64,7 +65,6 @@ namespace Kaidel {
 
 
 	//2D
-
 	struct SpriteRendererComponent
 	{
 		glm::vec4 Color{ 1.0f, 1.0f, 1.0f, 1.0f };
@@ -123,6 +123,7 @@ namespace Kaidel {
 	};
 
 	//3D
+	#pragma region 3D
 	struct CubeRendererComponent {
 		Ref<Material> Material;
 		CubeRendererComponent() = default;
@@ -175,14 +176,7 @@ namespace Kaidel {
 
 
 	};
-
-	/*struct LightComponent {
-		Ref<Light> Light;
-		LightComponent() {
-			Light = CreateRef<Kaidel::Light>();
-		}
-		LightComponent(const LightComponent&) = default;
-	};*/
+#pragma endregion
 
 	struct CameraComponent
 	{
@@ -238,6 +232,7 @@ namespace Kaidel {
 
 	
 	//Physics
+	#pragma region Physics
 	struct Rigidbody2DComponent {
 		enum class BodyType {
 			Static=0,Dynamic,Kinematic
@@ -280,4 +275,12 @@ namespace Kaidel {
 		CircleCollider2DComponent() = default;
 		CircleCollider2DComponent(const CircleCollider2DComponent&) = default;
 	};
+#pragma endregion
+
+
+	//Particles
+	struct ParticleSystemComponent {
+		AssetHandle<ParticleSystem> PS;
+	};
+
 }

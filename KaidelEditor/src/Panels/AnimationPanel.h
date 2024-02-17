@@ -2,7 +2,7 @@
 #include "Kaidel/Scene/Entity.h"
 #include "Kaidel/Scene/Scene.h"
 #include "Kaidel/Animation/Animation.h"
-#include "Kaidel/Renderer/Framebuffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
 namespace Kaidel {
 	class AnimationPanel
 	{

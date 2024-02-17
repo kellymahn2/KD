@@ -251,7 +251,7 @@ namespace Kaidel {
 	
 	Ref<Model> Model::Load(const std::filesystem::path& modelPath, bool flipUVs) {
 		Assimp::Importer importer;
-		const aiScene* scene = importer.ReadFile(modelPath.string(), aiProcess_Triangulate  | aiProcess_EmbedTextures | aiProcess_GenNormals);
+		const aiScene* scene = importer.ReadFile(modelPath.string(), aiProcess_Triangulate  | aiProcess_EmbedTextures | aiProcess_GenNormals | aiProcess_JoinIdenticalVertices | aiProcess_OptimizeMeshes|aiProcess_PreTransformVertices);
 		KD_ASSERT(scene && ((scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) == 0) && scene->mRootNode, "Couldn't load model at path {} with error {}",modelPath.string(),importer.GetErrorString());
 		Ref<Model> model = CreateRef<Model>();
 		model->m_ModelPath = modelPath;

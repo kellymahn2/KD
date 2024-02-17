@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Kaidel/Renderer/Texture.h"
+#include "Kaidel/Renderer/GraphicsAPI/Texture.h"
 
 #include <glad/glad.h>
 

@@ -4,84 +4,52 @@
 #include <glad/glad.h>
 
 namespace Kaidel {
-
-	static GLenum ShaderDataTypeToOpenGLBaseType(ShaderDataType type)
-	{
-		switch (type)
+	namespace Utils {
+		static GLenum ShaderDataTypeToOpenGLBaseType(ShaderDataType type)
 		{
-			case ShaderDataType::Float:    return GL_FLOAT;
-			case ShaderDataType::Float2:   return GL_FLOAT;
-			case ShaderDataType::Float3:   return GL_FLOAT;
-			case ShaderDataType::Float4:   return GL_FLOAT;
-			case ShaderDataType::Mat3:     return GL_FLOAT;
-			case ShaderDataType::Mat4:     return GL_FLOAT;
-			case ShaderDataType::Int:      return GL_INT;
-			case ShaderDataType::Int2:     return GL_INT;
-			case ShaderDataType::Int3:     return GL_INT;
-			case ShaderDataType::Int4:     return GL_INT;
-			case ShaderDataType::Bool:     return GL_BOOL;
+			switch (type)
+			{
+				case ShaderDataType::Float:    return GL_FLOAT;
+				case ShaderDataType::Float2:   return GL_FLOAT;
+				case ShaderDataType::Float3:   return GL_FLOAT;
+				case ShaderDataType::Float4:   return GL_FLOAT;
+				case ShaderDataType::Mat3:     return GL_FLOAT;
+				case ShaderDataType::Mat4:     return GL_FLOAT;
+				case ShaderDataType::Int:      return GL_INT;
+				case ShaderDataType::Int2:     return GL_INT;
+				case ShaderDataType::Int3:     return GL_INT;
+				case ShaderDataType::Int4:     return GL_INT;
+				case ShaderDataType::Bool:     return GL_BOOL;
+			}
+			KD_CORE_ASSERT(false, "Unknown ShaderDataType!");
+			return 0;
 		}
 
-		KD_CORE_ASSERT(false, "Unknown ShaderDataType!");
-		return 0;
-	}
+		static void AddVertexBuffer(uint32_t vertexArray,uint32_t& currentVertexBufferIndex,Ref<VertexBuffer> vertexBuffer) {
+			KD_CORE_ASSERT(vertexBuffer->GetLayout().GetElements().size(), "Vertex Buffer has no layout!");
 
-	OpenGLVertexArray::OpenGLVertexArray()
-	{
-		KD_PROFILE_FUNCTION();
+			glBindVertexArray(vertexArray);
+			vertexBuffer->Bind();
 
-		glCreateVertexArrays(1, &m_RendererID);
-	}
-
-	OpenGLVertexArray::~OpenGLVertexArray()
-	{
-		KD_PROFILE_FUNCTION();
-
-		glDeleteVertexArrays(1, &m_RendererID);
-	}
-
-	void OpenGLVertexArray::Bind() const
-	{
-		KD_PROFILE_FUNCTION();
-
-		glBindVertexArray(m_RendererID);
-	}
-
-	void OpenGLVertexArray::Unbind() const
-	{
-		KD_PROFILE_FUNCTION();
-
-		glBindVertexArray(0);
-	}
-
-	void OpenGLVertexArray::AddVertexBuffer(const Ref<VertexBuffer>& vertexBuffer)
-	{
-		KD_PROFILE_FUNCTION();
-
-		KD_CORE_ASSERT(vertexBuffer->GetLayout().GetElements().size(), "Vertex Buffer has no layout!");
-
-		glBindVertexArray(m_RendererID);
-		vertexBuffer->Bind();
-
-		const auto& layout = vertexBuffer->GetLayout();
-		for (const auto& element : layout)
-		{
-			switch (element.Type)
+			const auto& layout = vertexBuffer->GetLayout();
+			for (const auto& element : layout)
 			{
+				switch (element.Type)
+				{
 				case ShaderDataType::Float:
 				case ShaderDataType::Float2:
 				case ShaderDataType::Float3:
 				case ShaderDataType::Float4:
 				{
-					glEnableVertexAttribArray(m_VertexBufferIndex);
-					glVertexAttribPointer(m_VertexBufferIndex,
+					glEnableVertexAttribArray(currentVertexBufferIndex);
+					glVertexAttribPointer(currentVertexBufferIndex,
 						element.GetComponentCount(),
 						ShaderDataTypeToOpenGLBaseType(element.Type),
 						element.Normalized ? GL_TRUE : GL_FALSE,
 						layout.GetStride(),
 						(const void*)element.Offset);
-					glVertexAttribDivisor(m_VertexBufferIndex, element.Divisor);
-					m_VertexBufferIndex++;
+					glVertexAttribDivisor(currentVertexBufferIndex, element.Divisor);
+					currentVertexBufferIndex++;
 					break;
 				}
 				case ShaderDataType::Int:
@@ -90,14 +58,14 @@ namespace Kaidel {
 				case ShaderDataType::Int4:
 				case ShaderDataType::Bool:
 				{
-					glEnableVertexAttribArray(m_VertexBufferIndex);
-					glVertexAttribIPointer(m_VertexBufferIndex,
+					glEnableVertexAttribArray(currentVertexBufferIndex);
+					glVertexAttribIPointer(currentVertexBufferIndex,
 						element.GetComponentCount(),
 						ShaderDataTypeToOpenGLBaseType(element.Type),
 						layout.GetStride(),
 						(const void*)element.Offset);
-					glVertexAttribDivisor(m_VertexBufferIndex, element.Divisor);
-					m_VertexBufferIndex++;
+					glVertexAttribDivisor(currentVertexBufferIndex, element.Divisor);
+					currentVertexBufferIndex++;
 					break;
 				}
 				case ShaderDataType::Mat3:
@@ -106,34 +74,66 @@ namespace Kaidel {
 					uint8_t count = element.GetComponentCount();
 					for (uint8_t i = 0; i < count; i++)
 					{
-						glEnableVertexAttribArray(m_VertexBufferIndex);
+						glEnableVertexAttribArray(currentVertexBufferIndex);
 						uint32_t offset = (element.Offset + sizeof(float) * count * i);
-						glVertexAttribPointer(m_VertexBufferIndex,
-							count ,
+						glVertexAttribPointer(currentVertexBufferIndex,
+							count,
 							ShaderDataTypeToOpenGLBaseType(element.Type),
 							element.Normalized ? GL_TRUE : GL_FALSE,
 							layout.GetStride(),
 							(const void*)offset);
-						glVertexAttribDivisor(m_VertexBufferIndex, element.Divisor);
-						m_VertexBufferIndex++;
+						glVertexAttribDivisor(currentVertexBufferIndex, element.Divisor);
+						currentVertexBufferIndex++;
 					}
 					break;
 				}
 				default:
 					KD_CORE_ASSERT(false, "Unknown ShaderDataType!");
-			}
+				}
+			}	
 		}
-		m_VertexBuffers.push_back(vertexBuffer);
+
+		static uint32_t CreateVertexArray(const VertexArraySpecification& spec) {
+			uint32_t vertexArray;
+			glCreateVertexArrays(1, &vertexArray);
+			glBindVertexArray(vertexArray);
+			uint32_t currentVertexBufferIndex = 0;
+			for (auto& vb : spec.VertexBuffers) {
+				AddVertexBuffer(vertexArray, currentVertexBufferIndex, vb);
+			}
+			if(spec.IndexBuffer)
+				spec.IndexBuffer->Bind();
+			glBindVertexArray(0);
+			return vertexArray;
+		}
 	}
 
-	void OpenGLVertexArray::SetIndexBuffer(const Ref<IndexBuffer>& indexBuffer)
-	{
-		KD_PROFILE_FUNCTION();
-
-		glBindVertexArray(m_RendererID);
+	void OpenGLVertexArray::SetIndexBuffer(Ref<IndexBuffer> indexBuffer) {
+		m_Specification.IndexBuffer = indexBuffer;
+		Bind();
 		indexBuffer->Bind();
-
-		m_IndexBuffer = indexBuffer;
+		Unbind();
 	}
 
+	OpenGLVertexArray::OpenGLVertexArray(const VertexArraySpecification& spec)
+		:m_Specification(spec)
+	{
+		m_RendererID = Utils::CreateVertexArray(spec);
+	}
+
+	OpenGLVertexArray::~OpenGLVertexArray()
+	{
+
+		glDeleteVertexArrays(1, &m_RendererID);
+	}
+
+	void OpenGLVertexArray::Bind() const
+	{
+		glBindVertexArray(m_RendererID);
+	}
+
+	void OpenGLVertexArray::Unbind() const
+	{
+		glBindVertexArray(0);
+	}
 }

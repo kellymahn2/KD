@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Kaidel/Renderer/GraphicsContext.h"
+#include "Kaidel/Renderer/GraphicsAPI/GraphicsContext.h"
 
 struct GLFWwindow;
 

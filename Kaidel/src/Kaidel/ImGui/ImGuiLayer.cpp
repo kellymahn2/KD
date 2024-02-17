@@ -28,7 +28,6 @@ namespace Kaidel {
 
 	void ImGuiLayer::OnAttach()
 	{
-		KD_PROFILE_FUNCTION();
 
 		// Setup Dear ImGui context
 		IMGUI_CHECKVERSION();
@@ -80,7 +79,6 @@ namespace Kaidel {
 
 	void ImGuiLayer::OnDetach()
 	{
-		KD_PROFILE_FUNCTION();
 		switch (RendererAPI::GetAPI())
 		{
 		case RendererAPI::API::OpenGL: {
@@ -109,7 +107,6 @@ namespace Kaidel {
 	
 	void ImGuiLayer::Begin()
 	{
-		KD_PROFILE_FUNCTION();
 
 		switch (RendererAPI::GetAPI())
 		{

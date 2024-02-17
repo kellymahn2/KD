@@ -1,9 +1,7 @@
 #include "EditorLayer.h"
 
-
 #include "Kaidel/Math/Math.h"
 #include "Kaidel/Core/Timer.h"
-#include "Kaidel/Renderer/SharedPassData.h"
 #include "Kaidel/Assets/Asset.h"
 
 
@@ -90,9 +88,9 @@ namespace Kaidel {
 		m_SceneHierarchyPanel.RegisterFieldRenderers();
 		m_ConsolePanel.SetContext(::Log::GetClientLogger());
 
-		anim = CreateRef<Animation>(InterpolationFunction::QuadraticBezier);
+		anim = CreateRef<Animation>(InterpolationFunction::CubicBezier);
 		anim->PushTranslation({ {0.0f,0.0f,0.0f} }, 0);
-		anim->PushTranslation({ {0.0f,0.0f,0.0f} }, 5.0f);
+		anim->PushTranslation({ {3.0f,0.0f,0.0f} }, 5.0f);
 		m_AnimationPanel.SetSelectedAnimation(anim);
 
 		{
@@ -105,10 +103,14 @@ namespace Kaidel {
 
 		}
 
-		Entity e = m_ActiveScene->CreateEntity();
+		/*Entity e = m_ActiveScene->CreateEntity();
 		auto& mc = e.AddComponent<MeshComponent>();
 		mc.Mesh = Primitives::CubePrimitive;
-		e.AddComponent<AnimationPlayerComponent>().Anim = anim;
+		e.AddComponent<AnimationPlayerComponent>().Anim = anim;*/
+
+
+		//Entity e = m_ActiveScene->CreateModelEntity(model.GetContainer());
+
 		/*auto& apc = e.AddComponent<AnimationPlayerComponent>();
 		apc.Time = 0.0f;
 		apc.Anim = anim;
@@ -139,15 +141,29 @@ namespace Kaidel {
 			mc.Mesh = handle;
 			++i;
 		}*/
-		/*{
-			ent = m_ActiveScene->CreateEntity();
-			auto& mc = ent.AddComponent<MeshComponent>();
-			mc.Mesh = Primitives::CubePrimitive;
+
+		ParticleSystemSpecification spec{};
+		spec.DeadTime = 10.f;
+		spec.StartAliveTime = 0.0f;
+		spec.StartActiveTime = 0.0f;
+		spec.InactiveTime = 10.0f;
+		spec.RendererType = ParticleRendererType::BillboardQuad;
+		spec.SpawnShape = ParticleSpawnShape::Circle;
+		spec.ShapeData.Circle.Radius = 2.0f;
+		spec.MaxParticleCount = 1000;
+		ps = Asset<ParticleSystem>(CreateRef<ParticleSystem>(spec));
+		ps->Generate(50);
+
+		Entity entity = m_ActiveScene->CreateEntity("Particles");
+		entity.AddComponent<ParticleSystemComponent>().PS = ps;
+
+		{
+			ent = m_ActiveScene->CreateCube("Cube");
 			auto& tc = ent.GetComponent<TransformComponent>();
 			tc.Scale.y = 20.0f;
 			tc.Scale.z = 15.0f;
 			tc.Translation.x = 5.0f;
-		}*/
+		}
 
 		mat = CreateRef<Material2D>();
 		mat->SetColor(glm::vec4(1, 0, 0, 1));
@@ -155,7 +171,6 @@ namespace Kaidel {
 	}
 	void EditorLayer::OnDetach()
 	{
-		KD_PROFILE_FUNCTION();
 	}
 
 	static int GetCurrentPixelData(glm::vec2 viewportBounds[2],Ref<Framebuffer> fb) {
@@ -181,8 +196,6 @@ namespace Kaidel {
 	static float increment = 0.001;
 	void EditorLayer::OnUpdate(Timestep ts)
 	{
-		KD_PROFILE_FUNCTION();
-
 		
 		// Resize
 		if (FramebufferSpecification spec = m_3DOutputFramebuffer->GetSpecification();
@@ -208,7 +221,18 @@ namespace Kaidel {
 			case SceneState::Edit:
 			{
 				
-				
+				//Particle Updates
+				{
+					auto view = m_ActiveScene->m_Registry.view<ParticleSystemComponent>();
+					for (auto e : view) {
+						auto& pc = view.get<ParticleSystemComponent>(e);
+						if (pc.PS)
+							pc.PS->Update(ts);
+					}
+
+				}
+
+				//Animation Updates
 				{
 					auto view = m_ActiveScene->m_Registry.view<AnimationPlayerComponent>();
 					for (auto e : view) {
@@ -220,9 +244,12 @@ namespace Kaidel {
 						AnimationPlayerSettings settings{ entity,ac.Time };
 						ac.Anim->Update(settings);
 						ac.Time += ts;
-						
+
 					}
 				}
+
+
+
 
 
 
@@ -277,7 +304,6 @@ namespace Kaidel {
 					Renderer2DBeginData data;
 					data.OutputBuffer = m_2DOutputFrameBuffer;
 					data.CameraVP = m_EditorCamera.GetViewProjection();
-
 					{
 						Renderer2D::Begin(data);
 
@@ -287,6 +313,14 @@ namespace Kaidel {
 							Renderer2D::DrawSprite(tc.GetTransform(), mat);
 						}
 
+						Renderer2D::FlushSprites();
+
+						for (auto& particle : *ps) {
+							if (particle.Status != ParticleStatus::Active)
+								continue;
+							glm::vec3 pos = 0.5f * ps->GetSpecification().ParticleAcceleration * particle.AliveTime * particle.AliveTime + particle.InitialVelocity * particle.AliveTime + particle.InitialPostition;
+							Renderer2D::DrawSprite(glm::translate(glm::mat4(1.0f), pos), {});
+						}
 
 						Renderer2D::End();
 					}
@@ -375,8 +409,7 @@ namespace Kaidel {
 	
 	void EditorLayer::OnImGuiRender()
 	{
-		KD_PROFILE_FUNCTION();
-		
+
 		// Note: Switch this to true to enable dockspace
 		static bool dockspaceOpen = true;
 		static bool opt_fullscreen_persistant = true;
@@ -412,7 +445,6 @@ namespace Kaidel {
 		ImGui::PopStyleVar();
 		if (opt_fullscreen)
 			ImGui::PopStyleVar(2);
-
 		// DockSpace
 		ImGuiIO& io = ImGui::GetIO();
 		ImGuiStyle& style = ImGui::GetStyle();
@@ -422,133 +454,132 @@ namespace Kaidel {
 		{
 			ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
 			ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
-		}
 
-		style.WindowMinSize.x = minWinSizeX;
+			style.WindowMinSize.x = minWinSizeX;
 
-		if (ImGui::BeginMenuBar())
-		{
-			if (ImGui::BeginMenu("File"))
+			if (ImGui::BeginMenuBar())
 			{
-				// Disabling fullscreen would allow the window to be moved to the front of other windows, 
-				// which we can't undo at the moment without finer window depth/z control.
-				//ImGui::MenuItem("Fullscreen", NULL, &opt_fullscreen_persistant);1
-				if (ImGui::MenuItem("Duplicate","Ctrl+D"))
-					m_ActiveScene->DuplicateEntity(m_SceneHierarchyPanel.GetSelectedEntity());
-				if (ImGui::MenuItem("New", "Ctrl+N"))
-					NewScene();
+				if (ImGui::BeginMenu("File"))
+				{
+					// Disabling fullscreen would allow the window to be moved to the front of other windows, 
+					// which we can't undo at the moment without finer window depth/z control.
+					//ImGui::MenuItem("Fullscreen", NULL, &opt_fullscreen_persistant);1
+					if (ImGui::MenuItem("Duplicate", "Ctrl+D"))
+						m_ActiveScene->DuplicateEntity(m_SceneHierarchyPanel.GetSelectedEntity());
+					if (ImGui::MenuItem("New", "Ctrl+N"))
+						NewScene();
 
-				if (ImGui::MenuItem("Open...", "Ctrl+O"))
-					OpenScene();
+					if (ImGui::MenuItem("Open...", "Ctrl+O"))
+						OpenScene();
 
-				if (ImGui::MenuItem("Save", "Ctrl+S"))
-					SaveScene();
+					if (ImGui::MenuItem("Save", "Ctrl+S"))
+						SaveScene();
 
-				if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S"))
-					SaveSceneAs();
+					if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S"))
+						SaveSceneAs();
 
-				if (ImGui::MenuItem("Exit")) 
-					Application::Get().Close();
+					if (ImGui::MenuItem("Exit"))
+						Application::Get().Close();
 
-				ImGui::EndMenu();
-			}
-			if (ImGui::BeginMenu("Script")) {
-				if (ImGui::MenuItem("Reload Assembly"))
-					ScriptEngine::ReloadAssembly();
-
-				ImGui::EndMenu();
-			}
-
-
-			ImGui::EndMenuBar();
-		}
-		m_SceneHierarchyPanel.OnImGuiRender();
-		m_ContentBrowserPanel.OnImGuiRender();
-		m_ConsolePanel.OnImGuiRender();
-		m_AnimationPanel.OnImGuiRender();
-
-		ShowDebugWindow();
-		ShowViewport();
-		UI_Toolbar();
-		ImGui::End();
-
-		if (m_ConsoleOpen) {
-			ImGui::Begin("Debug Console", &m_ConsoleOpen,ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoNavFocus);
-			static bool core = true;
-			static bool client = true;
-			ImGui::Checkbox("Core", &core);
-			ImGui::Checkbox("Client", &client);
-			if(core){
-				for (auto& message : ::Log::GetCoreLogger()->GetMessages()) {
-
-					ImVec4 messageColor{ 1,1,1,1 };
-					switch (message.Level)
-
-					{
-
-					case MessageLevel::Info:
-					{
-						messageColor = { .24f,.71f,.78f,1.0f };
-					}
-					break;
-					case MessageLevel::Warn:
-					{
-						messageColor = { .79f,.78f,.32f,1.0f };
-					}
-					break;
-					case MessageLevel::Error:
-					{
-						messageColor = { .65f,.31f,.29f,1.0f };
-					}
-					break;
-					default:
-						break;
-					}
-					std::time_t time = std::chrono::system_clock::to_time_t(message.Time);
-					std::tm tm = *std::localtime(&time);
-					char buf[80] = { 0 };
-					std::strftime(buf, sizeof(buf), "%d/%m/%Y-%H:%M:%S", &tm);
-					ImGui::TextColored(messageColor, "Engine [%s] : %s",buf, message.Text.c_str());
+					ImGui::EndMenu();
 				}
-			}
-			if (client) {
-				for (auto& message : ::Log::GetClientLogger()->GetMessages()) {
+				if (ImGui::BeginMenu("Script")) {
+					if (ImGui::MenuItem("Reload Assembly"))
+						ScriptEngine::ReloadAssembly();
 
-					ImVec4 messageColor{ 1,1,1,1 };
-					switch (message.Level)
-
-					{
-
-					case MessageLevel::Info:
-					{
-						messageColor = { .24f,.71f,.78f,1.0f };
-					}
-					break;
-					case MessageLevel::Warn:
-					{
-						messageColor = { .79f,.78f,.32f,1.0f };
-					}
-					break;
-					case MessageLevel::Error:
-					{
-						messageColor = { .65f,.31f,.29f,1.0f };
-					}
-					break;
-					default:
-						break;
-
-					}
-					std::time_t time = std::chrono::system_clock::to_time_t(message.Time);
-					std::tm tm = *std::localtime(&time);
-					char buf[80] = { 0 };
-					std::strftime(buf, sizeof(buf), "%d/%m/%Y-%H:%M:%S", &tm);
-					ImGui::TextColored(messageColor, "Editor [%s] : %s",buf ,message.Text.c_str());
+					ImGui::EndMenu();
 				}
+
+
+				ImGui::EndMenuBar();
 			}
+			m_SceneHierarchyPanel.OnImGuiRender();
+			m_ContentBrowserPanel.OnImGuiRender();
+			m_ConsolePanel.OnImGuiRender();
+			m_AnimationPanel.OnImGuiRender();
+
+			ShowDebugWindow();
+			ShowViewport();
+			UI_Toolbar();
 			ImGui::End();
+
+			if (m_ConsoleOpen) {
+				ImGui::Begin("Debug Console", &m_ConsoleOpen, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoNavFocus);
+				static bool core = true;
+				static bool client = true;
+				ImGui::Checkbox("Core", &core);
+				ImGui::Checkbox("Client", &client);
+				if (core) {
+					for (auto& message : ::Log::GetCoreLogger()->GetMessages()) {
+
+						ImVec4 messageColor{ 1,1,1,1 };
+						switch (message.Level)
+
+						{
+
+						case MessageLevel::Info:
+						{
+							messageColor = { .24f,.71f,.78f,1.0f };
+						}
+						break;
+						case MessageLevel::Warn:
+						{
+							messageColor = { .79f,.78f,.32f,1.0f };
+						}
+						break;
+						case MessageLevel::Error:
+						{
+							messageColor = { .65f,.31f,.29f,1.0f };
+						}
+						break;
+						default:
+							break;
+						}
+						std::time_t time = std::chrono::system_clock::to_time_t(message.Time);
+						std::tm tm = *std::localtime(&time);
+						char buf[80] = { 0 };
+						std::strftime(buf, sizeof(buf), "%d/%m/%Y-%H:%M:%S", &tm);
+						ImGui::TextColored(messageColor, "Engine [%s] : %s", buf, message.Text.c_str());
+					}
+				}
+				if (client) {
+					for (auto& message : ::Log::GetClientLogger()->GetMessages()) {
+
+						ImVec4 messageColor{ 1,1,1,1 };
+						switch (message.Level)
+
+						{
+
+						case MessageLevel::Info:
+						{
+							messageColor = { .24f,.71f,.78f,1.0f };
+						}
+						break;
+						case MessageLevel::Warn:
+						{
+							messageColor = { .79f,.78f,.32f,1.0f };
+						}
+						break;
+						case MessageLevel::Error:
+						{
+							messageColor = { .65f,.31f,.29f,1.0f };
+						}
+						break;
+						default:
+							break;
+
+						}
+						std::time_t time = std::chrono::system_clock::to_time_t(message.Time);
+						std::tm tm = *std::localtime(&time);
+						char buf[80] = { 0 };
+						std::strftime(buf, sizeof(buf), "%d/%m/%Y-%H:%M:%S", &tm);
+						ImGui::TextColored(messageColor, "Editor [%s] : %s", buf, message.Text.c_str());
+					}
+				}
+				ImGui::End();
+			}
 		}
 	}
-
 	void EditorLayer::OnScenePlay(){
 		if (!m_EditorScene||!m_ActiveScene->GetPrimaryCameraEntity())
 			return;
@@ -739,6 +770,9 @@ namespace Kaidel {
 		ImGui::Text("UI Vertex Count: %d", ImGui::GetIO().MetricsRenderVertices);
 
 		AccumulativeTimer::ResetTimers();
+		if (ImGui::Button("Spawn Particles")) {
+			ps->Generate(50);
+		}
 
 
 		ImGui::Text("Renderer3D Stats:");

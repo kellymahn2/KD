@@ -1,5 +1,5 @@
 #pragma once
-#include "Kaidel/Renderer/Shader.h"
+#include "Kaidel/Renderer/GraphicsAPI/Shader.h"
 namespace Kaidel {
 
 	class OpenGLComputeShaderUAVInput : public UAVInput {

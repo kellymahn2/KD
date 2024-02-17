@@ -1,6 +1,6 @@
 #pragma once
 #include <glm/glm.hpp>
-#include "Kaidel/Renderer/VertexArray.h"
+#include "Kaidel/Renderer/GraphicsAPI/VertexArray.h"
 namespace Kaidel {
 	enum class CullMode {
 		None,Front,Back,FrontAndBack

@@ -1,6 +1,6 @@
 #include "KDpch.h"
 
-
+#include "Kaidel/Renderer/Primitives.h"
 #include "Scene.h"
 #include "Components.h"
 #include "ScriptableEntity.h"
@@ -223,6 +223,14 @@ namespace Kaidel {
 		return entity;
 	}
 	
+
+	Entity Scene::CreateCube(const std::string& name, UUID uuid) {
+		Entity entity = CreateEntity(uuid, name);
+		auto& mc = entity.AddComponent<MeshComponent>();
+		mc.Mesh = Primitives::CubePrimitive;
+		return entity;
+	}
+
 	void Scene::CreateModelOnEntity(const std::vector<AssetHandle<Mesh>>& modelData, Entity entity) {
 	
 		uint32_t i = 1;
@@ -487,4 +495,5 @@ namespace Kaidel {
 	DEF_COMPONENT_ADD(MeshComponent)
 	DEF_COMPONENT_ADD(MaterialComponent)
 	DEF_COMPONENT_ADD(AnimationPlayerComponent)
+	DEF_COMPONENT_ADD(ParticleSystemComponent)
 }

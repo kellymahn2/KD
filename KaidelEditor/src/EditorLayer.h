@@ -6,7 +6,10 @@
 #include "Panels/AnimationPanel.h"
 #include "Panels/ConsolePanel.h"
 #include "Kaidel/Renderer/EditorCamera.h"
-#include "Kaidel\Renderer\UniformBuffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
+#include "Kaidel/Renderer/2D/Renderer2D.h"
+#include "Kaidel/Renderer/RenderCommand.h"
+#include "Kaidel/ParticleSystem/ParticleSystem.h"
 namespace Kaidel {
 
 	class EditorLayer : public Layer
@@ -113,6 +116,8 @@ namespace Kaidel {
 		Asset<Animation> anim;
 		Ref<Material2D>	 mat;
 		
+		AssetHandle<ParticleSystem> ps;
+
 		float n = .5, f = 25;
 	};
 

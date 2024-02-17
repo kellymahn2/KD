@@ -2,55 +2,109 @@
 #include "Platform/D3D/D3DVertexArray.h"
 #include "Platform/D3D/D3DContext.h"
 #include "Platform/D3D/D3DShader.h"
+#include "Platform/D3D/D3DBuffer.h"
 #include <glad/glad.h>
 
 namespace Kaidel {
-	static const char* ShaderDataTypeToD3DBaseType(ShaderDataType type)
-	{
-		switch (type)
+	namespace Utils {
+		static const char* ShaderDataTypeToD3DSemanticName(ShaderDataType type)
 		{
-		case ShaderDataType::Float:return "TEXCOORD";
-		case ShaderDataType::Float2:return "TEXCOORD";
-		case ShaderDataType::Float3:return "POSITION";
-		case ShaderDataType::Float4:return "COLOR";
-		case ShaderDataType::Mat3:break;
-		case ShaderDataType::Mat4:break;
-		case ShaderDataType::Int:return "TEXCOORD";
-		case ShaderDataType::Int2:return "TEXCOORD";
-		case ShaderDataType::Int3:return "TEXCOORD";
-		case ShaderDataType::Int4:return "TEXCOORD";
-		case ShaderDataType::Bool:return "TEXCOORD";
+			switch (type)
+			{
+			case ShaderDataType::Float:return "TEXCOORD";
+			case ShaderDataType::Float2:return "TEXCOORD";
+			case ShaderDataType::Float3:return "POSITION";
+			case ShaderDataType::Float4:return "COLOR";
+			case ShaderDataType::Int:return "TEXCOORD";
+			case ShaderDataType::Int2:return "TEXCOORD";
+			case ShaderDataType::Int3:return "TEXCOORD";
+			case ShaderDataType::Int4:return "TEXCOORD";
+			case ShaderDataType::Bool:return "TEXCOORD";
+			}
+			KD_CORE_ASSERT(false, "Not implemented");
+			return 0;
 		}
-		KD_CORE_ASSERT(false, "Not implemented");
-		return 0;
-	}
-	static DXGI_FORMAT ShaderDataTypeToD3DFormat(ShaderDataType type) {
-		switch (type)
-		{
-		case ShaderDataType::Float:return DXGI_FORMAT_R32_FLOAT;
-		case ShaderDataType::Float2:return DXGI_FORMAT_R32G32_FLOAT;
-		case ShaderDataType::Float3:return DXGI_FORMAT_R32G32B32_FLOAT;
-		case ShaderDataType::Float4:return DXGI_FORMAT_R32G32B32A32_FLOAT;
-		case ShaderDataType::Mat3:break;
-		case ShaderDataType::Mat4:break;
-		case ShaderDataType::Int:return DXGI_FORMAT_R32_SINT;
-		case ShaderDataType::Int2:return DXGI_FORMAT_R32G32_SINT;
-		case ShaderDataType::Int3:return DXGI_FORMAT_R32G32B32_SINT;
-		case ShaderDataType::Int4:return DXGI_FORMAT_R32G32B32A32_SINT;
-		case ShaderDataType::Bool:return DXGI_FORMAT_R32_SINT;
+		static DXGI_FORMAT ShaderDataTypeToD3DFormat(ShaderDataType type) {
+			switch (type)
+			{
+			case ShaderDataType::Float:return DXGI_FORMAT_R32_FLOAT;
+			case ShaderDataType::Float2:return DXGI_FORMAT_R32G32_FLOAT;
+			case ShaderDataType::Float3:return DXGI_FORMAT_R32G32B32_FLOAT;
+			case ShaderDataType::Float4:return DXGI_FORMAT_R32G32B32A32_FLOAT;
+			case ShaderDataType::Mat3:return DXGI_FORMAT_R32G32B32_FLOAT;
+			case ShaderDataType::Mat4:return DXGI_FORMAT_R32G32B32A32_FLOAT;
+			case ShaderDataType::Int:return DXGI_FORMAT_R32_SINT;
+			case ShaderDataType::Int2:return DXGI_FORMAT_R32G32_SINT;
+			case ShaderDataType::Int3:return DXGI_FORMAT_R32G32B32_SINT;
+			case ShaderDataType::Int4:return DXGI_FORMAT_R32G32B32A32_SINT;
+			case ShaderDataType::Bool:return DXGI_FORMAT_R32_SINT;
+			}
+			KD_CORE_ASSERT(false, "Not implemented");
+			return DXGI_FORMAT_A8_UNORM;
 		}
-		KD_CORE_ASSERT(false, "Not implemented");
-		return DXGI_FORMAT_A8_UNORM;
+
+
+		static void AddVertexBuffer(Ref<VertexBuffer> vertexBuffer, std::vector<D3D11_INPUT_ELEMENT_DESC>& descriptors, std::unordered_map<std::string, uint32_t>& semantics) {
+
+			const BufferLayout& layout = vertexBuffer->GetLayout();
+			for (const BufferElement& element : layout) {
+
+				if (element.Type == ShaderDataType::Mat3 || element.Type == ShaderDataType::Mat4) {
+					uint32_t count = element.GetComponentCount();
+					for (uint32_t i = 0; i < count; ++i) {
+						D3D11_INPUT_ELEMENT_DESC descriptor{};
+						uint32_t offset = (element.Offset + sizeof(float) * count * i);
+						descriptor.AlignedByteOffset = offset;
+						descriptor.Format = ShaderDataTypeToD3DFormat(element.Type);
+						descriptor.InputSlot = descriptors.size();
+						descriptor.InputSlotClass = element.Divisor ? D3D11_INPUT_PER_INSTANCE_DATA : D3D11_INPUT_PER_VERTEX_DATA;
+						descriptor.InstanceDataStepRate = element.Divisor;
+						descriptor.SemanticName = "MATRIX";
+						descriptor.SemanticIndex = semantics["MATRIX"]++;
+						descriptors.push_back(descriptor);
+					}
+					continue;
+				}
+
+				D3D11_INPUT_ELEMENT_DESC descriptor{};
+				descriptor.AlignedByteOffset = element.Offset;
+				descriptor.Format = ShaderDataTypeToD3DFormat(element.Type);
+				descriptor.InputSlot = descriptors.size();
+				descriptor.InputSlotClass = element.Divisor ? D3D11_INPUT_PER_INSTANCE_DATA : D3D11_INPUT_PER_VERTEX_DATA;
+				descriptor.InstanceDataStepRate = element.Divisor;
+
+				std::string semanticName = ShaderDataTypeToD3DSemanticName(element.Type);
+				descriptor.SemanticName = semanticName.c_str();
+				uint32_t semanticIndex = semantics[semanticName]++;
+				descriptor.SemanticIndex = semanticIndex;
+
+				descriptors.push_back(descriptor);
+			}
+		}
+
+		static ID3D11InputLayout* CreateVertexArray(const VertexArraySpecification& spec) {
+
+
+			std::vector<D3D11_INPUT_ELEMENT_DESC> descriptors;
+			std::unordered_map<std::string, uint32_t> semantics;
+			for (auto& vertexBuffer : spec.VertexBuffers) {
+				AddVertexBuffer(vertexBuffer, descriptors,semantics);
+			}
+			auto d3dContext = D3DContext::Get();
+
+			D3DShader* d3dShader = (D3DShader*)spec.UsedShader.get();
+			ID3DBlob* blob = d3dShader->GetVSBlob();
+
+			ID3D11InputLayout* inputLayout = nullptr;
+			D3DASSERT(d3dContext->GetDevice()->CreateInputLayout(descriptors.data(),descriptors.size(),blob->GetBufferPointer(),blob->GetBufferSize(),&inputLayout));
+
+			return inputLayout;
+		}
 	}
-	D3DVertexArray::D3DVertexArray()
+	D3DVertexArray::D3DVertexArray(const VertexArraySpecification& spec)
+		:m_Specification(spec)
 	{
-
-	}
-
-	D3DVertexArray::D3DVertexArray(Ref<Shader> shader)
-		:m_Shader(shader)
-	{
-
+		m_InputLayout = Utils::CreateVertexArray(spec);
 	}
 
 	D3DVertexArray::~D3DVertexArray()
@@ -64,70 +118,23 @@ namespace Kaidel {
 		auto d3dContext = D3DContext::Get();
 	
 		d3dContext->GetDeviceContext()->IASetInputLayout(m_InputLayout);
+		if (m_Specification.IndexBuffer)
+			m_Specification.IndexBuffer->Bind();
+		uint32_t i = 0;
+		for (auto& vbo : m_Specification.VertexBuffers) {
+			D3DVertexBuffer* buffer = (D3DVertexBuffer*)vbo.get();
+
+			UINT stride = buffer->m_Layout.GetStride();
+			UINT offset = 0;
+			d3dContext->GetDeviceContext()->IASetVertexBuffers(i, 1, &buffer->m_VertexBuffer, &stride, &offset);
+			++i;
+		}
 	}
 
 	void D3DVertexArray::Unbind() const
 	{
 		auto d3dContext = D3DContext::Get();
-		d3dContext->GetDeviceContext()->IASetInputLayout(m_InputLayout);
-	}
-
-	void D3DVertexArray::AddVertexBuffer(const Ref<VertexBuffer>& vertexBuffer)
-	{
-		m_VertexBuffers.push_back(vertexBuffer);
-		const auto& layout = vertexBuffer->GetLayout();
-		std::vector<D3D11_INPUT_ELEMENT_DESC> descs;
-		descs.resize(0);
-		std::unordered_map<std::string_view, UINT> indexMap;
-		uint32_t currOffset = 0;
-		for (const auto& element : layout) {
-			auto semanticType = ShaderDataTypeToD3DBaseType(element.Type);
-
-			switch (element.Type)
-			{
-			case ShaderDataType::Float:
-			case ShaderDataType::Float2:
-			case ShaderDataType::Float3:
-			case ShaderDataType::Float4:
-			{
-				descs.push_back(
-					{ semanticType,indexMap[semanticType],ShaderDataTypeToD3DFormat(element.Type),
-					0
-					,currOffset,D3D11_INPUT_PER_VERTEX_DATA,0 });
-				currOffset += element.Size;
-				break;
-			}
-			case ShaderDataType::Int:
-			case ShaderDataType::Int2:
-			case ShaderDataType::Int3:
-			case ShaderDataType::Int4:
-			case ShaderDataType::Bool:
-			{
-				descs.push_back(
-					{
-						semanticType,indexMap[semanticType],ShaderDataTypeToD3DFormat(element.Type),
-						0,
-						currOffset,D3D11_INPUT_PER_VERTEX_DATA,0
-					}
-				);
-				currOffset += element.Size;
-				break;
-			}
-			default:
-				KD_CORE_ASSERT(false, "Unknown ShaderDataType!");
-			}
-			++indexMap[semanticType];
-		}
-		auto d3dContext = D3DContext::Get();
-		auto shader = std::dynamic_pointer_cast<D3DShader>(m_Shader);
-		D3DASSERT(d3dContext->GetDevice()->CreateInputLayout(descs.data(), descs.size(),
-			shader->GetVSBlob()->GetBufferPointer(),shader->GetVSBlob()->GetBufferSize(),&m_InputLayout));
-
-	}
-
-	void D3DVertexArray::SetIndexBuffer(const Ref<IndexBuffer>& indexBuffer)
-	{
-		m_IndexBuffer = indexBuffer;
+		d3dContext->GetDeviceContext()->IASetInputLayout(nullptr);
 	}
 
 	D3DVertexArray* D3DVertexArray::GetCurrentBound()

@@ -1,5 +1,5 @@
 #pragma once
-#include "Kaidel/Renderer/UniformBuffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
 namespace Kaidel {
 
 	class OpenGLUniformBuffer:public UniformBuffer

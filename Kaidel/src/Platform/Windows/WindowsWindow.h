@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Kaidel/Core/Window.h"
-#include "Kaidel/Renderer/GraphicsContext.h"
+#include "Kaidel/Renderer/GraphicsAPI/GraphicsContext.h"
 
 #include <GLFW/glfw3.h>
 

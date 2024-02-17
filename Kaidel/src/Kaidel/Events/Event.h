@@ -1,9 +1,8 @@
 #pragma once
-#include <functional>
 
-#include "Kaidel/Debug/Instrumentor.h"
 #include "Kaidel/Core/Base.h"
-
+#include <sstream>
+#include <functional>
 namespace Kaidel {
 
 	// Events in Kaidel are currently blocking, meaning when an event occurs it

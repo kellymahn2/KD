@@ -2,7 +2,7 @@
 
 
 #include "Kaidel/Core/PlatformDetection.h"
-
+#include "Kaidel/Core/Random.h"
 #include <memory>
 #include <filesystem>
 

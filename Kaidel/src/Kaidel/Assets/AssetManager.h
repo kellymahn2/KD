@@ -2,7 +2,7 @@
 #include "Asset.h"
 
 #include "Kaidel/Mesh/Model.h"
-#include "Kaidel/Renderer/Material.h"
+#include "Kaidel/Renderer/3D/Material.h"
 
 namespace Kaidel {
 

@@ -53,7 +53,6 @@ namespace Kaidel {
 	{
 		if (!s_MainContext)
 			s_MainContext = this;
-		KD_PROFILE_FUNCTION();
 		DXGI_SWAP_CHAIN_DESC scd;
 		ZeroMemory(&scd, sizeof(DXGI_SWAP_CHAIN_DESC));
 		scd.BufferDesc.Width = 1280;
@@ -134,7 +133,6 @@ namespace Kaidel {
 
 	void D3DContext::SwapBuffers()
 	{
-		KD_PROFILE_FUNCTION();
 		D3DASSERT(m_SwapChain->Present(0, 0));
 		m_DeviceContext->ClearDepthStencilView(m_DepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 		float col[4] = { 1.0f,1.0f,1.0f,1.0f };

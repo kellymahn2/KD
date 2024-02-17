@@ -49,8 +49,15 @@ namespace Kaidel {
 				const T& p2 = next.KeyFrameValue;
 				return (1.0f - t) * (1.0f - t)*p0 + 2 * (1.0f - t) * t * p1 + t * t * p2;
 			}
-			case InterpolationFunction::CubicBezier:
-				break;
+			case InterpolationFunction::CubicBezier: {
+
+				const T& p0 = KeyFrameValue;
+				const T& p1 = Intermediates[0];
+				const T& p2 = Intermediates[1];
+				const T& p3 = next.KeyFrameValue;
+
+				return (1.0f - t) * (1.0f - t) * (1.0f - t) * p0 + 3.0f * (1.0f - t) * (1.0f - t) * t * p1 + 3.0f * (1.0f - t) * t * t * p2 + t * t * t * p3;
+			}
 			case InterpolationFunction::Spline:
 				break;
 			}
@@ -300,8 +307,6 @@ namespace Kaidel {
 		void UpdateTranslations(const AnimationPlayerSettings& settings);
 		void UpdateRotations(const AnimationPlayerSettings & settings);
 		void UpdateScales(const AnimationPlayerSettings& settings);
-
-
 
 	private:
 

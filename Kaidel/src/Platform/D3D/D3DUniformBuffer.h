@@ -1,5 +1,5 @@
 #pragma once
-#include "Kaidel/Renderer/UniformBuffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
 #include <d3d11.h>
 #include <d3dx11.h>
 #include <d3dx10.h>

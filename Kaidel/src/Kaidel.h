@@ -35,10 +35,10 @@
 #include "Kaidel/Renderer/Primitives.h"
 #include "Kaidel/Renderer/RenderCommand.h"
 
-#include "Kaidel/Renderer/Buffer.h"
-#include "Kaidel/Renderer/Shader.h"
-#include "Kaidel/Renderer/Framebuffer.h"
-#include "Kaidel/Renderer/Texture.h"
-#include "Kaidel/Renderer/VertexArray.h"
+#include "Kaidel/Renderer/GraphicsAPI/Buffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/Shader.h"
+#include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/Texture.h"
+#include "Kaidel/Renderer/GraphicsAPI/VertexArray.h"
 
 // -----------------------------------

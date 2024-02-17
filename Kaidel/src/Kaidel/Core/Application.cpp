@@ -1,5 +1,6 @@
 #include "KDpch.h"
 #include "Kaidel/Core/Application.h"
+#include "Kaidel/Core/Random.h"
 
 #include "Kaidel/Core/Log.h"
 
@@ -16,10 +17,11 @@ namespace Kaidel {
 	Application::Application(const ApplicationSpecification& specification)
 		: m_Specification(specification)
 	{
-		KD_PROFILE_FUNCTION();
 
 		KD_CORE_ASSERT(!s_Instance, "Application already exists!");
 		
+		Random::m_RandomEngine = std::mt19937(Random::m_RandomDevice());
+
 		s_Instance = this;
 		if (!m_Specification.WorkingDirectory.empty())
 			std::filesystem::current_path(m_Specification.WorkingDirectory);
@@ -30,18 +32,17 @@ namespace Kaidel {
 		ScriptEngine::Init();
 		m_ImGuiLayer = new ImGuiLayer();
 		PushOverlay(m_ImGuiLayer);
+
 	}
 
 	Application::~Application()
 	{
-		KD_PROFILE_FUNCTION();
 		ScriptEngine::Shutdown();
 		Renderer::Shutdown();
 	}
 
 	void Application::PushLayer(Layer* layer)
 	{
-		KD_PROFILE_FUNCTION();
 
 		m_LayerStack.PushLayer(layer);
 		layer->OnAttach();
@@ -49,7 +50,6 @@ namespace Kaidel {
 
 	void Application::PushOverlay(Layer* layer)
 	{
-		KD_PROFILE_FUNCTION();
 
 		m_LayerStack.PushOverlay(layer);
 		layer->OnAttach();
@@ -69,7 +69,6 @@ namespace Kaidel {
 
 	void Application::OnEvent(Event& e)
 	{
-		KD_PROFILE_FUNCTION();
 
 		EventDispatcher dispatcher(e);
 		dispatcher.Dispatch<WindowCloseEvent>(KD_BIND_EVENT_FN(Application::OnWindowClose));
@@ -85,7 +84,6 @@ namespace Kaidel {
 
 	void Application::Run()
 	{
-		KD_PROFILE_FUNCTION();
 
 		while (m_Running)
 		{
@@ -129,7 +127,6 @@ namespace Kaidel {
 
 	bool Application::OnWindowResize(WindowResizeEvent& e)
 	{
-		KD_PROFILE_FUNCTION();
 
 		if (e.GetWidth() == 0 || e.GetHeight() == 0)
 		{

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Kaidel/Renderer/GraphicsContext.h"
+#include "Kaidel/Renderer/GraphicsAPI/GraphicsContext.h"
 #include <d3d11.h>
 #include <D3DX10.h>
 #include <D3DX11.h>

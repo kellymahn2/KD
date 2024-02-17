@@ -2,7 +2,7 @@
 
 #include "Kaidel/Renderer/RenderCommand.h"
 
-#include "Kaidel/Renderer/Shader.h"
+#include "Kaidel/Renderer/GraphicsAPI/Shader.h"
 
 namespace Kaidel {
 

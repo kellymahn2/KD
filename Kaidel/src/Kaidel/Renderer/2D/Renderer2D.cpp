@@ -3,10 +3,10 @@
 #include "Kaidel/Core/BoundedVector.h"
 #include "Kaidel/Renderer/RenderCommand.h"
 #include "Renderer2D.h"
-#include "Kaidel/Renderer/VertexArray.h"
-#include "Kaidel/Renderer/Buffer.h"
-#include "Kaidel/Renderer/Shader.h"
-#include "Kaidel/Renderer/UniformBuffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/VertexArray.h"
+#include "Kaidel/Renderer/GraphicsAPI/Buffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/Shader.h"
+#include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
 
 namespace Kaidel {
 
@@ -47,18 +47,12 @@ namespace Kaidel {
 		void Init() {
 			using path = FileSystem::path;
 			SpriteShader = Shader::Create({ {"assets/shaders/GeometryPass/Geometry_Sprite_VS_2D.glsl",ShaderType::VertexShader}, {"assets/shaders/GeometryPass/Geometry_Sprite_FS_2D.glsl",ShaderType::FragmentShader} });
-			//Vertex Array Object
-			{
-				SpriteVAO = VertexArray::Create();
-			}
-
-
+			Ref<IndexBuffer> ibo;
 			//Index Buffer Object
 			{
 				uint32_t* indices = SetupSpriteIndices();
-				Ref<IndexBuffer> ibo = IndexBuffer::Create(indices, MaxSpriteIndices);
+				ibo = IndexBuffer::Create(indices, MaxSpriteIndices);
 				delete[] indices;
-				SpriteVAO->SetIndexBuffer(ibo);
 			}
 
 			//Vertex Buffer Object
@@ -69,7 +63,16 @@ namespace Kaidel {
 					{ShaderDataType::Float2,"a_TexCoords"},
 					{ShaderDataType::Int,"a_MaterialID"}
 					});
-				SpriteVAO->AddVertexBuffer(SpriteVBO);
+			}
+
+
+			//Vertex Array Object
+			{
+				VertexArraySpecification spec;
+				spec.VertexBuffers = { SpriteVBO };
+				spec.IndexBuffer = ibo;
+				spec.UsedShader = SpriteShader;
+				SpriteVAO = VertexArray::Create(spec);
 			}
 
 
@@ -100,10 +103,6 @@ namespace Kaidel {
 		} };
 		void Init() {
 			LineShader = Shader::Create({ { "assets/shaders/GeometryPass/Geometry_Line_VS_2D.glsl" ,ShaderType::VertexShader}, {"assets/shaders/GeometryPass/Geometry_Line_FS_2D.glsl",ShaderType::FragmentShader }});
-			//Vertex Array Object
-			{
-				LineVAO = VertexArray::Create();
-			}
 
 			//Vertex Buffer Object
 			{
@@ -112,8 +111,17 @@ namespace Kaidel {
 					{ShaderDataType::Float3,"a_Position"},
 					{ShaderDataType::Float4,"a_Color"}
 					});
-				LineVAO->AddVertexBuffer(LineVBO);
 			}
+
+			//Vertex Array Object
+			{
+				VertexArraySpecification spec;
+				spec.VertexBuffers = { LineVBO };
+				spec.UsedShader = LineShader;
+				LineVAO = VertexArray::Create(spec);
+			}
+
+			
 
 		}
 	};
@@ -137,19 +145,24 @@ namespace Kaidel {
 
 			BezierShader = Shader::Create(bezierShaderSpecification);
 			
-			//Vertex Array Object
-			{
-				BezierVAO = VertexArray::Create();
-			}
-
 			//Vertex Buffer Object
 			{
 				BezierVBO = VertexBuffer::Create(0);
 				BezierVBO->SetLayout({
 					{ShaderDataType::Float3,"a_Position"}
 					});
-				BezierVAO->AddVertexBuffer(BezierVBO);
 			}
+
+			//Vertex Array Object
+			{
+				VertexArraySpecification spec;
+				spec.VertexBuffers = { BezierVBO };
+				spec.UsedShader = BezierShader;
+
+				BezierVAO = VertexArray::Create(spec);
+			}
+
+			
 			
 		}
 	};
@@ -172,11 +185,6 @@ namespace Kaidel {
 		void Init() {
 			PointShader = Shader::Create({ {"assets/shaders/GeometryPass/Geometry_Point_VS_2D.glsl",ShaderType::VertexShader},{"assets/shaders/GeometryPass/Geometry_Point_FS_2D.glsl",ShaderType::FragmentShader} });
 			
-			//Vertex Array Object
-			{
-				PointVAO = VertexArray::Create();
-			}
-
 			//Vertex Buffer Object
 			{
 				PointVBO = VertexBuffer::Create(0);
@@ -184,9 +192,18 @@ namespace Kaidel {
 					{ShaderDataType::Float3,"a_Position"},
 					{ShaderDataType::Float4,"a_Color"}
 				});
-				PointVAO->AddVertexBuffer(PointVBO);
-				
 			}
+
+
+			//Vertex Array Object
+			{
+				VertexArraySpecification spec;
+				spec.VertexBuffers = { PointVBO };
+				spec.UsedShader = PointShader;
+
+				PointVAO = VertexArray::Create(spec);
+			}
+
 
 
 		}

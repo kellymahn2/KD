@@ -1,6 +1,6 @@
 #pragma once
 #include <filesystem>
-#include "Kaidel/Renderer/Texture.h"
+#include "Kaidel/Renderer/GraphicsAPI/Texture.h"
 namespace Kaidel {
 	
 	class ContentBrowserPanel {

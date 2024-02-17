@@ -73,6 +73,7 @@ float CalcShadowValue(vec3 position,vec3 normal){
 			if(projectedCoords.z > 1.0)
 				continue;
 
+			float closestDepth = texture(u_SpotLightDepthMaps,vec3(projectedCoords.xy,float(i))).r;
 			float currentDepth = projectedCoords.z;
 
 			vec3 lightDir = normalize(u_SpotLights[i].Position.xyz - position);
@@ -81,16 +82,17 @@ float CalcShadowValue(vec3 position,vec3 normal){
 			float shadow = 0.0;
 
 			vec2 texelSize = 1.0 / textureSize(u_SpotLightDepthMaps,0).xy;
-			for(int j = -1;j<=1;++j){
+			int size = 1;
+			for(int j = -size;j<=size;++j){
 				
-				for(int k = -1;k<=1;++k){
+				for(int k = -size;k<=size;++k){
 					float pcfDepth = texture(u_SpotLightDepthMaps,vec3(projectedCoords.xy + vec2(j,k)*texelSize,float(i))).r;
 					shadow += currentDepth  - bias > pcfDepth ? 1.0 : 0.0;
 				}
 			}
-			shadow /= 9.0;
+			shadow /= (2*size+1) * (2*size+1);
 
-			totalShadow *= (1.0 - shadow);
+			totalShadow *= (1.0-shadow);
 		}
 	}
 
@@ -152,9 +154,8 @@ void main() {
 	
 	}
 
-	float shadow =CalcShadowValue(position,normal);
+	float shadow = CalcShadowValue(position,normal);
 
-	//float shadow = 1.0;
 	vec3 res = totalAmbient + (shadow)*(totalDiffuse + totalSpecular);
 
     vec4 resultColor = vec4(materialColor.xyz * (res),1.0);

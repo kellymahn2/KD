@@ -55,6 +55,12 @@ namespace Kaidel {
 		{
 			if (ImGui::MenuItem("Create Empty Entity"))
 				m_Context->CreateEntity("Empty Entity");
+			if (ImGui::BeginMenu("New")) {
+				if (ImGui::MenuItem("Cube")) {
+					m_Context->CreateCube("Cube");
+				}
+				ImGui::EndMenu();
+			}
 
 			ImGui::EndPopup();
 		}

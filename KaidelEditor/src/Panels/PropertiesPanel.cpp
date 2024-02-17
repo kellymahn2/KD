@@ -466,6 +466,21 @@ namespace Kaidel {
 				ImGui::EndCombo();
 			}
 
+			if (auto ptr = component.Anim->GetPropertyMap<TranslationData>(); ptr) {
+				auto& frameMap = ptr->FrameStorage;
+				int32_t i = 0;
+				for (auto& frame : frameMap) {
+					ImGui::Text("KeyFrame %d: (%f, %f, %f)", i,frame.KeyFrameValue.TargetTranslation.x, frame.KeyFrameValue.TargetTranslation.y, frame.KeyFrameValue.TargetTranslation.z);
+					int32_t j = 0;
+					for (auto& intermediate : frame.Intermediates) {
+						ImGui::Text("Intermediate %d: (%f, %f, %f)", j, intermediate.TargetTranslation.x, intermediate.TargetTranslation.y, intermediate.TargetTranslation.z);
+						++j;
+					}
+					++i;
+				}
+
+			}
+
 		});
 
 

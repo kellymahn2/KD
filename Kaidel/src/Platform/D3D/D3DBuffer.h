@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Kaidel/Renderer/Buffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/Buffer.h"
 #include <d3d11.h>
 #include <d3dx11.h>
 #include <d3dx10.h>
@@ -27,6 +27,7 @@ namespace Kaidel {
 		uint32_t m_RendererID;
 		size_t m_MaxSize;
 		BufferLayout m_Layout;
+		friend class D3DVertexArray;
 	};
 
 	class D3DIndexBuffer : public IndexBuffer
