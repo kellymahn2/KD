@@ -1,7 +1,10 @@
 #include "KDpch.h"
 #include "Project.h"
 #include "ProjectSerializer.h"
+#include "Kaidel/Assets/AssetSerializer.h"
+#include "Kaidel/Assets/AssetTypes.h"
 namespace Kaidel {
+	static inline Ref<Project> s_ActiveProject;
 	Ref<Project> Project::New()
 	{
 		(s_ActiveProject = CreateRef<Project>());
@@ -10,20 +13,50 @@ namespace Kaidel {
 	}
 	Ref<Project> Project::Load(const std::filesystem::path& path) {
 		Ref<Project> project = CreateRef<Project>();
-		ProjectSerializer serializer(project);
-		if (!serializer.Deserialize(path)) {
-			return {};
+		{
+			ProjectSerializer serializer(project);
+			if (!serializer.Deserialize(path)) {
+				return {};
+			}
+			project->m_ProjectDirectory = path.parent_path();
 		}
-		project->m_ProjectDirectory = path.parent_path();
+		
 		return s_ActiveProject = project;
 	}
+
 	bool Project::SaveActive(const std::filesystem::path& path)
 	{
-		ProjectSerializer serializer(s_ActiveProject);
-		if (serializer.Serialize(path)) {
-			s_ActiveProject->m_ProjectDirectory = path;
-			return true;
+		bool projectSerialized = false;
+		bool assetsSerialized = false;
+		{
+			ProjectSerializer serializer(s_ActiveProject);
+			if (serializer.Serialize(path / s_ActiveProject->m_Config.Name)) {
+				s_ActiveProject->m_ProjectDirectory = path;
+				projectSerialized = true;
+			}
 		}
-		return false;
+		
+		std::unordered_set<Ref<_Asset>> unsavedAssets;
+
+		for (auto& asset : s_ActiveProject->m_ChangedAssetsSinceLastSave) {
+			// TODO: Add functionality to just serialize and deserialize an asset.
+			bool serialized = false;
+			AssetFunctionApplier applier(asset);
+			applier.Apply<Material>([&serialized](Ref<Material> mat) {
+				MaterialSerializer serializer(mat);
+				serialized = serializer.Serialize(mat->Path());
+				});
+			if (!serialized)
+				unsavedAssets.insert(asset);
+		}
+		
+		s_ActiveProject->m_ChangedAssetsSinceLastSave = std::move(unsavedAssets);
+
+		return projectSerialized;
 	}
+	Ref<Project> Project::GetActive() {
+		return s_ActiveProject;
+	}
+
+
 }

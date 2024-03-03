@@ -26,7 +26,7 @@ namespace Kaidel {
 
 
 
-	class Mesh {
+	class Mesh : public IRCCounter<false> {
 	public:
 		Mesh() = default;
 		Mesh(const std::string& meshName,const std::vector<MeshVertex>& vertices, const std::vector<uint32_t> indices,Ref<Material> mat,glm::vec3 center);

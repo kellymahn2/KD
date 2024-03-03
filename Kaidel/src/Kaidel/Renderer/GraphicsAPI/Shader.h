@@ -33,7 +33,7 @@ namespace Kaidel {
 	};
 
 
-	class Shader
+	class Shader : public IRCCounter<false>
 	{
 	public:
 
@@ -65,7 +65,7 @@ namespace Kaidel {
 		Write = 2,
 		ReadWrite = 3,
 	};
-	class TypedBufferInput{
+	class TypedBufferInput : public IRCCounter<false> {
 	public:
 		static Ref<TypedBufferInput> Create(TypedBufferInputDataType type, TypedBufferAccessMode accessMode,uint32_t width, uint32_t height, void* data = nullptr);
 		virtual void SetBufferData(void* data, uint32_t width,uint32_t height) = 0;
@@ -79,7 +79,7 @@ namespace Kaidel {
 	};
 
 
-	class UAVInput{
+	class UAVInput : public IRCCounter<false> {
 	public:
 		static Ref<UAVInput> Create(uint32_t count,uint32_t sizeofElement,void* data = nullptr);
 		virtual void SetBufferData(void* data, uint32_t count) = 0;
@@ -96,7 +96,7 @@ namespace Kaidel {
 
 
 
-	class ComputeShader {
+	class ComputeShader : public IRCCounter<false> {
 	public:
 		static Ref<ComputeShader> Create(const std::string& filepath);
 		virtual ~ComputeShader() {}

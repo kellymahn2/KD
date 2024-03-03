@@ -1,5 +1,8 @@
 #include "KDpch.h"
 #include "Platform/OpenGL/OpenGLFramebuffer.h"
+#include "Platform/OpenGL/OpenGLTexture.h"
+#include "Platform/OpenGL/OpenGLTextureArray.h"
+
 
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
@@ -32,11 +35,6 @@ namespace Kaidel {
 			if (multisampled)
 			{
 				glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samples, internalFormat, width, height, GL_TRUE);
-				glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-				glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-				glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-				glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-				glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 			}
 			else
 			{
@@ -51,22 +49,17 @@ namespace Kaidel {
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + index, TextureTarget(multisampled), id, 0);
 		}
 
-		static void AttachDepthTexture(uint32_t id, int samples, GLenum format, GLenum attachmentType, uint32_t width, uint32_t height)
+		static void AttachDepthTexture(uint32_t id, int samples, GLenum internalFormat, GLenum attachmentType, uint32_t width, uint32_t height)
 		{
 			bool multisampled = samples > 1;
 			BindTexture(multisampled, id);
 			if (multisampled)
 			{
-				glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samples, format, width, height, GL_TRUE);
-				glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-				glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-				glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-				glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-				glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+				glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, samples, internalFormat, width, height, GL_TRUE);
 			}
 			else
 			{
-				glTexImage2D(GL_TEXTURE_2D,0,format,width,height,GL_FALSE,GL_DEPTH_COMPONENT,GL_FLOAT,nullptr);
+				glTexImage2D(GL_TEXTURE_2D,0,internalFormat,width,height,GL_FALSE,GL_DEPTH_COMPONENT,GL_FLOAT,nullptr);
 
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -77,31 +70,19 @@ namespace Kaidel {
 			glFramebufferTexture2D(GL_FRAMEBUFFER, attachmentType, TextureTarget(multisampled), id, 0);
 		}
 
-		static bool IsDepthFormat(FramebufferTextureFormat format)
+		static bool IsDepthFormat(TextureFormat format)
 		{
 			switch (format)
 			{
-				case FramebufferTextureFormat::DEPTH24STENCIL8:  return true;
-				case FramebufferTextureFormat::DEPTH32: return true;
-				case FramebufferTextureFormat::DEPTH16: return true;
+				case TextureFormat::Depth16F:  return true;
+				case TextureFormat::Depth32F: return true;
+				case TextureFormat::Depth32: return true;
+				case TextureFormat::Depth24Stencil8: return true;
 			}
 
 			return false;
 		}
 
-		static GLenum KaidelFBTextureFormatToGL(FramebufferTextureFormat format)
-		{
-			switch (format)
-			{
-				case FramebufferTextureFormat::RGBA8:       return GL_RGBA8;
-				case FramebufferTextureFormat::R32I: return GL_R32I;
-				case FramebufferTextureFormat::RGBA32F: return GL_RGBA32F;
-
-			}
-
-			KD_CORE_ASSERT(false);
-			return 0;
-		}
 
 		static GLenum KaidelImageBindingToGL(ImageBindingMode bindingMode) {
 			if (bindingMode & ImageBindingMode_Read) {
@@ -116,99 +97,158 @@ namespace Kaidel {
 		}
 
 
-		static GLenum KaidelFBTextureFormatToGLInternalFormat(FramebufferTextureFormat format) {
+		static GLenum KaidelFBTextureFormatToGLInternalFormat(TextureFormat format) {
 			switch (format)
 			{
-			case Kaidel::FramebufferTextureFormat::RGBA32F			: return GL_RGBA32F;
-			case Kaidel::FramebufferTextureFormat::RGBA32UI			: return GL_RGBA32UI;
-			case Kaidel::FramebufferTextureFormat::RGBA32I			: return GL_RGBA32I;
-			case Kaidel::FramebufferTextureFormat::RGB32F			: return GL_RGB32F;
-			case Kaidel::FramebufferTextureFormat::RGB32UI			: return GL_RGB32UI;
-			case Kaidel::FramebufferTextureFormat::RGB32I			: return GL_RGB32I;
-			case Kaidel::FramebufferTextureFormat::RGBA16F			: return GL_RGBA16F;
-			case Kaidel::FramebufferTextureFormat::RGBA16			: return GL_RGBA16;
-			case Kaidel::FramebufferTextureFormat::RGBA16UI			: return GL_RGBA16UI;
-			case Kaidel::FramebufferTextureFormat::RGBA16NORM		: return GL_RGBA16_SNORM;
-			case Kaidel::FramebufferTextureFormat::RGBA16I			: return GL_RGBA16I;
-			case Kaidel::FramebufferTextureFormat::RG32F			: return GL_RG32F;
-			case Kaidel::FramebufferTextureFormat::RG32UI			: return GL_RG32UI;
-			case Kaidel::FramebufferTextureFormat::RG32I			: return GL_RG32I;
-			case Kaidel::FramebufferTextureFormat::RGBA8			: return GL_RGBA8;
-			case Kaidel::FramebufferTextureFormat::RGBA8UI			: return GL_RGBA8UI;
-			case Kaidel::FramebufferTextureFormat::RGBA8NORM		: return GL_RGBA8_SNORM;
-			case Kaidel::FramebufferTextureFormat::RGBA8I			: return GL_RGBA8I;
-			case Kaidel::FramebufferTextureFormat::RG16F			: return GL_RG16F;
-			case Kaidel::FramebufferTextureFormat::RG16				: return GL_RG16;
-			case Kaidel::FramebufferTextureFormat::RG16UI			: return GL_RG16UI;
-			case Kaidel::FramebufferTextureFormat::RG16NORM			: return GL_RG16_SNORM;
-			case Kaidel::FramebufferTextureFormat::RG16I			: return GL_RG16I;
-			case Kaidel::FramebufferTextureFormat::R32F				: return GL_R32F;
-			case Kaidel::FramebufferTextureFormat::R32UI			: return GL_R32UI;
-			case Kaidel::FramebufferTextureFormat::R32I				: return GL_R32I;
-			case Kaidel::FramebufferTextureFormat::RG8				: return GL_RG8;
-			case Kaidel::FramebufferTextureFormat::RG8UI			: return GL_RG8UI;
-			case Kaidel::FramebufferTextureFormat::RG8NORM			: return GL_RG8_SNORM;
-			case Kaidel::FramebufferTextureFormat::RG8I				: return GL_RG8I;
-			case Kaidel::FramebufferTextureFormat::R16F				: return GL_R16F;
-			case Kaidel::FramebufferTextureFormat::R16				: return GL_R16;
-			case Kaidel::FramebufferTextureFormat::R16UI			: return GL_R16UI;
-			case Kaidel::FramebufferTextureFormat::R16NORM			: return GL_R16_SNORM;
-			case Kaidel::FramebufferTextureFormat::R16I				: return GL_R16I;
-			case Kaidel::FramebufferTextureFormat::R8				: return GL_R8;
-			case Kaidel::FramebufferTextureFormat::R8UI				: return GL_R8UI;
-			case Kaidel::FramebufferTextureFormat::R8NORM			: return GL_R8_SNORM;
-			case Kaidel::FramebufferTextureFormat::R8I				: return GL_R8I;
+			case Kaidel::TextureFormat::RGBA32F				:		return GL_RGBA32F;
+			case Kaidel::TextureFormat::RGBA32UI			:		return GL_RGBA32UI;
+			case Kaidel::TextureFormat::RGBA32I				:		return GL_RGBA32I;
+			case Kaidel::TextureFormat::RGB32F				:		return GL_RGB32F;
+			case Kaidel::TextureFormat::RGB32UI				:		return GL_RGB32UI;
+			case Kaidel::TextureFormat::RGB32I				:		return GL_RGB32I;
+			case Kaidel::TextureFormat::RGBA16F				:		return GL_RGBA16F;
+			case Kaidel::TextureFormat::RGBA16				:		return GL_RGBA16;
+			case Kaidel::TextureFormat::RGBA16UI			:		return GL_RGBA16UI;
+			case Kaidel::TextureFormat::RGBA16NORM			:		return GL_RGBA16_SNORM;
+			case Kaidel::TextureFormat::RGBA16I				:		return GL_RGBA16I;
+			case Kaidel::TextureFormat::RG32F				:		return GL_RG32F;
+			case Kaidel::TextureFormat::RG32UI				:		return GL_RG32UI;
+			case Kaidel::TextureFormat::RG32I				:		return GL_RG32I;
+			case Kaidel::TextureFormat::RGBA8				:		return GL_RGBA8;
+			case Kaidel::TextureFormat::RGBA8UI				:		return GL_RGBA8UI;
+			case Kaidel::TextureFormat::RGBA8NORM			:		return GL_RGBA8_SNORM;
+			case Kaidel::TextureFormat::RGBA8I				:		return GL_RGBA8I;
+			case Kaidel::TextureFormat::RG16F				:		return GL_RG16F;
+			case Kaidel::TextureFormat::RG16				:		return GL_RG16;
+			case Kaidel::TextureFormat::RG16UI				:		return GL_RG16UI;
+			case Kaidel::TextureFormat::RG16NORM			:		return GL_RG16_SNORM;
+			case Kaidel::TextureFormat::RG16I				:		return GL_RG16I;
+			case Kaidel::TextureFormat::R32F				:		return GL_R32F;
+			case Kaidel::TextureFormat::R32UI				:		return GL_R32UI;
+			case Kaidel::TextureFormat::R32I				:		return GL_R32I;
+			case Kaidel::TextureFormat::RG8					:		return GL_RG8;
+			case Kaidel::TextureFormat::RG8UI				:		return GL_RG8UI;
+			case Kaidel::TextureFormat::RG8NORM				:		return GL_RG8_SNORM;
+			case Kaidel::TextureFormat::RG8I				:		return GL_RG8I;
+			case Kaidel::TextureFormat::R16F				:		return GL_R16F;
+			case Kaidel::TextureFormat::R16					:		return GL_R16;
+			case Kaidel::TextureFormat::R16UI				:		return GL_R16UI;
+			case Kaidel::TextureFormat::R16NORM				:		return GL_R16_SNORM;
+			case Kaidel::TextureFormat::R16I				:		return GL_R16I;
+			case Kaidel::TextureFormat::R8					:		return GL_R8;
+			case Kaidel::TextureFormat::R8UI				:		return GL_R8UI;
+			case Kaidel::TextureFormat::R8NORM				:		return GL_R8_SNORM;
+			case Kaidel::TextureFormat::R8I					:		return GL_R8I;
+			case Kaidel::TextureFormat::Depth16F			:		return GL_DEPTH_COMPONENT16;
+			case Kaidel::TextureFormat::Depth32F			:		return GL_DEPTH_COMPONENT32F;
+			case Kaidel::TextureFormat::Depth32				:		return GL_DEPTH_COMPONENT32;
+			case Kaidel::TextureFormat::Depth24Stencil8		:		return GL_DEPTH24_STENCIL8;
 			}
 			KD_ERROR("{} Is not a valid framebuffer texture type");
 			return GL_NONE;
 		}
-		static GLenum KaidelFBTextureFormatToGLFormat(FramebufferTextureFormat format) {
+		static GLenum KaidelFBTextureFormatToGLFormat(TextureFormat format) {
 			switch (format)
 			{
-			case Kaidel::FramebufferTextureFormat::RGBA32F: return GL_RGBA;
-			case Kaidel::FramebufferTextureFormat::RGBA32UI:return GL_RGBA_INTEGER;
-			case Kaidel::FramebufferTextureFormat::RGBA32I: return GL_RGBA_INTEGER;
-			case Kaidel::FramebufferTextureFormat::RGB32F:return GL_RGB;
-			case Kaidel::FramebufferTextureFormat::RGB32UI:return GL_RGB_INTEGER;
-			case Kaidel::FramebufferTextureFormat::RGB32I: return GL_RGB_INTEGER;
-			case Kaidel::FramebufferTextureFormat::RGBA16F:return GL_RGBA;
-			case Kaidel::FramebufferTextureFormat::RGBA16:return GL_RGBA;
-			case Kaidel::FramebufferTextureFormat::RGBA16UI:return GL_RGBA_INTEGER;
-			case Kaidel::FramebufferTextureFormat::RGBA16NORM:return GL_RGBA;
-			case Kaidel::FramebufferTextureFormat::RGBA16I: return GL_RGBA;
-			case Kaidel::FramebufferTextureFormat::RG32F: return GL_RG;
-			case Kaidel::FramebufferTextureFormat::RG32UI:return GL_RG_INTEGER;
-			case Kaidel::FramebufferTextureFormat::RG32I:return GL_RG_INTEGER;
-			case Kaidel::FramebufferTextureFormat::RGBA8: return GL_RGBA;
-			case Kaidel::FramebufferTextureFormat::RGBA8UI: return GL_RGBA_INTEGER;
-			case Kaidel::FramebufferTextureFormat::RGBA8NORM: return GL_RGBA;
-			case Kaidel::FramebufferTextureFormat::RGBA8I: return GL_RGBA_INTEGER;
-			case Kaidel::FramebufferTextureFormat::RG16F: return GL_RG;
-			case Kaidel::FramebufferTextureFormat::RG16: return GL_RG;
-			case Kaidel::FramebufferTextureFormat::RG16UI: return GL_RG_INTEGER;
-			case Kaidel::FramebufferTextureFormat::RG16NORM: return GL_RG;
-			case Kaidel::FramebufferTextureFormat::RG16I: return GL_RG_INTEGER;
-			case Kaidel::FramebufferTextureFormat::R32F: return GL_RED;
-			case Kaidel::FramebufferTextureFormat::R32UI: return GL_RED_INTEGER;
-			case Kaidel::FramebufferTextureFormat::R32I: return GL_RED_INTEGER;
-			case Kaidel::FramebufferTextureFormat::RG8: return GL_RG;
-			case Kaidel::FramebufferTextureFormat::RG8UI: return GL_RG_INTEGER;
-			case Kaidel::FramebufferTextureFormat::RG8NORM: return GL_RG;
-			case Kaidel::FramebufferTextureFormat::RG8I: return GL_RG_INTEGER;
-			case Kaidel::FramebufferTextureFormat::R16F: return GL_RED;
-			case Kaidel::FramebufferTextureFormat::R16: return GL_RED;
-			case Kaidel::FramebufferTextureFormat::R16UI: return GL_RED_INTEGER;
-			case Kaidel::FramebufferTextureFormat::R16NORM: return GL_RED;
-			case Kaidel::FramebufferTextureFormat::R16I: return GL_RED_INTEGER;
-			case Kaidel::FramebufferTextureFormat::R8: return GL_RED;
-			case Kaidel::FramebufferTextureFormat::R8UI: return GL_RED_INTEGER;
-			case Kaidel::FramebufferTextureFormat::R8NORM: return GL_RED;
-			case Kaidel::FramebufferTextureFormat::R8I: return GL_RED_INTEGER;
+			case Kaidel::TextureFormat::RGBA32F				:		return GL_RGBA;
+			case Kaidel::TextureFormat::RGBA32UI			:		return GL_RGBA_INTEGER;
+			case Kaidel::TextureFormat::RGBA32I				:		return GL_RGBA_INTEGER;
+			case Kaidel::TextureFormat::RGB32F				:		return GL_RGB;
+			case Kaidel::TextureFormat::RGB32UI				:		return GL_RGB_INTEGER;
+			case Kaidel::TextureFormat::RGB32I				:		return GL_RGB_INTEGER;
+			case Kaidel::TextureFormat::RGBA16F				:		return GL_RGBA;
+			case Kaidel::TextureFormat::RGBA16				:		return GL_RGBA;
+			case Kaidel::TextureFormat::RGBA16UI			:		return GL_RGBA_INTEGER;
+			case Kaidel::TextureFormat::RGBA16NORM			:		return GL_RGBA;
+			case Kaidel::TextureFormat::RGBA16I				:		return GL_RGBA;
+			case Kaidel::TextureFormat::RG32F				:		return GL_RG;
+			case Kaidel::TextureFormat::RG32UI				:		return GL_RG_INTEGER;
+			case Kaidel::TextureFormat::RG32I				:		return GL_RG_INTEGER;
+			case Kaidel::TextureFormat::RGBA8				:		return GL_RGBA;
+			case Kaidel::TextureFormat::RGBA8UI				:		return GL_RGBA_INTEGER;
+			case Kaidel::TextureFormat::RGBA8NORM			:		return GL_RGBA;
+			case Kaidel::TextureFormat::RGBA8I				:		return GL_RGBA_INTEGER;
+			case Kaidel::TextureFormat::RG16F				:		return GL_RG;
+			case Kaidel::TextureFormat::RG16				:		return GL_RG;
+			case Kaidel::TextureFormat::RG16UI				:		return GL_RG_INTEGER;
+			case Kaidel::TextureFormat::RG16NORM			:		return GL_RG;
+			case Kaidel::TextureFormat::RG16I				:		return GL_RG_INTEGER;
+			case Kaidel::TextureFormat::R32F				:		return GL_RED;
+			case Kaidel::TextureFormat::R32UI				:		return GL_RED_INTEGER;
+			case Kaidel::TextureFormat::R32I				:		return GL_RED_INTEGER;
+			case Kaidel::TextureFormat::RG8					:		return GL_RG;
+			case Kaidel::TextureFormat::RG8UI				:		return GL_RG_INTEGER;
+			case Kaidel::TextureFormat::RG8NORM				:		return GL_RG;
+			case Kaidel::TextureFormat::RG8I				:		return GL_RG_INTEGER;
+			case Kaidel::TextureFormat::R16F				:		return GL_RED;
+			case Kaidel::TextureFormat::R16					:		return GL_RED;
+			case Kaidel::TextureFormat::R16UI				:		return GL_RED_INTEGER;
+			case Kaidel::TextureFormat::R16NORM				:		return GL_RED;
+			case Kaidel::TextureFormat::R16I				:		return GL_RED_INTEGER;
+			case Kaidel::TextureFormat::R8					:		return GL_RED;
+			case Kaidel::TextureFormat::R8UI				:		return GL_RED_INTEGER;
+			case Kaidel::TextureFormat::R8NORM				:		return GL_RED;
+			case Kaidel::TextureFormat::R8I					:		return GL_RED_INTEGER;
+			case Kaidel::TextureFormat::Depth16F			:		return GL_DEPTH_COMPONENT;
+			case Kaidel::TextureFormat::Depth32F			:		return GL_DEPTH_COMPONENT;
+			case Kaidel::TextureFormat::Depth32				:		return GL_DEPTH_COMPONENT;
+			case Kaidel::TextureFormat::Depth24Stencil8		:		return GL_DEPTH_STENCIL;
 			}
 			KD_ERROR("{} Is not a valid framebuffer texture type");
 			return GL_NONE;
 		}
 
+		static GLenum KaidelFBTextureFormatToGLValueFormat(TextureFormat format) {
+			switch (format)
+			{
+			case Kaidel::TextureFormat::RGBA32F				:		return GL_FLOAT;
+			case Kaidel::TextureFormat::RGBA32UI			:		return GL_UNSIGNED_INT;
+			case Kaidel::TextureFormat::RGBA32I				:		return GL_INT;
+			case Kaidel::TextureFormat::RGB32F				:		return GL_FLOAT;
+			case Kaidel::TextureFormat::RGB32UI				:		return GL_UNSIGNED_INT;
+			case Kaidel::TextureFormat::RGB32I				:		return GL_INT;
+			case Kaidel::TextureFormat::RGBA16F				:		return GL_HALF_FLOAT;
+			case Kaidel::TextureFormat::RGBA16				:		return GL_UNSIGNED_SHORT;
+			case Kaidel::TextureFormat::RGBA16UI			:		return GL_UNSIGNED_INT;
+			case Kaidel::TextureFormat::RGBA16NORM			:		return GL_SHORT;
+			case Kaidel::TextureFormat::RGBA16I				:		return GL_INT;
+			case Kaidel::TextureFormat::RG32F				:		return GL_FLOAT;
+			case Kaidel::TextureFormat::RG32UI				:		return GL_UNSIGNED_INT;
+			case Kaidel::TextureFormat::RG32I				:		return GL_INT;
+			case Kaidel::TextureFormat::RGBA8				:		return GL_UNSIGNED_BYTE;
+			case Kaidel::TextureFormat::RGBA8UI				:		return GL_UNSIGNED_BYTE;
+			case Kaidel::TextureFormat::RGBA8NORM			:		return GL_BYTE;
+			case Kaidel::TextureFormat::RGBA8I				:		return GL_BYTE;
+			case Kaidel::TextureFormat::RG16F				:		return GL_HALF_FLOAT;
+			case Kaidel::TextureFormat::RG16				:		return GL_SHORT;
+			case Kaidel::TextureFormat::RG16UI				:		return GL_UNSIGNED_INT;
+			case Kaidel::TextureFormat::RG16NORM			:		return GL_SHORT;
+			case Kaidel::TextureFormat::RG16I				:		return GL_SHORT;
+			case Kaidel::TextureFormat::R32F				:		return GL_FLOAT;
+			case Kaidel::TextureFormat::R32UI				:		return GL_UNSIGNED_INT;
+			case Kaidel::TextureFormat::R32I				:		return GL_INT;
+			case Kaidel::TextureFormat::RG8					:		return GL_UNSIGNED_BYTE;
+			case Kaidel::TextureFormat::RG8UI				:		return GL_UNSIGNED_BYTE;
+			case Kaidel::TextureFormat::RG8NORM				:		return GL_BYTE;
+			case Kaidel::TextureFormat::RG8I				:		return GL_BYTE;
+			case Kaidel::TextureFormat::R16F				:		return GL_HALF_FLOAT;
+			case Kaidel::TextureFormat::R16					:		return GL_UNSIGNED_SHORT;
+			case Kaidel::TextureFormat::R16UI				:		return GL_UNSIGNED_SHORT;
+			case Kaidel::TextureFormat::R16NORM				:		return GL_SHORT;
+			case Kaidel::TextureFormat::R16I				:		return GL_SHORT;
+			case Kaidel::TextureFormat::R8					:		return GL_UNSIGNED_BYTE;
+			case Kaidel::TextureFormat::R8UI				:		return GL_UNSIGNED_BYTE;
+			case Kaidel::TextureFormat::R8NORM				:		return GL_BYTE;
+			case Kaidel::TextureFormat::R8I					:		return GL_BYTE;
+			case Kaidel::TextureFormat::Depth16F			:		return GL_DEPTH_COMPONENT;
+			case Kaidel::TextureFormat::Depth32F			:		return GL_DEPTH_COMPONENT;
+			case Kaidel::TextureFormat::Depth32				:		return GL_DEPTH_COMPONENT;
+			case Kaidel::TextureFormat::Depth24Stencil8		:		return GL_DEPTH_STENCIL;
+
+			}
+			KD_ERROR("{} Is not a valid framebuffer texture type");
+			return GL_NONE;
+		}
 
 
 	}
@@ -218,7 +258,7 @@ namespace Kaidel {
 	{
 		for (auto spec : m_Specification.Attachments.Attachments)
 		{
-			if (!Utils::IsDepthFormat(spec.TextureFormat))
+			if (!Utils::IsDepthFormat(spec.Format))
 				m_ColorAttachmentSpecifications.emplace_back(spec);
 			else
 				m_DepthAttachmentSpecification = spec;
@@ -232,12 +272,12 @@ namespace Kaidel {
 	}
 
 	void OpenGLFramebuffer::BindColorAttachmentToImageSlot(uint32_t attachmnetIndex, uint32_t slot, ImageBindingMode bindingMode) {
-		glBindImageTexture(slot,m_ColorAttachments[attachmnetIndex], 0, GL_FALSE, 0, Utils::KaidelImageBindingToGL(bindingMode), Utils::KaidelFBTextureFormatToGLInternalFormat(m_ColorAttachmentSpecifications[attachmnetIndex].TextureFormat));
+		glBindImageTexture(slot,m_ColorAttachments[attachmnetIndex], 0, GL_FALSE, 0, Utils::KaidelImageBindingToGL(bindingMode), Utils::KaidelFBTextureFormatToGLInternalFormat(m_ColorAttachmentSpecifications[attachmnetIndex].Format));
 	}
 
 
 	void OpenGLFramebuffer::CopyColorAttachment(uint32_t dstAttachmentIndex, uint32_t srcAttachmentIndex, Ref<Framebuffer> src) {
-		auto oglSrc = std::dynamic_pointer_cast<OpenGLFramebuffer>(src);
+		auto oglSrc = DynamicPointerCast<OpenGLFramebuffer>(src);
 		if (dstAttachmentIndex >= m_Specification.Attachments.Attachments.size() || srcAttachmentIndex >= oglSrc->m_Specification.Attachments.Attachments.size())
 			return;
 		if (oglSrc->m_Specification.Width != m_Specification.Width || oglSrc->m_Specification.Height != m_Specification.Height)
@@ -247,7 +287,7 @@ namespace Kaidel {
 		glCopyImageSubData(oglSrc->m_ColorAttachments[srcAttachmentIndex], Utils::TextureTarget(srcMultiSampled), 0, 0, 0, 0, m_ColorAttachments[dstAttachmentIndex], Utils::TextureTarget(multiSampled), 0, 0, 0, 0, m_Specification.Width, m_Specification.Height, 1);
 	}
 	void OpenGLFramebuffer::CopyDepthAttachment(Ref<Framebuffer> src) {
-		auto oglSrc = std::dynamic_pointer_cast<OpenGLFramebuffer>(src);
+		auto oglSrc = DynamicPointerCast<OpenGLFramebuffer>(src);
 		if (oglSrc->m_Specification.Width != m_Specification.Width || oglSrc->m_Specification.Height != m_Specification.Height)
 			return;
 		if (!m_DepthAttachment || !oglSrc->m_DepthAttachment)
@@ -290,82 +330,21 @@ namespace Kaidel {
 	}
 
 
-	void OpenGLFramebuffer::SetDepthAttachmentFromArray(uint32_t attachmentID, uint32_t arrayIndex) {
-		glBindFramebuffer(GL_FRAMEBUFFER, m_RendererID);
-		glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, attachmentID, 0, arrayIndex);
+
+
+	FramebufferAttachmentHandle OpenGLFramebuffer::GetAttachmentHandle(uint32_t index)const {
+		FramebufferAttachmentHandle handle{};
+		handle.Framebuffer = const_cast<OpenGLFramebuffer*>(this);
+		handle.AttachmentIndex = index;
+		return handle;
 	}
 
 	void OpenGLFramebuffer::ClearDepthAttachment(float value) {
 		glBindFramebuffer(GL_FRAMEBUFFER, m_RendererID);
-		glClear(GL_DEPTH_BUFFER_BIT);
+		glClearTexImage(m_DepthAttachment, 0, Utils::KaidelFBTextureFormatToGLFormat(m_DepthAttachmentSpecification.Format), GL_FLOAT, &value);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
-	void OpenGLFramebuffer::Invalidate()
-	{
-		if (m_RendererID)
-		{
-			Unbind();
-			if (m_ColorAttachments.size())
-				glDeleteTextures(m_ColorAttachments.size(), m_ColorAttachments.data());
-			if (m_DepthAttachment)
-				glDeleteTextures(1, &m_DepthAttachment);
-
-			glDeleteFramebuffers(1, &m_RendererID);
-			
-			m_ColorAttachments.clear();
-			m_DrawBuffers.clear();
-			m_DepthAttachment = 0;
-			m_RendererID = 0;
-		}
-
-		glCreateFramebuffers(1, &m_RendererID);
-		glBindFramebuffer(GL_FRAMEBUFFER, m_RendererID);
-
-
-		bool multisample = m_Specification.Samples > 1;
-
-		// Attachments
-		if (m_ColorAttachmentSpecifications.size())
-		{
-			m_ColorAttachments.resize(m_ColorAttachmentSpecifications.size());
-			Utils::CreateTextures(multisample, m_ColorAttachments.data(), m_ColorAttachments.size());
-
-			for (size_t i = 0; i < m_ColorAttachments.size(); i++)
-			{
-				Utils::BindTexture(multisample, m_ColorAttachments[i]);
-				Utils::AttachColorTexture(m_ColorAttachments[i], m_Specification.Samples, Utils::KaidelFBTextureFormatToGLInternalFormat(m_ColorAttachmentSpecifications[i].TextureFormat), 
-							Utils::KaidelFBTextureFormatToGLFormat(m_ColorAttachmentSpecifications[i].TextureFormat), m_Specification.Width, m_Specification.Height, i);
-				m_DrawBuffers.push_back(GL_COLOR_ATTACHMENT0 + i);
-			}
-		}
-
-		if (m_DepthAttachmentSpecification.TextureFormat != FramebufferTextureFormat::None)
-		{
-			Utils::CreateTextures(multisample, &m_DepthAttachment, 1);
-			Utils::BindTexture(multisample, m_DepthAttachment);
-			switch (m_DepthAttachmentSpecification.TextureFormat)
-			{
-				case FramebufferTextureFormat::DEPTH32:
-					Utils::AttachDepthTexture(m_DepthAttachment, m_Specification.Samples, GL_DEPTH_COMPONENT32F, GL_DEPTH_ATTACHMENT, m_Specification.Width, m_Specification.Height);
-					break;
-				case FramebufferTextureFormat::DEPTH16:
-					Utils::AttachDepthTexture(m_DepthAttachment, m_Specification.Samples, GL_DEPTH_COMPONENT16, GL_DEPTH_ATTACHMENT, m_Specification.Width, m_Specification.Height);
-					break;
-			}
-		}
-
-		if (!m_DrawBuffers.empty())
-		{
-			glDrawBuffers(m_DrawBuffers.size(),m_DrawBuffers.data());
-		}
-		else {
-			glDrawBuffer(GL_NONE);
-		}
-
-		KD_CORE_ASSERT((m_DepthAttachmentSpecification.TextureFormat == FramebufferTextureFormat::None && m_DrawBuffers.empty()) || glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE, "Framebuffer is incomplete!");
-
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	}
+	
 
 	void OpenGLFramebuffer::Bind()
 	{
@@ -403,92 +382,114 @@ namespace Kaidel {
 		
 		Invalidate();
 	}
-
-	int OpenGLFramebuffer::ReadPixel(uint32_t attachmentIndex, int x, int y)
-	{
-		KD_CORE_ASSERT(attachmentIndex < m_ColorAttachments.size());
-
-		glReadBuffer(GL_COLOR_ATTACHMENT0 + attachmentIndex);
-		int pixelData;
-		glReadPixels(x, y, 1, 1, GL_RED_INTEGER, GL_INT, &pixelData);
-		return pixelData;
-
+	void OpenGLFramebuffer::Resample(uint32_t newSampleCount) {
+		if (newSampleCount == 0) {
+			KD_CORE_WARN("Attempted to resample to 0 samples");
+			return;
+		}
+		m_Specification.Samples = newSampleCount;
+		Invalidate();
 	}
+	
 
-	void OpenGLFramebuffer::ClearAttachment(uint32_t attachmentIndex, int value)
-	{
-		KD_CORE_ASSERT(attachmentIndex < m_ColorAttachments.size());
-
-		auto& spec = m_ColorAttachmentSpecifications[attachmentIndex];
-		glClearTexImage(m_ColorAttachments[attachmentIndex], 0,
-			Utils::KaidelFBTextureFormatToGL(spec.TextureFormat), GL_INT, &value);
-	}
-
-	void OpenGLFramebuffer::ClearAttachment(uint32_t attachmentIndex, const float* colors)
+	void OpenGLFramebuffer::ClearAttachment(uint32_t attachmentIndex, const void* colors)
 	{
 		KD_CORE_ASSERT(attachmentIndex < m_ColorAttachments.size());
 		glBindFramebuffer(GL_FRAMEBUFFER, m_RendererID);
 		auto& i = m_ColorAttachmentSpecifications.at(attachmentIndex);
-		if (i.TextureFormat == FramebufferTextureFormat::RGBA8) {
-			glClearColor(colors[0], colors[1], colors[2], colors[3]);
-			glClear(GL_COLOR_BUFFER_BIT);
-		}
+		
+		glClearTexImage(m_ColorAttachments.at(attachmentIndex), 0, Utils::KaidelFBTextureFormatToGLFormat(i.Format), Utils::KaidelFBTextureFormatToGLValueFormat(i.Format), colors);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
 
-	void OpenGLFramebuffer::ReadValues(uint32_t attachemntIndex, uint32_t x, uint32_t y, uint32_t w, uint32_t h, void* output) {
+	void OpenGLFramebuffer::ReadValues(uint32_t attachemntIndex, uint32_t x, uint32_t y, uint32_t w, uint32_t h, float* output) {
 		KD_CORE_ASSERT(attachemntIndex < m_ColorAttachments.size());
 		glBindFramebuffer(GL_FRAMEBUFFER, m_RendererID);
 		glReadBuffer(GL_COLOR_ATTACHMENT0 + attachemntIndex);
 
-		GLenum type = 0;
-
-		switch (m_ColorAttachmentSpecifications[attachemntIndex].TextureFormat)
-		{
-		case Kaidel::FramebufferTextureFormat::RGBA32F: type = GL_FLOAT; break;
-		case Kaidel::FramebufferTextureFormat::RGBA32UI: type = GL_UNSIGNED_INT;break;
-		case Kaidel::FramebufferTextureFormat::RGBA32I: type = GL_INT;break;
-		case Kaidel::FramebufferTextureFormat::RGB32F: type = GL_FLOAT;break;
-		case Kaidel::FramebufferTextureFormat::RGB32UI: type = GL_UNSIGNED_INT;break;
-		case Kaidel::FramebufferTextureFormat::RGB32I: type = GL_INT;break;
-		case Kaidel::FramebufferTextureFormat::RGBA16F: type = GL_HALF_FLOAT;break;
-		case Kaidel::FramebufferTextureFormat::RGBA16: type = GL_HALF_FLOAT;break;
-		case Kaidel::FramebufferTextureFormat::RGBA16UI: type = GL_UNSIGNED_SHORT;break;
-		case Kaidel::FramebufferTextureFormat::RGBA16NORM: type = GL_HALF_FLOAT;break;
-		case Kaidel::FramebufferTextureFormat::RGBA16I: type = GL_SHORT;break;
-		case Kaidel::FramebufferTextureFormat::RG32F: type = GL_FLOAT;break;
-		case Kaidel::FramebufferTextureFormat::RG32UI: type = GL_UNSIGNED_INT;break;
-		case Kaidel::FramebufferTextureFormat::RG32I: type = GL_INT;break;
-		case Kaidel::FramebufferTextureFormat::RGBA8: type = GL_UNSIGNED_BYTE;break;
-		case Kaidel::FramebufferTextureFormat::RGBA8UI: type = GL_UNSIGNED_BYTE;break;
-		case Kaidel::FramebufferTextureFormat::RGBA8NORM: type = GL_UNSIGNED_BYTE;break;
-		case Kaidel::FramebufferTextureFormat::RGBA8I: type = GL_SHORT;break;
-		case Kaidel::FramebufferTextureFormat::RG16F: type = GL_HALF_FLOAT;break;
-		case Kaidel::FramebufferTextureFormat::RG16: type = GL_HALF_FLOAT;break;
-		case Kaidel::FramebufferTextureFormat::RG16UI: type = GL_UNSIGNED_SHORT;break;
-		case Kaidel::FramebufferTextureFormat::RG16NORM: type = GL_HALF_FLOAT;break;
-		case Kaidel::FramebufferTextureFormat::RG16I: type = GL_SHORT;break;
-		case Kaidel::FramebufferTextureFormat::R32F: type = GL_FLOAT;break;
-		case Kaidel::FramebufferTextureFormat::R32UI: type = GL_UNSIGNED_INT;break;
-		case Kaidel::FramebufferTextureFormat::R32I: type = GL_INT;break;
-		case Kaidel::FramebufferTextureFormat::RG8: type = GL_UNSIGNED_BYTE;break;
-		case Kaidel::FramebufferTextureFormat::RG8UI: type = GL_UNSIGNED_BYTE;break;
-		case Kaidel::FramebufferTextureFormat::RG8NORM: type = GL_BYTE;break;
-		case Kaidel::FramebufferTextureFormat::RG8I: type = GL_BYTE;break;
-		case Kaidel::FramebufferTextureFormat::R16F: type = GL_HALF_FLOAT;break;
-		case Kaidel::FramebufferTextureFormat::R16: type = GL_HALF_FLOAT;break;
-		case Kaidel::FramebufferTextureFormat::R16UI: type = GL_UNSIGNED_SHORT;break;
-		case Kaidel::FramebufferTextureFormat::R16NORM: type = GL_HALF_FLOAT;break;
-		case Kaidel::FramebufferTextureFormat::R16I: type = GL_SHORT;break;
-		case Kaidel::FramebufferTextureFormat::R8: type = GL_UNSIGNED_BYTE;break;
-		case Kaidel::FramebufferTextureFormat::R8UI: type = GL_UNSIGNED_BYTE;break;
-		case Kaidel::FramebufferTextureFormat::R8NORM: type = GL_BYTE;break;
-		case Kaidel::FramebufferTextureFormat::R8I: type = GL_BYTE; break;
-		}
-
-		glReadPixels(x, y, w, h, Utils::KaidelFBTextureFormatToGLFormat(m_ColorAttachmentSpecifications[attachemntIndex].TextureFormat),type,output);
+		glReadPixels(x, y, w, h, Utils::KaidelFBTextureFormatToGLFormat(m_ColorAttachmentSpecifications[attachemntIndex].Format),GL_FLOAT,output);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
+
+	void OpenGLFramebuffer::Invalidate()
+	{
+		if (m_RendererID)
+		{
+			Unbind();
+			if (m_ColorAttachments.size())
+				glDeleteTextures(m_ColorAttachments.size(), m_ColorAttachments.data());
+			if (m_DepthAttachment)
+				glDeleteTextures(1, &m_DepthAttachment);
+
+			glDeleteFramebuffers(1, &m_RendererID);
+
+			m_ColorAttachments.clear();
+			m_DrawBuffers.clear();
+			m_DepthAttachment = 0;
+			m_RendererID = 0;
+		}
+
+		glCreateFramebuffers(1, &m_RendererID);
+		glBindFramebuffer(GL_FRAMEBUFFER, m_RendererID);
+
+
+		bool multisample = m_Specification.Samples > 1;
+
+		// Attachments
+		if (m_ColorAttachmentSpecifications.size())
+		{
+			m_ColorAttachments.resize(m_ColorAttachmentSpecifications.size());
+			Utils::CreateTextures(multisample, m_ColorAttachments.data(), m_ColorAttachments.size());
+
+			for (size_t i = 0; i < m_ColorAttachments.size(); i++)
+			{
+				Utils::BindTexture(multisample, m_ColorAttachments[i]);
+				Utils::AttachColorTexture(m_ColorAttachments[i], m_Specification.Samples, Utils::KaidelFBTextureFormatToGLInternalFormat(m_ColorAttachmentSpecifications[i].Format),
+					Utils::KaidelFBTextureFormatToGLFormat(m_ColorAttachmentSpecifications[i].Format), m_Specification.Width, m_Specification.Height, i);
+				m_DrawBuffers.push_back(GL_COLOR_ATTACHMENT0 + i);
+			}
+		}
+
+		if (m_DepthAttachmentSpecification.Format != TextureFormat::None)
+		{
+			Utils::CreateTextures(multisample, &m_DepthAttachment, 1);
+			Utils::BindTexture(multisample, m_DepthAttachment);
+			Utils::AttachDepthTexture(m_DepthAttachment, m_Specification.Samples, Utils::KaidelFBTextureFormatToGLInternalFormat(m_DepthAttachmentSpecification.Format), GL_DEPTH_ATTACHMENT, m_Specification.Width, m_Specification.Height);
+		}
+
+		if (!m_DrawBuffers.empty())
+		{
+			glDrawBuffers(m_DrawBuffers.size(), m_DrawBuffers.data());
+		}
+		else {
+			glDrawBuffer(GL_NONE);
+		}
+
+		KD_CORE_ASSERT((m_DepthAttachmentSpecification.Format == TextureFormat::None && m_DrawBuffers.empty()) || glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE, "Framebuffer is incomplete!");
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+
+	void OpenGLFramebuffer::SetAttachment(const TextureHandle& handle, uint32_t index){
+		OpenGLTexture2D* texture = ((OpenGLTexture2D*)handle.Texture.Get());
+		KD_CORE_ASSERT(index < m_ColorAttachmentSpecifications.size() && texture->m_TextureFormat == m_ColorAttachmentSpecifications.at(index).Format);
+		glNamedFramebufferTexture(m_RendererID, GL_COLOR_ATTACHMENT0 + index,texture->m_RendererID, 0);
+	}
+	void OpenGLFramebuffer::SetAttachment(const TextureArrayHandle& handle, uint32_t index){
+		OpenGLTexture2DArray* array = ((OpenGLTexture2DArray*)handle.Array.Get());
+		KD_CORE_ASSERT(index < m_ColorAttachmentSpecifications.size() && array->m_TextureFormat == m_ColorAttachmentSpecifications.at(index).Format);
+		glNamedFramebufferTextureLayer(m_RendererID, GL_COLOR_ATTACHMENT0 + index,array->m_RendererID, 0, handle.SlotIndex);
+	}
+	void OpenGLFramebuffer::SetDepthAttachment(const TextureHandle& handle){
+		OpenGLTexture2D* texture = ((OpenGLTexture2D*)handle.Texture.Get());
+		KD_CORE_ASSERT(m_DepthAttachment&& texture->m_TextureFormat == m_DepthAttachmentSpecification.Format);
+		glNamedFramebufferTexture(m_RendererID, GL_DEPTH_ATTACHMENT, texture->m_RendererID, 0);
+	}
+	void OpenGLFramebuffer::SetDepthAttachment(const TextureArrayHandle& handle) {
+		OpenGLTexture2DArray* array = ((OpenGLTexture2DArray*)handle.Array.Get());
+		KD_CORE_ASSERT(m_DepthAttachment && array->m_TextureFormat == m_DepthAttachmentSpecification.Format);
+		glNamedFramebufferTextureLayer(m_RendererID,GL_DEPTH_ATTACHMENT , array->m_RendererID, 0, handle.SlotIndex);
+	}
 }

@@ -5,7 +5,7 @@
 #include <string>
 #include <unordered_map>
 namespace Kaidel {
-	class ScriptClass {
+	class ScriptClass : public IRCCounter<false> {
 	public:
 		ScriptClass() = default;
 		ScriptClass(const std::string& classNamespace, const std::string& className, MonoImage* image = nullptr);

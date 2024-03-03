@@ -11,8 +11,9 @@ namespace Kaidel {
 		bool Serialize(const std::filesystem::path& path);
 		bool Deserialize(const std::filesystem::path& path);
 
-
 	private:
+
+
 		Ref<Project> m_Project;
 
 

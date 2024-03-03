@@ -23,7 +23,6 @@ namespace Kaidel {
 			return res;
 		}
 
-
 		static std::unordered_map<ShaderType, std::string> GetShaderSources(const ShaderSpecification& specification) {
 			std::unordered_map<ShaderType, std::string> shaderSources;
 			for (const auto& shaderDefinition : specification.Definitions) {
@@ -102,15 +101,18 @@ namespace Kaidel {
 			for (auto& [type, shaderSource] : shaderSources) {
 				ID3DBlob* blob = CompileShader(type, shaderSource);
 				shaders[type] = CreateShader(type, blob);
-				if (type == ShaderType::VertexShader) {
-					*outVertexShaderBlob = blob;
-					continue;
-				}
 
 				ID3D11ShaderReflection* shaderReflection = nullptr;
 				D3DASSERT(D3DReflect(blob->GetBufferPointer(), blob->GetBufferSize(), IID_ID3D11ShaderReflection, (void**)&shaderReflection));
 				D3D11_SHADER_DESC desc{};
 				shaderReflection->GetDesc(&desc);
+
+
+
+				if (type == ShaderType::VertexShader) {
+					*outVertexShaderBlob = blob;
+					continue;
+				}
 
 				blob->Release();
 			}
@@ -256,41 +258,41 @@ namespace Kaidel {
 		
 	}
 
-	void D3DShader::UploadUniformInt(const std::string& name, int value)
+	void D3DShader::UploadUniformInt(uint32_t index, int value)
 	{
 		
 	}
 
-	void D3DShader::UploadUniformIntArray(const std::string& name, int* values, uint32_t count)
+	void D3DShader::UploadUniformIntArray(uint32_t index, int* values, uint32_t count)
 	{
 		
 	}
 
-	void D3DShader::UploadUniformFloat(const std::string& name, float value)
+	void D3DShader::UploadUniformFloat(uint32_t index, float value)
 	{
 		
 	}
 
-	void D3DShader::UploadUniformFloat2(const std::string& name, const glm::vec2& value)
+	void D3DShader::UploadUniformFloat2(uint32_t index, const glm::vec2& value)
 	{
 		
 	}
 
-	void D3DShader::UploadUniformFloat3(const std::string& name, const glm::vec3& value)
+	void D3DShader::UploadUniformFloat3(uint32_t index, const glm::vec3& value)
 	{
 		
 	}
 
-	void D3DShader::UploadUniformFloat4(const std::string& name, const glm::vec4& value)
+	void D3DShader::UploadUniformFloat4(uint32_t index, const glm::vec4& value)
 	{
 		
 	}
 
-	void D3DShader::UploadUniformMat3(const std::string& name, const glm::mat3& matrix)
+	void D3DShader::UploadUniformMat3(uint32_t index, const glm::mat3& matrix)
 	{
 	}
 
-	void D3DShader::UploadUniformMat4(const std::string& name, const glm::mat4& matrix)
+	void D3DShader::UploadUniformMat4(uint32_t index, const glm::mat4& matrix)
 	{
 		
 	}

@@ -92,7 +92,7 @@ namespace Kaidel {
 			}
 			auto d3dContext = D3DContext::Get();
 
-			D3DShader* d3dShader = (D3DShader*)spec.UsedShader.get();
+			D3DShader* d3dShader = (D3DShader*)spec.UsedShader.Get();
 			ID3DBlob* blob = d3dShader->GetVSBlob();
 
 			ID3D11InputLayout* inputLayout = nullptr;
@@ -122,7 +122,7 @@ namespace Kaidel {
 			m_Specification.IndexBuffer->Bind();
 		uint32_t i = 0;
 		for (auto& vbo : m_Specification.VertexBuffers) {
-			D3DVertexBuffer* buffer = (D3DVertexBuffer*)vbo.get();
+			D3DVertexBuffer* buffer = (D3DVertexBuffer*)vbo.Get();
 
 			UINT stride = buffer->m_Layout.GetStride();
 			UINT offset = 0;

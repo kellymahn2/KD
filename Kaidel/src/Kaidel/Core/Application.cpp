@@ -1,8 +1,10 @@
 #include "KDpch.h"
 #include "Kaidel/Core/Application.h"
 #include "Kaidel/Core/Random.h"
-
+#include "Kaidel/Events/SettingsEvent.h"
 #include "Kaidel/Core/Log.h"
+
+#include "Kaidel/Assets/AssetManager.h"
 
 #include "Kaidel/Renderer/Renderer.h"
 
@@ -80,6 +82,8 @@ namespace Kaidel {
 				break;
 			(*it)->OnEvent(e);
 		}
+
+		dispatcher.Dispatch<RendererSettingsChangedEvent>(KD_BIND_EVENT_FN(Application::OnRendererSettingsChanged));
 	}
 
 	void Application::Run()
@@ -139,7 +143,13 @@ namespace Kaidel {
 
 		return false;
 	}
+	bool Application::OnRendererSettingsChanged(RendererSettingsChangedEvent& e) {
 
+		auto& settings = RendererAPI::GetSettings();
+
+
+		return true;
+	}
 	void Application::ExecuteMainThreadQueue()
 	{
 

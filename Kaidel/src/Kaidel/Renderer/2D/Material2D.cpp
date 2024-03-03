@@ -32,7 +32,7 @@ namespace Kaidel {
 
 
 	void Material2DTextureHandler::Init() {
-		s_TexturesMap = Texture2DArray::Create(1024, 1024);
+		s_TexturesMap = Texture2DArray::Create(1024, 1024,TextureFormat::RGBA8);
 		uint32_t default = 0xffffffff;
 		s_TexturesMap->PushTexture(&default, 1, 1);
 		s_TextureIndexMap["_Default_Albedo"] = 0;

@@ -20,7 +20,4 @@ namespace std {
 	{
 		size_t operator()(const Kaidel::UUID& _Keyval) const { return std::hash<uint64_t>()((uint64_t)_Keyval); }
 	};
-
-	
-
 }

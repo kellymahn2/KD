@@ -31,16 +31,16 @@ namespace Kaidel {
 
 		virtual const std::string& GetName() const override { return m_Specification.ShaderName; }
 
-		void UploadUniformInt(const std::string& name, int value);
-		void UploadUniformIntArray(const std::string& name, int* values, uint32_t count);
+		void UploadUniformInt(uint32_t index, int value);
+		void UploadUniformIntArray(uint32_t index, int* values, uint32_t count);
 
-		void UploadUniformFloat(const std::string& name, float value);
-		void UploadUniformFloat2(const std::string& name, const glm::vec2& value);
-		void UploadUniformFloat3(const std::string& name, const glm::vec3& value);
-		void UploadUniformFloat4(const std::string& name, const glm::vec4& value);
+		void UploadUniformFloat(uint32_t index, float value);
+		void UploadUniformFloat2(uint32_t index, const glm::vec2& value);
+		void UploadUniformFloat3(uint32_t index, const glm::vec3& value);
+		void UploadUniformFloat4(uint32_t index, const glm::vec4& value);
 
-		void UploadUniformMat3(const std::string& name, const glm::mat3& matrix);
-		void UploadUniformMat4(const std::string& name, const glm::mat4& matrix);
+		void UploadUniformMat3(uint32_t index, const glm::mat3& matrix);
+		void UploadUniformMat4(uint32_t index, const glm::mat4& matrix);
 		ID3DBlob* GetVSBlob()const { return m_VSBlob; }
 	private:
 		std::unordered_map<ShaderType, void*> m_Shaders;

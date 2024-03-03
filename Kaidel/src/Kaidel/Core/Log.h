@@ -82,11 +82,11 @@ private:
 
 // Core log macros
 #ifdef KD_DEBUG
-#define KD_CORE_TRACE(...)    ((::Log::CoreConsole*)::Log::GetCoreLogger().get())->Trace(__VA_ARGS__)
-#define KD_CORE_INFO(...)     ((::Log::CoreConsole*)::Log::GetCoreLogger().get())->Info(__VA_ARGS__)
-#define KD_CORE_WARN(...)     ((::Log::CoreConsole*)::Log::GetCoreLogger().get())->Warn(__VA_ARGS__)
-#define KD_CORE_ERROR(...)    ((::Log::CoreConsole*)::Log::GetCoreLogger().get())->Error(__VA_ARGS__)
-#define KD_CORE_CRITICAL(...) ((::Log::CoreConsole*)::Log::GetCoreLogger().get())->Critical(__VA_ARGS__)
+#define KD_CORE_TRACE(...)    ((::Log::CoreConsole*)::Log::GetCoreLogger().Get())->Trace(__VA_ARGS__)
+#define KD_CORE_INFO(...)     ((::Log::CoreConsole*)::Log::GetCoreLogger().Get())->Info(__VA_ARGS__)
+#define KD_CORE_WARN(...)     ((::Log::CoreConsole*)::Log::GetCoreLogger().Get())->Warn(__VA_ARGS__)
+#define KD_CORE_ERROR(...)    ((::Log::CoreConsole*)::Log::GetCoreLogger().Get())->Error(__VA_ARGS__)
+#define KD_CORE_CRITICAL(...) ((::Log::CoreConsole*)::Log::GetCoreLogger().Get())->Critical(__VA_ARGS__)
 #else
 #define KD_CORE_TRACE(...)    
 #define KD_CORE_INFO(...)     
@@ -95,8 +95,8 @@ private:
 #define KD_CORE_CRITICAL(...) 
 #endif
 // Client log macros
-#define KD_TRACE(...)         ((::Log::ClientConsole*)::Log::GetClientLogger().get())->Trace(__VA_ARGS__)
-#define KD_INFO(...)          ((::Log::ClientConsole*)::Log::GetClientLogger().get())->Info(__VA_ARGS__)
-#define KD_WARN(...)          ((::Log::ClientConsole*)::Log::GetClientLogger().get())->Warn(__VA_ARGS__)
-#define KD_ERROR(...)         ((::Log::ClientConsole*)::Log::GetClientLogger().get())->Error(__VA_ARGS__)
-#define KD_CRITICAL(...)      ((::Log::ClientConsole*)::Log::GetClientLogger().get())->Critical(__VA_ARGS__)
+#define KD_TRACE(...)         ((::Log::ClientConsole*)::Log::GetClientLogger().Get())->Trace(__VA_ARGS__)
+#define KD_INFO(...)          ((::Log::ClientConsole*)::Log::GetClientLogger().Get())->Info(__VA_ARGS__)
+#define KD_WARN(...)          ((::Log::ClientConsole*)::Log::GetClientLogger().Get())->Warn(__VA_ARGS__)
+#define KD_ERROR(...)         ((::Log::ClientConsole*)::Log::GetClientLogger().Get())->Error(__VA_ARGS__)
+#define KD_CRITICAL(...)      ((::Log::ClientConsole*)::Log::GetClientLogger().Get())->Critical(__VA_ARGS__)

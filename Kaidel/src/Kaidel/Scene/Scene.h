@@ -2,15 +2,16 @@
 
 #include "Kaidel/Core/Timestep.h"
 #include "Kaidel/Renderer/EditorCamera.h"
+#include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
 #include "Kaidel/Core/UUID.h"
-#include "Kaidel/Assets/Asset.h"
+#include "Kaidel/Assets/AssetManager.h"
 #include "Kaidel/Mesh/Model.h"
 #include "entt.hpp"
 class b2World;
 
 namespace Kaidel {
 	class Entity;
-	class Scene
+	class Scene : public IRCCounter<false>
 	{
 	public:
 		Scene();
@@ -35,7 +36,7 @@ namespace Kaidel {
 		void DuplicateEntity(Entity& entity);
 
 		void OnUpdateRuntime(Timestep ts);
-		void OnUpdateEditor(Timestep ts, EditorCamera& camera);
+		void OnUpdateEditor(Timestep ts, EditorCamera& camera, Ref<Framebuffer> _3DOutputFramebuffer, Ref<Framebuffer> _2DOutputFramebuffer);
 		void OnUpdateSimulation(Timestep ts, EditorCamera& camera);
 		void OnViewportResize(uint32_t width, uint32_t height);
 
@@ -65,7 +66,7 @@ namespace Kaidel {
 	private:
 
 		Entity GetMainDirectionalLight();
-		void Scene::CreateModelOnEntity(const std::vector<AssetHandle<Mesh>>& meshIDs, Entity entity);
+		void Scene::CreateModelOnEntity(const std::vector<Asset<Mesh>>& meshIDs, Entity entity);
 		entt::registry m_Registry;
 		uint32_t m_ViewportWidth = 0, m_ViewportHeight = 0;
 		b2World* m_PhysicsWorld = nullptr;

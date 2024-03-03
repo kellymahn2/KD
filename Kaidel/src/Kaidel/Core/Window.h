@@ -12,11 +12,14 @@ namespace Kaidel {
 		std::string Title;
 		uint32_t Width;
 		uint32_t Height;
+		bool Fullscreen;
+
 
 		WindowProps(const std::string& title = "Kaidel Engine",
+					bool fullscreen = true,
 			        uint32_t width = 1600,
 			        uint32_t height = 900)
-			: Title(title), Width(width), Height(height)
+			: Title(title), Width(width), Height(height),Fullscreen(fullscreen)
 		{
 		}
 	};

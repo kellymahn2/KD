@@ -3,7 +3,7 @@
 #include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
 #include "Kaidel/Renderer/3D/Material.h"
 #include "Kaidel/Mesh/Model.h"
-#include "Kaidel/Assets/Asset.h"
+#include "Kaidel/Assets/AssetManager.h"
 #include <glm/glm.hpp>
 namespace Kaidel {
 
@@ -26,7 +26,7 @@ namespace Kaidel {
 		static void Shutdown();
 		static void Begin(const Renderer3DBeginData& beginData);
 
-		static void DrawMesh(const glm::mat4& transform, AssetHandle<Mesh> mesh, Ref<Material> material);
+		static void DrawMesh(const glm::mat4& transform, Asset<Mesh> mesh, Ref<Material> material);
 		static void End();
 
 		static void RenderingPipeLine();
@@ -36,7 +36,7 @@ namespace Kaidel {
 
 	private:
 		static void SetupPrimitives();
-		static void FlushMesh(AssetHandle<Mesh>  mesh);
+		static void FlushMesh(Asset<Mesh>  mesh);
 		friend struct Renderer3DData;
 	};
 }

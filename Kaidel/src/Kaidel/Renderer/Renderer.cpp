@@ -71,7 +71,7 @@ namespace Kaidel {
 				21, 20, 23,
 			};
 			Ref<Material> mat = {};
-			Primitives::CubePrimitive = CreateRef<Mesh>("Cube", vertices, indices, mat,glm::vec3(0,0,0));
+			Primitives::CubePrimitive = SingleAssetManager<Mesh>::Manage(CreateRef<Mesh>("Cube", vertices, indices, mat,glm::vec3(0,0,0)),UUID(CubeAssetID));
 		}
 
 		

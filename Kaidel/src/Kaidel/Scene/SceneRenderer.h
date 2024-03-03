@@ -1,7 +1,9 @@
 #pragma once
-#include <queue>
-#include "entt.hpp"
 #include "Kaidel\Core\JobSystem.h"
+#include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
+#include "entt.hpp"
+#include <glm/glm.hpp>
+#include <queue>
 namespace Kaidel {
 
 	class Entity;
@@ -11,17 +13,13 @@ namespace Kaidel {
 		SceneRenderer() = default;
 		SceneRenderer(void* scene);
 		void Reset();
-		void Render();
+		void Render(Ref<Framebuffer> _3DOutputFramebuffer, Ref<Framebuffer> _2DOutputFramebuffer, const glm::mat4& cameraViewProj, const glm::vec3& cameraPos);
 		SceneRenderer& operator=(void* scene) {
 			m_Context = scene;
 			Reset();
 			return *this;
 		}
 	private:
-		uint64_t m_QuadInsertIndex = 0;
-		uint64_t m_CircleInsertIndex = 0;
-		uint64_t m_LineInsertIndex = 0;
 		void* m_Context;
-		JobSystem m_JobSystem = JobSystem(4);
 	};
 }

@@ -17,6 +17,7 @@ project "KaidelEditor"
 	{
 		"%{wks.location}/Kaidel/vendor/spdlog/include",
 		"%{wks.location}/Kaidel/src",
+		"%{wks.location}/KaidelEditor/src",
 		"%{wks.location}/Kaidel/vendor",
 		"%{IncludeDir.glm}",
 		"%{IncludeDir.entt}",

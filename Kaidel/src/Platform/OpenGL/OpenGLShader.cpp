@@ -2,14 +2,14 @@
 #include "Platform/OpenGL/OpenGLShader.h"
 
 #include <fstream>
+#include <sstream>
 #include <glad/glad.h>
-
 #include <glm/gtc/type_ptr.hpp>
 
 namespace Kaidel {
 	namespace Utils {
 
-		static std::string ReadFile(const std::string& filePath) {
+		static std::string ReadFile(const FileSystem::path& filePath) {
 			std::ifstream file(filePath, std::ios::binary | std::ios::in);
 			std::string res;
 			KD_CORE_ASSERT(file, "Could not read from file: {}", filePath);
@@ -25,12 +25,49 @@ namespace Kaidel {
 		}
 
 
+		static std::string PreprocessShaderSource(const FileSystem::path& path, const std::string& unprocessedSource) {
+			std::stringstream processedSourceStream;
+			std::stringstream unprocessedSourceStream(unprocessedSource);
+			std::string line;
+
+			while (std::getline(unprocessedSourceStream, line)) {
+				if (line.find("#include") != std::string::npos) {
+					std::string includeFileName;
+					std::stringstream lineStream(line);
+					std::string includeToken;
+					lineStream >> includeToken >> includeFileName;
+
+					includeFileName.erase(std::remove(includeFileName.begin(), includeFileName.end(), '"'), includeFileName.end());
+
+					FileSystem::path includeFilePath = path.parent_path() / includeFileName;
+
+					includeFilePath = FileSystem::canonical(includeFilePath);
+					if (FileSystem::exists(includeFilePath)) {
+						std::string includedSource = ReadFile(includeFilePath);
+
+						std::string processedIncludeSource = PreprocessShaderSource(path, includedSource);
+						processedSourceStream << processedIncludeSource << "\n";
+					}
+				}
+				else {
+					processedSourceStream << line << "\n";
+				}
+			}
+			return processedSourceStream.str();
+		}
+
 		static std::unordered_map<ShaderType, std::string> GetShaderSources(const ShaderSpecification& specification) {
 			std::unordered_map<ShaderType, std::string> shaderSources;
 			for (const auto& shaderDefinition : specification.Definitions) {
 				if (shaderSources.find(shaderDefinition.ShaderType) != shaderSources.end())
 					continue;
-				shaderSources[shaderDefinition.ShaderType] = shaderDefinition.IsPath ? ReadFile(shaderDefinition.ControlString) : shaderDefinition.ControlString; 
+				if (shaderDefinition.IsPath) {
+					std::string unprocessedSource = ReadFile(shaderDefinition.ControlString);
+					shaderSources[shaderDefinition.ShaderType] = PreprocessShaderSource(shaderDefinition.ControlString, unprocessedSource);
+				}
+				else {
+					shaderSources[shaderDefinition.ShaderType] = shaderDefinition.ControlString; 
+				}
 			}
 			return shaderSources;
 		}

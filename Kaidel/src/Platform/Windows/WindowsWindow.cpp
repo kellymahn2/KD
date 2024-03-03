@@ -38,8 +38,11 @@ namespace Kaidel {
 		m_Data.Title = props.Title;
 		m_Data.Width = props.Width;
 		m_Data.Height = props.Height;
+		m_Data.Fullscreen = props.Fullscreen;
 
-		KD_CORE_INFO("Creating window {0} ({1}, {2})", props.Title, props.Width, props.Height);
+
+
+
 
 		if (s_GLFWWindowCount == 0)
 		{
@@ -47,7 +50,14 @@ namespace Kaidel {
 			KD_CORE_ASSERT(success, "Could not initialize GLFW!");
 			glfwSetErrorCallback(GLFWErrorCallback);
 		}
+		if (m_Data.Fullscreen) {
+			GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+			const GLFWvidmode* vidMode = glfwGetVideoMode(monitor);
+			m_Data.Width = vidMode->width;
+			m_Data.Height = vidMode->height;
+		}
 
+		KD_CORE_INFO("Creating window {0} ({1}, {2})", m_Data.Title, m_Data.Width, m_Data.Height);
 		{
 #define KD_DEBUG
 		#ifdef KD_DEBUG
@@ -56,7 +66,7 @@ namespace Kaidel {
 		#endif
 			if(Renderer::GetAPI() == RendererAPI::API::DirectX)
 				glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-			m_Window = glfwCreateWindow((int)props.Width, (int)props.Height, m_Data.Title.c_str(), nullptr, nullptr);
+			m_Window = glfwCreateWindow((int)m_Data.Width, (int)m_Data.Height, m_Data.Title.c_str(), nullptr, nullptr);
 			++s_GLFWWindowCount;
 		}
 		m_Context = GraphicsContext::Create(m_Window);

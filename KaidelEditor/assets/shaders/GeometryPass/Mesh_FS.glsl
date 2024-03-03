@@ -12,19 +12,11 @@ struct VSOutput{
 layout(location = 0)in VSOutput Input;
 layout(location = 3)in flat int u_MatIndex;
 
-struct Material{
-	float ColorX,ColorY,ColorZ,ColorW;
-	int Diffuse;
-	int Specular;
-	float Shininess;
-};
+#include "../Core.glsl"
 
 
+layout(binding = 0) uniform sampler2DArray u_MaterialTextures;
 
-	layout(binding = 0) uniform sampler2DArray u_MaterialTextures;
-layout(std430,binding = 1) buffer Materials{
-	Material u_Materials[];
-};
 
 
 void main(){

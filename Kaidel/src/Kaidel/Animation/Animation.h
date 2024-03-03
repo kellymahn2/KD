@@ -251,7 +251,7 @@ namespace Kaidel {
 
 	};
 
-	class Animation {
+	class Animation : public IRCCounter<false> {
 	public:
 		Animation(InterpolationFunction func)
 			:m_Function(func)

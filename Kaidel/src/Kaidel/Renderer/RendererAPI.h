@@ -1,10 +1,10 @@
 #pragma once
 #include <glm/glm.hpp>
 #include "Kaidel/Renderer/GraphicsAPI/VertexArray.h"
+#include "Settings.h"
 namespace Kaidel {
-	enum class CullMode {
-		None,Front,Back,FrontAndBack
-	};
+
+	
 	class RendererAPI
 	{
 	public:
@@ -33,9 +33,15 @@ namespace Kaidel {
 		virtual int QueryMaxTextureSlots() = 0;
 		virtual float QueryMaxTessellationLevel() = 0;
 		virtual void SetPatchVertexCount(uint32_t count) = 0;
+
 		virtual void SetDefaultTessellationLevels(const glm::vec4 & outer, const glm::vec2 & inner) = 0;
+		
+		static RendererSettings& GetSettings() { return s_RendererSettings; }
+
 		static API GetAPI() { return s_API; }
 		static Scope<RendererAPI> Create();
+	protected:
+		static inline RendererSettings s_RendererSettings;
 	private:
 		static API s_API;
 	};

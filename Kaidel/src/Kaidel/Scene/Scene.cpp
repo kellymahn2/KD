@@ -231,7 +231,7 @@ namespace Kaidel {
 		return entity;
 	}
 
-	void Scene::CreateModelOnEntity(const std::vector<AssetHandle<Mesh>>& modelData, Entity entity) {
+	void Scene::CreateModelOnEntity(const std::vector<Asset<Mesh>>& modelData, Entity entity) {
 	
 		uint32_t i = 1;
 		for (auto& handle : modelData) {
@@ -239,8 +239,8 @@ namespace Kaidel {
 			auto& tc = child.GetComponent<TransformComponent>();
 			auto& mc = child.AddComponent<MeshComponent>();
 			auto& mat = child.AddComponent<MaterialComponent>();
-			mat.Material = handle.Handle->GetMaterial();
-			tc.Translation = handle->GetCenter();
+			mat.Material = handle.Data->GetMaterial();
+			tc.Translation = handle.Data->GetCenter();
 			mc.Mesh = handle;
 			child.AddParent(entity.GetUUID());
 			entity.AddChild(child.GetUUID());
@@ -414,15 +414,45 @@ namespace Kaidel {
 
 	}
 
-	void Scene::OnUpdateEditor(Timestep ts, EditorCamera& camera)
+	void Scene::OnUpdateEditor(Timestep ts, EditorCamera& camera,Ref<Framebuffer> _3DOutputFramebuffer,Ref<Framebuffer> _2DOutputFramebuffer)
 	{
-		
+		//Particle Updates
+		{
+			auto view = m_Registry.view<ParticleSystemComponent>();
+			for (auto e : view) {
+				auto& pc = view.get<ParticleSystemComponent>(e);
+				if (pc.PS)
+					pc.PS->Update(ts);
+			}
+
+		}
+
+		//Animation Updates
+		{
+			auto view = m_Registry.view<AnimationPlayerComponent>();
+			for (auto e : view) {
+				auto& ac = view.get<AnimationPlayerComponent>(e);
+				if (!ac.Anim || ac.State != AnimationPlayerComponent::PlayerState::Playing)
+					continue;
+
+				Entity entity{ e,this};
+				AnimationPlayerSettings settings{ entity,ac.Time };
+				ac.Anim->Update(settings);
+				ac.Time += ts;
+
+			}
+		}
+
+
+		SceneRenderer sceneRenderer{ this };
+		sceneRenderer.Render(_3DOutputFramebuffer, _2DOutputFramebuffer, camera.GetViewProjection(), camera.GetPosition());
+
 	}
 
 	void Scene::OnUpdateSimulation(Timestep ts, EditorCamera& camera)
 	{
 		OnPhysics2DUpdate(ts);
-		OnUpdateEditor(ts, camera);
+		//OnUpdateEditor(ts, camera);
 	}
 
 	void Scene::OnViewportResize(uint32_t width, uint32_t height)

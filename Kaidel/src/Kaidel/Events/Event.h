@@ -16,7 +16,8 @@ namespace Kaidel {
 		WindowClose, WindowResize, WindowFocus, WindowLostFocus, WindowMoved,
 		AppTick, AppUpdate, AppRender,
 		KeyPressed, KeyReleased, KeyTyped,
-		MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled
+		MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled,
+		RendererSettingsChanged
 	};
 
 	enum EventCategory
@@ -26,7 +27,8 @@ namespace Kaidel {
 		EventCategoryInput          = BIT(1),
 		EventCategoryKeyboard       = BIT(2),
 		EventCategoryMouse          = BIT(3),
-		EventCategoryMouseButton    = BIT(4)
+		EventCategoryMouseButton    = BIT(4),
+		EventCategorySettings		= BIT(5)
 	};
 
 #define EVENT_CLASS_TYPE(type) static EventType GetStaticType() { return EventType::type; }\

@@ -1,4 +1,5 @@
 #pragma once
+#include "Kaidel/Core/IRCP.h"
 #include <vector>
 #include <string>
 #include <chrono>
@@ -18,7 +19,7 @@ namespace Kaidel {
 		std::chrono::system_clock::time_point Time;
 		Message(const std::string& text, MessageLevel level);
 	};
-	class Console {
+	class Console : public IRCCounter<false> {
 	public:
 		void Log(const std::string& message, MessageLevel level = MessageLevel::Log);
 		void Log(const Message& message);

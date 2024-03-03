@@ -2,7 +2,7 @@
 
 namespace Kaidel {
 
-	class GraphicsContext
+	class GraphicsContext 
 	{
 	public:
 		virtual ~GraphicsContext() = default;

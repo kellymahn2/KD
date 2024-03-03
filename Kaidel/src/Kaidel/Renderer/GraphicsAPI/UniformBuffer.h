@@ -1,7 +1,7 @@
 #pragma once
 #include "Kaidel/Core/Base.h"
 namespace Kaidel {
-	class UniformBuffer
+	class UniformBuffer : public IRCCounter<false>
 	{
 	public:
 

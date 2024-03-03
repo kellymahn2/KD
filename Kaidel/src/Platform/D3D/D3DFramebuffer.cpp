@@ -8,10 +8,9 @@ namespace Kaidel {
 
 	namespace Utils {
 
-		static int TextureTarget(bool multisampled)
-		{
-			return 0;
-		}
+
+
+
 
 		static void CreateTextures(FramebufferSpecification& specs, bool multisampled, D3DFrameBuffer::FrameBufferTextureTarget* textures, uint32_t count)
 		{
@@ -30,32 +29,18 @@ namespace Kaidel {
 			}
 		}
 
-		static void BindTexture(bool multisampled, uint32_t id)
-		{
-		}
-
-		static void AttachColorTexture(uint32_t id, int samples, int internalFormat, int format, uint32_t width, uint32_t height, int index)
-		{
-
-		}
-
-		static void AttachDepthTexture(uint32_t id, int samples, int format, int attachmentType, uint32_t width, uint32_t height)
-		{
-
-		}
-
-		static bool IsDepthFormat(FramebufferTextureFormat format)
+		static bool IsDepthFormat(TextureFormat format)
 		{
 			switch (format)
 			{
-			case Kaidel::FramebufferTextureFormat::DEPTH24STENCIL8:
+			case Kaidel::TextureFormat::Depth24Stencil8:
 				return true;
 			}
 
 			return false;
 		}
 
-		static int KaidelFBTextureFormatToGL(FramebufferTextureFormat format)
+		static int KaidelFBTextureFormatToGL(TextureFormat format)
 		{
 			return 0;
 		}
@@ -66,7 +51,7 @@ namespace Kaidel {
 		: m_Specification(spec)
 	{
 		for (auto spec : m_Specification.Attachments.Attachments) {
-			if (!Utils::IsDepthFormat(spec.TextureFormat))
+			if (!Utils::IsDepthFormat(spec.Format))
 				m_ColorAttachmentSpecifications.emplace_back(spec);
 			else
 				m_DepthAttachmentSpecification = spec;
@@ -134,12 +119,12 @@ namespace Kaidel {
 				colorBufferDesc.Usage = D3D11_USAGE_DEFAULT;
 				colorBufferDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 				colorBufferDesc.CPUAccessFlags = 0;
-				switch (colorspec.TextureFormat)
+				switch (colorspec.Format)
 				{
-				case FramebufferTextureFormat::RGBA8:
+				case TextureFormat::RGBA8:
 					colorBufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 					break;
-				case FramebufferTextureFormat::R32I:
+				case TextureFormat::R32I:
 					colorBufferDesc.Format = DXGI_FORMAT_R32_SINT;
 					break;
 				}
@@ -156,7 +141,7 @@ namespace Kaidel {
 				++current;
 			}
 		}
-		if (m_DepthAttachmentSpecification.TextureFormat != FramebufferTextureFormat::None) {
+		if (m_DepthAttachmentSpecification.Format != TextureFormat::None) {
 
 
 			/*D3D11_TEXTURE2D_DESC depthStencilDesc = {};
@@ -289,50 +274,16 @@ namespace Kaidel {
 		Invalidate();
 	}
 
-	int D3DFrameBuffer::ReadPixel(uint32_t attachmentIndex, int x, int y)
+	
+
+	void D3DFrameBuffer::ClearAttachment(uint32_t attachmentIndex, const void* colors)
 	{
-		KD_CORE_ASSERT(attachmentIndex < m_ColorAttachments.size());
-		KD_CORE_ASSERT(m_ColorAttachmentSpecifications.at(attachmentIndex).Readable);
-
-		auto d3dContext = D3DContext::Get();
-		d3dContext->GetDeviceContext()->CopyResource(m_ColorAttachments[attachmentIndex].StagingTexture,
-			m_ColorAttachments[attachmentIndex].Texture
-		);
-		// Map the texture
-		D3D11_MAPPED_SUBRESOURCE mappedResource;
-		D3DASSERT(d3dContext->GetDeviceContext()->Map(m_ColorAttachments[attachmentIndex].StagingTexture, 0, D3D11_MAP_READ, 0, &mappedResource));
-		// Access the pixel data
-		UINT width = m_Specification.Width;
-		UINT height = m_Specification.Height;
-		char* pixel = static_cast<char*>(mappedResource.pData) + y * mappedResource.RowPitch + x * 4;
-		auto ret = *(int*)pixel;
-
-		// Unmap the texture
-		d3dContext->GetDeviceContext()->Unmap(m_ColorAttachments[attachmentIndex].StagingTexture, 0);
-		return ret;
-	}
-
-	void D3DFrameBuffer::ClearAttachment(uint32_t attachmentIndex, int value)
-	{
-		auto d3dContext = D3DContext::Get();
-		D3D11_MAPPED_SUBRESOURCE mappedResource;
-		D3DASSERT(d3dContext->GetDeviceContext()->Map(m_ColorAttachments[attachmentIndex].StagingTexture, 0, D3D11_MAP_WRITE, 0, &mappedResource));
-		int* colorValue = (int*)mappedResource.pData;
-		uint64_t numPixels = m_Specification.Width * m_Specification.Height;
-		for (uint64_t i = 0; i < numPixels; ++i)
-			colorValue[i] = value;
-		d3dContext->GetDeviceContext()->Unmap(m_ColorAttachments[attachmentIndex].StagingTexture, 0);
-		d3dContext->GetDeviceContext()->CopyResource(m_ColorAttachments[attachmentIndex].Texture, m_ColorAttachments[attachmentIndex].StagingTexture);
-	}
-
-	void D3DFrameBuffer::ClearAttachment(uint32_t attachmentIndex, const float* colors)
-	{
-		auto d3dContext = D3DContext::Get();
+		/*auto d3dContext = D3DContext::Get();
 		d3dContext->GetDeviceContext()->ClearRenderTargetView(m_ColorAttachments.at(attachmentIndex).RenderTargetView, colors);
 		if (!cleared) {
 			d3dContext->GetDeviceContext()->ClearDepthStencilView(m_DepthAttachment.DepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 			cleared = true;
-		}
+		}*/
 	}
 
 

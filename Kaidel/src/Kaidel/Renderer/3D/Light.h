@@ -3,6 +3,7 @@
 #include <vector>
 #include "Kaidel/Renderer/GraphicsAPI/Shader.h""
 #include "Kaidel/Renderer/GraphicsAPI/Texture.h"
+#include "Kaidel/Renderer/GraphicsAPI/TextureArray.h"
 #include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
 namespace Kaidel
 {
@@ -75,15 +76,15 @@ namespace Kaidel
 	}
 
 	template<typename T,uint32_t BindingSlot>
-	class Light {
+	class Light : public IRCCounter<false> {
 	public:
 		Light() {
 			m_LightIndex = s_InternalData.size();
 			s_InternalData.emplace_back(T{});
 			s_Lights.push_back(this);
 			if (!s_LightDepthMaps)
-				s_LightDepthMaps = Depth2DArray::Create(_ShadowMapWidth, _ShadowMapHeight);
-			s_LightDepthMaps->PushDepth(_ShadowMapWidth,_ShadowMapHeight);
+				s_LightDepthMaps = Texture2DArray::Create(_ShadowMapWidth, _ShadowMapHeight, TextureFormat::Depth32F);
+			s_LightDepthMaps->PushTexture(nullptr,_ShadowMapWidth,_ShadowMapHeight);
 		}
 		~Light() {
 			std::swap(s_InternalData[m_LightIndex], s_InternalData.back());
@@ -91,10 +92,9 @@ namespace Kaidel
 			s_Lights[m_LightIndex]->m_LightIndex = m_LightIndex;
 			s_InternalData.pop_back();
 			s_Lights.pop_back();
-			s_LightDepthMaps->PopDepth();
 		}
 		T& GetLight(){ return s_InternalData[m_LightIndex]; }
-		static inline Ref<Depth2DArray> GetDepthMaps() { return s_LightDepthMaps; }
+		static inline Ref<Texture2DArray> GetDepthMaps() { return s_LightDepthMaps; }
 		uint64_t GetIndex()const { return m_LightIndex; }
 		static uint64_t GetLightCount() { return s_InternalData.size(); }
 		static void SetLights() {
@@ -102,10 +102,9 @@ namespace Kaidel
 			s_MaterialUAV->SetBufferData(s_InternalData.data(), s_InternalData.size());
 			s_MaterialUAV->Bind(BindingSlot);
 			if(!s_LightDepthMaps)
-				s_LightDepthMaps = Depth2DArray::Create(_ShadowMapWidth, _ShadowMapHeight);
-			for (auto& light : s_Lights) {
-				s_LightDepthMaps->ClearLayer(light->m_LightIndex, 1.0f);
-			}
+				s_LightDepthMaps = Texture2DArray::Create(_ShadowMapWidth, _ShadowMapHeight,TextureFormat::Depth32F);
+			float clearVal = 1.0f;
+			s_LightDepthMaps->Clear(&clearVal);
 			s_LightDepthMaps->Bind(BindingSlot);
 		}
 
@@ -114,7 +113,7 @@ namespace Kaidel
 	private:
 		static inline std::vector<T> s_InternalData{};
 		static inline std::vector<Light*> s_Lights{};
-		static inline Ref<Depth2DArray> s_LightDepthMaps;
+		static inline Ref<Texture2DArray> s_LightDepthMaps;
 		uint64_t m_LightIndex;
 		friend class SceneRenderer;
 		friend static void BindLights(void* m_Context);

@@ -1,5 +1,7 @@
 #include "KDpch.h"
 #include "Platform/OpenGL/OpenGLRendererAPI.h"
+#include "Kaidel/Core/Application.h"
+#include "Kaidel/Events/SettingsEvent.h"
 #include <mutex>
 #include <glad/glad.h>
 
@@ -40,6 +42,8 @@ namespace Kaidel {
 		glEnable(GL_DEPTH_TEST);
 		float data[6];
 		glGetFloatv(GL_MAX_TESS_GEN_LEVEL, data);
+		int x;
+		glGetIntegerv(GL_MAX_SAMPLES, &x);
 	}
 
 	void OpenGLRendererAPI::SetViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
@@ -123,6 +127,7 @@ namespace Kaidel {
 		case Kaidel::CullMode::Back:glEnable(GL_CULL_FACE); glCullFace(GL_BACK); return;
 		case Kaidel::CullMode::FrontAndBack:glEnable(GL_CULL_FACE); glCullFace(GL_FRONT_AND_BACK); return;
 		}
+		s_RendererSettings.Culling = cullMode;
 	}
 
 	void OpenGLRendererAPI::SetPatchVertexCount(uint32_t count) {

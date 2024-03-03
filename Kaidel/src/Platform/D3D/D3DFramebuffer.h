@@ -20,9 +20,6 @@ namespace Kaidel {
 		virtual void Unbind() override;
 
 		virtual void Resize(uint32_t width, uint32_t height) override;
-		virtual int ReadPixel(uint32_t attachmentIndex, int x, int y) override;
-
-		virtual void ClearAttachment(uint32_t attachmentIndex, int value) override;
 
 		virtual uint64_t GetColorAttachmentRendererID(uint32_t index = 0) const override {  return (uint64_t)m_ColorAttachments.at(index).SRV; }
 
@@ -42,7 +39,7 @@ namespace Kaidel {
 
 
 
-		void ClearAttachment(uint32_t attachmentIndex, const float* colors) override;
+		void ClearAttachment(uint32_t attachmentIndex, const void* colors) override;
 
 	private:
 
@@ -50,7 +47,7 @@ namespace Kaidel {
 		FramebufferSpecification m_Specification;
 
 		std::vector<FramebufferTextureSpecification> m_ColorAttachmentSpecifications;
-		FramebufferTextureSpecification m_DepthAttachmentSpecification = FramebufferTextureFormat::None;
+		FramebufferTextureSpecification m_DepthAttachmentSpecification = TextureFormat::None;
 
 		std::vector<FrameBufferTextureTarget> m_ColorAttachments;
 		FrameBufferDepthTarget m_DepthAttachment{};

@@ -11,7 +11,7 @@ namespace Kaidel {
 		Ref<IndexBuffer> IndexBuffer;
 	};
 
-	class VertexArray
+	class VertexArray : public IRCCounter<false>
 	{
 	public:
 		virtual ~VertexArray() = default;

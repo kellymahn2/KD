@@ -102,7 +102,7 @@ namespace Kaidel {
 
 
 	// Currently Kaidel only supports 32-bit index buffers
-	class IndexBuffer
+	class IndexBuffer : public IRCCounter<false>
 	{
 	public:
 		virtual ~IndexBuffer() = default;
@@ -115,7 +115,7 @@ namespace Kaidel {
 		static Ref<IndexBuffer> Create(uint32_t* indices, uint32_t count);
 	};
 
-	class VertexBuffer
+	class VertexBuffer : public IRCCounter<false>
 	{
 	public:
 		virtual ~VertexBuffer() = default;

@@ -3,11 +3,11 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 
 
-layout(binding = 0, rgba32f) restrict readonly uniform image2D inputPosition;
-layout(binding = 1, rgba32f) restrict readonly uniform image2D inputNormal;
-layout(binding = 2, r32i) restrict readonly uniform iimage2D inputIndex;
-layout(binding = 3, rgba8) restrict readonly uniform image2D inputAlbedo;
-layout(binding = 4, rgba8) restrict writeonly uniform image2D outputImage;
+layout(binding = 0, rgba32f) restrict readonly uniform image2DMS inputPosition;
+layout(binding = 1, rgba32f) restrict readonly uniform image2DMS inputNormal;
+layout(binding = 2, r32i) restrict readonly uniform iimage2DMS inputIndex;
+layout(binding = 3, rgba8) restrict readonly uniform image2DMS inputAlbedo;
+layout(binding = 4, rgba8) restrict writeonly uniform image2DMS outputImage;
 
 layout(std140, binding = 0) uniform Camera
 {
@@ -21,43 +21,9 @@ layout(std140, binding = 1) uniform LightingData
 	int u_SpotLightCount;
 };
 
-struct SpotLight {
-	mat4 LightViewProjection;
-	vec4 Position;
-	vec4 Direction;
-	vec4 Ambient;
-	vec4 Diffuse;
-	vec4 Specular;
-
-	float CutOffAngle;
-	float ConstantCoefficient;
-	float LinearCoefficient;
-	float QuadraticCoefficient;
-};
-
-struct Material{
-	float ColorX,ColorY,ColorZ,ColorW;
-	uint Diffuse;
-	uint Specular;
-	float Shininess;
-};
-
-
-
-layout(std430,binding = 4) buffer SpotLights{
-
-	SpotLight u_SpotLights[];
-};
-
-layout(std430,binding = 1) buffer Materials{
-	Material u_Materials[];
-};
-
-layout(binding = 4) uniform sampler2DArray u_SpotLightDepthMaps;
-
+#include "../Core.glsl"
 
 float CalcShadowValue(vec3 position,vec3 normal){
-	
 	float totalShadow = 1.0;
 
 	{
@@ -101,7 +67,32 @@ float CalcShadowValue(vec3 position,vec3 normal){
 
 
 void main() {
+
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+
+	for(int currentSample = 0;currentSample<u_MSAASampleCount;++currentSample){
+		vec3 position = imageLoad(inputPosition,texelCoord,currentSample);
+		vec3 normal = imageLoad(inputNormal,texelCoord,currentSample);
+		vec4 albedo = imageLoad(inputAlbedo,texelCoord,currentSample);
+		vec3 diffuse = albedo.rgb;
+		float spec = albedo.a;
+
+		
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     vec3 position = imageLoad(inputPosition, texelCoord).xyz;
     vec3 normal = imageLoad(inputNormal, texelCoord).xyz;
@@ -159,7 +150,9 @@ void main() {
 	vec3 res = totalAmbient + (shadow)*(totalDiffuse + totalSpecular);
 
     vec4 resultColor = vec4(materialColor.xyz * (res),1.0);
-    imageStore(outputImage, texelCoord, resultColor);
+	for(int sampleIndex = 0;sampleIndex<u_MSAASampleCount;++sampleIndex){
+		imageStore(outputImage, texelCoord,sampleIndex, resultColor);
+	}
 	
 
 }

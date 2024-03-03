@@ -11,7 +11,7 @@
 
 namespace Kaidel {
 	static SceneCamera sc;
-	static inline constexpr uint32_t GraphHeight = 256;
+	static inline constexpr uint32_t GraphSize = 1024;
 	CustomRenderer2D CustomPointRenderer;
 
 	struct ControlPointVertex :public PointVertex {
@@ -126,8 +126,8 @@ namespace Kaidel {
 		FramebufferSpecification fbSpec{};
 		fbSpec.Samples = 1;
 		fbSpec.Width = 1280;
-		fbSpec.Height = GraphHeight;
-		fbSpec.Attachments = { FramebufferTextureFormat::RGBA8,FramebufferTextureFormat::R32I };
+		fbSpec.Height = 720;
+		fbSpec.Attachments = { TextureFormat::RGBA8,TextureFormat::R32I };
 		outputBuffer = Framebuffer::Create(fbSpec);
 
 		Ref<VertexBuffer> vbo = VertexBuffer::Create(0);
@@ -194,8 +194,12 @@ namespace Kaidel {
 			m_ViewportSize.x > 0.0f && // zero sized framebuffer is invalid
 			(spec.Width != m_ViewportSize.x))
 		{
-			outputBuffer->Resize((uint32_t)m_ViewportSize.x, GraphHeight);
-			sc.SetViewportSize((uint32_t)m_ViewportSize.x, GraphHeight);
+			float aspect = m_ViewportSize.x / m_ViewportSize.y;
+			float w = GraphSize * aspect;
+			float h = GraphSize;
+			outputBuffer->Resize((uint32_t)w, (uint32_t)h);
+			sc.SetViewportSize((uint32_t)w, (uint32_t)h);
+			sc.SetOrthographicSize(50);
 		}
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0,0 });
 		if(ImGui::Begin("Animation Graph")&&m_SelectedAnimation){
@@ -228,20 +232,20 @@ namespace Kaidel {
 				float maxHeight = 1.5f * maxPos.x + 1.0f;
 				minHeight = -2.0f;
 				maxHeight = 2.0f;
-				beginData.CameraVP = glm::ortho(-2.0f * (float)(frameStorage.size() - 1), 2.0f*(float)(frameStorage.size() - 1), minHeight,maxHeight);
-				float pixelSize = (maxHeight - minHeight) / GraphHeight;
+				beginData.CameraVP = sc.GetProjection();
+				float pixelSize = (maxHeight - minHeight) / m_ViewportSize.y;
 
 				Utils::RenderAnimationGraph(beginData, frameStorage, m_CurrentControlPointBeingEdited, m_ImagePos, m_LastFrameMousePos,minPos,maxPos, pixelSize);
 
 
 				if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-					int pixelData = 0;
+					float pixelData = 0;
 					ImVec2 mousePos = ImGui::GetMousePos();
 					ImVec2 windowPos = ImGui::GetWindowPos();
 					ImVec2 relMousePosToWindow = { mousePos.x - windowPos.x,mousePos.y - windowPos.y };
 					ImVec2 relMousePosToImage = { relMousePosToWindow.x - m_ImagePos.x,relMousePosToWindow.y - m_ImagePos.y };
 					if(relMousePosToImage.x>=0 && relMousePosToImage.y>=0)
-						outputBuffer->ReadValues(1, (uint32_t)relMousePosToImage.x, GraphHeight - (uint32_t)relMousePosToImage.y, 1, 1, &pixelData);
+						outputBuffer->ReadValues(1, (uint32_t)relMousePosToImage.x, m_ViewportSize.y - (uint32_t)relMousePosToImage.y, 1, 1, &pixelData);
 					m_CurrentControlPointBeingEdited = pixelData;
 				}
 				if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
@@ -254,7 +258,7 @@ namespace Kaidel {
 					m_ImagePos.x = ImGui::GetCursorPosX();
 					m_ImagePos.y = ImGui::GetCursorPosY();
 					ImTextureID textureID = reinterpret_cast<ImTextureID>(outputBuffer->GetColorAttachmentRendererID(0));
-					ImGui::Image(textureID, { m_ViewportSize.x,GraphHeight}, { 0,1 }, { 1,0 });
+					ImGui::Image(textureID, { m_ViewportSize.x,m_ViewportSize.y}, { 0,1 }, { 1,0 });
 				}
 				m_LastFrameMousePos = { ImGui::GetMousePos().x,ImGui::GetMousePos().y };
 			}

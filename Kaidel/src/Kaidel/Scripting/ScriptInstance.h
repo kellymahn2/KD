@@ -7,7 +7,7 @@
 #include <unordered_map>
 namespace Kaidel {
 	
-	class ScriptInstance {
+	class ScriptInstance : public IRCCounter<false>{
 	public:
 		ScriptInstance(Ref<ScriptClass> scriptClass, Entity entity);
 		MonoObject* GetInstance() { return m_Instance; }

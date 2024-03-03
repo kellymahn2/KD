@@ -1,10 +1,14 @@
 #pragma once
 #include "Kaidel/Renderer/GraphicsAPI/Texture.h"
+#include "Kaidel/Renderer/GraphicsAPI/TextureArray.h"
+#include "Kaidel/Assets/AssetManager.h"
 #include <glm/glm.hpp>
 #include <vector>
 #include <unordered_map>
 #include <stack>
 #include <filesystem>
+
+
 namespace Kaidel
 {
 
@@ -31,10 +35,15 @@ namespace Kaidel
 		static inline Ref<Texture2DArray> s_TexturesMap;
 	};
 
-    class Material{
+    class Material : public _Asset {
     public:
 		Material();
 		~Material();
+
+		
+
+		ASSET_EXTENSION_TYPE(Material)
+
 
 		static inline const std::vector<_MaterialInternal>& GetMaterials(){return s_InternalData;}
 

@@ -15,6 +15,8 @@ int main(int argc, char** argv);
 
 namespace Kaidel {
 	
+	class RendererSettingsChangedEvent;
+
 	struct ApplicationCommandLineArgs
 	{
 		int Count = 0;
@@ -46,6 +48,14 @@ namespace Kaidel {
 
 		void Close();
 
+
+		template<typename T,typename ...Args>
+		void PublishEvent(Args&&... args) {
+			T event{ std::forward<Args>(args)... };
+			OnEvent(event);
+		}
+
+
 		ImGuiLayer* GetImGuiLayer() { return m_ImGuiLayer; }
 
 		static Application& Get() { return *s_Instance; }
@@ -57,7 +67,7 @@ namespace Kaidel {
 		void Run();
 		bool OnWindowClose(WindowCloseEvent& e);
 		bool OnWindowResize(WindowResizeEvent& e);
-
+		bool OnRendererSettingsChanged(RendererSettingsChangedEvent& e);
 
 		void ExecuteMainThreadQueue();
 	private:

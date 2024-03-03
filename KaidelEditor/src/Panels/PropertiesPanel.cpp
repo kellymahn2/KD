@@ -1,7 +1,8 @@
-#include "SceneHierarchyPanel.h"
+#include "PropertiesPanel.h"
 #include "Kaidel/Scripting/ScriptEngine.h"
-#include "Kaidel/Assets/AssetManager.h"
-
+#include "Kaidel/Assets/AssetManager.h"	
+#include "Kaidel/Project/Project.h"
+#include "UI/UIHelper.h"
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
 #include <glm/glm.hpp>
@@ -346,8 +347,85 @@ namespace Kaidel {
 
 
 
-	void SceneHierarchyPanel::DrawComponents(Entity entity)
+	void PropertiesPanel::OnImGuiRender() {
+		ImGui::Begin("Properties");
+
+		switch (m_Context->Type)
+		{
+		case SelectedType::Entity:DrawComponents(); break;
+		case SelectedType::Asset:DrawAsset(); break;
+
+		}
+		
+		
+		ImGui::End();
+	}
+
+	void PropertiesPanel::DrawAsset() {
+		AssetFunctionApplier renderer(m_Context->SelectedAsset());
+		renderer.Apply<Material>(KD_BIND_EVENT_FN(DrawMaterialUI));
+	}
+
+
+	void PropertiesPanel::DrawMaterialUI(Ref<Material> mat) {
+		//Default
+		if(!mat) {
+			const char* string = "Default";
+			ImGui::BeginDisabled();
+			Combo("Name", &string, 1, string);
+			ImGui::EndDisabled();
+			return;
+		}
+		//Custom 
+
+		bool assetChanged = true;
+
+		glm::vec4 color = mat->GetColor();
+		if (ImGui::ColorEdit4("Color", &color.x)) {
+			mat->SetColor(color);
+			assetChanged = true;
+		}
+
+		/*static Ref<Texture2DView> view = Texture2DView::Create();
+		static Ref<Material> m{};
+		if (m != mat) {
+			view = Texture2DView::Create();
+			view->View(MaterialTextureHandler::GetTexturesMap(), mat->GetDiffuse());
+			m = mat;
+		}
+
+		if (view->Set()) {
+			ImGui::Image((ImTextureID)view->GetRendererID(), { 64,64 }, { 0,1 }, { 1,0 });
+		}*/
+
+		if (assetChanged) {
+			Project::OnChangeAssetActive(mat);
+		}
+
+
+
+	}
+
+	static void HandleDragDrops(Entity entity) {
+
+		DragDropTarget dragdropTarget;
+
+		dragdropTarget.Receive<uint64_t>("ENTITY_ADD_MATERIAL"); // Materials
+
+	}
+
+
+
+
+	void PropertiesPanel::DrawComponents()
 	{
+		Kaidel::Entity entity = m_Context->SelectedEntity();
+		if (!entity)
+			return;
+		Scene* scene = m_Context->Scene.Get();
+
+		HandleDragDrops(entity);
+
 		auto& id = entity.GetComponent<IDComponent>();
 		ImGui::Checkbox("##Active", &id.IsActive);
 		ImGui::SameLine();
@@ -364,8 +442,8 @@ namespace Kaidel {
 		}
 
 		
-		ImGui::Text(std::to_string(m_SelectionContext.GetUUID().operator uint64_t()).c_str());
-		DrawComponent<TransformComponent>("Transform", entity, [&entity, scene = m_Context](auto& component)
+		ImGui::Text(std::to_string(entity.GetUUID().operator uint64_t()).c_str());
+		DrawComponent<TransformComponent>("Transform", entity, [&entity, scene = scene](auto& component)
 			{
 				bool hasParent = entity.HasComponent<ChildComponent>();
 				glm::vec3 pos = component.Translation, rot = glm::degrees(component.Rotation);
@@ -379,7 +457,7 @@ namespace Kaidel {
 				DrawVec3Control("Translation", pos);
 				DrawVec3Control("Rotation", rot);
 				DrawVec3Control("Scale", component.Scale, 1.0f);
-				MoveEntity(entity, scene.get(), pos - orgPos, glm::radians(rot - orgRot));
+				MoveEntity(entity, scene, pos - orgPos, glm::radians(rot - orgRot));
 			}, false);
 
 
@@ -387,31 +465,19 @@ namespace Kaidel {
 		DrawComponent<CameraComponent>("Camera", entity, [](auto& component)
 			{
 				auto& camera = component.Camera;
-
 				ImGui::Checkbox("Primary", &component.Primary);
 
 				const char* projectionTypeStrings[] = { "Perspective", "Orthographic" };
-				const char* currentProjectionTypeString = projectionTypeStrings[(int)camera.GetProjectionType()];
-				if (ImGui::BeginCombo("Projection", currentProjectionTypeString))
-				{
-					for (int i = 0; i < 2; i++)
-					{
-						bool isSelected = currentProjectionTypeString == projectionTypeStrings[i];
-						if (ImGui::Selectable(projectionTypeStrings[i], isSelected))
-						{
-							currentProjectionTypeString = projectionTypeStrings[i];
-							camera.SetProjectionType((SceneCamera::ProjectionType)i);
-						}
-
-						if (isSelected)
-							ImGui::SetItemDefaultFocus();
-					}
-
-					ImGui::EndCombo();
+				uint64_t current = (uint64_t)camera.GetProjectionType();
+				uint64_t combo = Combo("Projection", projectionTypeStrings, ARRAYSIZE(projectionTypeStrings), projectionTypeStrings[current]);
+				
+				if (combo != -1) {
+					camera.SetProjectionType((SceneCamera::ProjectionType)combo);
 				}
-
-				if (camera.GetProjectionType() == SceneCamera::ProjectionType::Perspective)
+				
+				switch (camera.GetProjectionType())
 				{
+				case SceneCamera::ProjectionType::Perspective: {
 					float perspectiveVerticalFov = glm::degrees(camera.GetPerspectiveVerticalFOV());
 					if (ImGui::DragFloat("Vertical FOV", &perspectiveVerticalFov))
 						camera.SetPerspectiveVerticalFOV(glm::radians(perspectiveVerticalFov));
@@ -423,9 +489,8 @@ namespace Kaidel {
 					float perspectiveFar = camera.GetPerspectiveFarClip();
 					if (ImGui::DragFloat("Far", &perspectiveFar))
 						camera.SetPerspectiveFarClip(perspectiveFar);
-				}
-
-				if (camera.GetProjectionType() == SceneCamera::ProjectionType::Orthographic)
+				}break;
+				case SceneCamera::ProjectionType::Orthographic:
 				{
 					float orthoSize = camera.GetOrthographicSize();
 					if (ImGui::DragFloat("Size", &orthoSize))
@@ -440,8 +505,14 @@ namespace Kaidel {
 						camera.SetOrthographicFarClip(orthoFar);
 
 					ImGui::Checkbox("Fixed Aspect Ratio", &component.FixedAspectRatio);
+				}break;
 				}
+
 			});
+
+		DrawComponent<MaterialComponent>("Material", entity, [](MaterialComponent& component) {
+			});
+
 
 		DrawComponent<AnimationPlayerComponent>("Animation Player", entity, [](AnimationPlayerComponent& component) {
 
@@ -449,21 +520,15 @@ namespace Kaidel {
 			const char* states[stateCount] = { "Playing" ,"Paused","Stopped" };
 
 			const char* state = states[(int)component.State];
-			if (ImGui::BeginCombo("State", state)) {
-				for (int i = 0; i < stateCount; ++i) {
-					bool isSelected = states[i] == state;
-					if (ImGui::Selectable(states[i], &isSelected)) {
-						state = states[i];
-						switch ((AnimationPlayerComponent::PlayerState)i)
-						{
-						case AnimationPlayerComponent::PlayerState::Stopped	:component.Time = 0.0f;break;
-						}
-						component.State = (AnimationPlayerComponent::PlayerState)i;
-					}
-					if (isSelected)
-						ImGui::SetItemDefaultFocus();
+
+			uint64_t combo = Combo("State", states, ARRAYSIZE(states), state);
+
+			if (combo != -1) {
+				switch ((AnimationPlayerComponent::PlayerState)combo)
+				{
+				case AnimationPlayerComponent::PlayerState::Stopped:component.Time = 0.0f; break;
 				}
-				ImGui::EndCombo();
+				component.State = (AnimationPlayerComponent::PlayerState)combo;
 			}
 
 			if (auto ptr = component.Anim->GetPropertyMap<TranslationData>(); ptr) {
@@ -487,17 +552,7 @@ namespace Kaidel {
 		//Renderers
 		DrawComponent<SpriteRendererComponent>("Sprite Renderer", entity, [](auto& component)
 			{
-				ImGui::ColorEdit4("Color", glm::value_ptr(component.Color));
-				ImGui::Button("Texture");
-				if (ImGui::BeginDragDropTarget()) {
-					if (auto payload = ImGui::AcceptDragDropPayload("ASSET_TEXTURE")) {
-						const wchar_t* path = (const wchar_t*)payload->Data;
-						std::filesystem::path p = path;
-						component.Texture = Texture2D::Create(p.string());
-					}
-					ImGui::EndDragDropTarget();
-				}
-				ImGui::DragFloat("Tiling Float", &component.TilingFactor, .1f, 0, 100.f);
+				
 			});
 
 
@@ -513,7 +568,7 @@ namespace Kaidel {
 				
 				const std::string& meshName = component.Mesh->GetMeshName();
 				
-				ImGui::Text("Asset ID: %s", std::to_string(component.Mesh.Handle.GetAssetID().operator size_t()).c_str());
+				ImGui::Text("Asset ID: %s", std::to_string(component.Mesh.UniqueAssetID.operator size_t()).c_str());
 				ImGui::BeginDisabled();
 				ImGui::InputText("##meshName", (char*)meshName.data(), meshName.length());
 				ImGui::EndDisabled();
@@ -528,15 +583,15 @@ namespace Kaidel {
 
 				ImGui::Begin("Meshes");
 
-				const auto& assetMap = Asset<Model>::GetAssetMap();
+				const auto& assetMap = SingleAssetManager<Mesh>::GetManagedAssetsByUUID();
 
 				const int modelTreeFlags = ImGuiTreeNodeFlags_SpanAvailWidth;
 
 
-				for (const auto& [id, modelPtr] : assetMap) {
+				/*for (const auto& [id, modelPtr] : assetMap) {
 					const auto& model = modelPtr;
 					
-					bool modelOpen = ImGui::TreeNodeEx(model->GetModelPath().string().c_str(), modelTreeFlags);
+					bool modelOpen = ImGui::TreeNodeEx(model->GetMeshName().string().c_str(), modelTreeFlags);
 
 
 					if (modelOpen) {
@@ -556,7 +611,7 @@ namespace Kaidel {
 					}
 					
 
-				}
+				}*/
 
 				ImGui::End();
 			}
@@ -610,6 +665,9 @@ namespace Kaidel {
 			ImGui::DragFloat("Restitution Threshold", &component.RestitutionThreshold, 0.01f, .0f, 1.f);
 
 			});
+
+
+		//Lights
 		DrawComponent<DirectionalLightComponent>("Directional Light", entity, [](DirectionalLightComponent& component) {
 			auto& light = component.Light->GetLight();
 			ImGui::DragFloat3("Ambient", &light.Ambient.x, .01f, 0.0f, 1.0f);
@@ -642,8 +700,6 @@ namespace Kaidel {
 			ImGui::DragFloat("Quadratic Coefficient", &light.QuadraticCoefficient, 0.01f, 0.01f);
 
 			});
-
-
 
 		DrawComponent<LineRendererComponent>("Line Renderer", entity, [](LineRendererComponent& component) {
 
@@ -692,11 +748,11 @@ namespace Kaidel {
 			}
 			});
 
-		DrawComponent<CubeRendererComponent>("Cube Renderer", entity, [entity, scene = m_Context](CubeRendererComponent& component) {
+		DrawComponent<CubeRendererComponent>("Cube Renderer", entity, [entity, scene = scene](CubeRendererComponent& component) {
 			});
 
 		//Scripts
-		DrawComponent<ScriptComponent>("Script", entity, [entity, scene = m_Context](ScriptComponent& component) mutable
+		DrawComponent<ScriptComponent>("Script", entity, [entity, scene = scene](ScriptComponent& component) mutable
 			{
 
 				auto& entityScripts = ScriptEngine::GetClasses();
@@ -831,6 +887,7 @@ namespace Kaidel {
 				DrawAddComponentItems<SpotLightComponent>(entity, "Spot Light");
 
 				DrawAddComponentItems<MeshComponent>(entity, "Mesh Renderer");
+				DrawAddComponentItems<MaterialComponent>(entity, "Material");
 
 				//DrawAddComponentItems<ParentComponent>(m_SelectionContext, "Parent");
 				//DrawAddComponentItems<ChildComponent>(m_SelectionContext, "Child");
@@ -840,4 +897,8 @@ namespace Kaidel {
 			ImGui::PopItemWidth();
 
 	}
+
+
+
+
 }

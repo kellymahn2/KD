@@ -2,8 +2,8 @@
 
 #include "Kaidel/Math/Math.h"
 #include "Kaidel/Core/Timer.h"
-#include "Kaidel/Assets/Asset.h"
-
+#include "Kaidel/Assets/AssetManager.h"
+#include "Kaidel/Renderer/GraphicsAPI/Copier.h"
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
@@ -44,9 +44,10 @@ namespace Kaidel {
 		m_Icons.IconStop = Texture2D::Create("Resources/Icons/StopButton.png");
 		KD_INFO("Loaded Stop Button");
 
-		{
+
+		/*{
 			FramebufferSpecification fbSpec;
-			fbSpec.Attachments = { FramebufferTextureFormat::RGBA8, FramebufferTextureFormat::DEPTH32 };
+			fbSpec.Attachments = { TextureFormat::RGBA8, TextureFormat::Depth32F };
 			fbSpec.Width = 1280;
 			fbSpec.Height = 720;
 			fbSpec.Samples = 1;
@@ -54,157 +55,73 @@ namespace Kaidel {
 		}
 		{
 			FramebufferSpecification fbSpec;
-			fbSpec.Attachments = { FramebufferTextureFormat::RGBA8,FramebufferTextureFormat::DEPTH32 };
+			fbSpec.Attachments = { TextureFormat::RGBA8,TextureFormat::Depth32F };
 			fbSpec.Width = 1280;
 			fbSpec.Height = 720;
 			fbSpec.Samples = 1;
 			m_2DOutputFrameBuffer = Framebuffer::Create(fbSpec);
-		}
+		}*/
 		{
 			FramebufferSpecification fbSpec;
-			fbSpec.Attachments = { FramebufferTextureFormat::RGBA8};
+			fbSpec.Attachments = { TextureFormat::RGBA8};
 			fbSpec.Width = 1280;
 			fbSpec.Height = 720;
-			fbSpec.Samples = 1;
+			fbSpec.Samples = RendererAPI::GetSettings().MSAASampleCount;
 			m_OutputBuffer = Framebuffer::Create(fbSpec);
 		}
 	
+		{
+			FramebufferSpecification fbSpec;
+			fbSpec.Attachments = { TextureFormat::RGBA8 };
+			fbSpec.Width = 1280;
+			fbSpec.Height = 720;
+			fbSpec.Samples = 1;
+			m_ScreenOutputbuffer = Framebuffer::Create(fbSpec);
+		}
 		m_2D3DCompositeShader = ComputeShader::Create("assets/shaders/Composite_CS_2D3D.glsl");
 		m_ActiveScene = CreateRef<Scene>();
 		m_EditorScene = m_ActiveScene;
 		m_EditorCamera = EditorCamera(30.0f, 1.778f, 0.1f, 1000.0f);
+		m_PanelContext = CreateRef<PanelContext>();
 		auto& commandLineArgs = Application::Get().GetCommandLineArgs();
 		if (commandLineArgs.Count > 1) {
 			auto projectFilePath = commandLineArgs[1];
-			//OpenProject(projectFilePath);
-			OpenScene(projectFilePath);
+			OpenProject(projectFilePath);
 		}
 		else {
-			//TODO: Actually create a new project
 			NewProject();
 		}
 
-		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
-		m_SceneHierarchyPanel.RegisterFieldRenderers();
+		m_PanelContext->Scene = m_ActiveScene;
+
 		m_ConsolePanel.SetContext(::Log::GetClientLogger());
+		m_ContentBrowserPanel.SetCurrentPath(Project::GetProjectDirectory());
+		m_ContentBrowserPanel.SetStartPath(Project::GetProjectDirectory());
+		m_SceneHierarchyPanel.SetContext(m_PanelContext);
+		m_PropertiesPanel.SetContext(m_PanelContext);
+		m_ContentBrowserPanel.SetContext(m_PanelContext);
 
-		anim = CreateRef<Animation>(InterpolationFunction::CubicBezier);
-		anim->PushTranslation({ {0.0f,0.0f,0.0f} }, 0);
-		anim->PushTranslation({ {3.0f,0.0f,0.0f} }, 5.0f);
-		m_AnimationPanel.SetSelectedAnimation(anim);
 
 		{
-			//Timer timer("Model Loading");
-			const auto& m = Asset<Model>::GetAssetMap();
-			const auto& m2 = Asset<Mesh>::GetAssetMap();
-			//model = Model::Load("assets/models/test/backpack.obj");
-			int x = 3;
-			//model2 = Model::Load("assets/models/test/Erika_Archer.fbx",true);
-
+			m_FXAAComputeShader = ComputeShader::Create("assets/shaders/FXAA/FXAA_CS_2D3D.glsl");
 		}
-
-		/*Entity e = m_ActiveScene->CreateEntity();
-		auto& mc = e.AddComponent<MeshComponent>();
-		mc.Mesh = Primitives::CubePrimitive;
-		e.AddComponent<AnimationPlayerComponent>().Anim = anim;*/
-
-
-		//Entity e = m_ActiveScene->CreateModelEntity(model.GetContainer());
-
-		/*auto& apc = e.AddComponent<AnimationPlayerComponent>();
-		apc.Time = 0.0f;
-		apc.Anim = anim;
-		{
-			Entity e = m_ActiveScene->CreateEntity();
-			auto [mc, apc] = e.AddComponents<MeshComponent, AnimationPlayerComponent>();
-			mc.Mesh = Primitives::CubePrimitive;
-			apc.Time = 0.0f;
-			apc.Anim = anim;
-			e.GetComponent<TransformComponent>().Translation.z = 5.0f;
-		}*/
-		//{Entity e = m_ActiveScene->CreateModelEntity(model.GetContainer()); }
-		//{Entity e = m_ActiveScene->CreateModelEntity(model.GetContainer()); MoveEntity(e, m_ActiveScene.get(), {5,0,0}, {0,0,0}); }
-
-		/*{
-			Entity e = m_ActiveScene->CreateEntity("Sprite");
-			e.AddComponent<SpriteRendererComponent>();
-			e.GetComponent<TransformComponent>().Rotation.x = glm::radians(90.0f);
-		}*/
-
-		/*uint32_t i = 1;
-		for (auto& handle : model->GetModelData()) {
-			Entity e = m_ActiveScene->CreateEntity(handle->GetMeshName());
-			auto& tc = e.GetComponent<TransformComponent>();
-			auto& mc = e.AddComponent<MeshComponent>();
-			auto& mat = e.AddComponent<MaterialComponent>();
-			mat.Material = handle.Handle->GetMaterial();
-			mc.Mesh = handle;
-			++i;
-		}*/
-
-		ParticleSystemSpecification spec{};
-		spec.DeadTime = 10.f;
-		spec.StartAliveTime = 0.0f;
-		spec.StartActiveTime = 0.0f;
-		spec.InactiveTime = 10.0f;
-		spec.RendererType = ParticleRendererType::BillboardQuad;
-		spec.SpawnShape = ParticleSpawnShape::Circle;
-		spec.ShapeData.Circle.Radius = 2.0f;
-		spec.MaxParticleCount = 1000;
-		ps = Asset<ParticleSystem>(CreateRef<ParticleSystem>(spec));
-		ps->Generate(50);
-
-		Entity entity = m_ActiveScene->CreateEntity("Particles");
-		entity.AddComponent<ParticleSystemComponent>().PS = ps;
-
-		{
-			ent = m_ActiveScene->CreateCube("Cube");
-			auto& tc = ent.GetComponent<TransformComponent>();
-			tc.Scale.y = 20.0f;
-			tc.Scale.z = 15.0f;
-			tc.Translation.x = 5.0f;
-		}
-
-		mat = CreateRef<Material2D>();
-		mat->SetColor(glm::vec4(1, 0, 0, 1));
 
 	}
 	void EditorLayer::OnDetach()
 	{
 	}
 
-	static int GetCurrentPixelData(glm::vec2 viewportBounds[2],Ref<Framebuffer> fb) {
-		auto [mx, my] = ImGui::GetMousePos();
-		mx -= viewportBounds[0].x;
-		my -= viewportBounds[0].y;
-		glm::vec2 viewportSize = viewportBounds[1] - viewportBounds[0];
-		switch (RendererAPI::GetAPI()) {
-		case RendererAPI::API::OpenGL:
-			my = viewportSize.y - my; break;
-		default:
-			break;
-		}
-		int mouseX = (int)mx;
-		int mouseY = (int)my;
-		if (mouseX >= 0 && mouseY >= 0 && mouseX < (int)viewportSize.x && mouseY < (int)viewportSize.y)
-		{
-			return fb->ReadPixel(1, mouseX, mouseY);
-		}
-		return -1;
-	}
-	static float t = 0.0f;
-	static float increment = 0.001;
+	
 	void EditorLayer::OnUpdate(Timestep ts)
 	{
 		
 		// Resize
-		if (FramebufferSpecification spec = m_3DOutputFramebuffer->GetSpecification();
+		if (FramebufferSpecification spec = m_OutputBuffer->GetSpecification();
 			m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f && // zero sized framebuffer is invalid
 			(spec.Width != m_ViewportSize.x || spec.Height != m_ViewportSize.y))
 		{
-			m_3DOutputFramebuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
-			m_2DOutputFrameBuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 			m_OutputBuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+			m_ScreenOutputbuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 
 			m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);
 			m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
@@ -220,125 +137,25 @@ namespace Kaidel {
 		{
 			case SceneState::Edit:
 			{
-				
-				//Particle Updates
-				{
-					auto view = m_ActiveScene->m_Registry.view<ParticleSystemComponent>();
-					for (auto e : view) {
-						auto& pc = view.get<ParticleSystemComponent>(e);
-						if (pc.PS)
-							pc.PS->Update(ts);
-					}
+				float colors[4] = { .1,.1,.1,1 };
 
-				}
+				m_ActiveScene->OnUpdateEditor(ts, m_EditorCamera,m_OutputBuffer,m_OutputBuffer);
 
-				//Animation Updates
-				{
-					auto view = m_ActiveScene->m_Registry.view<AnimationPlayerComponent>();
-					for (auto e : view) {
-						auto& ac = view.get<AnimationPlayerComponent>(e);
-						if (!ac.Anim||ac.State != AnimationPlayerComponent::PlayerState::Playing)
-							continue;
-						
-						Entity entity{ e,m_ActiveScene.get() };
-						AnimationPlayerSettings settings{ entity,ac.Time };
-						ac.Anim->Update(settings);
-						ac.Time += ts;
+				TextureCopier::Copy(m_ScreenOutputbuffer, m_OutputBuffer);
 
+				// Project Auto Save
+				auto& currentProjectConfig = Project::GetActive()->GetConfig();
+				if (currentProjectConfig.ProjectAutoSave) {
+					currentProjectConfig.TimeSinceLastProjectAutoSave += ts;
+					if (currentProjectConfig.TimeSinceLastProjectAutoSave>= currentProjectConfig.ProjectAutoSaveTimer) {
+						SaveProject();
+						currentProjectConfig.TimeSinceLastProjectAutoSave = 0.0f;
 					}
 				}
 
 
 
 
-
-
-				
-				//3D
-				{
-					{
-						auto view = m_ActiveScene->m_Registry.view<TransformComponent, SpotLightComponent>();
-						for (auto e : view) {
-							auto [tc, slc] = view.get<TransformComponent, SpotLightComponent>(e);
-							auto& light = slc.Light->GetLight();
-
-							light.LightViewProjection = glm::infinitePerspective(2.0f * glm::acos(light.CutOffAngle), 1.0f, .5f) * glm::lookAt(glm::vec3(light.Position),glm::vec3(light.Position + glm::normalize(light.Direction)),glm::vec3(0.0f,1.0f,0.0f));
-							light.Position = glm::vec4(tc.Translation, 1.0f);
-						}
-					}
-					Renderer3DBeginData data;
-
-					data.OutputBuffer = m_3DOutputFramebuffer;
-					data.CameraPosition = m_EditorCamera.GetPosition();
-					data.CameraVP = m_EditorCamera.GetViewProjection();
-
-					{
-						Renderer3D::Begin(data);
-						
-						uint32_t drawnMeshCount = 0;
-						{
-							auto view = m_ActiveScene->m_Registry.view<TransformComponent, MeshComponent>();
-							for (auto e : view) {
-								auto [tc, mc] = view.get<TransformComponent, MeshComponent>(e);
-								if (!mc.Mesh)
-									continue;
-								auto meshMat = mc.Mesh.Handle->GetMaterial();
-								if (auto p = m_ActiveScene->m_Registry.try_get<MaterialComponent>(e); p != nullptr)
-									meshMat = p->Material;
-								Renderer3D::DrawMesh(tc.GetTransform(), mc.Mesh, meshMat);
-								++drawnMeshCount;
-							}
-						}
-						
-						Renderer3D::End();
-					}
-
-				}
-
-
-				//2D
-				{
-					float colors[4] = { .1,.1,.1,1 };
-					m_2DOutputFrameBuffer->ClearAttachment(0,colors);
-					m_2DOutputFrameBuffer->ClearDepthAttachment(1.0f);
-					Renderer2DBeginData data;
-					data.OutputBuffer = m_2DOutputFrameBuffer;
-					data.CameraVP = m_EditorCamera.GetViewProjection();
-					{
-						Renderer2D::Begin(data);
-
-						auto view = m_ActiveScene->m_Registry.view<TransformComponent, SpriteRendererComponent>();
-						for (auto e : view) {
-							auto [tc, src] = view.get<TransformComponent, SpriteRendererComponent>(e);
-							Renderer2D::DrawSprite(tc.GetTransform(), mat);
-						}
-
-						Renderer2D::FlushSprites();
-
-						for (auto& particle : *ps) {
-							if (particle.Status != ParticleStatus::Active)
-								continue;
-							glm::vec3 pos = 0.5f * ps->GetSpecification().ParticleAcceleration * particle.AliveTime * particle.AliveTime + particle.InitialVelocity * particle.AliveTime + particle.InitialPostition;
-							Renderer2D::DrawSprite(glm::translate(glm::mat4(1.0f), pos), {});
-						}
-
-						Renderer2D::End();
-					}
-				}
-
-
-
-
-				m_2D3DCompositeShader->Bind();
-				m_2DOutputFrameBuffer->BindDepthAttachmentToSlot(0);
-				m_3DOutputFramebuffer->BindDepthAttachmentToSlot(1);
-
-				m_2DOutputFrameBuffer->BindColorAttachmentToImageSlot(0, 0, ImageBindingMode_Read);
-				m_3DOutputFramebuffer->BindColorAttachmentToImageSlot(0, 1, ImageBindingMode_Read);
-
-				m_OutputBuffer->BindColorAttachmentToImageSlot(0, 2, ImageBindingMode_Write);
-				m_2D3DCompositeShader->Execute(glm::ceil((float)m_ViewportSize.x / 32.0f), glm::ceil((float)m_ViewportSize.y/ 32.0f), 1);
-				m_2D3DCompositeShader->Wait();
 
 				break;
 			}
@@ -356,54 +173,10 @@ namespace Kaidel {
 		
 		const auto& c = AccumulativeTimer::GetTimers();
 
-		/*if (m_Debug) {
-			OnOverlayRender();
-		}
 		
-		if (Entity selectedEntity = m_SceneHierarchyPanel.GetSelectedEntity(); selectedEntity && m_SceneState == SceneState::Edit)
-		{
-			DrawSelectedEntityOutline(selectedEntity);
-		}*/
-		//int pixelData = GetCurrentPixelData(m_ViewportBounds,m_Framebuffer);
-		//m_HoveredEntity = pixelData == -1 ? Entity() : Entity((entt::entity)pixelData, m_ActiveScene.get());
 	}
 
-	void EditorLayer::OnOverlayRender()
-	{
-		/*if(m_SceneState == SceneState::Edit)
-			Renderer2D::BeginScene(m_EditorCamera);
-		else if (m_SceneState == SceneState::Play)
-		{
-			Entity camera = m_ActiveScene->GetPrimaryCameraEntity();
-			Renderer2D::BeginScene(camera.GetComponent<CameraComponent>().Camera, camera.GetComponent<TransformComponent>().GetTransform());
-		}
-		{
-			auto view = m_ActiveScene->GetAllComponentsWith<TransformComponent, CircleCollider2DComponent>();
-			for (auto e : view) {
-				
-				auto [tc, bc2d] = view.get<TransformComponent, CircleCollider2DComponent>(e);
-				auto scale = tc.Scale * glm::vec3(bc2d.Radius * 2.0f, bc2d.Radius * 2.0f, 1.0f);
-				auto transform = glm::translate(glm::mat4(1.0f), tc.Translation)
-					* glm::translate(glm::mat4(1.0f), glm::vec3(bc2d.Offset, 0.0f))
-					* glm::scale(glm::mat4(1.0f), scale+0.01f);
-				Renderer2D::DrawCircle(transform, { .2f,.9f,.3f,1.0f }, .02f);
-			}
-		}
-		{
-			auto view = m_ActiveScene->GetAllComponentsWith<TransformComponent, BoxCollider2DComponent>();
-			for (auto e : view) {
-
-				auto [tc, bc2d] = view.get<TransformComponent, BoxCollider2DComponent>(e);
-				auto scale = tc.Scale * glm::vec3(bc2d.Size*2.0f, 1.0f);
-				auto transform = glm::translate(glm::mat4(1.0f), tc.Translation)
-					* glm::rotate(glm::mat4(1.0f), tc.Rotation.z, glm::vec3(0.0f, 0.0f, 1.0f))
-					*glm::translate(glm::mat4(1.0f),glm::vec3(bc2d.Offset,0.0f))
-					* glm::scale(glm::mat4(1.0f), scale+.01f);
-				Renderer2D::DrawRect(transform, {.2f,.9f,.3f,1.0f});
-			}
-		}
-		Renderer2D::EndScene();*/
-	}
+	
 	
 
 	
@@ -442,6 +215,7 @@ namespace Kaidel {
 		// any change of dockspace/settings would lead to windows being stuck in limbo and never being visible.
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 		ImGui::Begin("DockSpace Demo", &dockspaceOpen, window_flags);
+
 		ImGui::PopStyleVar();
 		if (opt_fullscreen)
 			ImGui::PopStyleVar(2);
@@ -465,7 +239,7 @@ namespace Kaidel {
 					// which we can't undo at the moment without finer window depth/z control.
 					//ImGui::MenuItem("Fullscreen", NULL, &opt_fullscreen_persistant);1
 					if (ImGui::MenuItem("Duplicate", "Ctrl+D"))
-						m_ActiveScene->DuplicateEntity(m_SceneHierarchyPanel.GetSelectedEntity());
+						m_ActiveScene->DuplicateEntity(m_PanelContext->SelectedEntity());
 					if (ImGui::MenuItem("New", "Ctrl+N"))
 						NewScene();
 
@@ -477,6 +251,10 @@ namespace Kaidel {
 
 					if (ImGui::MenuItem("Save As...", "Ctrl+Shift+S"))
 						SaveSceneAs();
+
+					if (ImGui::MenuItem("Save Project")) {
+						SaveProject();
+					}
 
 					if (ImGui::MenuItem("Exit"))
 						Application::Get().Close();
@@ -496,7 +274,8 @@ namespace Kaidel {
 			m_SceneHierarchyPanel.OnImGuiRender();
 			m_ContentBrowserPanel.OnImGuiRender();
 			m_ConsolePanel.OnImGuiRender();
-			m_AnimationPanel.OnImGuiRender();
+			//m_AnimationPanel.OnImGuiRender();
+			m_PropertiesPanel.OnImGuiRender();
 
 			ShowDebugWindow();
 			ShowViewport();
@@ -587,14 +366,14 @@ namespace Kaidel {
 		m_RuntimeScene =Scene::Copy(m_EditorScene);
 		m_RuntimeScene->OnRuntimeStart();
 		m_ActiveScene = m_RuntimeScene;
-		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+		m_PanelContext->Scene = m_ActiveScene;
 	}
 	void EditorLayer::OnSceneStop(){
 		m_SceneState = SceneState::Edit;
 		m_ActiveScene->OnRuntimeStop();
 		m_RuntimeScene = nullptr;
 		m_ActiveScene = m_EditorScene;
-		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+		m_PanelContext->Scene = m_ActiveScene;
 	}
 
 	
@@ -608,14 +387,14 @@ namespace Kaidel {
 		m_SimulationScene = Scene::Copy(m_EditorScene);
 		m_SimulationScene->OnSimulationStart();
 		m_ActiveScene = m_SimulationScene;
-		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+		m_PanelContext->Scene = m_ActiveScene;
 	}
 	void EditorLayer::OnSceneSimulateStop() {
 		m_SceneState = SceneState::Edit;
 		m_SimulationScene->OnSimulationStop();
 		m_SimulationScene = nullptr;
 		m_ActiveScene = m_EditorScene;
-		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+		m_ActiveScene = m_SimulationScene;
 	}
 
 	
@@ -652,7 +431,7 @@ namespace Kaidel {
 	void EditorLayer::DrawGizmos()
 	{
 
-		Entity selectedEntity = m_SceneHierarchyPanel.GetSelectedEntity();
+		Entity selectedEntity = m_PanelContext->SelectedEntity();
 		if (selectedEntity && m_GizmoType != -1)
 		{
 			ImGuizmo::SetOrthographic(false);
@@ -697,7 +476,7 @@ namespace Kaidel {
 						deltaTranslation[i] = 0.0f;
 					}
 				}
-				MoveEntity(selectedEntity, m_ActiveScene.get(), deltaTranslation, deltaRotation);
+				MoveEntity(selectedEntity, m_ActiveScene.Get(), deltaTranslation, deltaRotation);
 				tc.Scale = scale;
 			}
 		}
@@ -766,26 +545,23 @@ namespace Kaidel {
 			ImGui::TextWrapped("%s Took :(%.3f ns,%.3f ms,%.3f s)",name.c_str(), ns, ms, s);
 		}
 
+		bool b = m_RendererSettings.MSAASampleCount == 8;
+		if (ImGui::Checkbox("8",&b)) {
+			auto& settings = RendererAPI::GetSettings();
+			settings.MSAASampleCount = b ? 8 : 4;
+
+			Application::Get().PublishEvent<RendererSettingsChangedEvent>();
+		}
+
 
 		ImGui::Text("UI Vertex Count: %d", ImGui::GetIO().MetricsRenderVertices);
 
 		AccumulativeTimer::ResetTimers();
-		if (ImGui::Button("Spawn Particles")) {
-			ps->Generate(50);
-		}
 
 
 		ImGui::Text("Renderer3D Stats:");
 		ImGui::Text("Geometry Pass Draw Call Count: %d", Renderer3D::GetStats().GeometryPassDrawCount);
 		ImGui::Text("Push Count: %d", Renderer3D::GetStats().PushCount);
-		ImGui::DragFloat("Increment", &increment, 0.00001f,0,0,"%.8f");
-
-		float totalNumSegments = ceilf(1.0f / (float)increment);
-		float numLines;
-		float numSegmentsPerLine;
-
-		GetSegmentCount(totalNumSegments, &numLines, &numSegmentsPerLine);
-		ImGui::TextWrapped("Number Of Lines: %.3f , Number Of Segments Per Line: %.3f", numLines, numSegmentsPerLine);
 
 		ImGui::End();
 		Renderer3D::ResetStats();
@@ -810,9 +586,10 @@ namespace Kaidel {
 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 		m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };
 
-		auto textureID = m_OutputBuffer->GetColorAttachmentRendererID();
+		auto textureID = m_ScreenOutputbuffer->GetColorAttachmentRendererID();
 		glm::vec4 uvs = _GetUVs();
-		ImGui::Image(reinterpret_cast<void*>(textureID), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, { uvs.x,uvs.y }, { uvs.z,uvs.w });
+		int sampleCount = m_OutputBuffer->GetSpecification().Samples;
+		ImGui::Image(reinterpret_cast<void*>(textureID), ImVec2{ m_ViewportSize.x, m_ViewportSize.y}, { uvs.x,uvs.y }, { uvs.z,uvs.w });
 		if (ImGui::BeginDragDropTarget()) {
 			if (auto payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
 				const wchar_t* path = (const wchar_t*)payload->Data;
@@ -908,6 +685,7 @@ namespace Kaidel {
 		EventDispatcher dispatcher(e);
 		dispatcher.Dispatch<KeyPressedEvent>(KD_BIND_EVENT_FN(EditorLayer::OnKeyPressed));
 		dispatcher.Dispatch<MouseButtonPressedEvent>(KD_BIND_EVENT_FN(EditorLayer::OnMouseButtonPressed));
+		dispatcher.Dispatch<RendererSettingsChangedEvent>(KD_BIND_EVENT_FN(EditorLayer::OnRendererSettingsChanged));
 	}
 
 	bool EditorLayer::OnKeyPressed(KeyPressedEvent& e)
@@ -948,7 +726,7 @@ namespace Kaidel {
 			case Key::D:
 			{
 				if (control&&!shift)
-					m_ActiveScene->DuplicateEntity(m_SceneHierarchyPanel.GetSelectedEntity());
+					m_ActiveScene->DuplicateEntity(m_PanelContext->SelectedEntity());
 				else if (control&&shift)
 					m_Debug = !m_Debug;
 				break;
@@ -1003,11 +781,34 @@ namespace Kaidel {
 		return false;
 	}
 
+	bool EditorLayer::OnRendererSettingsChanged(RendererSettingsChangedEvent& e) {
+		auto& settings = RendererAPI::GetSettings();
+
+		/*if (settings.AntiAiliasing.Changed()) {
+			AntiAiliasingType oldType = settings.AntiAiliasing.GetLast();
+			AntiAiliasingType newType = settings.AntiAiliasing.Get();
+		}*/
+
+		if (settings.MSAASampleCount != m_RendererSettings.MSAASampleCount) {
+			uint32_t oldVal = m_RendererSettings.MSAASampleCount;
+			uint32_t newVal = settings.MSAASampleCount;
+
+			if (oldVal != newVal) {
+				KD_CORE_ASSERT(oldVal == m_OutputBuffer->GetSpecification().Samples);
+				m_OutputBuffer->Resample(newVal);
+				m_RendererSettings.MSAASampleCount = newVal;
+			}
+
+		}
+
+		return false;
+	}
+
 	void EditorLayer::NewScene()
 	{
 		m_ActiveScene = CreateRef<Scene>();
 		m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
-		m_SceneHierarchyPanel.SetContext(m_ActiveScene);
+		m_PanelContext->Scene = m_ActiveScene;
 	}
 
 	void EditorLayer::OpenScene()
@@ -1036,7 +837,7 @@ namespace Kaidel {
 		if (serializer.Deserialize(path.string())) {
 			m_EditorScene = newScene;
 
-			m_SceneHierarchyPanel.SetContext(m_EditorScene);
+			m_PanelContext->Scene = m_EditorScene;
 			m_ActiveScene = m_EditorScene;
 		}
 	}
@@ -1065,13 +866,15 @@ namespace Kaidel {
 	void EditorLayer::OpenProject(const std::filesystem::path& path)
 	{
 		if (Project::Load(path)) {
-			auto startScenePath = Project::GetAssetPath(Project::GetActive()->GetConfig().StartScene);
+			auto startScenePath = Project::GetAbsoluteAssetPath(Project::GetActive()->GetConfig().StartScene);
 			OpenScene(startScenePath);
+			m_EditorScene->SetPath(startScenePath.string());
 		}
 	}
 
 	void EditorLayer::SaveProject()
 	{
+		Project::SaveActive(Project::GetProjectDirectory());
 	}
 
 }

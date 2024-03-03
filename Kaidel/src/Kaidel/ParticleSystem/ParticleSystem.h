@@ -24,6 +24,13 @@ namespace Kaidel {
 		Sphere
 	};
 
+	enum class ParticleSystemState {
+		None,
+		Active,
+		Inactive
+	};
+
+
 	struct ConeSpawnShape{
 		float Radius;
 		// Radians
@@ -51,22 +58,30 @@ namespace Kaidel {
 		ParticleStatus Status = ParticleStatus::None;
 	};
 
+
 	struct ParticleSystemSpecification {
 		glm::vec3 ParticleAcceleration{ 0.0f,-9.81f,0.0f };
 		SpawnShapeData ShapeData;
 		uint32_t MaxParticleCount = 0;
+		uint32_t ParticleSpawnCountPerTick = 10;
 		ParticleRendererType RendererType = ParticleRendererType::BillboardQuad;
 		ParticleSpawnShape SpawnShape = ParticleSpawnShape::Circle;
 
-		float StartAliveTime = 0.0f, DeadTime = 0.0f;
-		float StartActiveTime = 0.0f, InactiveTime = 0.0f;
+		//Particle System
+		float ParticleSpawningStartTime = 0.0f;
+		float ParticleSpawingEndTime = 0.0f;
+		float ActiveTime = 0.0f;
+		float TickTime = 1 / 60.0f;
 
+		//Particles
+		float ParticleStartAliveTime = 0.0f, ParticleDeadTime = 0.0f;
+		float ParticleStartActiveTime = 0.0f, ParticleInactiveTime = 0.0f;
 
-
+		ParticleSystemState SystemState = ParticleSystemState::Inactive;
 	};
 
 
-	class ParticleSystem {
+	class ParticleSystem : public IRCCounter<false> {
 	public:
 		ParticleSystem() {}
 		ParticleSystem(const ParticleSystemSpecification& spec);
@@ -87,6 +102,7 @@ namespace Kaidel {
 		ParticleSystemSpecification m_Specification;
 		std::vector<Particle> m_AliveParticles;
 		uint32_t m_AliveParticleCount = 0;
+		float m_TimeSinceLastTick = 0.0f;
 	};
 
 

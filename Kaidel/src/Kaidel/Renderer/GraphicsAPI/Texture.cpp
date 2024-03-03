@@ -11,8 +11,8 @@ namespace Kaidel {
 		switch (Renderer::GetAPI())
 		{
 			case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
-			case RendererAPI::API::OpenGL:  return CreateRef<OpenGLTexture2D>(width, height);
-			case RendererAPI::API::DirectX: return CreateRef<D3DTexture2D>(width, height);
+			case RendererAPI::API::OpenGL:  return CreateRef<OpenGLTexture2D>(width, height,format);
+			//case RendererAPI::API::DirectX: return CreateRef<D3DTexture2D>(width, height);
 		}
 
 		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
@@ -27,7 +27,7 @@ namespace Kaidel {
 			{
 				case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
 				case RendererAPI::API::OpenGL:  return s_Map[path]=CreateRef<OpenGLTexture2D>(path);
-				case RendererAPI::API::DirectX: return CreateRef<D3DTexture2D>(path);
+				//case RendererAPI::API::DirectX: return CreateRef<D3DTexture2D>(path);
 			}
 		}
 		else {
@@ -38,29 +38,16 @@ namespace Kaidel {
 		return nullptr;
 	}
 
+
+
+
+
+
+
+
 	std::unordered_map < std::string, Ref<Texture2D>> Texture2D::s_Map;
 
-	Ref<Texture2DArray> Texture2DArray::Create(uint32_t width, uint32_t height)
-	{
-		switch (Renderer::GetAPI())
-		{
-			case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
-			case RendererAPI::API::OpenGL:  return CreateRef<OpenGLTexture2DArray>(width,height);
-			//case RendererAPI::API::DirectX: return CreateRef<D3DTexture2D>(path);
-		}
-		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
-		return nullptr;
-	}
-	Ref<Depth2DArray> Depth2DArray::Create(uint32_t width, uint32_t height)
-	{
-		switch (Renderer::GetAPI())
-		{
-		case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
-		case RendererAPI::API::OpenGL:  return CreateRef<OpenGLDepth2DArray>(width, height);
-			//case RendererAPI::API::DirectX: return CreateRef<D3DTexture2D>(path);
-		}
-		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
-		return nullptr;
-	}
+
+
 
 }

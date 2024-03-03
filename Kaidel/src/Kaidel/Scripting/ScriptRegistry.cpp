@@ -233,12 +233,12 @@ namespace Kaidel {
 		Math::Rotate(scene->GetEntity(id), scene->GetEntity(parentID), *rotation);
 	}
 	static void SpriteRendererComponent_GetColor(UUID id, glm::vec4* outColor) {
-		auto& color = GetComponent<SpriteRendererComponent>(id).Color;
-		memcpy(outColor, &color, sizeof(glm::vec4));
+		/*auto& color = GetComponent<SpriteRendererComponent>(id).Color;
+		memcpy(outColor, &color, sizeof(glm::vec4));*/
 	}
 	static void SpriteRendererComponent_SetColor(UUID id, glm::vec4* setColor) {
-		auto& color = GetComponent<SpriteRendererComponent>(id).Color;
-		memcpy(&color, setColor, sizeof(glm::vec4));
+		/*auto& color = GetComponent<SpriteRendererComponent>(id).Color;
+		memcpy(&color, setColor, sizeof(glm::vec4));*/
 	}
 	static void CircleRendererComponent_GetColor(UUID id, glm::vec4* outColor) {
 		auto& crc = GetComponent<CircleRendererComponent>(id);

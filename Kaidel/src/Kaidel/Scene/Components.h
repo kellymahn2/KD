@@ -3,11 +3,12 @@
 #include "Kaidel/Animation/Animation.h"
 #include "Kaidel/Renderer/GraphicsAPI/Texture.h"
 #include "Kaidel/Core/UUID.h"
+#include "Kaidel/Renderer/2D/Material2D.h"
 #include "Kaidel/Renderer/3D/Light.h"
 #include "Kaidel/Renderer/3D/Material.h"
 #include "Kaidel/ParticleSystem/ParticleSystem.h"
 #include "Kaidel/Mesh/Mesh.h"
-#include "Kaidel/Assets/Asset.h"
+#include "Kaidel/Assets/AssetManager.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -67,14 +68,11 @@ namespace Kaidel {
 	//2D
 	struct SpriteRendererComponent
 	{
-		glm::vec4 Color{ 1.0f, 1.0f, 1.0f, 1.0f };
-		Ref<Texture2D> Texture;
-		float TilingFactor = 1.0f;
+		Asset<Material2D> Material;
 		SpriteRendererComponent() = default;
 		SpriteRendererComponent(const SpriteRendererComponent&) = default;
-		SpriteRendererComponent(const glm::vec4& color)
-			: Color(color) {}
 	};
+
 
 	struct CircleRendererComponent {
 		glm::vec4 Color{ 1.0f };
@@ -211,7 +209,7 @@ namespace Kaidel {
 	};
 
 	struct MeshComponent {
-		AssetHandle<Mesh> Mesh;
+		Asset<Mesh> Mesh;
 		MeshComponent() = default;
 		MeshComponent(const MeshComponent&) = default;
 	};
@@ -224,7 +222,7 @@ namespace Kaidel {
 			Stopped,
 		};
 		float Time = 0.0f;
-		AssetHandle<Animation> Anim;
+		Asset<Animation> Anim;
 		PlayerState State = PlayerState::Stopped;
 		AnimationPlayerComponent() = default;
 		AnimationPlayerComponent(const AnimationPlayerComponent&) = default;
@@ -280,7 +278,7 @@ namespace Kaidel {
 
 	//Particles
 	struct ParticleSystemComponent {
-		AssetHandle<ParticleSystem> PS;
+		Ref<ParticleSystem> PS;
 	};
 
 }

@@ -49,24 +49,23 @@ namespace Kaidel {
 		/*BoundedVector<Ref<Model>> DrawnModels = { 0,32,[&](Ref<Model>* models,auto count) {
 				for (auto i = 0; i < count; ++i) {
 					(models[i])->Flush();
-				} 
-			} 
+				}
+			}
 		};*/
 
+		std::vector<Asset<Mesh>> DrawnModels;
 
-
-		std::vector<AssetHandle<Mesh>> DrawnModels;
-
-		Ref<Depth2DArray> ShadowMapBuffers;
 
 		Ref<Shader> ShadowMapShader;
 
 		Ref<Framebuffer> ShadowMapFrameBuffer;
 		Renderer3DStats Stats;
-		
+
+		RendererSettings* CurrentRendererSettings;
+
 	};
 
-	
+
 
 	Renderer3DData s_Data;
 
@@ -93,7 +92,7 @@ namespace Kaidel {
 			fbSpec.Width = 1280;
 			fbSpec.Height = 720;
 			fbSpec.Samples = 1;
-			fbSpec.Attachments = { FramebufferTextureFormat::RGBA32F,FramebufferTextureFormat::RGBA32F ,FramebufferTextureFormat::R32I,FramebufferTextureFormat::RGBA8 ,FramebufferTextureFormat::Depth};
+			fbSpec.Attachments = { TextureFormat::RGBA32F,TextureFormat::RGBA32F ,TextureFormat::R32I,TextureFormat::RGBA8 ,TextureFormat::Depth32F };
 			s_Data.G_Buffers = Framebuffer::Create(fbSpec);
 		}
 		s_Data.SceneCompositeShader = ComputeShader::Create("assets/shaders/LightingPass/Mesh_CS.glsl");
@@ -103,7 +102,7 @@ namespace Kaidel {
 			FramebufferSpecification fbSpec{};
 			fbSpec.Width = _ShadowMapWidth;
 			fbSpec.Height = _ShadowMapHeight;
-			fbSpec.Attachments = { FramebufferTextureFormat::Depth };
+			fbSpec.Attachments = { TextureFormat::Depth32F };
 			s_Data.ShadowMapFrameBuffer = Framebuffer::Create(fbSpec);
 		}
 
@@ -126,7 +125,8 @@ namespace Kaidel {
 			s_Data.MeshIBO = IndexBuffer::Create(nullptr, 0);
 
 			VertexArraySpecification spec;
-			spec.VertexBuffers = { s_Data.MeshVBO,s_Data.PerInstanceVBO };
+			spec.VertexBuffers.push_back(s_Data.MeshVBO);
+			spec.VertexBuffers.push_back(s_Data.PerInstanceVBO);
 			spec.UsedShader = s_Data.MeshShader;
 			spec.IndexBuffer = s_Data.MeshIBO;
 			s_Data.MeshVAO = VertexArray::Create(spec);
@@ -145,6 +145,16 @@ namespace Kaidel {
 		s_Data.Frustum.ExtractPlanesFromProjectionView(s_Data.CameraBuffer.ViewProj);
 		s_Data.CameraUniformBuffer->SetData(&s_Data.CameraBuffer, sizeof(Renderer3DData::CameraBufferData));
 
+		if (s_Data.G_Buffers->GetSpecification().Samples != RendererAPI::GetSettings().MSAASampleCount) {
+			s_Data.G_Buffers->Resample(RendererAPI::GetSettings().MSAASampleCount);
+		}
+
+
+
+
+
+
+
 		Renderer3DData::LightCount lightCount{};
 		lightCount.SpotLightCount = SpotLight::GetLightCount();
 		lightCount.PointLightCount = PointLight::GetLightCount();
@@ -159,7 +169,10 @@ namespace Kaidel {
 		glm::vec4 defaults = glm::vec4{ 0.0f };
 		s_Data.G_Buffers->ClearAttachment(0, &defaults.x);
 		s_Data.G_Buffers->ClearAttachment(1, &defaults.x);
-		s_Data.G_Buffers->ClearAttachment(2, &defaults.x);
+		{
+			int default = 0;
+			s_Data.G_Buffers->ClearAttachment(2, &default);
+		}
 		s_Data.G_Buffers->ClearAttachment(3, &defaults.x);
 
 		/*defaults = glm::vec4{-1.0f};
@@ -171,6 +184,8 @@ namespace Kaidel {
 		SpotLight::SetLights();
 		PointLight::SetLights();
 		DirectionalLight::SetLights();
+		RendererAPI::GetSettings().SetInShaders(5);
+
 		s_Data.CameraUniformBuffer->Bind();
 
 		s_Data.DrawnModels.clear();
@@ -187,7 +202,7 @@ namespace Kaidel {
 	}
 
 
-	void Renderer3D::FlushMesh(AssetHandle<Mesh> mesh) {
+	void Renderer3D::FlushMesh(Asset<Mesh> mesh) {
 	
 		
 		if (mesh->m_InstanceCount == 0)
@@ -221,7 +236,7 @@ namespace Kaidel {
 			RenderCommand::SetCullMode(CullMode::Front);
 			for (auto& light : SpotLight::GetLights()) {
 				s_Data.ShadowMapShader->SetInt("u_LightIndex", light->GetIndex());
-				s_Data.ShadowMapFrameBuffer->SetDepthAttachmentFromArray(spotlightDepthMaps->GetRendererID(), light->GetIndex());
+				s_Data.ShadowMapFrameBuffer->SetDepthAttachment(spotlightDepthMaps->GetHandle(light->GetIndex()));
 				RenderCommand::DrawIndexedInstanced(s_Data.MeshVAO, mesh->m_IndexCount, mesh->m_InstanceCount);
 			}
 			RenderCommand::SetCullMode(CullMode::None);
@@ -244,7 +259,7 @@ namespace Kaidel {
 
 
 
-	void Renderer3D::DrawMesh(const glm::mat4& transform, AssetHandle<Mesh> mesh, Ref<Material> material) {
+	void Renderer3D::DrawMesh(const glm::mat4& transform, Asset<Mesh> mesh, Ref<Material> material) {
 
 		if (!material)
 		{

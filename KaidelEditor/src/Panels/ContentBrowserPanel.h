@@ -1,8 +1,8 @@
 #pragma once
-#include <filesystem>
 #include "Kaidel/Renderer/GraphicsAPI/Texture.h"
+#include "PanelContext.h"
+#include <filesystem>
 namespace Kaidel {
-	
 	class ContentBrowserPanel {
 	public:
 		struct Icons {
@@ -10,11 +10,24 @@ namespace Kaidel {
 			Ref<Texture2D> FileIcon;
 		};
 		ContentBrowserPanel();
+
+		void SetContext(Ref<PanelContext> context) {
+			m_Context = context;
+		}
+
+		void SetCurrentPath(const FileSystem::path& path) { m_CurrentPath = path; }
+		void SetStartPath(const FileSystem::path& path) { m_StartPath= path; }
 		void OnImGuiRender();
+
+
 	private:
+		Ref<PanelContext> m_Context;
+
 		void ShowFileNavigator();
+		std::filesystem::path m_StartPath;
 		std::filesystem::path m_CurrentPath;
-		char m_SelectedFileName[24] = {0};
+		char m_SelectedFileName[100] = {0};
+		bool m_WasNew = false;
 		Icons m_Icons;
 	};
 }

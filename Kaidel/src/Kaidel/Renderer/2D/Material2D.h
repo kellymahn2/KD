@@ -1,5 +1,6 @@
 #pragma once
 #include "Kaidel/Renderer/GraphicsAPI/Texture.h"
+#include "Kaidel/Renderer/GraphicsAPI/TextureArray.h"
 #include <glm/glm.hpp>
 #include <vector>
 #include <unordered_map>
@@ -24,7 +25,7 @@ namespace Kaidel {
 		static inline Ref<Texture2DArray> s_TexturesMap;
 	};
 
-	class Material2D {
+	class Material2D : public IRCCounter<false> {
 	public:
 		Material2D();
 		~Material2D();

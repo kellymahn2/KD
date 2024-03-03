@@ -3,6 +3,7 @@
 #include "Kaidel.h"
 #include "Panels/SceneHierarchyPanel.h"
 #include "Panels/ContentBrowserPanel.h"
+#include "Panels/PropertiesPanel.h"
 #include "Panels/AnimationPanel.h"
 #include "Panels/ConsolePanel.h"
 #include "Kaidel/Renderer/EditorCamera.h"
@@ -27,6 +28,8 @@ namespace Kaidel {
 	private:
 		bool OnKeyPressed(KeyPressedEvent& e);
 		bool OnMouseButtonPressed(MouseButtonPressedEvent& e);
+
+		bool OnRendererSettingsChanged(RendererSettingsChangedEvent& e);
 
 		void NewScene();
 		void OpenScene();
@@ -56,7 +59,6 @@ namespace Kaidel {
 			const glm::mat4& Projection;
 		};
 		GizmoCamera GetCurrentCameraViewProjection();
-		void OnOverlayRender();
 
 		void ShowDebugWindow();
 
@@ -66,7 +68,7 @@ namespace Kaidel {
 
 		
 		Console m_DebugConsole;
-		Ref<Framebuffer> m_3DOutputFramebuffer,m_2DOutputFrameBuffer,m_OutputBuffer;
+		Ref<Framebuffer> m_3DOutputFramebuffer,m_2DOutputFrameBuffer,m_OutputBuffer,m_ScreenOutputbuffer;
 		Ref<Scene> m_ActiveScene;
 		Ref<Scene> m_EditorScene, m_RuntimeScene,m_SimulationScene;
 
@@ -92,7 +94,12 @@ namespace Kaidel {
 		SceneHierarchyPanel m_SceneHierarchyPanel;
 		ContentBrowserPanel m_ContentBrowserPanel;
 		ConsolePanel m_ConsolePanel;
+		PropertiesPanel m_PropertiesPanel;
+
 		AnimationPanel m_AnimationPanel;
+
+
+
 		Ref<ComputeShader> m_2D3DCompositeShader;
 
 		struct Icons {
@@ -111,14 +118,13 @@ namespace Kaidel {
 
 
 		SceneState m_SceneState=SceneState::Edit;
-		Asset<Model> model;
-		Asset<Model> model2;
-		Asset<Animation> anim;
-		Ref<Material2D>	 mat;
-		
-		AssetHandle<ParticleSystem> ps;
 
-		float n = .5, f = 25;
+		Ref<PanelContext> m_PanelContext;
+		Ref<ComputeShader> m_FXAAComputeShader;
+
+		RendererSettings m_RendererSettings = RendererAPI::GetSettings();
+
+
 	};
 
 }

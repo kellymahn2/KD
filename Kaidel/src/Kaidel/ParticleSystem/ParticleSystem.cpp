@@ -48,7 +48,7 @@ namespace Kaidel {
 
 
 		static void UpdateParticlePhysics(const ParticleSystemSpecification& spec, Particle& particle,float ts) {
-			if (particle.AliveTime + ts > spec.DeadTime) {
+			if (particle.AliveTime + ts > spec.ParticleDeadTime) {
 				particle.Status = ParticleStatus::Dead;
 				return;
 			}
@@ -67,9 +67,10 @@ namespace Kaidel {
 		for (uint32_t i = 0; i < addedCount;++i) {
 			uint32_t particleIndex = m_AliveParticleCount++;
 			m_AliveParticles[particleIndex] = Utils::GenerateParticle(m_Specification.SpawnShape,m_Specification.ShapeData);
-			if (m_Specification.StartAliveTime == m_Specification.StartActiveTime)
+			if (m_Specification.ParticleStartAliveTime == m_Specification.ParticleStartActiveTime)
 				m_AliveParticles[particleIndex].Status = ParticleStatus::Active;
 		}
+		
 		return addedCount;
 	}
 	void ParticleSystem::Update(float ts) {
@@ -84,6 +85,31 @@ namespace Kaidel {
 			}
 		}
 		
+		if (m_Specification.SystemState == ParticleSystemState::Inactive) {
+			if (m_Specification.ActiveTime + ts >= m_Specification.ParticleSpawningStartTime) {
+				m_Specification.SystemState = ParticleSystemState::Active;
+			}
+		}
+
+		if (m_Specification.SystemState == ParticleSystemState::Active) {
+			if (m_Specification.ActiveTime + ts >= m_Specification.ParticleSpawingEndTime) {
+				m_Specification.SystemState = ParticleSystemState::Inactive;
+				return;
+			}
+
+			if (m_TimeSinceLastTick + ts >= m_Specification.TickTime) {
+				Generate(m_Specification.ParticleSpawnCountPerTick);
+				m_TimeSinceLastTick = 0.0f;
+			}
+			else
+				m_TimeSinceLastTick += ts;
+
+		}
+		
+			/*if(uint64_t addedCount = Generate((uint64_t)spawnCount);addedCount)
+				std::cout << "Added " <<  addedCount<< " spawnCount " << spawnCount << " frameCount "<< frameCount << std::endl;*/
+		m_Specification.ActiveTime += ts;
+
 	}
 
 }

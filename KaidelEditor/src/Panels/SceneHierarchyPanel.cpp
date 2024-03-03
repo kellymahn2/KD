@@ -1,4 +1,5 @@
 #include "SceneHierarchyPanel.h"
+#include "PropertiesPanel.h"
 #include "Kaidel/Math/Math.h"
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
@@ -25,39 +26,33 @@ namespace Kaidel {
 	}
 	SceneHierarchyPanel::SceneHierarchyPanel(const Ref<Scene>& context)
 	{
-		SetContext(context);
 	}
 
-	void SceneHierarchyPanel::SetContext(const Ref<Scene>& context)
-	{
-		m_Context = context;
-		m_SelectionContext = {};
-	}
 
 	void SceneHierarchyPanel::OnImGuiRender()
 	{
 		ImGui::Begin("Scene Hierarchy",nullptr,ImGuiWindowFlags_NoNavInputs);
-		m_Context->m_Registry.each([&](auto entityID)
+		m_Context->Scene->m_Registry.each([&](auto entityID)
 			{
-				
-				Entity entity{entityID , m_Context.get()};
+				Entity entity{entityID ,m_Context->Scene.Get() };
 				if (entity.HasComponent<ChildComponent>())
 					return;
 				DrawEntityNode(entity);
 			});
 
-		if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered()) {
-				m_SelectionContext = {};
+		if (ImGui::IsMouseDown(0) && ImGui::IsWindowHovered() && m_Context->SelectedEntity()) {
+			m_Context->Type = SelectedType::Entity;
+			m_Context->_SelectedEntity = {};
 		}
 
 		// Right-click on blank space
 		if (ImGui::BeginPopupContextWindow(0, 1|ImGuiPopupFlags_NoOpenOverItems|ImGuiPopupFlags_NoOpenOverExistingPopup))
 		{
 			if (ImGui::MenuItem("Create Empty Entity"))
-				m_Context->CreateEntity("Empty Entity");
+				m_Context->Scene->CreateEntity("Empty Entity");
 			if (ImGui::BeginMenu("New")) {
 				if (ImGui::MenuItem("Cube")) {
-					m_Context->CreateCube("Cube");
+					m_Context->Scene->CreateCube("Cube");
 				}
 				ImGui::EndMenu();
 			}
@@ -66,24 +61,13 @@ namespace Kaidel {
 		}
 
 		ImGui::End();
-		ImGui::Begin("Properties");
-		if (m_SelectionContext)
-		{
-			DrawComponents(m_SelectionContext);
-		}
-
-		ImGui::End();
-	}
-
-	void SceneHierarchyPanel::SetSelectedEntity(Entity entity)
-	{
-		m_SelectionContext = entity;
+		
 	}
 
 	void SceneHierarchyPanel::DrawEntityNode(Entity entity)
 	{
 		auto& tag = entity.GetComponent<TagComponent>().Tag;
-		auto currContext = m_SelectionContext;
+		auto currContext = m_Context->SelectedEntity();
 		ImGui::PushStyleColor(ImGuiCol_HeaderHovered, { 0,0,0,0 });
 		ImGui::PushStyleColor(ImGuiCol_HeaderActive, { 0,0,0,0 });
 		ImGui::PushStyleColor(ImGuiCol_Header, { 0,0,0,0 });
@@ -96,14 +80,14 @@ namespace Kaidel {
 		}
 		else
 			ImGui::GetFont()->FontSize = defFont;
-		ImGuiTreeNodeFlags flags = ((m_SelectionContext == entity) ? ImGuiTreeNodeFlags_Selected : 0) | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+		ImGuiTreeNodeFlags flags = ((currContext == entity) ? ImGuiTreeNodeFlags_Selected : 0) | ImGuiTreeNodeFlags_OpenOnDoubleClick;
 		flags |= ImGuiTreeNodeFlags_SpanAvailWidth;
 		bool opened = false;
 		bool entityDeleted = false;
 		if (entity.HasChildren()) {
 			opened = ImGui::TreeNodeEx((void*)(uint64_t)entity.GetUUID(), flags, tag.c_str());
 			if (ImGui::BeginDragDropSource()) {
-				ImGui::SetDragDropPayload("ENTITY_PARENT", &entity.GetComponent<IDComponent>(), sizeof(uint64_t));
+				ImGui::SetDragDropPayload("ENTITY_PARENT", &entity.GetComponent<IDComponent>(), sizeof(IDComponent));
 				ImGui::EndDragDropSource();
 			}
 			if (ImGui::BeginDragDropTarget()) {
@@ -112,10 +96,10 @@ namespace Kaidel {
 
 					entity.AddChild(childEntityID);
 
-					auto childEntity = m_Context->GetEntity(childEntityID);
+					auto childEntity = m_Context->Scene->GetEntity(childEntityID);
 					if (childEntity.HasComponent<ChildComponent>()) {
 						auto& cc = childEntity.GetComponent<ChildComponent>();
-						auto oldParent = m_Context->GetEntity(cc.Parent);
+						auto oldParent = m_Context->Scene->GetEntity(cc.Parent);
 						auto& oldpc = oldParent.GetComponent<ParentComponent>();
 						auto it = std::find(oldpc.Children.begin(), oldpc.Children.end(), childEntityID);
 						if (it != oldpc.Children.end())
@@ -130,12 +114,13 @@ namespace Kaidel {
 			}
 			if (ImGui::IsItemClicked())
 			{
-				m_SelectionContext = entity;
+				m_Context->Type = SelectedType::Entity;
+				m_Context->_SelectedEntity = entity;
 			}
 			if (opened) {
 				SCOPED_TIMER(Scene Hierarchy);
 				for (auto& child : entity.GetComponent<ParentComponent>().Children) {
-					DrawEntityNode(m_Context->GetEntity(child));
+					DrawEntityNode(m_Context->Scene->GetEntity(child));
 				}
 				ImGui::TreePop();
 			}
@@ -162,10 +147,10 @@ namespace Kaidel {
 
 					entity.AddChild(childEntityID);
 
-					auto childEntity = m_Context->GetEntity(childEntityID);
+					auto childEntity = m_Context->Scene->GetEntity(childEntityID);
 					if (childEntity.HasComponent<ChildComponent>()) {
 						auto& cc = childEntity.GetComponent<ChildComponent>();
-						auto oldParent = m_Context->GetEntity(cc.Parent);
+						auto oldParent = m_Context->Scene->GetEntity(cc.Parent);
 						auto& oldpc = oldParent.GetComponent<ParentComponent>();
 						auto it = std::find(oldpc.Children.begin(), oldpc.Children.end(), childEntityID);
 						if (it != oldpc.Children.end())
@@ -179,7 +164,8 @@ namespace Kaidel {
 				}
 			}
 			if (ImGui::IsItemClicked()) {
-				m_SelectionContext = entity;
+				m_Context->Type = SelectedType::Entity;
+				m_Context->_SelectedEntity = entity;
 			}
 			
 			ImGui::PopID();
@@ -201,9 +187,12 @@ namespace Kaidel {
 
 		if (entityDeleted)
 		{
-			m_Context->DestroyEntity(entity);
-			if (m_SelectionContext == entity)
-				m_SelectionContext = {};
+			m_Context->Scene->DestroyEntity(entity);
+			if (m_Context->SelectedEntity() == entity)
+			{
+				m_Context->Type = SelectedType::Entity;
+				m_Context->_SelectedEntity = {};
+			}
 		}
 	}
 	
