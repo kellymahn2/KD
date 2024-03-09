@@ -6,7 +6,6 @@
 #include <stack>
 namespace Kaidel {
 
-
 	namespace Utils {
 		static std::string Lower(const std::string& string) {
 			std::string s = string;
@@ -27,6 +26,8 @@ namespace Kaidel {
 		static SelectedType SelectedTypeFromExtension(const std::string& extension) {
 			if (extension == ".mat")
 				return SelectedType::Asset;
+			if (extension == ".tex")
+				return SelectedType::Asset;
 			return SelectedType::None;
 		}
 
@@ -41,8 +42,6 @@ namespace Kaidel {
 			}
 			return "";
 		}
-
-
 	}
 
 	ContentBrowserPanel::ContentBrowserPanel() 

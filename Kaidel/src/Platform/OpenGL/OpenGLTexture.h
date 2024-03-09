@@ -18,8 +18,11 @@ namespace Kaidel {
 		virtual uint64_t GetRendererID() const override { return m_RendererID; }
 		
 		virtual void SetData(void* data, uint32_t size) override;
-
+		virtual void Reset(void* data, uint32_t width, uint32_t height)override;
 		virtual void Bind(uint32_t slot = 0) const override;
+
+
+		virtual TextureFormat GetFormat()const override { return m_TextureFormat; }
 
 		virtual bool operator==(const Texture& other) const override
 		{
@@ -37,9 +40,9 @@ namespace Kaidel {
 		TextureFormat m_TextureFormat;
 
 		friend class OpenGLFramebuffer;
-		friend class OpenGLTextureArray;
+		friend class OpenGLTexture2DArray;
 		friend class OpenGLTextureCopier;
-
+		friend class OpenGLTextureView;
 	};
 
 	

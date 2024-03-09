@@ -9,10 +9,6 @@ namespace Kaidel {
 		Asset
 	};
 
-	union SelectedData {
-		Ref<_Asset> Asset;
-
-	};
 
 
 	class PanelContext : public IRCCounter<false> {

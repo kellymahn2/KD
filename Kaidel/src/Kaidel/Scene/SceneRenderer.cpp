@@ -41,8 +41,8 @@ namespace Kaidel {
 					auto [tc, slc] = view.get<TransformComponent, SpotLightComponent>(e);
 					auto& light = slc.Light->GetLight();
 
-					light.LightViewProjection = glm::infinitePerspective(2.0f * glm::acos(light.CutOffAngle), 1.0f, .5f) * glm::lookAt(glm::vec3(light.Position), glm::vec3(light.Position + glm::normalize(light.Direction)), glm::vec3(0.0f, 1.0f, 0.0f));
 					light.Position = glm::vec4(tc.Translation, 1.0f);
+					light.LightViewProjection = glm::infinitePerspective(2.0f * glm::acos(light.CutOffAngle), 1.0f, .5f) * glm::lookAt(glm::vec3(light.Position), glm::vec3(light.Position + glm::normalize(light.Direction)), glm::vec3(0.0f, 1.0f, 0.0f));
 				}
 			}
 			Renderer3DBeginData data;

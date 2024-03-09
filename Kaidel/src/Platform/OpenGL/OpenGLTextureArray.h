@@ -14,10 +14,11 @@ namespace Kaidel {
 		virtual uint32_t PushTexture(void* data, uint32_t width, uint32_t height, bool shouldFlip)override;
 		virtual uint32_t PushTexture(const std::string& src, bool shouldFlip)override;
 
-
-
+		virtual TextureFormat GetFormat()const override { return m_TextureFormat; }
 
 		virtual TextureArrayHandle GetHandle(uint32_t index) const override;
+
+		virtual Ref<TextureView> GetView(uint32_t index)override;
 
 		virtual void ClearLayer(uint32_t slot, const float* data)const override;
 		virtual void Clear(const float* data) const override;
@@ -34,9 +35,12 @@ namespace Kaidel {
 		std::unordered_map<std::string, uint32_t> m_LoadedTextures;
 		TextureFormat m_TextureFormat;
 
+		std::unordered_map<uint32_t, Ref<TextureView>> m_GeneratedViews;
+
 		friend class OpenGLTexture2DView;
 		friend class OpenGLFramebuffer;
 		friend class OpenGLTexture2D;
 		friend class OpenGLTextureCopier;
+		friend class OpenGLTextureView;
 	};
 }

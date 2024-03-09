@@ -69,90 +69,69 @@ float CalcShadowValue(vec3 position,vec3 normal){
 void main() {
 
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+	
+
+
 
 	for(int currentSample = 0;currentSample<u_MSAASampleCount;++currentSample){
-		vec3 position = imageLoad(inputPosition,texelCoord,currentSample);
-		vec3 normal = imageLoad(inputNormal,texelCoord,currentSample);
+		vec3 position = imageLoad(inputPosition,texelCoord,currentSample).xyz;
+		vec3 normal = imageLoad(inputNormal,texelCoord,currentSample).xyz;
 		vec4 albedo = imageLoad(inputAlbedo,texelCoord,currentSample);
 		vec3 diffuse = albedo.rgb;
 		float spec = albedo.a;
 
-		
-	}
+
+		vec3 totalAmbient = vec3(0.0);
+		vec3 totalDiffuse = vec3(0.0);
+		vec3 totalSpecular = vec3(0.0);
+		int matIndex = int(imageLoad(inputIndex,texelCoord,currentSample).r);
+		vec4 materialColor = vec4(u_Materials[matIndex].ColorX,u_Materials[matIndex].ColorY,u_Materials[matIndex].ColorZ,u_Materials[matIndex].ColorW);
+		float shininess = u_Materials[matIndex].Shininess;
 
 
+		vec3 viewDir = normalize(u_CameraPosition - position);
+
+		//SpotLight
+		{
+			for(int i =0;i < u_SpotLightCount;++i){
+				vec3 lightPos = u_SpotLights[i].Position.xyz;
+				vec3 lightDir = normalize(lightPos - position);
+
+				vec3 lightDirection = u_SpotLights[i].Direction.xyz;
+				vec3 lightAmbient = u_SpotLights[i].Ambient.xyz;
 
 
+				float distance = length(lightPos - position);
+				float attenuation = 1.0/(u_SpotLights[i].ConstantCoefficient+u_SpotLights[i].LinearCoefficient*distance+
+				u_SpotLights[i].QuadraticCoefficient*(distance*distance));
+				attenuation = 1.0;
 
+				//Ambient
+				totalAmbient += lightAmbient * diffuse * attenuation;
+				
+				float theta = dot(lightDir,normalize(-lightDirection));
+				if(theta > u_SpotLights[i].CutOffAngle){
+					vec3 lightDiffuse = u_SpotLights[i].Diffuse.rgb;
+					vec3 lightSpecular = u_SpotLights[i].Specular.rgb;
 
+					//Diffuse
+					totalDiffuse += diffuse * max(dot(normal, lightDir), 0.0) * lightDiffuse * attenuation;
 
-
-
-
-
-
-
-
-
-    vec3 position = imageLoad(inputPosition, texelCoord).xyz;
-    vec3 normal = imageLoad(inputNormal, texelCoord).xyz;
-    vec4 albedo = imageLoad(inputAlbedo, texelCoord);
-	vec3 diffuse = albedo.rgb;
-	float spec = albedo.a;
-	
-
-	vec3 totalAmbient = vec3(0.0);
-	vec3 totalDiffuse = vec3(0.0);
-	vec3 totalSpecular = vec3(0.0);
-	int matIndex = int(imageLoad(inputIndex,texelCoord).r);
-	
-
-	vec4 materialColor = vec4(u_Materials[matIndex].ColorX,u_Materials[matIndex].ColorY,u_Materials[matIndex].ColorZ,u_Materials[matIndex].ColorW);
-	float shininess = u_Materials[matIndex].Shininess;
-	vec3 viewDir = normalize(u_CameraPosition - position);
-	//SpotLight
-	{
-		for(int i =0;i < u_SpotLightCount;++i){
-			vec3 lightPos = u_SpotLights[i].Position.xyz;
-			vec3 lightDir = normalize(lightPos - position);
-
-			vec3 lightDirection = u_SpotLights[i].Direction.xyz;
-			vec3 lightAmbient = u_SpotLights[i].Ambient.xyz;
-
-
-			float distance = length(lightPos - position);
-			float attenuation = 1.0/(u_SpotLights[i].ConstantCoefficient+u_SpotLights[i].LinearCoefficient*distance+
-			u_SpotLights[i].QuadraticCoefficient*(distance*distance));
-			attenuation = 1.0;
-
-			//Ambient
-			totalAmbient += lightAmbient * diffuse * attenuation;
+					//Specular
+					vec3 reflectDir = reflect(-lightDir,normal);
+					totalSpecular += lightSpecular * pow(max(dot(viewDir,reflectDir),0.0),shininess) * spec * attenuation;
+				}
 			
-			float theta = dot(lightDir,normalize(-lightDirection));
-			if(theta > u_SpotLights[i].CutOffAngle){
-				vec3 lightDiffuse = u_SpotLights[i].Diffuse.rgb;
-				vec3 lightSpecular = u_SpotLights[i].Specular.rgb;
-
-				//Diffuse
-				totalDiffuse += diffuse * max(dot(normal, lightDir), 0.0) * lightDiffuse * attenuation;
-
-				//Specular
-				vec3 reflectDir = reflect(-lightDir,normal);
-				totalSpecular += lightSpecular * pow(max(dot(viewDir,reflectDir),0.0),shininess) * spec * attenuation;
 			}
-		
+
 		}
-	
+		float shadow = CalcShadowValue(position,normal);
+
+		vec3 res = totalAmbient + (shadow)*(totalDiffuse + totalSpecular);
+
+		vec4 resultColor = vec4(materialColor.xyz * (res),1.0);
+		
+		imageStore(outputImage,texelCoord,currentSample,resultColor);
 	}
-
-	float shadow = CalcShadowValue(position,normal);
-
-	vec3 res = totalAmbient + (shadow)*(totalDiffuse + totalSpecular);
-
-    vec4 resultColor = vec4(materialColor.xyz * (res),1.0);
-	for(int sampleIndex = 0;sampleIndex<u_MSAASampleCount;++sampleIndex){
-		imageStore(outputImage, texelCoord,sampleIndex, resultColor);
-	}
-	
 
 }

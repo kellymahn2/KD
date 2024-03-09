@@ -1,5 +1,7 @@
 #include "KDpch.h"
 #include "Platform/OpenGL/OpenGLRendererAPI.h"
+#include "Kaidel/Renderer/GraphicsAPI/Buffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/VertexArray.h"
 #include "Kaidel/Core/Application.h"
 #include "Kaidel/Events/SettingsEvent.h"
 #include <mutex>
@@ -44,7 +46,31 @@ namespace Kaidel {
 		glGetFloatv(GL_MAX_TESS_GEN_LEVEL, data);
 		int x;
 		glGetIntegerv(GL_MAX_SAMPLES, &x);
+
+		glm::vec4 positions[6] = {
+			{-1,-1,0,1},
+			{1,-1,0,1},
+			{1,1,0,1},
+			{1,1,0,1},
+			{-1,1,0,1},
+			{-1,-1,0,1}
+		};
+
+		m_FullScreenQuadVBO = VertexBuffer::Create((float*)positions, sizeof(positions));
+		m_FullScreenQuadVBO->SetLayout({
+			{ShaderDataType::Float4,"a_Position"}
+			});
+
+		VertexArraySpecification spec;
+		spec.VertexBuffers = { m_FullScreenQuadVBO };
+		m_FullScreenQuadVAO = VertexArray::Create(spec);
 	}
+
+	void OpenGLRendererAPI::Shutdown() {
+		m_FullScreenQuadVAO = nullptr;
+		m_FullScreenQuadVBO = nullptr;
+	}
+
 
 	void OpenGLRendererAPI::SetViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
 	{
@@ -138,5 +164,11 @@ namespace Kaidel {
 		glPatchParameterfv(GL_PATCH_DEFAULT_INNER_LEVEL, &inner.x);
 
 	}
+
+	void OpenGLRendererAPI::RenderFullScreenQuad()const {
+		m_FullScreenQuadVAO->Bind();
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+	}
+
 
 }

@@ -23,6 +23,12 @@ namespace Kaidel
 	static inline constexpr uint32_t _MaterialInternalBindingSlot = 1;
 
 
+
+	struct MaterialTexture : public _Asset{
+		TextureArrayHandle Handle;
+	};
+
+
 	class MaterialTextureHandler {
 	public:
 		static void Init();
@@ -40,10 +46,7 @@ namespace Kaidel
 		Material();
 		~Material();
 
-		
-
 		ASSET_EXTENSION_TYPE(Material)
-
 
 		static inline const std::vector<_MaterialInternal>& GetMaterials(){return s_InternalData;}
 

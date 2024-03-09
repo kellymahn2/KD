@@ -17,6 +17,7 @@ namespace Kaidel {
 			case Kaidel::AssetType::None:return "None";
 			case Kaidel::AssetType::Material:return "Material";
 			case Kaidel::AssetType::Material2D:return "Material2D";
+			case Kaidel::AssetType::Texture2D:return "Texture2D";
 			}
 			KD_CORE_ASSERT(false);
 			return "";
@@ -44,7 +45,7 @@ namespace Kaidel {
 					mat->AssetID(assetNode["UUID"].as<uint64_t>());
 					return mat;
 				}
-			} 
+			} break;
 			case Kaidel::AssetType::Material2D: {
 
 			} break;
@@ -71,9 +72,9 @@ namespace Kaidel {
 		{
 			out << YAML::BeginMap; // Project Assets
 
-			out << YAML::Key << "PhysicalAssets" << YAML::Value << YAML::BeginSeq;
-
 			// Serialize physical assets
+
+			out << YAML::Key << "PhysicalAssets" << YAML::Value << YAML::BeginSeq;
 
 			{
 				const auto& physical = AssetManager::m_PhysicalAssets;
@@ -86,6 +87,17 @@ namespace Kaidel {
 					out << YAML::EndMap;
 				}
 			}
+			out << YAML::EndSeq;
+
+
+			//Serialize material textures
+
+			out << YAML::Key << "MaterialTextures" << YAML::Value << YAML::BeginSeq;
+
+			{
+				const auto& texturePaths = MaterialTextureHandler::GetTextureIndexMap();
+			}
+
 
 			out << YAML::EndSeq;
 
@@ -101,6 +113,7 @@ namespace Kaidel {
 			out << YAML::BeginMap; // Project Settings
 			out << YAML::Key << "Name" << YAML::Value << config.Name;
 			out << YAML::Key << "StartScene" << YAML::Value << config.StartScene;
+			out << YAML::Key << "AbsoluteProjectDirectory" << YAML::Value << m_Project->m_ProjectDirectory.string();
 			out << YAML::Key << "RelativeAssetDirectory" << YAML::Value << config.RelAssetDirectory.string();
 			out << YAML::Key << "ProjectAutoSave" << YAML::Value << config.ProjectAutoSave;
 			out << YAML::Key << "ProjectAutoSaveTimer" << YAML::Value << config.ProjectAutoSaveTimer;
@@ -159,6 +172,7 @@ namespace Kaidel {
 		config.AbsAssetDirectory = path.parent_path() / config.RelAssetDirectory;
 		config.ProjectAutoSave = projectNode["ProjectAutoSave"].as<bool>();
 		config.ProjectAutoSaveTimer = projectNode["ProjectAutoSaveTimer"].as<float>();
+		m_Project->m_ProjectDirectory = projectNode["AbsoluteProjectDirectory"].as<std::string>();
 		return true;
 	}
 

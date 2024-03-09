@@ -58,7 +58,7 @@ namespace Kaidel {
 		std::vector<uint32_t> m_DrawBuffers;
 		uint32_t m_DepthAttachment = 0;
 
-		friend class OpenGLTextureArray;
+		friend class OpenGLTexture2DArray;
 		friend class OpenGLTexture2D;
 		friend class OpenGLTextureCopier;
 	};

@@ -27,7 +27,9 @@ namespace Kaidel{
     }
 
 	uint32_t MaterialTextureHandler::LoadTexture(void* data, uint32_t width, uint32_t height) {
-		return s_TexturesMap->PushTexture(data, width, height,false);
+		uint32_t slot = s_TexturesMap->PushTexture(data, width, height,false);
+		AssetManager::Manage(CreateRef<MaterialTexture>(s_TexturesMap->GetHandle(slot)));
+		return slot;
 	}
 
 
@@ -45,6 +47,7 @@ namespace Kaidel{
 			return s_TextureIndexMap.at(path);
 		uint32_t index = s_TexturesMap->PushTexture(path,false);
 		s_TextureIndexMap[path] = index;
+
 		return index;
 	}
 }

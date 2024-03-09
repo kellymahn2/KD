@@ -1,7 +1,8 @@
 #pragma once
 
 #include "Kaidel/Renderer/RendererAPI.h"
-
+#include "Kaidel/Renderer/GraphicsAPI/Buffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/VertexArray.h"
 namespace Kaidel {
 
 	class OpenGLRendererAPI : public RendererAPI
@@ -12,6 +13,8 @@ namespace Kaidel {
 		virtual void GetViewport(uint32_t& x, uint32_t& y, uint32_t& width, uint32_t& height) override;
 		virtual void SetClearColor(const glm::vec4& color) override;
 		virtual void Clear() override;
+
+		virtual void Shutdown()override;
 
 		virtual void DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount = 0) override;
 		virtual void DrawIndexedInstanced(const Ref<VertexArray>& vertexArray, uint32_t indexCount, uint32_t instanceCount)override;
@@ -28,6 +31,10 @@ namespace Kaidel {
 		virtual float QueryMaxTessellationLevel()override;
 		virtual void SetPatchVertexCount(uint32_t count)override;
 		virtual void SetDefaultTessellationLevels(const glm::vec4& outer, const glm::vec2& inner)override;
+		virtual void RenderFullScreenQuad()const override;
+	private:
+		Ref<VertexBuffer> m_FullScreenQuadVBO;
+		Ref<VertexArray> m_FullScreenQuadVAO;
 	};
 
 

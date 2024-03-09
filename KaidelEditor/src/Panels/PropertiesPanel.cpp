@@ -2,6 +2,7 @@
 #include "Kaidel/Scripting/ScriptEngine.h"
 #include "Kaidel/Assets/AssetManager.h"	
 #include "Kaidel/Project/Project.h"
+#include "Kaidel/Renderer/GraphicsAPI/Copier.h"
 #include "UI/UIHelper.h"
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
@@ -362,8 +363,13 @@ namespace Kaidel {
 	}
 
 	void PropertiesPanel::DrawAsset() {
-		AssetFunctionApplier renderer(m_Context->SelectedAsset());
+ 		AssetFunctionApplier renderer(m_Context->SelectedAsset());
 		renderer.Apply<Material>(KD_BIND_EVENT_FN(DrawMaterialUI));
+	}
+
+	template<typename T>
+	void DrawAssetNode() {
+
 	}
 
 
@@ -386,23 +392,20 @@ namespace Kaidel {
 			assetChanged = true;
 		}
 
-		/*static Ref<Texture2DView> view = Texture2DView::Create();
-		static Ref<Material> m{};
-		if (m != mat) {
-			view = Texture2DView::Create();
-			view->View(MaterialTextureHandler::GetTexturesMap(), mat->GetDiffuse());
-			m = mat;
+		Ref<TextureView> albedoView = MaterialTextureHandler::GetTexturesMap()->GetView(mat->GetDiffuse());
+
+		if (albedoView) {
+			ImGui::Image((ImTextureID)albedoView->GetRendererID(),{64,64},{0,1},{1,0});
+			static bool selectingAbledo = false;
+
+			selectingAbledo = selectingAbledo || (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left));
+
 		}
 
-		if (view->Set()) {
-			ImGui::Image((ImTextureID)view->GetRendererID(), { 64,64 }, { 0,1 }, { 1,0 });
-		}*/
 
 		if (assetChanged) {
 			Project::OnChangeAssetActive(mat);
 		}
-
-
 
 	}
 

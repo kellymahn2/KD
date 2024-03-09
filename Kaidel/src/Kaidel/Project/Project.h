@@ -77,5 +77,7 @@ namespace Kaidel {
 
 		std::unordered_set<Ref<_Asset>> m_ChangedAssetsSinceLastSave;
 
+		friend class ProjectSerializer;
+
 	};
 }

@@ -1,5 +1,8 @@
 #pragma once
 #include "Kaidel/Core/Base.h"
+
+#include "TextureView.h"
+
 #include "Core.h"
 #include <string>
 namespace Kaidel {
@@ -19,9 +22,12 @@ namespace Kaidel {
 
 		virtual TextureArrayHandle GetHandle(uint32_t index) const = 0;
 
+		virtual Ref<TextureView> GetView(uint32_t index) = 0;
+
 		virtual void ClearLayer(uint32_t slot, const float* data)const = 0;
 		virtual void Clear(const float* data) const = 0;
 
+		virtual TextureFormat GetFormat()const = 0;
 
 		static Ref<Texture2DArray> Create(uint32_t width, uint32_t height, TextureFormat textureFormat);
 	};

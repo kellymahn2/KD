@@ -6,5 +6,6 @@ namespace Kaidel {
 		None = 0,
 		Material,
 		Material2D,
+		Texture2D,
 	};
 }

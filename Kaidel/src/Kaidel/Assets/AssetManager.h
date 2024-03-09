@@ -96,23 +96,14 @@ virtual AssetType AssetTypeID()const override{return StaticAssetTypeID();}
 
 		virtual ~_Asset() = default;
 
-		const FileSystem::path& Path() const { return m_Path; }
 		const std::string& Name()const { return m_Name; }
-		bool Physical()const { return m_Physical; }
 		UUID AssetID()const { return m_AssetID; }
 
-		void Path(const FileSystem::path& path) {
-			m_Path = path;
-			if (FileSystem::directory_entry(path).exists())
-				m_Physical = true;
-		}
 
 		void Name(const std::string& name) { m_Name = name; }
 		void AssetID(UUID id) { m_AssetID = id; }
 
 	protected:
-		bool m_Physical = false;
-		FileSystem::path m_Path = "";
 		std::string m_Name;
 		UUID m_AssetID;
 	};
@@ -120,11 +111,11 @@ virtual AssetType AssetTypeID()const override{return StaticAssetTypeID();}
 
 	class AssetManager {
 	public:
-		static void Manage(Ref<_Asset> asset) {
+		static void Manage(Ref<_Asset> asset,bool physical = false , const FileSystem::path& p = "") {
 			if (asset) {
 				m_Assets[asset->AssetID()] = asset;
-				if (asset->Physical()) {
-					m_PhysicalAssets[asset->Path()] = asset;
+				if (physical) {
+					m_PhysicalAssets[p] = asset;
 				}
 				else {
 					m_NonPhysicalAssets[asset->AssetID()] = asset;
@@ -149,12 +140,32 @@ virtual AssetType AssetTypeID()const override{return StaticAssetTypeID();}
 			return {};
 		}
 
+
+		template<typename T,typename Func>
+		void Each(Func&& func) {
+			for (const auto& [id,asset] : m_Assets) {
+				if (asset->AssetTypeID() == T::StaticAssetTypeID()) {
+					func(asset);
+				}
+			}
+		}
+
+		template<typename T,typename Func>
+		void EachPhysical(Func&& func) {
+			for (const auto& [path, asset] : m_PhysicalAssets) {
+				if (asset->AssetTypeID() == T::StaticAssetTypeID()) {
+					func(asset, path);
+				}
+			}
+		}
+
 	private:
 		static inline std::unordered_map<UUID, Ref<_Asset>> m_Assets;
 
 		static inline std::unordered_map<UUID, Ref<_Asset>> m_NonPhysicalAssets;
 
 		static inline std::unordered_map<FileSystem::path, Ref<_Asset>> m_PhysicalAssets;
+
 		friend class AssetSerializer;
 		friend class ProjectSerializer;
 	};
@@ -174,6 +185,7 @@ virtual AssetType AssetTypeID()const override{return StaticAssetTypeID();}
 			{
 				func(m_Asset, std::forward<Args>(args)...);
 				return true;
+				
 			}
 			return false;
 		}

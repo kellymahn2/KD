@@ -18,7 +18,6 @@ namespace Kaidel {
 			if (!serializer.Deserialize(path)) {
 				return {};
 			}
-			project->m_ProjectDirectory = path.parent_path();
 		}
 		
 		return s_ActiveProject = project;

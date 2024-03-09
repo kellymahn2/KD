@@ -150,11 +150,6 @@ namespace Kaidel {
 		}
 
 
-
-
-
-
-
 		Renderer3DData::LightCount lightCount{};
 		lightCount.SpotLightCount = SpotLight::GetLightCount();
 		lightCount.PointLightCount = PointLight::GetLightCount();
@@ -316,8 +311,6 @@ namespace Kaidel {
 			s_Data.SceneCompositeShader->Wait();
 
 			s_Data.OutputBuffer->CopyDepthAttachment(s_Data.G_Buffers);
-
-
 		}
 	}
 	void Renderer3D::RenderingPipeLine() {

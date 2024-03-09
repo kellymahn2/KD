@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Kaidel/Renderer/RendererAPI.h"
+#include "Kaidel/Renderer/GraphicsAPI/Shader.h"
 
 namespace Kaidel {
 
@@ -79,6 +80,10 @@ namespace Kaidel {
 
 		static void SetDefaultTessellationLevels(const glm::vec4& outer={1,1,1,1}, const glm::vec2& inner= {1,1}) {
 			s_RendererAPI->SetDefaultTessellationLevels(outer, inner);
+		}
+
+		static void RenderFullScreenQuad() {
+			s_RendererAPI->RenderFullScreenQuad();
 		}
 
 	private:

@@ -142,7 +142,7 @@ namespace Kaidel {
 				m_ActiveScene->OnUpdateEditor(ts, m_EditorCamera,m_OutputBuffer,m_OutputBuffer);
 
 				TextureCopier::Copy(m_ScreenOutputbuffer, m_OutputBuffer);
-
+				
 				// Project Auto Save
 				auto& currentProjectConfig = Project::GetActive()->GetConfig();
 				if (currentProjectConfig.ProjectAutoSave) {
@@ -152,9 +152,6 @@ namespace Kaidel {
 						currentProjectConfig.TimeSinceLastProjectAutoSave = 0.0f;
 					}
 				}
-
-
-
 
 
 				break;
@@ -172,7 +169,6 @@ namespace Kaidel {
 		}
 		
 		const auto& c = AccumulativeTimer::GetTimers();
-
 		
 	}
 

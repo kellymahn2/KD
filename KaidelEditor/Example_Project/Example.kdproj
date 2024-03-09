@@ -6,6 +6,7 @@ Assets:
 Project:
   Name: Example.kdproj
   StartScene: Scene01.Kaidel
+  AbsoluteProjectDirectory: E:/KD/KaidelEditor/Example_Project
   RelativeAssetDirectory: Assets
   ProjectAutoSave: true
   ProjectAutoSaveTimer: 60

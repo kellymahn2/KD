@@ -58,8 +58,6 @@ namespace Kaidel {
 	}
 
 
-
-
 	OpenGLComputeShaderUAVInput::OpenGLComputeShaderUAVInput(uint32_t count,uint32_t sizeofElement, void* data) {
 		m_SizeofElement = sizeofElement;
 		glGenBuffers(1, &m_RendererID);
@@ -229,8 +227,9 @@ namespace Kaidel {
 	}
 
 	void OpenGLComputeShader::Wait()const {
-		
+		Bind();
 		glMemoryBarrier(GL_ALL_BARRIER_BITS);
+		Unbind();
 	}
 
 	void OpenGLComputeShader::Execute(uint64_t x, uint64_t y, uint64_t z) const
