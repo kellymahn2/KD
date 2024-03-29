@@ -22,6 +22,9 @@ namespace Kaidel {
 		std::string ControlString;
 		ShaderType ShaderType;
 		bool IsPath = true;
+		ShaderDefinition(const std::string& controlString, Kaidel::ShaderType type, bool isPath = true)
+			:ControlString(controlString),ShaderType(type),IsPath(isPath)
+		{}
 	};
 
 	struct ShaderSpecification {
@@ -92,9 +95,6 @@ namespace Kaidel {
 		friend class D3DComputeShader;
 		static uint64_t s_UAVCount;
 	};
-	
-
-
 
 	class ComputeShader : public IRCCounter<false> {
 	public:
@@ -117,5 +117,17 @@ namespace Kaidel {
 	private:
 
 	};
+
+	struct ShaderSource {
+
+		ShaderSource(const Path& path);
+
+		std::string FinalSource;
+
+		std::unordered_map<Path, ShaderSource> IncludedFiles;
+
+
+	};
+
 
 }

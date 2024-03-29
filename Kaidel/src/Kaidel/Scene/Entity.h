@@ -46,6 +46,17 @@ namespace Kaidel {
 			return (HasComponent<T>()&&...);
 		}
 
+		template<typename T,typename... Args>
+		T& TryAddComponent(Args&&... args) {
+			{
+				T* has = m_Scene->m_Registry.try_get<T>(m_EntityHandle);
+				if (has != nullptr)
+					return *has;
+			}
+			return AddComponent<T, Args...>(std::forward<Args>(args)...);
+		}
+
+
 		template<typename T>
 		void RemoveComponent()
 		{

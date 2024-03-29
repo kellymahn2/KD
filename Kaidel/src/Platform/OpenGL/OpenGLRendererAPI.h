@@ -31,7 +31,7 @@ namespace Kaidel {
 		virtual float QueryMaxTessellationLevel()override;
 		virtual void SetPatchVertexCount(uint32_t count)override;
 		virtual void SetDefaultTessellationLevels(const glm::vec4& outer, const glm::vec2& inner)override;
-		virtual void RenderFullScreenQuad()const override;
+		virtual void RenderFullScreenQuad(Ref<Shader> shader, uint32_t width, uint32_t height)const override;
 	private:
 		Ref<VertexBuffer> m_FullScreenQuadVBO;
 		Ref<VertexArray> m_FullScreenQuadVAO;

@@ -8,7 +8,7 @@
 namespace Kaidel {
 
 	//TODO : Store Handles
-	class Texture : public IRCCounter<false>
+	class Texture
 	{
 	public:
 		virtual ~Texture() = default;
@@ -23,7 +23,6 @@ namespace Kaidel {
 		virtual void Bind(uint32_t slot = 0) const = 0;
 
 		virtual bool operator==(const Texture& other) const = 0;
-
 	};
 
 	struct TextureHandle;
@@ -45,6 +44,6 @@ namespace Kaidel {
 	};
 
 	struct TextureHandle {
-		Ref<Texture> Texture;
+		Ref<Texture2D> Texture;
 	};
 }

@@ -21,7 +21,8 @@ project "KaidelEditor"
 		"%{wks.location}/Kaidel/vendor",
 		"%{IncludeDir.glm}",
 		"%{IncludeDir.entt}",
-		"%{IncludeDir.ImGuizmo}"
+		"%{IncludeDir.ImGuizmo}",
+		"%{IncludeDir.yaml_cpp}"
 	}
 
 	links

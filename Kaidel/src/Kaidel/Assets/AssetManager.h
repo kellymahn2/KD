@@ -2,6 +2,7 @@
 #include "Kaidel/Core/UUID.h"
 #include "Kaidel/Core/IRCP.h"
 #include "Kaidel/Core/Base.h"
+#include "Kaidel/Core/BiMap.h"
 #include"AssetTypeIDs.h"
 #include <unordered_map>
 
@@ -113,36 +114,40 @@ virtual AssetType AssetTypeID()const override{return StaticAssetTypeID();}
 	public:
 		static void Manage(Ref<_Asset> asset,bool physical = false , const FileSystem::path& p = "") {
 			if (asset) {
-				m_Assets[asset->AssetID()] = asset;
+				m_Assets.Add(asset->AssetID(), asset);
 				if (physical) {
-					m_PhysicalAssets[p] = asset;
+					m_PhysicalAssets.Add(p, asset);
 				}
 				else {
-					m_NonPhysicalAssets[asset->AssetID()] = asset;
+					m_NonPhysicalAssets.Add(asset->AssetID(), asset);
 				}
 			}
 		}
 
 
 		static Ref<_Asset> AssetByID(UUID id) {
-			auto it = m_Assets.find(id);
-			if (it != m_Assets.end())
+			auto it = m_Assets.KV().find(id);
+			if (it != m_Assets.KV().end())
 				return it->second;
 			return {};
 		}
 
 
+
 		static Ref<_Asset> AssetsByPath(const FileSystem::path& path) {
-			auto it = m_PhysicalAssets.find(path);
-			if (it != m_PhysicalAssets.end()) {
+			auto it = m_PhysicalAssets.KV().find(path);
+			if (it != m_PhysicalAssets.KV().end()) {
 				return it->second;
 			}
 			return {};
 		}
 
+		static BiMap<UUID, Ref<_Asset>>& GetAssetsByID() { return m_Assets; }
+		static BiMap<FileSystem::path, Ref<_Asset>>& GetAssetsByPath() { return m_PhysicalAssets; }
+
 
 		template<typename T,typename Func>
-		void Each(Func&& func) {
+		static void Each(Func&& func) {
 			for (const auto& [id,asset] : m_Assets) {
 				if (asset->AssetTypeID() == T::StaticAssetTypeID()) {
 					func(asset);
@@ -151,7 +156,7 @@ virtual AssetType AssetTypeID()const override{return StaticAssetTypeID();}
 		}
 
 		template<typename T,typename Func>
-		void EachPhysical(Func&& func) {
+		static void EachPhysical(Func&& func) {
 			for (const auto& [path, asset] : m_PhysicalAssets) {
 				if (asset->AssetTypeID() == T::StaticAssetTypeID()) {
 					func(asset, path);
@@ -159,12 +164,16 @@ virtual AssetType AssetTypeID()const override{return StaticAssetTypeID();}
 			}
 		}
 
+		static const BiMap<UUID, Ref<_Asset>> GetAssets() { return m_Assets; }
+		static const BiMap<UUID, Ref<_Asset>> GetNonPhysicalAssets() { return m_NonPhysicalAssets; }
+		static const BiMap<FileSystem::path, Ref<_Asset>> GetPhysicalAssets() { return m_PhysicalAssets; }
+
 	private:
-		static inline std::unordered_map<UUID, Ref<_Asset>> m_Assets;
+		static inline BiMap<UUID, Ref<_Asset>> m_Assets;
 
-		static inline std::unordered_map<UUID, Ref<_Asset>> m_NonPhysicalAssets;
+		static inline BiMap<UUID, Ref<_Asset>> m_NonPhysicalAssets;
 
-		static inline std::unordered_map<FileSystem::path, Ref<_Asset>> m_PhysicalAssets;
+		static inline BiMap<FileSystem::path, Ref<_Asset>> m_PhysicalAssets;
 
 		friend class AssetSerializer;
 		friend class ProjectSerializer;

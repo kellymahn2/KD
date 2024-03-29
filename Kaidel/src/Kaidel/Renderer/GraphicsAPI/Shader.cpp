@@ -62,4 +62,64 @@ namespace Kaidel {
 		return nullptr;
 	}
 
+	namespace Utils {
+		inline std::string GetFileContents(const FileSystem::path& filePath) {
+			std::ifstream file(filePath, std::ios::binary | std::ios::in);
+			std::string res;
+			KD_CORE_ASSERT(file, "Could not read from file: {}", filePath);
+			file.seekg(0, std::ios::end);
+			uint64_t size = file.tellg();
+			KD_CORE_ASSERT(size != -1, "Could not read from file: {}", filePath);
+
+			res.resize(size);
+
+			file.seekg(std::ios::beg);
+			file.read(&res[0], size);
+			return res;
+		}
+
+		static std::string PreprocessShaderSource(const FileSystem::path& path, const std::string& unprocessedSource) {
+			std::string processedSourceStream;
+
+			processedSourceStream.reserve(50000);
+			std::stringstream unprocessedSourceStream(unprocessedSource);
+			std::string line;
+
+			while (std::getline(unprocessedSourceStream, line)) {
+				if (line.find("#include") != std::string::npos) {
+					std::string includeFileName;
+					std::stringstream lineStream(line);
+					std::string includeToken;
+					lineStream >> includeToken >> includeFileName;
+
+					includeFileName.erase(std::remove(includeFileName.begin(), includeFileName.end(), '"'), includeFileName.end());
+
+					FileSystem::path includeFilePath = path.parent_path() / includeFileName;
+
+					includeFilePath = FileSystem::canonical(includeFilePath);
+
+					if (FileSystem::exists(includeFilePath)) {
+						std::string includedSource = GetFileContents(includeFilePath);
+
+						std::string processedIncludeSource = PreprocessShaderSource(includeFilePath, includedSource);
+						processedSourceStream = processedSourceStream + processedIncludeSource + "\n";
+					}
+				}
+				else {
+					std::string s = line + "\n";
+					processedSourceStream = processedSourceStream + s;
+				}
+			}
+			return processedSourceStream;
+		}
+
+	}
+
+
+
+
+	ShaderSource::ShaderSource(const Path& path) {
+
+	}
+
 }

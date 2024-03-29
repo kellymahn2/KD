@@ -40,5 +40,6 @@
 #include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
 #include "Kaidel/Renderer/GraphicsAPI/Texture.h"
 #include "Kaidel/Renderer/GraphicsAPI/VertexArray.h"
+#include "Kaidel/Renderer/GraphicsAPI/CubeMap.h"
 
 // -----------------------------------

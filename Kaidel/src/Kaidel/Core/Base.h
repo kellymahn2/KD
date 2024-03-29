@@ -67,6 +67,11 @@ namespace Kaidel {
 	}
 	
 	namespace FileSystem = std::filesystem;
+
+
+	using Path = FileSystem::path;
+	using DirectoryEntry = FileSystem::directory_entry;
+
 }
 
 #include "Kaidel/Core/Log.h"

@@ -18,7 +18,12 @@ namespace Kaidel {
 			m_Context = context;
 		}
 
+
+
 	private:
+
+		std::string m_AssetSelectingName;
+
 		Ref<PanelContext> m_Context;
 	};
 

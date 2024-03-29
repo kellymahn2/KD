@@ -82,8 +82,8 @@ namespace Kaidel {
 			s_RendererAPI->SetDefaultTessellationLevels(outer, inner);
 		}
 
-		static void RenderFullScreenQuad() {
-			s_RendererAPI->RenderFullScreenQuad();
+		static void RenderFullScreenQuad(Ref<Shader> shader,uint32_t width,uint32_t height) {
+			s_RendererAPI->RenderFullScreenQuad(shader,width,height);
 		}
 
 	private:

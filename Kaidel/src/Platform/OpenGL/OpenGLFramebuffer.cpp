@@ -168,19 +168,12 @@ namespace Kaidel {
 			if (m_DepthAttachment)
 				glDeleteTextures(1, &m_DepthAttachment);
 
-			if (glfwGetCurrentContext() != NULL) {
-				std::cout << "Here\n";
-			}
-
 			glDeleteFramebuffers(1, &m_RendererID);
 
 			m_ColorAttachments.clear();
 			m_DepthAttachment = 0;
 		}
 	}
-
-
-
 
 	FramebufferAttachmentHandle OpenGLFramebuffer::GetAttachmentHandle(uint32_t index)const {
 		FramebufferAttachmentHandle handle{};

@@ -41,6 +41,7 @@ namespace Kaidel {
 		void NewProject();
 		void OpenProject(const std::filesystem::path& path);
 		void SaveProject();
+		void ImportAsset();
 
 
 		void OnScenePlay();
@@ -63,12 +64,12 @@ namespace Kaidel {
 		void ShowDebugWindow();
 
 		void ShowViewport();
+		void HandleViewportResize();
+
 	private:
-
-
 		
 		Console m_DebugConsole;
-		Ref<Framebuffer> m_3DOutputFramebuffer,m_2DOutputFrameBuffer,m_OutputBuffer,m_ScreenOutputbuffer;
+		Ref<Framebuffer> m_OutputBuffer,m_ScreenOutputbuffer;
 		Ref<Scene> m_ActiveScene;
 		Ref<Scene> m_EditorScene, m_RuntimeScene,m_SimulationScene;
 
@@ -84,6 +85,8 @@ namespace Kaidel {
 		EditorCamera m_EditorCamera;
 
 		bool m_ViewportFocused = false, m_ViewportHovered = false;
+
+
 		glm::vec2 m_ViewportSize = { 0.0f, 0.0f };
 		glm::vec2 m_ViewportBounds[2];
 
@@ -98,8 +101,6 @@ namespace Kaidel {
 
 		AnimationPanel m_AnimationPanel;
 
-
-
 		Ref<ComputeShader> m_2D3DCompositeShader;
 
 		struct Icons {
@@ -110,14 +111,11 @@ namespace Kaidel {
 			Ref<Texture2D> IconStop;
 		} m_Icons;
 
-
 		enum class SceneState {
 			Edit = 0, Play = 1 , Simulate = 2
 		};
 
-
-
-		SceneState m_SceneState=SceneState::Edit;
+		SceneState m_SceneState = SceneState::Edit;
 
 		Ref<PanelContext> m_PanelContext;
 		Ref<ComputeShader> m_FXAAComputeShader;
@@ -125,6 +123,7 @@ namespace Kaidel {
 		RendererSettings m_RendererSettings = RendererAPI::GetSettings();
 
 
+		Ref<CubeMap> cm;
 	};
 
 }

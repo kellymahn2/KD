@@ -1,19 +1,10 @@
 Scene: Untitled
 Entities:
-  - Entity: 14251823686544971831
-    TagComponent:
-      Tag: Cube
-    TransformComponent:
-      Translation: [0, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1, 1, 1]
-    MeshComponent:
-      Mesh: 1
   - Entity: 17266550812336631604
     TagComponent:
       Tag: Light
     TransformComponent:
-      Translation: [-6.5, 0, 0]
+      Translation: [-3, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     SpotLightComponent:
@@ -25,3 +16,21 @@ Entities:
       ConstantCoefficient: 1
       LinearCoefficient: 0.0900000036
       QuadraticCoefficient: 0.0320000015
+  - Entity: 14251823686544971831
+    TagComponent:
+      Tag: Cube
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    MeshComponent:
+      Mesh: 1
+  - Entity: 14251823686544971831
+    TagComponent:
+      Tag: Cube
+    TransformComponent:
+      Translation: [2.5, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 15.1000004, 13]
+    MeshComponent:
+      Mesh: 1

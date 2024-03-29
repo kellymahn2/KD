@@ -43,7 +43,7 @@ namespace Kaidel {
 					if (FileSystem::exists(includeFilePath)) {
 						std::string includedSource = GetFileContents(includeFilePath);
 
-						std::string processedIncludeSource = PreprocessShaderSource(path, includedSource);
+						std::string processedIncludeSource = PreprocessShaderSource(includeFilePath, includedSource);
 						processedSourceStream = processedSourceStream + processedIncludeSource + "\n";
 					}
 				}

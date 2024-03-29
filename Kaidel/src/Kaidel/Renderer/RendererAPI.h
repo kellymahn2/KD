@@ -38,7 +38,7 @@ namespace Kaidel {
 
 		virtual void SetDefaultTessellationLevels(const glm::vec4 & outer, const glm::vec2 & inner) = 0;
 
-		virtual void RenderFullScreenQuad()const = 0;
+		virtual void RenderFullScreenQuad(Ref<Shader> shader, uint32_t width, uint32_t height)const = 0;
 
 
 		static RendererSettings& GetSettings() { return s_RendererSettings; }

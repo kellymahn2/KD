@@ -6,5 +6,9 @@ namespace Kaidel {
 		GLenum KaidelTextureFormatToGLInternalFormat(TextureFormat format);
 		GLenum KaidelTextureFormatToGLFormat(TextureFormat format);
 		GLenum KaidelTextureFormatToGLValueFormat(TextureFormat format);
+		uint32_t KaidelTextureFormatComponentCount(TextureFormat format);
+		uint32_t KaidelTextureFormatChannelSizeInBytes(TextureFormat format);
+		uint32_t KaidelTextureFormatPixelSizeInBytes(TextureFormat format);
+		void* ResizeTexture(void* data, TextureFormat iFormat, uint32_t iW, uint32_t iH, uint32_t oW, uint32_t oH);
 	}
 }

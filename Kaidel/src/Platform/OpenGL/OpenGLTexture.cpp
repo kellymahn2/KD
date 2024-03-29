@@ -14,10 +14,6 @@ namespace Kaidel {
 	OpenGLTexture2D::OpenGLTexture2D(uint32_t width, uint32_t height, TextureFormat format)
 		: m_Width(width), m_Height(height),m_TextureFormat(format)
 	{
-
-
-
-
 		glCreateTextures(GL_TEXTURE_2D, 1, &m_RendererID);
 		glTextureStorage2D(m_RendererID, 1, Utils::KaidelTextureFormatToGLInternalFormat(m_TextureFormat), m_Width, m_Height);
 

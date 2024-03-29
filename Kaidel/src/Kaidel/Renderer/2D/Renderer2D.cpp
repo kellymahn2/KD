@@ -7,44 +7,46 @@
 #include "Kaidel/Renderer/GraphicsAPI/Buffer.h"
 #include "Kaidel/Renderer/GraphicsAPI/Shader.h"
 #include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
+#include "Kaidel/Renderer/MaterialTexture.h"
 
 namespace Kaidel {
 
-	struct SpriteRendererData {
+
+	CustomRenderer Renderer2D::CreatePointRenderer(const std::initializer_list<BufferElement>& additionalElements, Ref<Shader> shader) {
+
+		const BufferLayout& defaults = s_Renderer2DData.PointRendererData.CustomRenderers.top().VAO->GetVertexBuffers().front()->GetLayout();
+
+		BufferLayout layout = defaults;
+
+		layout.Push(additionalElements);
+
+		CustomRenderer renderer;
+
+		Ref<VertexBuffer> vbo = VertexBuffer::Create(0);
 		
+		vbo->SetLayout(layout);
 
-		SpriteVertex DefaultSpriteVertices[4];
-
-		Ref<VertexArray> SpriteVAO;
-		Ref<VertexBuffer> SpriteVBO;
-		Ref<Shader> SpriteShader;
-
-		uint32_t RenderedSpriteCount = 0;
-		uint32_t SpritesWaitingForRender = 0;
-
-		std::mutex SpriteRenderingMutex;
-		BoundedVector<SpriteVertex> Vertices = { 0,MaxSpriteVertices,[](auto data,uint64_t size) {
-			Renderer2D::FlushSprites();
-		} };
-		uint32_t* SetupSpriteIndices() {
-			uint32_t* quadIndices = new uint32_t[MaxSpriteIndices];
-
-			uint32_t offset = 0;
-			for (uint32_t i = 0; i < MaxSpriteIndices; i += 6)
-			{
-				quadIndices[i + 0] = offset + 0;
-				quadIndices[i + 1] = offset + 1;
-				quadIndices[i + 2] = offset + 2;
-
-				quadIndices[i + 3] = offset + 2;
-				quadIndices[i + 4] = offset + 3;
-				quadIndices[i + 5] = offset + 0;
-
-				offset += 4;
-			}
-			return quadIndices;
+		{
+			VertexArraySpecification spec;
+			spec.UsedShader = shader;
+			spec.VertexBuffers = { vbo };
+			renderer.VAO = VertexArray::Create(spec);
 		}
-		void Init() {
+		renderer.Shader = shader;
+		return renderer;
+	}
+	
+	void Renderer2D::PushPointRenderer(const CustomRenderer& renderer) {
+		s_Renderer2DData.PointRendererData.CustomRenderers.push(renderer);
+	}
+	void Renderer2D::PopPointRenderer() {
+		KD_CORE_ASSERT(s_Renderer2DData.PointRendererData.CustomRenderers.size() > 1);
+		s_Renderer2DData.PointRendererData.CustomRenderers.pop();
+	}
+
+	#pragma region Initialization
+	void Renderer2D::SpriteRendererData::Init() {
+		{
 			using path = FileSystem::path;
 			SpriteShader = Shader::Create({ {"assets/shaders/GeometryPass/Geometry_Sprite_VS_2D.glsl",ShaderType::VertexShader}, {"assets/shaders/GeometryPass/Geometry_Sprite_FS_2D.glsl",ShaderType::FragmentShader} });
 			Ref<IndexBuffer> ibo;
@@ -78,31 +80,17 @@ namespace Kaidel {
 
 			//Default Sprite Vertices
 			{
-				DefaultSpriteVertices[0] = { {-.5f,-.5f,.0f} ,glm::vec2{0,0},0 };
-				DefaultSpriteVertices[1] = { { .5f,-.5f,.0f} ,glm::vec2{1,0},0 };
-				DefaultSpriteVertices[2] = { { .5f, .5f,.0f} ,glm::vec2{1,1},0 };
-				DefaultSpriteVertices[3] = { {-.5f, .5f,.0f} ,glm::vec2{0,1},0 };
+				DefaultSpriteVertices[0] = { glm::vec3{-.5f,-.5f,.0f} ,glm::vec2{0,0},0 };
+				DefaultSpriteVertices[1] = { glm::vec3{ .5f,-.5f,.0f} ,glm::vec2{1,0},0 };
+				DefaultSpriteVertices[2] = { glm::vec3{ .5f, .5f,.0f} ,glm::vec2{1,1},0 };
+				DefaultSpriteVertices[3] = { glm::vec3{-.5f, .5f,.0f} ,glm::vec2{0,1},0 };
 			}
 		}
-	};
+	}
 
-	struct LineRendererData {
-		
-
-
-		Ref<VertexArray> LineVAO;
-		Ref<VertexBuffer> LineVBO;
-		Ref<Shader> LineShader;
-
-
-		uint32_t RenderedLineCount = 0;
-		uint32_t LinesWaitingForRender = 0;
-
-		BoundedVector<LineVertex> Vertices = { 0,MaxLineVertices,[](auto data,uint64_t size) {
-			Renderer2D::FlushLines();
-		} };
-		void Init() {
-			LineShader = Shader::Create({ { "assets/shaders/GeometryPass/Geometry_Line_VS_2D.glsl" ,ShaderType::VertexShader}, {"assets/shaders/GeometryPass/Geometry_Line_FS_2D.glsl",ShaderType::FragmentShader }});
+	void Renderer2D::LineRendererData::Init() {
+		{
+			LineShader = Shader::Create({ { "assets/shaders/GeometryPass/Geometry_Line_VS_2D.glsl" ,ShaderType::VertexShader}, {"assets/shaders/GeometryPass/Geometry_Line_FS_2D.glsl",ShaderType::FragmentShader } });
 
 			//Vertex Buffer Object
 			{
@@ -121,19 +109,11 @@ namespace Kaidel {
 				LineVAO = VertexArray::Create(spec);
 			}
 
-			
-
 		}
-	};
+	}
 
-	struct BezierRendererData {
-		
-		Ref<Shader> BezierShader;
-
-		Ref<VertexArray> BezierVAO;
-		Ref<VertexBuffer> BezierVBO;
-
-		void Init() {
+	void Renderer2D::BezierRendererData::Init() {
+		{
 
 			ShaderSpecification bezierShaderSpecification;
 
@@ -144,7 +124,7 @@ namespace Kaidel {
 			};
 
 			BezierShader = Shader::Create(bezierShaderSpecification);
-			
+
 			//Vertex Buffer Object
 			{
 				BezierVBO = VertexBuffer::Create(0);
@@ -162,75 +142,48 @@ namespace Kaidel {
 				BezierVAO = VertexArray::Create(spec);
 			}
 
-			
-			
+
+
 		}
-	};
+	}
 
-	struct PointRendererData {
-
-
-		Ref<Shader> PointShader;
-		Ref<VertexArray> PointVAO;
-		Ref<VertexBuffer> PointVBO;
+	void Renderer2D::PointRendererData::Init() {
+		{
+			Ref<Shader> pointShader = Shader::Create({ {"assets/shaders/GeometryPass/Geometry_Point_VS_2D.glsl",ShaderType::VertexShader},{"assets/shaders/GeometryPass/Geometry_Point_FS_2D.glsl",ShaderType::FragmentShader} });
 
 
-		uint32_t RenderedPointCount = 0;
-		uint32_t PointsWaitingForRender = 0;
 
-		BoundedVector<PointVertex> Vertices = { 0,MaxPoints,[](auto ptr,auto size) {
-			Renderer2D::FlushPoints();
-		}};
 
-		void Init() {
-			PointShader = Shader::Create({ {"assets/shaders/GeometryPass/Geometry_Point_VS_2D.glsl",ShaderType::VertexShader},{"assets/shaders/GeometryPass/Geometry_Point_FS_2D.glsl",ShaderType::FragmentShader} });
-			
 			//Vertex Buffer Object
+			Ref<VertexBuffer> pointVBO = VertexBuffer::Create(0);
 			{
-				PointVBO = VertexBuffer::Create(0);
-				PointVBO->SetLayout({
+				pointVBO->SetLayout({
 					{ShaderDataType::Float3,"a_Position"},
 					{ShaderDataType::Float4,"a_Color"}
-				});
+					});
 			}
 
+
+
+			CustomRenderer renderer;
 
 			//Vertex Array Object
 			{
 				VertexArraySpecification spec;
-				spec.VertexBuffers = { PointVBO };
-				spec.UsedShader = PointShader;
+				spec.VertexBuffers = { pointVBO};
+				spec.UsedShader = pointShader;
 
-				PointVAO = VertexArray::Create(spec);
+				renderer.VAO = VertexArray::Create(spec);
+				renderer.Shader = pointShader;
 			}
+
+			CustomRenderers.push(renderer);
 
 
 
 		}
-	};
+	}
 
-
-	struct Renderer2DData {
-
-
-		Ref<Framebuffer> OutputBuffer;
-
-		struct Camera {
-			glm::mat4 CameraViewProjection;
-		};
-
-		Camera CameraBuffer;
-
-		Ref<UniformBuffer> CameraUniformBuffer;
-		Ref<Material2D> DefaultMaterial;
-		SpriteRendererData SpriteRendererData;
-		LineRendererData LineRendererData;
-		BezierRendererData BezierRendererData;
-		PointRendererData PointRendererData;
-	};
-
-
-	static Renderer2DData s_Renderer2DData;
 
 	void Renderer2D::Init() {
 
@@ -264,11 +217,12 @@ namespace Kaidel {
 			s_Renderer2DData.DefaultMaterial = CreateRef<Material2D>();
 		}
 
-		//Material2D Textures
-		{
-			Material2DTextureHandler::Init();
-		}
 	}
+
+	#pragma endregion
+
+
+
 	void Renderer2D::Shutdown() {
 
 	}
@@ -283,17 +237,26 @@ namespace Kaidel {
 	}
 
 	void Renderer2D::Begin(const Renderer2DBeginData& beginData) {
+
+
+
 		s_Renderer2DData.OutputBuffer = beginData.OutputBuffer;
 		s_Renderer2DData.CameraBuffer.CameraViewProjection = beginData.CameraVP;
 		s_Renderer2DData.CameraUniformBuffer->SetData(&s_Renderer2DData.CameraBuffer, sizeof(Renderer2DData::Camera));
 		s_Renderer2DData.CameraUniformBuffer->Bind();
+
+
+
 		s_Renderer2DData.SpriteRendererData.SpritesWaitingForRender = 0;
 		s_Renderer2DData.SpriteRendererData.RenderedSpriteCount = 0;
 		s_Renderer2DData.LineRendererData.LinesWaitingForRender = 0;
 		s_Renderer2DData.LineRendererData.RenderedLineCount = 0;
 		s_Renderer2DData.PointRendererData.PointsWaitingForRender = 0;
 		s_Renderer2DData.PointRendererData.RenderedPointCount = 0;
-		Material2DTextureHandler::GetTexturesMap()->Bind(0);
+
+
+
+		MaterialTexture::GetTextureArray()->Bind(0);
 		Material2D::SetMaterials();
 	}
 
@@ -312,7 +275,7 @@ namespace Kaidel {
 		}
 
 		std::unique_lock<std::mutex> lock(s_Renderer2DData.SpriteRendererData.SpriteRenderingMutex);
-		auto bvi = s_Renderer2DData.SpriteRendererData.Vertices.Reserve(4);
+		auto bvi = VerticesBuffer<SpriteVertex,MaxSpriteVertices>::Vertices.Reserve(4);
 		for (uint32_t i = 0; i < 4; ++i) {
 			bvi[i] = std::move(vertex[i]);
 		}
@@ -320,9 +283,12 @@ namespace Kaidel {
 	}
 
 	void Renderer2D::FlushSprites() {
+
+		auto& vertices = VerticesBuffer<SpriteVertex, MaxSpriteVertices>::Vertices;
+
 		if (s_Renderer2DData.SpriteRendererData.SpritesWaitingForRender) {
 			s_Renderer2DData.OutputBuffer->Bind();
-			s_Renderer2DData.SpriteRendererData.SpriteVBO->SetData(s_Renderer2DData.SpriteRendererData.Vertices.Get(), s_Renderer2DData.SpriteRendererData.Vertices.Size() * sizeof(SpriteVertex));
+			s_Renderer2DData.SpriteRendererData.SpriteVBO->SetData(vertices.Get(), vertices.Size() * sizeof(SpriteVertex));
 			s_Renderer2DData.SpriteRendererData.SpriteShader->Bind();
 			RenderCommand::SetCullMode(CullMode::None);
 			RenderCommand::DrawIndexed(s_Renderer2DData.SpriteRendererData.SpriteVAO, s_Renderer2DData.SpriteRendererData.SpritesWaitingForRender * 6);
@@ -330,7 +296,7 @@ namespace Kaidel {
 			s_Renderer2DData.SpriteRendererData.SpritesWaitingForRender = 0;
 			s_Renderer2DData.OutputBuffer->Unbind();
 		}
-		s_Renderer2DData.SpriteRendererData.Vertices.Reset();
+		vertices.Reset();
 	}
 
 #pragma endregion
@@ -388,55 +354,39 @@ namespace Kaidel {
 		vertices[1].Position = p1;
 		vertices[1].Color = color;
 
-		auto bvi = s_Renderer2DData.LineRendererData.Vertices.Reserve(2);
+		auto bvi = VerticesBuffer<LineVertex,MaxLineVertices>::Vertices.Reserve(2);
 		bvi[0] = vertices[0];
 		bvi[1] = vertices[1];
 		++s_Renderer2DData.LineRendererData.LinesWaitingForRender;
 	}
 
 	void Renderer2D::FlushLines() {
+
+		auto& vertices = VerticesBuffer<LineVertex, MaxLineVertices>::Vertices;
+
 		if (s_Renderer2DData.LineRendererData.LinesWaitingForRender) {
 			s_Renderer2DData.OutputBuffer->Bind();
-			s_Renderer2DData.LineRendererData.LineVBO->SetData(s_Renderer2DData.LineRendererData.Vertices.Get(), s_Renderer2DData.LineRendererData.Vertices.Size() * sizeof(LineVertex));
+			s_Renderer2DData.LineRendererData.LineVBO->SetData(vertices.Get(), vertices.Size() * sizeof(LineVertex));
 			s_Renderer2DData.LineRendererData.LineShader->Bind();
 			RenderCommand::SetCullMode(CullMode::None);
-			RenderCommand::DrawLines(s_Renderer2DData.LineRendererData.LineVAO, s_Renderer2DData.LineRendererData.Vertices.Size());
+			RenderCommand::DrawLines(s_Renderer2DData.LineRendererData.LineVAO, vertices.Size());
 			s_Renderer2DData.LineRendererData.RenderedLineCount+= s_Renderer2DData.LineRendererData.LinesWaitingForRender;
 			s_Renderer2DData.LineRendererData.LinesWaitingForRender = 0;
 			s_Renderer2DData.OutputBuffer->Unbind();
 		}
-		s_Renderer2DData.LineRendererData.Vertices.Reset();
+		vertices.Reset();
 	}
 
 #pragma endregion
 #pragma region Point
 
-	void Renderer2D::DrawPoint(const glm::vec3& position, const glm::vec4& color) {
-		auto bvi = s_Renderer2DData.PointRendererData.Vertices.Reserve(1);
-		bvi[0] = { position,color };
-		++s_Renderer2DData.PointRendererData.PointsWaitingForRender;
-	}
-
-	void Renderer2D::FlushPoints() {
-		if (s_Renderer2DData.PointRendererData.PointsWaitingForRender) {
-			s_Renderer2DData.OutputBuffer->Bind();
-			s_Renderer2DData.PointRendererData.PointVBO->SetData(s_Renderer2DData.PointRendererData.Vertices.Get(), s_Renderer2DData.PointRendererData.Vertices.Size()*sizeof(PointVertex));
-			s_Renderer2DData.PointRendererData.PointShader->Bind();
-			RenderCommand::SetCullMode(CullMode::None);
-			RenderCommand::DrawPoints(s_Renderer2DData.PointRendererData.PointVAO, s_Renderer2DData.PointRendererData.PointsWaitingForRender);
-			s_Renderer2DData.PointRendererData.RenderedPointCount += s_Renderer2DData.PointRendererData.PointsWaitingForRender;
-			s_Renderer2DData.PointRendererData.PointsWaitingForRender = 0;
-			s_Renderer2DData.OutputBuffer->Unbind();
-		}
-		s_Renderer2DData.PointRendererData.Vertices.Reset();
-	}
 
 #pragma endregion
 
 	void Renderer2D::End() {
 		FlushSprites();
 		FlushLines();
-		FlushPoints();
+		FlushPoints<0>();
 	}
 
 }

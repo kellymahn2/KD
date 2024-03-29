@@ -1,5 +1,6 @@
 #include "KDpch.h"
 #include "MaterialSerializer.h"
+#include "Kaidel/Serializer/AssetSerializer.h"
 #include <yaml-cpp/yaml.h>
 
 namespace YAML {
@@ -104,6 +105,12 @@ namespace Kaidel {
 
 	
 	void MaterialSerializer::Serialize(YAML::Emitter& out) {
+
+		AssetSerializer serializer(m_Material);
+
+		if (!serializer.SerializeTo(out)) {
+			return;
+		}
 		out << YAML::BeginMap;
 		out << YAML::Key << "Color" << YAML::Value << m_Material->GetColor();
 		out << YAML::Key << "Diffuse" << YAML::Value << m_Material->GetDiffuse();
@@ -127,6 +134,14 @@ namespace Kaidel {
 			return false;
 		YAML::Node material = YAML::Load(file);
 
+		if (!material)
+			return false;
+
+		AssetSerializer deserializer(m_Material);
+		if (!deserializer.DeserializeFrom(material)) {
+			return false;
+		}
+
 		if (material["Color"]) {
 			m_Material->SetColor(material["Color"].as<glm::vec4>());
 		}
@@ -140,8 +155,7 @@ namespace Kaidel {
 			m_Material->SetShininess(material["Shininess"].as<float>());
 		}
 
-		m_Material->Path(path);
-
+	
 		return true;
 	}
 }

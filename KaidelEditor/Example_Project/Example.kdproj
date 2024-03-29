@@ -1,12 +1,6 @@
-Assets:
-  PhysicalAssets:
-    - UUID: 17976027733840486645
-      AssetType: Material
-      AbsolutePath: E:/KD/KaidelEditor/Example_Project\Assets\Material.mat
 Project:
   Name: Example.kdproj
   StartScene: Scene01.Kaidel
-  AbsoluteProjectDirectory: E:/KD/KaidelEditor/Example_Project
   RelativeAssetDirectory: Assets
   ProjectAutoSave: true
   ProjectAutoSaveTimer: 60

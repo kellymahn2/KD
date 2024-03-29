@@ -26,28 +26,4 @@ namespace Kaidel{
         s_MaterialUAV->Bind(_MaterialInternalBindingSlot);
     }
 
-	uint32_t MaterialTextureHandler::LoadTexture(void* data, uint32_t width, uint32_t height) {
-		uint32_t slot = s_TexturesMap->PushTexture(data, width, height,false);
-		AssetManager::Manage(CreateRef<MaterialTexture>(s_TexturesMap->GetHandle(slot)));
-		return slot;
-	}
-
-
-	void MaterialTextureHandler::Init() {
-		s_TexturesMap = Texture2DArray::Create(1024,1024,TextureFormat::RGBA8);
-		uint32_t default = 0xffffffff;
-		s_TexturesMap->PushTexture(&default, 1, 1);
-		s_TexturesMap->PushTexture(&default, 1, 1);
-		s_TextureIndexMap["_Default_Diffuse"] = 0;
-		s_TextureIndexMap["_Default_Specular"] = 1;
-	}
-	uint32_t MaterialTextureHandler::LoadTexture(const std::filesystem::path& texturePath) {
-		std::string path = texturePath.string();
-		if (s_TextureIndexMap.find(path) != s_TextureIndexMap.end())
-			return s_TextureIndexMap.at(path);
-		uint32_t index = s_TexturesMap->PushTexture(path,false);
-		s_TextureIndexMap[path] = index;
-
-		return index;
-	}
 }

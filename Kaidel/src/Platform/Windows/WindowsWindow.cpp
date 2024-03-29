@@ -59,7 +59,6 @@ namespace Kaidel {
 
 		KD_CORE_INFO("Creating window {0} ({1}, {2})", m_Data.Title, m_Data.Width, m_Data.Height);
 		{
-#define KD_DEBUG
 		#ifdef KD_DEBUG
 			if (Renderer::GetAPI() == RendererAPI::API::OpenGL)
 				glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
@@ -200,4 +199,42 @@ namespace Kaidel {
 		return m_Data.VSync;
 	}
 
+	static void CheckAndSetCursorPosition(GLFWwindow* window) {
+			double rel_xpos, rel_ypos;
+			glfwGetCursorPos(window, &rel_xpos, &rel_ypos);
+
+			GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+
+
+			int window_pos_x, window_pos_y;
+			glfwGetWindowPos(window, &window_pos_x, &window_pos_y);
+
+			double xpos = rel_xpos + window_pos_x;
+			double ypos = rel_ypos + window_pos_y;
+
+
+			if (monitor != NULL) {
+				int monitor_x, monitor_y;
+				glfwGetMonitorPos(monitor, &monitor_x, &monitor_y);
+				const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+				int monitor_width = mode->width;
+				int monitor_height = mode->height;
+
+				if (xpos <= monitor_x)
+					xpos = monitor_x + monitor_width - 1;
+				else if (xpos >= monitor_x + monitor_width -1)
+					xpos = monitor_x;
+
+
+				glfwSetCursorPos(window, xpos - window_pos_x, rel_ypos);
+			}
+
+
+
+	}
+
+
+	void WindowsWindow::WrapCursor() const {
+		CheckAndSetCursorPosition(m_Window);
+	}
 }

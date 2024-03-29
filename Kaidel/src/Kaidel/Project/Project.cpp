@@ -1,7 +1,6 @@
 #include "KDpch.h"
 #include "Project.h"
 #include "ProjectSerializer.h"
-#include "Kaidel/Assets/AssetSerializer.h"
 #include "Kaidel/Assets/AssetTypes.h"
 namespace Kaidel {
 	static inline Ref<Project> s_ActiveProject;
@@ -19,7 +18,6 @@ namespace Kaidel {
 				return {};
 			}
 		}
-		
 		return s_ActiveProject = project;
 	}
 
@@ -38,12 +36,11 @@ namespace Kaidel {
 		std::unordered_set<Ref<_Asset>> unsavedAssets;
 
 		for (auto& asset : s_ActiveProject->m_ChangedAssetsSinceLastSave) {
-			// TODO: Add functionality to just serialize and deserialize an asset.
 			bool serialized = false;
 			AssetFunctionApplier applier(asset);
 			applier.Apply<Material>([&serialized](Ref<Material> mat) {
 				MaterialSerializer serializer(mat);
-				serialized = serializer.Serialize(mat->Path());
+				serialized = serializer.Serialize(AssetManager::GetAssetsByPath()[mat]);
 				});
 			if (!serialized)
 				unsavedAssets.insert(asset);

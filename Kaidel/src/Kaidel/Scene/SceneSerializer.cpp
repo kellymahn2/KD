@@ -269,7 +269,7 @@ namespace Kaidel {
 			out << YAML::BeginMap; // MaterialComponent
 
 			auto& materialComponent = entity.GetComponent<MaterialComponent>();
-
+			out << YAML::Key << "MaterialID" << YAML::Value << materialComponent.Material->AssetID().operator size_t();
 			out << YAML::EndMap; // MaterialComponent
 		}
 
@@ -609,6 +609,12 @@ namespace Kaidel {
 					[](MeshComponent& mc,auto& entity,auto& meshComponent) {
 						mc.Mesh = SingleAssetManager<Mesh>::Get(meshComponent["Mesh"].as<uint64_t>());
 					});
+				DeserializeComponent<MaterialComponent>(deserializedEntity, "MaterialComponent", entityNode,
+					[](MaterialComponent& mc, auto& entity, auto& materialComponent) {
+						mc.Material = AssetManager::AssetByID(materialComponent["MaterialID"].as<uint64_t>());
+					});
+
+				
 
 				DeserializeComponent<PointLightComponent>(deserializedEntity, "PointLightComponent", entityNode,
 					[](PointLightComponent& plc, auto& entity, auto& pointLightComponent) {

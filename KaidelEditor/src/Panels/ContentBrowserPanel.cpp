@@ -1,5 +1,6 @@
 #include "ContentBrowserPanel.h"
 #include "Kaidel/Renderer/3D/MaterialSerializer.h"
+#include "Kaidel/Core/UsedFileExtensions.h"
 #include "UI/UIHelper.h"
 #include "Kaidel/Project/Project.h"
 #include <imgui/imgui.h>
@@ -15,16 +16,16 @@ namespace Kaidel {
 		}
 
 		static const char* DragDropNameFromExtension(const std::string& extension) {
-			if (extension == ".kaidel")
+			if (extension == Extensions::Scene)
 				return "CONTENT_BROWSER_ITEM";
 			if (extension == ".png")
 				return "ASSET_TEXTURE";
-			if(extension == ".mat")
+			if(extension == Extensions::Material)
 			return nullptr;
 		}
 
 		static SelectedType SelectedTypeFromExtension(const std::string& extension) {
-			if (extension == ".mat")
+			if (extension == Extensions::Material)
 				return SelectedType::Asset;
 			if (extension == ".tex")
 				return SelectedType::Asset;
@@ -42,6 +43,7 @@ namespace Kaidel {
 			}
 			return "";
 		}
+
 	}
 
 	ContentBrowserPanel::ContentBrowserPanel() 
@@ -49,6 +51,10 @@ namespace Kaidel {
 		m_Icons.DirectoryIcon = Texture2D::Create("Resources/Icons/ContentBrowser/DirectoryIcon.png");
 		m_Icons.FileIcon = Texture2D::Create("Resources/Icons/ContentBrowser/FileIcon.png");
 	}
+
+	constexpr static float padding = 32.0f;
+	constexpr static float thumbnailSize = 50.0f;
+	constexpr static float cellSize = thumbnailSize + padding;
 
 	void ContentBrowserPanel::OnImGuiRender()
 	{
@@ -61,67 +67,149 @@ namespace Kaidel {
 		}
 		ShowFileNavigator();
 
-
-		auto relative = std::filesystem::relative(m_CurrentPath, m_StartPath);
-		constexpr static float padding = 32.0f;
-		constexpr static float thumbnailSize = 50.0f;
-		constexpr static float cellSize = thumbnailSize + padding;
 		
 		float panelWidth = ImGui::GetContentRegionAvail().x;
 		int columnCount = (int)(panelWidth / cellSize);
 		if (columnCount < 1)
 			columnCount = 1;
 		ImGui::Columns(columnCount, 0, false);
+
 		int i = 0;
 
 		for (auto& directoryEntry : std::filesystem::directory_iterator(m_CurrentPath)) {
-			auto& path = directoryEntry.path();
-			std::string filename = path.filename().string();
-			static int editingIndex = -1;
-			ImGui::PushID(i);
-			auto& icon = directoryEntry.is_directory() ? m_Icons.DirectoryIcon : m_Icons.FileIcon;
-
-			ImGui::PushStyleColor(ImGuiCol_Button, { 0,0,0,0 });
-			
-			ImGui::Image((ImTextureID)icon->GetRendererID(), {thumbnailSize,thumbnailSize}, {0,1}, {1,0});
-
-			if (ImGui::IsItemHovered()) {
-				if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-					// Folder
-					if (directoryEntry.is_directory()) {
-						m_CurrentPath /= path.filename();
-						editingIndex = -1;
-						strcpy(m_SelectedFileName, "");
-					}
-					// File
+			if (directoryEntry.path().extension() == Extensions::MetaData)
+				continue;
+			RenderThumbnail(directoryEntry, i);
+			++i;
+		}
+		
+		ImGui::Columns(1);
+		if (ImGui::BeginPopupContextWindow("##ContentBrowser", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
+			if (ImGui::BeginMenu("New")) {
+				if (ImGui::MenuItem("Script")) {
+					auto x = m_CurrentPath/ Utils::CreateNewFileName(m_CurrentPath.string(), "Script", ".cs");
+					std::ofstream file(x);
 				}
-				if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-					if (!directoryEntry.is_directory()) {
-
-						SelectedType type = Utils::SelectedTypeFromExtension(Utils::Lower(path.extension().string()));
-						if (type == SelectedType::Asset) {
-							m_Context->Type = SelectedType::Asset;
-							m_Context->_SelectedAsset = AssetManager::AssetsByPath(path);
-						}
-					}
+				if (ImGui::MenuItem("Material")) {
+					std::string fileName = Utils::CreateNewFileName(m_CurrentPath.string(), "Material", Extensions::Material);
+					auto x = m_CurrentPath / fileName;
+					Ref<Material> mat = CreateRef<Material>();
+					mat->Name(fileName);
+					MaterialSerializer serializer(mat);
+					serializer.Serialize(x);
+					AssetManager::Manage(mat,true,x);
 				}
-				
+				ImGui::EndMenu();
 			}
 
-			{
-				DragDropSource dragdropSource(ImGuiDragDropFlags_SourceAllowNullID);
+			ImGui::EndPopup();
+		}
+		ImGui::End();
+	}
 
-				const char* type = Utils::DragDropNameFromExtension(Utils::Lower(path.extension().string()));
-				if (type) {
-					const wchar_t* itemPath = path.c_str();
-					dragdropSource.Send<wchar_t>(type, itemPath, wcslen(itemPath) + 1);
-				}
+	template<typename T>
+	static void HandleDrag(DragDropSource& dragdropSource,const Path& path,const std::string& extension,const char* dragDropName,const T& data) {
+		if (path.extension().string() == extension) {
+			dragdropSource.Send(dragDropName, &data);
+		}
+	}
 
+	void ContentBrowserPanel::RenderThumbnail(const FileSystem::directory_entry& directoryEntry,uint32_t i) {
+		auto& path = directoryEntry.path();
+
+		std::string filename = path.filename().string();
+		static int editingIndex = -1;
+		ImGui::PushID(i);
+		bool isDirectory = directoryEntry.is_directory();
+		auto& icon = isDirectory ? m_Icons.DirectoryIcon : m_Icons.FileIcon;
+
+		ImGui::PushStyleColor(ImGuiCol_Button, { 0,0,0,0 });
+
+
+
+		Ref<_Asset> asset = AssetManager::AssetsByPath(path);
+
+		if (isDirectory) {
+			if (ImGui::ImageButtonEx(1, (ImTextureID)icon->GetRendererID(), { thumbnailSize,thumbnailSize }, { 0,1 }, { 1,0 }, { 0,0,0,0 }, { 1,1,1,1 }, ImGuiButtonFlags_PressedOnDoubleClick)) {
+				m_CurrentPath /= path.filename();
+				editingIndex = -1;
+				strcpy(m_SelectedFileName, "");
 			}
+		}
+		else {
+			if (ImGui::ImageButton((ImTextureID)icon->GetRendererID(), { thumbnailSize,thumbnailSize }, { 0,1 }, { 1,0 })) {
+				SelectedType type = Utils::SelectedTypeFromExtension(Utils::Lower(path.extension().string()));
+				if (type == SelectedType::Asset) {
+					if (asset) {
+						m_Context->_SelectedAsset = asset;
+						m_Context->Type = SelectedType::Asset;
+					}
+					//Asset doesn't exist
+					else {
+					}
+				}
+			}
+		}
+
+		
 
 
-			ImGui::PopStyleColor();
-			if (editingIndex==i||(editingIndex==-1&&filename == m_SelectedFileName)) {
+
+		// Drag drops
+		{
+			DragDropSource dragdropSource(0);
+
+			const char* type = Utils::DragDropNameFromExtension(Utils::Lower(path.extension().string()));
+			/*if (type) {
+				const wchar_t* itemPath = path.c_str();
+				dragdropSource.Send<wchar_t>(type, itemPath, wcslen(itemPath) + 1);
+			}*/
+			if (asset) {
+				HandleDrag<uint64_t>(dragdropSource, path, Extensions::Material, "ENTITY_ADD_MATERIAL", asset->AssetID().operator size_t());
+			}
+		}
+
+		//// Mouse clicking
+		//{
+		//	if (ImGui::IsItemHovered()) {
+		//		if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+		//			// Folder
+		//			if (directoryEntry.is_directory()) {
+		//				m_CurrentPath /= path.filename();
+		//				editingIndex = -1;
+		//				strcpy(m_SelectedFileName, "");
+		//			}
+		//			// File
+		//		}
+		//		else if (ImGui::IsItemClicked(ImGuiMouseButton_Left) && !ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+		//			std::cout << "Hello\n";
+		//			if (!directoryEntry.is_directory()) {
+		//				SelectedType type = Utils::SelectedTypeFromExtension(Utils::Lower(path.extension().string()));
+		//				if (type == SelectedType::Asset) {
+		//					if (asset) {
+		//						m_Context->_SelectedAsset = asset;
+		//						m_Context->Type = SelectedType::Asset;
+		//					}
+		//					//Asset doesn't exist
+		//					else {
+
+		//					}
+
+		//				}
+		//			}
+		//		}
+
+		//	}
+		//}
+		//
+
+		
+
+
+		ImGui::PopStyleColor();
+		//Name editing
+		{
+			if (editingIndex == i || (editingIndex == -1 && filename == m_SelectedFileName)) {
 				if (ImGui::InputText("##", m_SelectedFileName, 24)) {
 					editingIndex = i;
 				}
@@ -146,37 +234,12 @@ namespace Kaidel {
 					strcpy(m_SelectedFileName, filename.c_str());
 				}
 			}
-
-			ImGui::NextColumn();
-			ImGui::PopID();
-			++i;
 		}
 		
-		ImGui::Columns(1);
-		if (ImGui::BeginPopupContextWindow("##ContentBrowser", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
-			if (ImGui::BeginMenu("New")) {
-				if (ImGui::MenuItem("Script")) {
-					auto x = m_CurrentPath/ Utils::CreateNewFileName(m_CurrentPath.string(), "Script", ".cs");
-					std::ofstream file(x);
-				}
-				if (ImGui::MenuItem("Material")) {
-					std::string fileName = Utils::CreateNewFileName(m_CurrentPath.string(), "Material", ".mat");
-					auto x = m_CurrentPath / fileName;
-					Ref<Material> mat = CreateRef<Material>();
-					mat->Name(fileName);
-					MaterialSerializer serializer(mat);
-					serializer.Serialize(x);
-					mat->Path(x);
-					AssetManager::Manage(mat);
-				}
-				ImGui::EndMenu();
-			}
 
-			ImGui::EndPopup();
-		}
-		ImGui::End();
+		ImGui::NextColumn();
+		ImGui::PopID();
 	}
-
 
 	void ContentBrowserPanel::ShowFileNavigator()
 	{
@@ -224,7 +287,4 @@ namespace Kaidel {
 			ImGui::PopStyleVar();
 			ImGui::PopStyleColor(2);
 	}
-
-
-
 }

@@ -2,43 +2,99 @@
 #include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
 #include "Kaidel/Renderer/2D/Material2D.h"
 #include "Kaidel/Core/BoundedVector.h"
+
+#include "Kaidel/Renderer/GraphicsAPI/VertexArray.h"
+#include "Kaidel/Renderer/GraphicsAPI/Buffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/Shader.h"
+#include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
+
+
 #include <glm/glm.hpp>
 
 namespace Kaidel {
 
-	struct SpriteVertex {
+	struct _SpriteVertexBase {
 		glm::vec3 Position;
 		glm::vec2 TexCoords;
 		int32_t MaterialID;
 	};
 
-	struct LineVertex {
+	template<uint32_t Size>
+	struct _SpriteVertex : public _SpriteVertexBase {
+		uint8_t AdditionalDataBlock[Size];
+	};
+
+	template<>
+	struct _SpriteVertex<0> : public _SpriteVertexBase {};
+
+
+
+	struct _LineVertexBase {
 		glm::vec3 Position;
 		glm::vec4 Color;
 	};
 
-	struct BezierVertex {
+	template<uint32_t Size>
+	struct _LineVertex : public _LineVertexBase {
+		uint8_t AdditionalDataBlock[Size];
+	};
+
+	template<>
+	struct _LineVertex<0> : public _LineVertexBase {};
+
+
+	struct _BezierVertexBase {
 		glm::vec3 Position;
 	};
 
-	struct PointVertex {
+
+	template<uint32_t Size>
+	struct _BezierVertex : public _BezierVertexBase {
+		uint8_t AdditionalDataBlock[Size];
+	};
+
+	template<>
+	struct _BezierVertex<0> : public _BezierVertexBase {};
+
+
+	struct _PointVertexBase {
 		glm::vec3 Position;
 		glm::vec4 Color;
 	};
+
+	template<uint32_t Size>
+	struct _PointVertex : public _PointVertexBase {
+		uint8_t AdditionalDataBlock[Size];
+	};
+
+
+	using SpriteVertex = _SpriteVertex<0>;
+	using LineVertex = _LineVertex<0>;
+	using BezierVertex = _BezierVertex<0>;
+	using PointVertex = _PointVertex<0>;
 
 	struct Renderer2DBeginData {
 		glm::mat4 CameraVP;
 		Ref<Framebuffer> OutputBuffer;
 	};
 
-	struct CustomRenderer2D {
+	/*struct CustomRenderer2D {
 		Ref<VertexArray> VAO = {};
 		Ref<VertexBuffer> VBO = {};
 		Ref<IndexBuffer> IBO = {};
 		Ref<Shader> Shader = {};
+	};*/
+
+
+	struct CustomRenderer {
+		Ref<VertexArray> VAO;
+		Ref<Shader> Shader;
 	};
 
 
+
+
+#pragma region RenedereringLimits
 	static inline constexpr uint32_t MaxSprites = 2048;
 	static inline constexpr uint32_t MaxSpriteVertices = MaxSprites * 4;
 	static inline constexpr uint32_t MaxSpriteIndices = MaxSprites * 6;
@@ -47,19 +103,67 @@ namespace Kaidel {
 	static inline constexpr uint32_t MaxLineVertices = MaxLines * 2;
 
 	static inline constexpr uint32_t MaxPoints = 2048;
-
+#pragma endregion
 	class Renderer2D {
 	public:
+
+
 		static void Init();
 		static void Shutdown();
 		static void Begin(const Renderer2DBeginData& beginData);
 		static void DrawSprite(const glm::mat4& transform, Ref<Material2D> material);
-		static void DrawBezier(const glm::mat4& transform,const std::vector<glm::vec3>& points, const glm::vec4& color, float increment = 0.001);
+		static void DrawBezier(const glm::mat4& transform, const std::vector<glm::vec3>& points, const glm::vec4& color, float increment = 0.001);
 		static void DrawLine(const glm::vec3& p0, const glm::vec3& p1, const glm::vec4& color);
-		static void DrawPoint(const glm::vec3& position, const glm::vec4& color);
+
+
+
+
+
+		template<uint32_t Size = 0>
+		static void DrawPoint(const glm::vec3& position, const glm::vec4& color, void* data = nullptr) {
+			auto bvi = VerticesBuffer<_PointVertex<Size>, MaxPoints>::Vertices.Reserve(1);
+			bvi[0] = { position,color };
+
+			if constexpr (Size != 0) {
+				if (data != nullptr) {
+					std::memcpy(bvi[0].AdditionalDataBlock, data, Size);
+				}
+			}
+			++s_Renderer2DData.PointRendererData.PointsWaitingForRender;
+		}
+
+
+		static void FlushSprites();
+		static void FlushLines();
+
+		template<uint32_t Size = 0>
+		static void FlushPoints() {
+			auto& vertices = VerticesBuffer<_PointVertex<Size>, MaxPoints>::Vertices;
+			auto& renderer = s_Renderer2DData.PointRendererData.CustomRenderers.top();
+			if (s_Renderer2DData.PointRendererData.PointsWaitingForRender) {
+				s_Renderer2DData.OutputBuffer->Bind();
+				renderer.VAO->GetVertexBuffers().front()->SetData(vertices.Get(), vertices.Size() * sizeof(_PointVertex<Size>));
+				renderer.Shader->Bind();
+				RenderCommand::SetCullMode(CullMode::None);
+				RenderCommand::DrawPoints(renderer.VAO, s_Renderer2DData.PointRendererData.PointsWaitingForRender);
+				s_Renderer2DData.PointRendererData.RenderedPointCount += s_Renderer2DData.PointRendererData.PointsWaitingForRender;
+				s_Renderer2DData.PointRendererData.PointsWaitingForRender = 0;
+				s_Renderer2DData.OutputBuffer->Unbind();
+				vertices.Reset();
+			}
+		}
+
 		static void End();
 
-		template<typename T,uint64_t RendererID>
+		
+		CustomRenderer CreatePointRenderer(const std::initializer_list<BufferElement>& additionalElements, Ref<Shader> shader);
+		static void PushPointRenderer(const CustomRenderer& renderer);
+		static void PopPointRenderer();
+
+	private:
+
+
+		/*template<typename T,uint64_t RendererID>
 		static void BeginCustomSprite(const CustomRenderer2D& customSpriteRenderer) {
 			CustomSpriteRendererData<T, RendererID>::CustomRenderer = customSpriteRenderer;
 			CustomSpriteRendererData<T, RendererID>::SpritesWaitingForRender = 0;
@@ -157,11 +261,9 @@ namespace Kaidel {
 		template<typename T, uint64_t RendererID>
 		static void EndCustomPoint() {
 			FlushPoints<T, RendererID>();
-		}
-		static void FlushSprites();
-		static void FlushLines();
-		static void FlushPoints();
-		template<typename T, uint64_t RendererID>
+		}*/
+		
+		/*template<typename T, uint64_t RendererID>
 		static void FlushSprites() {
 			using CustomRenderer = CustomSpriteRendererData<T, RendererID>;
 			BoundedVector<T>& vertices = CustomRenderer::Vertices;
@@ -218,7 +320,7 @@ namespace Kaidel {
 				outputBuffer->Unbind();
 			}
 			vertices.Reset();
-		}
+		}*/
 	private:
 		
 
@@ -232,7 +334,7 @@ namespace Kaidel {
 		friend struct SpriteRendererData;
 		friend struct LineRendererData;
 		friend struct PointRendererData;
-		template<typename T,uint64_t RendererID>
+		/*template<typename T,uint64_t RendererID>
 		struct CustomSpriteRendererData {
 			static inline BoundedVector<T> Vertices = { 0,MaxSpriteVertices,[](auto data,uint64_t size) {
 				FlushSprites<T,RendererID>();
@@ -267,10 +369,101 @@ namespace Kaidel {
 			static inline CustomRenderer2D CustomRenderer;
 			static inline uint32_t PointsWaitingForRender = 0;
 			static inline uint32_t RenderedPointCount = 0;
+		};*/
+
+		template<typename T,uint32_t MaxVertices>
+		struct VerticesBuffer {
+			static inline BoundedVector<T> Vertices = { 0,MaxVertices,[](auto data,uint64_t size) {} };
+		};
+
+		struct SpriteRendererData {
+
+
+			SpriteVertex DefaultSpriteVertices[4];
+
+			Ref<VertexArray> SpriteVAO;
+			Ref<VertexBuffer> SpriteVBO;
+			Ref<Shader> SpriteShader;
+
+			uint32_t RenderedSpriteCount = 0;
+			uint32_t SpritesWaitingForRender = 0;
+
+			std::mutex SpriteRenderingMutex;
+			uint32_t* SetupSpriteIndices() {
+				uint32_t* quadIndices = new uint32_t[MaxSpriteIndices];
+
+				uint32_t offset = 0;
+				for (uint32_t i = 0; i < MaxSpriteIndices; i += 6)
+				{
+					quadIndices[i + 0] = offset + 0;
+					quadIndices[i + 1] = offset + 1;
+					quadIndices[i + 2] = offset + 2;
+
+					quadIndices[i + 3] = offset + 2;
+					quadIndices[i + 4] = offset + 3;
+					quadIndices[i + 5] = offset + 0;
+
+					offset += 4;
+				}
+				return quadIndices;
+			}
+			void Init();
+		};
+
+		struct LineRendererData {
+
+			Ref<VertexArray> LineVAO;
+			Ref<VertexBuffer> LineVBO;
+			Ref<Shader> LineShader;
+
+			uint32_t RenderedLineCount = 0;
+			uint32_t LinesWaitingForRender = 0;
+
+			void Init();
+		};
+
+		struct BezierRendererData {
+
+			Ref<Shader> BezierShader;
+
+			Ref<VertexArray> BezierVAO;
+			Ref<VertexBuffer> BezierVBO;
+
+			void Init();
+		};
+
+		struct PointRendererData {
+
+
+
+			uint32_t RenderedPointCount = 0;
+			uint32_t PointsWaitingForRender = 0;
+
+			std::stack<CustomRenderer> CustomRenderers;
+
+			void Init();
 		};
 
 
-	private:
+		struct Renderer2DData {
+
+
+			Ref<Framebuffer> OutputBuffer;
+
+			struct Camera {
+				glm::mat4 CameraViewProjection;
+			};
+
+			Camera CameraBuffer;
+
+			Ref<UniformBuffer> CameraUniformBuffer;
+			Ref<Material2D> DefaultMaterial;
+			SpriteRendererData SpriteRendererData;
+			LineRendererData LineRendererData;
+			BezierRendererData BezierRendererData;
+			PointRendererData PointRendererData;
+		};
+		static inline Renderer2DData s_Renderer2DData;
 	};
 
 	

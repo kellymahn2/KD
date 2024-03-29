@@ -35,9 +35,11 @@ namespace Kaidel {
 		uint32_t Divisor;
 		uint32_t Size;
 		size_t Offset;
-		bool Normalized;
-		BufferElement() = default;
 
+		bool Normalized;
+		
+		BufferElement() = default;
+		
 		BufferElement(ShaderDataType type, const std::string& name,uint32_t divisor = 0,bool normalized = false)
 			: Name(name), Type(type), Size(ShaderDataTypeSize(type)), Offset(0), Divisor(divisor), Normalized(normalized)
 		{
@@ -76,8 +78,17 @@ namespace Kaidel {
 			CalculateOffsetsAndStride();
 		}
 
+		void Push(std::initializer_list<BufferElement> elements)
+		{
+			for (auto& element : elements) {
+				m_Elements.push_back(element);
+			}
+			CalculateOffsetsAndStride();
+		}
+
 		uint32_t GetStride() const { return m_Stride; }
 		const std::vector<BufferElement>& GetElements() const { return m_Elements; }
+		void SetStride(uint32_t stride) { m_Stride = stride; }
 
 		std::vector<BufferElement>::iterator begin() { return m_Elements.begin(); }
 		std::vector<BufferElement>::iterator end() { return m_Elements.end(); }

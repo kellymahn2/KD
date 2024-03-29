@@ -62,7 +62,6 @@ namespace Kaidel {
 		operator bool()const { return Delivered; }
 	};
 
-
 	class DragDropTarget {
 	public:
 

@@ -14,7 +14,6 @@ namespace Kaidel {
 		RGB32I,//3-component 96-bits
 
 		RGBA16F,//4-component 64-bits
-		RGBA16,//4-component 64-bits
 		RGBA16UI,//4-component 64-bits
 		RGBA16NORM,//4-component 64-bits
 		RGBA16I,//4-component 64-bits
@@ -29,7 +28,6 @@ namespace Kaidel {
 		RGBA8I,//4-component 32-bits
 
 		RG16F,//2-component 32-bits
-		RG16,//2-component 32-bits
 		RG16UI,//2-component 32-bits
 		RG16NORM,//2-component 32-bits
 		RG16I,//2-component 32-bits
@@ -44,7 +42,6 @@ namespace Kaidel {
 		RG8I,//2-component 16-bits
 
 		R16F,//1-component 16-bits
-		R16,//1-component 16-bits
 		R16UI,//1-component 16-bits
 		R16NORM,//1-component 16-bits
 		R16I,//1-component 16-bits

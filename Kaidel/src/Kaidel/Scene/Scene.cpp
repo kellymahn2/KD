@@ -286,14 +286,6 @@ namespace Kaidel {
 		}*/
 	}
 
-	Entity Scene::CreateModelEntity(Ref<Model> model) {
-		auto& subMeshes = model->m_MeshHandles;
-		Entity res = CreateEntity("Entity");
-		CreateModelOnEntity(subMeshes, res);
-		return res;
-	}
-
-
 	Entity Scene::GetEntity(UUID id)
 	{
 		if (m_IDMap.find(id) != m_IDMap.end())

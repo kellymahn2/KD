@@ -22,8 +22,10 @@ namespace Kaidel {
 
 	private:
 		Ref<PanelContext> m_Context;
-
 		void ShowFileNavigator();
+
+		void RenderThumbnail(const FileSystem::directory_entry& directoryEntry,uint32_t i);
+
 		std::filesystem::path m_StartPath;
 		std::filesystem::path m_CurrentPath;
 		char m_SelectedFileName[100] = {0};

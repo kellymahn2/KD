@@ -1,5 +1,6 @@
 #include "PropertiesPanel.h"
 #include "Kaidel/Scripting/ScriptEngine.h"
+#include "Kaidel/Renderer/MaterialTexture.h"
 #include "Kaidel/Assets/AssetManager.h"	
 #include "Kaidel/Project/Project.h"
 #include "Kaidel/Renderer/GraphicsAPI/Copier.h"
@@ -219,7 +220,8 @@ namespace Kaidel {
 	static void DrawComponent(const std::string& name, Entity entity, UIFunction uiFunction, bool removeable = true)
 	{
 		static std::unordered_map<std::string, bool> s_Map;
-		const ImGuiTreeNodeFlags treeNodeFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_Leaf;
+		const ImGuiTreeNodeFlags treeNodeFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnDoubleClick | 
+			ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_Leaf;
 		if (entity.HasComponent<T>())
 		{
 			ImVec2 contentRegionAvailable = ImGui::GetContentRegionAvail();
@@ -348,6 +350,21 @@ namespace Kaidel {
 
 
 
+
+
+	void HandleEntityDragDrops(Entity entity) {
+
+		DragDropTarget dragdropTarget;
+		// Materials
+		if (auto delivery = dragdropTarget.Receive<uint64_t>("ENTITY_ADD_MATERIAL"); delivery) {
+			auto& mc = entity.TryAddComponent<MaterialComponent>();
+			auto mat = AssetManager::AssetByID(*delivery.Data);
+			if (mat)
+				mc.Material = std::move(mat);
+		}
+	}
+
+
 	void PropertiesPanel::OnImGuiRender() {
 		ImGui::Begin("Properties");
 
@@ -367,9 +384,28 @@ namespace Kaidel {
 		renderer.Apply<Material>(KD_BIND_EVENT_FN(DrawMaterialUI));
 	}
 
-	template<typename T>
-	void DrawAssetNode() {
+	
+	template<typename Func>
+	static void DrawAssetChooser(const std::string& chooserName,Func&& func) {
+		static bool chooserOpen = false;
 
+		if (ImGui::Button("Choose... "))
+			chooserOpen = !chooserOpen;
+		
+
+
+		bool chooser = chooserOpen;
+
+		if (chooser) {
+			if (ImGui::Begin(chooserName.c_str(), &chooser)) {
+				bool chooserState = func();
+				if (chooserOpen) {
+					chooserOpen = chooserState;
+				}
+			}
+			ImGui::End();
+		}
+		chooserOpen = chooser;
 	}
 
 
@@ -391,17 +427,91 @@ namespace Kaidel {
 			mat->SetColor(color);
 			assetChanged = true;
 		}
+		{
+			const ImGuiTreeNodeFlags treeNodeFlags = ImGuiTreeNodeFlags_Framed |
+				ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding;
 
-		Ref<TextureView> albedoView = MaterialTextureHandler::GetTexturesMap()->GetView(mat->GetDiffuse());
+			{
+				Styler styler;
+				styler.PushStyle(ImGuiStyleVar_FramePadding, ImVec2{ 4, 4 });
+				styler.PushColor(ImGuiCol_Header, ImVec4{ 0,0,0,0 });
+				styler.PushColor(ImGuiCol_HeaderActive, ImVec4{ 0,0,0,0 });
+				styler.PushColor(ImGuiCol_HeaderHovered, ImVec4{ 0,0,0,0 });
 
-		if (albedoView) {
-			ImGui::Image((ImTextureID)albedoView->GetRendererID(),{64,64},{0,1},{1,0});
-			static bool selectingAbledo = false;
+				if (ImGui::TreeNodeEx("Albedo", treeNodeFlags)) {
+					Ref<TextureView> albedoView = MaterialTexture::GetTextureArray()->GetView(mat->GetDiffuse());
+					if (albedoView) {
+						ImGui::Image((ImTextureID)albedoView->GetRendererID(), { 64,64 }, { 0,1 }, { 1,0 });
+					}
 
-			selectingAbledo = selectingAbledo || (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left));
+					ImGui::SameLine();
 
+					DrawAssetChooser("Textures", [&mat, treeNodeFlags]() {
+						Ref<Texture2DArray> array = MaterialTexture::GetTextureArray();
+						for (uint32_t i = 1; i < array->GetLayerCount(); ++i) {
+							Ref<TextureView> view = array->GetView(i);
+							bool isSelected = i == mat->GetDiffuse();
+							if (ImGui::TreeNodeEx(fmt::format("{}", i).c_str(), treeNodeFlags | (isSelected ? ImGuiTreeNodeFlags_Selected : 0))) {
+								if (view)
+									ImGui::Image((ImTextureID)view->GetRendererID(), { 64,64 }, { 0,1 }, { 1,0 });
+
+								bool textureChosen = false;
+								if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && ImGui::IsItemHovered()) {
+									mat->SetDiffuse(i);
+									textureChosen = true;
+								}
+
+								ImGui::TreePop();
+
+								if (textureChosen)
+									return false;
+							}
+						}
+						return true;
+						});
+
+
+
+					ImGui::TreePop();
+				}
+
+				if (ImGui::TreeNodeEx("Specular", treeNodeFlags)) {
+					Ref<TextureView> specularView = MaterialTexture::GetTextureArray()->GetView(mat->GetSpecular());
+					if (specularView) {
+						ImGui::Image((ImTextureID)specularView->GetRendererID(), { 64,64 }, { 0,1 }, { 1,0 });
+					}
+
+					ImGui::SameLine();
+
+					DrawAssetChooser("Textures", [&mat, treeNodeFlags]() {
+						Ref<Texture2DArray> array = MaterialTexture::GetTextureArray();
+						for (uint32_t i = 1; i < array->GetLayerCount(); ++i) {
+							Ref<TextureView> view = array->GetView(i);
+							bool isSelected = i == mat->GetSpecular();
+							if (ImGui::TreeNodeEx(fmt::format("{}", i).c_str(), treeNodeFlags | (isSelected ? ImGuiTreeNodeFlags_Selected : 0))) {
+								if (view)
+									ImGui::Image((ImTextureID)view->GetRendererID(), { 64,64 }, { 0,1 }, { 1,0 });
+
+								bool textureChosen = false;
+								if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && ImGui::IsItemHovered()) {
+									mat->SetSpecular(i);
+									textureChosen = true;
+								}
+
+								ImGui::TreePop();
+
+								if (textureChosen)
+									return false;
+							}
+						}
+						return true;
+						});
+
+					ImGui::TreePop();
+
+				}
+			}
 		}
-
 
 		if (assetChanged) {
 			Project::OnChangeAssetActive(mat);
@@ -409,13 +519,6 @@ namespace Kaidel {
 
 	}
 
-	static void HandleDragDrops(Entity entity) {
-
-		DragDropTarget dragdropTarget;
-
-		dragdropTarget.Receive<uint64_t>("ENTITY_ADD_MATERIAL"); // Materials
-
-	}
 
 
 
@@ -427,7 +530,23 @@ namespace Kaidel {
 			return;
 		Scene* scene = m_Context->Scene.Get();
 
-		HandleDragDrops(entity);
+
+		//Drag drops
+		{
+			ImVec2 size = ImGui::GetContentRegionAvail();
+			ImVec2 cursorPos = ImGui::GetCursorPos();
+
+			ImGui::PushStyleColor(ImGuiCol_DragDropTarget, { 0,0,0,0 });
+
+			ImGui::Dummy(size);
+
+
+			HandleEntityDragDrops(entity);
+
+			ImGui::SetCursorPos(cursorPos);
+			ImGui::PopStyleColor();
+		}
+
 
 		auto& id = entity.GetComponent<IDComponent>();
 		ImGui::Checkbox("##Active", &id.IsActive);
@@ -513,7 +632,29 @@ namespace Kaidel {
 
 			});
 
-		DrawComponent<MaterialComponent>("Material", entity, [](MaterialComponent& component) {
+		DrawComponent<MaterialComponent>("Material", entity, [this,entity](MaterialComponent& component) {
+			
+			DrawAssetChooser("Materials", [&component]() {
+
+				auto& physicalAssets =  AssetManager::GetPhysicalAssets();
+
+
+				for (auto& [path, asset] : physicalAssets) {
+
+					if (asset->AssetTypeID() != Material::StaticAssetTypeID())
+						continue;
+
+					bool selected = component.Material == asset;
+					if (ImGui::Selectable(path.stem().string().c_str(), &selected)) {
+						component.Material = asset;
+						return false;
+					}
+
+				}
+
+				return true;
+				});
+			
 			});
 
 
@@ -898,10 +1039,7 @@ namespace Kaidel {
 			}
 
 			ImGui::PopItemWidth();
-
+			
 	}
-
-
-
 
 }

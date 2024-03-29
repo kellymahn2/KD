@@ -98,7 +98,7 @@ namespace Kaidel {
 				if (m_Ptr)
 					m_Ptr->DecrementRef<T>();
 
-				m_Ptr = other.m_Ptr;
+				m_Ptr = (T*)other.m_Ptr;
 
 				if (m_Ptr)
 					m_Ptr->IncrementRef();
@@ -114,7 +114,7 @@ namespace Kaidel {
 				if (m_Ptr)
 					m_Ptr->DecrementRef<T>();
 
-				m_Ptr = other.m_Ptr;
+				m_Ptr = (T*)other.m_Ptr;
 				other.m_Ptr = nullptr;
 			}
 			return *this;

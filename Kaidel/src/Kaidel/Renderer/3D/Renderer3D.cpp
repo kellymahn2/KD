@@ -7,6 +7,7 @@
 #include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
 #include "Kaidel/Renderer/RenderCommand.h"
 #include "Kaidel/Renderer/3D/Light.h"
+#include "Kaidel/Renderer/MaterialTexture.h"
 #include "Kaidel/Core/Timer.h"
 #include<unordered_set>
 namespace Kaidel {
@@ -133,7 +134,6 @@ namespace Kaidel {
 
 		}
 
-		MaterialTextureHandler::Init();
 	}
 	void Renderer3D::Shutdown() {
 
@@ -175,7 +175,7 @@ namespace Kaidel {
 
 
 		Material::SetMaterials();
-		MaterialTextureHandler::GetTexturesMap()->Bind(0);
+		MaterialTexture::GetTextureArray()->Bind(0);
 		SpotLight::SetLights();
 		PointLight::SetLights();
 		DirectionalLight::SetLights();

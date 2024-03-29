@@ -1,10 +1,14 @@
 #pragma once
-#include <glm/glm.hpp>
-#include <vector>
+
+
 #include "Kaidel/Renderer/GraphicsAPI/Shader.h""
 #include "Kaidel/Renderer/GraphicsAPI/Texture.h"
 #include "Kaidel/Renderer/GraphicsAPI/TextureArray.h"
 #include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
+
+#include <glm/glm.hpp>
+#include <vector>
+
 namespace Kaidel
 {
 	//struct _LightInternal{
@@ -83,7 +87,7 @@ namespace Kaidel
 			s_InternalData.emplace_back(T{});
 			s_Lights.push_back(this);
 			if (!s_LightDepthMaps)
-				s_LightDepthMaps = Texture2DArray::Create(_ShadowMapWidth, _ShadowMapHeight, TextureFormat::Depth32F);
+				s_LightDepthMaps = Texture2DArray::Create(_ShadowMapWidth, _ShadowMapHeight, TextureFormat::Depth32F,false);
 			s_LightDepthMaps->PushTexture(nullptr,_ShadowMapWidth,_ShadowMapHeight);
 		}
 		~Light() {
@@ -102,7 +106,7 @@ namespace Kaidel
 			s_MaterialUAV->SetBufferData(s_InternalData.data(), s_InternalData.size());
 			s_MaterialUAV->Bind(BindingSlot);
 			if(!s_LightDepthMaps)
-				s_LightDepthMaps = Texture2DArray::Create(_ShadowMapWidth, _ShadowMapHeight,TextureFormat::Depth32F);
+				s_LightDepthMaps = Texture2DArray::Create(_ShadowMapWidth, _ShadowMapHeight,TextureFormat::Depth32F, false);
 			float clearVal = 1.0f;
 			s_LightDepthMaps->Clear(&clearVal);
 			s_LightDepthMaps->Bind(BindingSlot);

@@ -10,20 +10,9 @@ namespace Kaidel {
 		glm::vec4 Color = glm::vec4(1.0f);
 		uint32_t Albedo = 0;
 	};
-	static inline constexpr uint32_t _Material2DTexturesBindingSlot = 0;
 	static inline constexpr uint32_t _Material2DInternalBindingSlot = 1;
 
-	class Material2DTextureHandler {
-	public:
-		static void Init();
-		static uint32_t LoadTexture(const std::filesystem::path& texturePath);
-		static uint32_t LoadTexture(void* data, uint32_t width, uint32_t height);
-		static const std::unordered_map<std::string, uint32_t>& GetTextureIndexMap() { return s_TextureIndexMap; }
-		static Ref<Texture2DArray> GetTexturesMap() { return s_TexturesMap; }
-	private:
-		static inline std::unordered_map<std::string, uint32_t> s_TextureIndexMap;
-		static inline Ref<Texture2DArray> s_TexturesMap;
-	};
+	
 
 	class Material2D : public IRCCounter<false> {
 	public:

@@ -30,8 +30,14 @@ namespace Kaidel {
 		m_Window = Window::Create(WindowProps(m_Specification.Name));
 		m_Window->SetEventCallback(KD_BIND_EVENT_FN(Application::OnEvent));
 
+
+
 		Renderer::Init();
 		ScriptEngine::Init();
+
+		JobSystem::InitMainJobSystem();
+
+
 		m_ImGuiLayer = new ImGuiLayer();
 		PushOverlay(m_ImGuiLayer);
 
@@ -39,6 +45,7 @@ namespace Kaidel {
 
 	Application::~Application()
 	{
+		delete &JobSystem::GetMainJobSystem();
 		ScriptEngine::Shutdown();
 		Renderer::Shutdown();
 	}
@@ -150,10 +157,11 @@ namespace Kaidel {
 
 		return true;
 	}
+
 	void Application::ExecuteMainThreadQueue()
 	{
-
 		std::scoped_lock<std::mutex> lock(m_AppThreadQueueMutex);
+
 		for (auto& func : m_AppThreadQueue)
 			func();
 		m_AppThreadQueue.clear();

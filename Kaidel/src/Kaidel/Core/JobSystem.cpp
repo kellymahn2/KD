@@ -2,7 +2,7 @@
 #include "JobSystem.h"
 namespace Kaidel {
 	
-	JobSystem JobSystem::s_JobSystem = { 16 };
+	JobSystem* JobSystem::s_JobSystem = nullptr;
 	JobSystem::JobSystem(uint32_t workerThreadCount)
 	{
 		// Initialize the worker execution state to 0:

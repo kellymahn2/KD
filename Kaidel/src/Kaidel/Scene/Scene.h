@@ -19,7 +19,6 @@ namespace Kaidel {
 
 		Entity CreateEntity(const std::string& name = std::string());
 		Entity CreateEntity(UUID uuid, const std::string& name = std::string());
-		Entity CreateModelEntity(Ref<Model> model);
 		Entity CreateCube(const std::string& name = "", UUID uuid = {});
 
 		Entity GetEntity(UUID id);

@@ -21,7 +21,7 @@ layout(std140, binding = 1) uniform LightingData
 	int u_SpotLightCount;
 };
 
-#include "../Core.glsl"
+#include "../Core/Lighting.glsl"
 
 float CalcShadowValue(vec3 position,vec3 normal){
 	float totalShadow = 1.0;
@@ -94,33 +94,12 @@ void main() {
 		//SpotLight
 		{
 			for(int i =0;i < u_SpotLightCount;++i){
-				vec3 lightPos = u_SpotLights[i].Position.xyz;
-				vec3 lightDir = normalize(lightPos - position);
 
-				vec3 lightDirection = u_SpotLights[i].Direction.xyz;
-				vec3 lightAmbient = u_SpotLights[i].Ambient.xyz;
+				LightingCalcResult res = CalculateFragmentLighting(u_SpotLights[i], position,diffuse,spec,normal,viewDir,shininess);
 
-
-				float distance = length(lightPos - position);
-				float attenuation = 1.0/(u_SpotLights[i].ConstantCoefficient+u_SpotLights[i].LinearCoefficient*distance+
-				u_SpotLights[i].QuadraticCoefficient*(distance*distance));
-				attenuation = 1.0;
-
-				//Ambient
-				totalAmbient += lightAmbient * diffuse * attenuation;
-				
-				float theta = dot(lightDir,normalize(-lightDirection));
-				if(theta > u_SpotLights[i].CutOffAngle){
-					vec3 lightDiffuse = u_SpotLights[i].Diffuse.rgb;
-					vec3 lightSpecular = u_SpotLights[i].Specular.rgb;
-
-					//Diffuse
-					totalDiffuse += diffuse * max(dot(normal, lightDir), 0.0) * lightDiffuse * attenuation;
-
-					//Specular
-					vec3 reflectDir = reflect(-lightDir,normal);
-					totalSpecular += lightSpecular * pow(max(dot(viewDir,reflectDir),0.0),shininess) * spec * attenuation;
-				}
+				totalAmbient += res.Ambient.xyz;
+				totalDiffuse = res.Diffuse.xyz;
+				totalSpecular = res.Specular.xyz;
 			
 			}
 

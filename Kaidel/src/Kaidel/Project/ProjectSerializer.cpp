@@ -3,7 +3,10 @@
 
 #include "Kaidel/Assets/AssetManager.h"
 #include "Kaidel/Renderer/3D/MaterialSerializer.h"
-
+#include "Kaidel/Renderer/MaterialTexture.h"
+#include "Kaidel/Serializer/MetaDataSerializer.h"
+#include "Kaidel/Serializer/TextureArraySerializer.h"
+#include "Kaidel/Core/UsedFileExtensions.h"
 #include <yaml-cpp/yaml.h>
 #include <fstream>
 
@@ -32,7 +35,7 @@ namespace Kaidel {
 			return AssetType::None;
 		}
 
-		static Ref<_Asset> DeserializeAsset(YAML::Node& assetNode){
+		static Ref<_Asset> DeserializeAsset(YAML::Node& assetNode,const FileSystem::path& absolutePath){
 
 			AssetType typeID = KaidelAssetTypeFromString(assetNode["AssetType"].as<std::string>());
 
@@ -41,8 +44,10 @@ namespace Kaidel {
 			case Kaidel::AssetType::Material: {
 				Ref<Material> mat = CreateRef<Material>();
 				MaterialSerializer deserializer(mat);
-				if (deserializer.Deserialize(assetNode["AbsolutePath"].as<std::string>())) {
-					mat->AssetID(assetNode["UUID"].as<uint64_t>());
+				std::string relPath = assetNode["Path"].as<std::string>();
+				std::string path = (absolutePath / relPath).string();
+				if (deserializer.Deserialize(path)) {
+					AssetManager::Manage(mat, true, path);
 					return mat;
 				}
 			} break;
@@ -67,43 +72,36 @@ namespace Kaidel {
 
 		out << YAML::BeginMap;// Root
 
-		out << YAML::Key << "Assets" << YAML::Value;
+		//out << YAML::Key << "Assets" << YAML::Value;
 
-		{
-			out << YAML::BeginMap; // Project Assets
+		//{
+		//	out << YAML::BeginMap; // Project Assets
 
-			// Serialize physical assets
+		//	// Serialize physical assets
 
-			out << YAML::Key << "PhysicalAssets" << YAML::Value << YAML::BeginSeq;
+		//	out << YAML::Key << "PhysicalAssets" << YAML::Value << YAML::BeginSeq;
 
-			{
-				const auto& physical = AssetManager::m_PhysicalAssets;
+		//	{
+		//		const auto& physical = AssetManager::m_PhysicalAssets;
 
-				for (auto& [assetPath, asset] : physical) {
-					out << YAML::BeginMap;
-					out << YAML::Key << "UUID" << YAML::Value << asset->AssetID().operator size_t();
-					out << YAML::Key << "AssetType" << YAML::Value << Utils::KaidelAssetTypeToString(asset->AssetTypeID());
-					out << YAML::Key << "AbsolutePath" << YAML::Value << asset->Path().string();
-					out << YAML::EndMap;
-				}
-			}
-			out << YAML::EndSeq;
+		//		for (auto& [assetPath, asset] : physical) {
+		//			out << YAML::BeginMap;
+		//			out << YAML::Key << "AssetType" << YAML::Value << Utils::KaidelAssetTypeToString(asset->AssetTypeID());
+		//			out << YAML::Key << "Path" << YAML::Value << assetPath.string();
+		//			out << YAML::EndMap;
+		//		}
 
+		//	}
 
-			//Serialize material textures
+		//	out << YAML::EndSeq;
 
-			out << YAML::Key << "MaterialTextures" << YAML::Value << YAML::BeginSeq;
-
-			{
-				const auto& texturePaths = MaterialTextureHandler::GetTextureIndexMap();
-			}
+		//	/*out << YAML::Key << "MaterialTextures" << YAML::Value;
+		//	TextureArraySerializer serializer(1);
+		//	serializer.SerializeTo(MaterialTexture::GetTextureArray(), out);*/
 
 
-			out << YAML::EndSeq;
-
-			out << YAML::EndMap; // Project Assets
-
-		}
+		//	out << YAML::EndMap; // Project Assets
+		//}
 
 
 
@@ -113,7 +111,6 @@ namespace Kaidel {
 			out << YAML::BeginMap; // Project Settings
 			out << YAML::Key << "Name" << YAML::Value << config.Name;
 			out << YAML::Key << "StartScene" << YAML::Value << config.StartScene;
-			out << YAML::Key << "AbsoluteProjectDirectory" << YAML::Value << m_Project->m_ProjectDirectory.string();
 			out << YAML::Key << "RelativeAssetDirectory" << YAML::Value << config.RelAssetDirectory.string();
 			out << YAML::Key << "ProjectAutoSave" << YAML::Value << config.ProjectAutoSave;
 			out << YAML::Key << "ProjectAutoSaveTimer" << YAML::Value << config.ProjectAutoSaveTimer;
@@ -135,11 +132,13 @@ namespace Kaidel {
 	bool ProjectSerializer::Deserialize(const std::filesystem::path& path) {
 		auto& config = m_Project->GetConfig();
 
+
 		YAML::Node data;
 		try {
 			data = YAML::LoadFile(path.string());
 		}
-		catch (YAML::ParserException e) {
+		catch (YAML::ParserException& e) {
+			std::string s = e.what();
 			KD_CORE_ERROR("Failed to load project file at {}",path.string());
 			return false;
 		}
@@ -150,20 +149,6 @@ namespace Kaidel {
 			return false;
 		}
 
-		auto assetsNode = data["Assets"];
-		if (assetsNode) {
-			// Deserialize physical assets
-			{
-				auto physicalAssets = assetsNode["PhysicalAssets"];
-				if (physicalAssets) {
-					for (auto assetNode : physicalAssets) {
-						Ref<_Asset> asset = Utils::DeserializeAsset(assetNode);
-						if (asset)
-							AssetManager::Manage(asset);
-					}
-				}
-			}
-		}
 
 
 		config.Name = projectNode["Name"].as<std::string>();
@@ -172,7 +157,65 @@ namespace Kaidel {
 		config.AbsAssetDirectory = path.parent_path() / config.RelAssetDirectory;
 		config.ProjectAutoSave = projectNode["ProjectAutoSave"].as<bool>();
 		config.ProjectAutoSaveTimer = projectNode["ProjectAutoSaveTimer"].as<float>();
-		m_Project->m_ProjectDirectory = projectNode["AbsoluteProjectDirectory"].as<std::string>();
+		m_Project->m_ProjectDirectory = path.parent_path();
+
+
+
+		auto assetsNode = data["Assets"];
+		if (assetsNode) {
+			//// Deserialize physical assets
+			//{
+			//	auto physicalAssets = assetsNode["PhysicalAssets"];
+			//	if (physicalAssets) {
+			//		for (auto assetNode : physicalAssets) {
+			//			Ref<_Asset> asset = Utils::DeserializeAsset(assetNode,path.parent_path());
+			//		}
+			//	}
+			//}
+
+			//// Deserialize textures
+			//{
+			//	auto materialTextures = assetsNode["MaterialTextures"];
+			//	if (materialTextures) {
+			//		TextureArraySerializer serializer(1);
+			//		serializer.DeserializeFrom(MaterialTexture::GetTextureArray(),materialTextures);
+			//	}
+			//}
+		}
+
+
+		{
+			auto rdi = FileSystem::recursive_directory_iterator(path.parent_path());
+
+			std::map<uint32_t, std::string> assets;
+
+			for (auto& de : rdi) {
+				if (!de.is_directory()) {
+					auto& path = de.path();
+					if (path.extension()==Extensions::MetaData) {
+						MetaDataSerializer mds;
+						Path assetPath = "";
+						{
+							auto str = path.string();
+							uint64_t index = str.find_last_of(".");
+							assetPath = str.substr(0, index);
+						}
+
+						if (auto asset = mds.Deserialize(path,assetPath); asset) {
+							AssetManager::Manage(asset, true, assetPath);
+						}
+					}
+				}
+			}
+
+		}
+
+	
+
+
+
+
+		
 		return true;
 	}
 

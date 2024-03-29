@@ -165,9 +165,13 @@ namespace Kaidel {
 
 	}
 
-	void OpenGLRendererAPI::RenderFullScreenQuad()const {
+	void OpenGLRendererAPI::RenderFullScreenQuad(Ref<Shader> shader,uint32_t width, uint32_t height)const {
 		m_FullScreenQuadVAO->Bind();
+		shader->Bind();
+		shader->SetFloat2("u_ScreenSize", {(float)width,(float)height});
 		glDrawArrays(GL_TRIANGLES, 0, 6);
+		shader->Unbind();
+		m_FullScreenQuadVAO->Unbind();
 	}
 
 

@@ -29,41 +29,50 @@ namespace Kaidel {
 	class Mesh : public IRCCounter<false> {
 	public:
 		Mesh() = default;
-		Mesh(const std::string& meshName,const std::vector<MeshVertex>& vertices, const std::vector<uint32_t> indices,Ref<Material> mat,glm::vec3 center);
-		Mesh(const Mesh& mesh);
+		Mesh(const std::string& meshName,const std::vector<MeshVertex>& vertices, const std::vector<uint32_t> indices,glm::vec3 center);
 		~Mesh() {
 			int x = 3;
 		}
 		const Math::AABB& GetBoundingBox()const { return m_BoundingBox; }
 		const std::string& GetMeshName()const { return m_MeshName; }
+
+
+
 		bool Draw(const glm::mat4& transform,Ref<Material>& mat);
 		void Flush();
 		const glm::vec3& GetCenter()const { return m_Center; }
 		
-		Ref<Material> GetMaterial() const { return m_Material; }
+		Ref<Material> GetMaterial() const { return {}; }
 
-		
+		const auto& GetVertices() const { return m_Vertices; }
+		auto GetVertexArray()const { return m_VAO; }
+		auto GetVertexBuffer()const { return m_VBO; }
+		auto GetPerInstanceBuffer()const { return m_PerInstanceVBO; }
+		auto GetIndexBuffer()const { return m_IBO; }
+		auto& GetDrawData() { return m_DrawData; }
 
+		auto GetShadowVAO()const { return m_ShadowVAO; }
 
 	private:
 		std::vector<MeshVertex> m_Vertices;
 		Ref<VertexArray> m_VAO;
+		Ref<VertexArray> m_ShadowVAO;
+
+
 		Ref<VertexBuffer> m_VBO;
 		Ref<VertexBuffer> m_PerInstanceVBO;
 		Ref<IndexBuffer> m_IBO;
 		uint32_t m_IndexCount = 0;
 		uint32_t m_InstanceCount = 0;
-		BoundedVector<MeshDrawData> m_DrawData = { 0,1024,[&](MeshDrawData* slot, uint64_t size) {
-			this->Flush();
-			} };;
-		Ref<UAVInput> m_UAV;
+		BoundedVector<MeshDrawData> m_DrawData = { 0,1024,[](MeshDrawData* slot, uint64_t size) {
+			} };
+
 		void Setup(const std::vector<uint32_t>& indices);
 
 		Math::AABB m_BoundingBox{};
 		std::string m_MeshName;
 		bool m_Flushed = false;
 		glm::vec3 m_Center;
-		Ref<Material> m_Material;
 
 		friend class Model;
 		friend class Renderer3D;

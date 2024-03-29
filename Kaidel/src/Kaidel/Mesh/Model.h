@@ -13,32 +13,6 @@ enum aiTextureType;
 namespace Kaidel {
 
 
-	struct ModelData {
-		std::string ModelName;
-		std::vector<Mesh> Meshes;
-	};
 
-	class Model : public IRCCounter<false> {
-	public:
-		static Ref<Model> Load(const std::filesystem::path& modelPath,bool flipUVs = false);
-		void Draw(const glm::mat4& transform,Ref<Material>& mat,const Math::Frustum& frustum);
-		const FileSystem::path& GetModelPath()const { return m_ModelPath; }
-
-		const auto& GetModelData()const { return m_MeshHandles; }
-
-
-		void Flush();
-	private:
-
-		std::unordered_map<uint32_t, Ref<Material>> LoadMaterials(const aiScene* scene, std::unordered_map<uint32_t, uint32_t>& embeddedTextures);
-
-		std::vector<Asset<Mesh>> m_MeshHandles;
-		FileSystem::path m_ModelPath;
-
-		uint64_t m_MeshCount;
-
-
-		friend class Scene;
-	};
 
 }
