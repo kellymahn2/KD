@@ -49,6 +49,8 @@ project "Kaidel"
 		"%{IncludeDir.ImGuizmo}",
 		"%{IncludeDir.VulkanSDK}",
 		"%{IncludeDir.DirectX}",
+		"%{IncludeDir.msdfgen}",
+		"%{IncludeDir.msdf_atlas_gen}",
 		"%{IncludeDir.Vulkan}",
 		"vendor/VMA"
 	}
@@ -59,6 +61,8 @@ project "Kaidel"
 		"GLFW",
 		"Glad",
 		"ImGui",
+		"msdf-atlas-gen",
+		"vendor/Assimp/lib/Debug/assimp-vc143-mt.lib",
 		"vendor/Assimp/lib/assimp-vc140-mt.lib",
 		"yaml-cpp",
 		"opengl32.lib",

@@ -23,6 +23,7 @@ group "Dependencies"
 	include "Kaidel/vendor/GLFW"
 	include "Kaidel/vendor/Glad"
 	include "Kaidel/vendor/imgui"
+	include "Kaidel/vendor/msdf-atlas-gen"
 	include "Kaidel/vendor/yaml-cpp"
 group ""
 

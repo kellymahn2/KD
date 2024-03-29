@@ -12,6 +12,7 @@
 #include "Kaidel/Utils/PlatformUtils.h"
 
 #include "Kaidel/Scripting/ScriptEngine.h"
+#include "Kaidel/Renderer/Text/Font.h"
 #include "Kaidel/Scene/ModelLibrary.h"
 
 #include "yaml-cpp/yaml.h"
@@ -29,6 +30,7 @@ namespace Kaidel {
 	EditorLayer::EditorLayer()
 		: Layer("EditorLayer")
 	{
+		Font font("C:/Windows/Fonts/arial.ttf");
 	}
 	static std::vector<uint8_t> ReadFile(const FileSystem::path& filePath) {
 		std::ifstream file(filePath, std::ios::binary | std::ios::in);

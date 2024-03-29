@@ -11,7 +11,9 @@
 #pragma warning(disable: 4996)
 #pragma warning(disable: 4005)
 #pragma warning(disable: 4002)
-
+#pragma warning(disable: 4267)
+#pragma warning(disable: 4244)
+#pragma warning(disable: 4305)
 
 #ifdef KD_DEBUG
 	#if defined(KD_PLATFORM_WINDOWS)
