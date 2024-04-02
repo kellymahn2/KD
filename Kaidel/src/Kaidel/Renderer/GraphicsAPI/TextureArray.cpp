@@ -2,7 +2,6 @@
 #include "TextureArray.h"
 #include "Kaidel/Renderer/Renderer.h"
 #include "Platform/OpenGL/OpenGLTextureArray.h"
-#include "Platform/D3D/D3DTexture.h"
 namespace Kaidel {
 	Ref<Texture2DArray> Texture2DArray::Create(uint32_t width, uint32_t height, TextureFormat textureFormat,bool loadsSpecs)
 	{

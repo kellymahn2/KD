@@ -9,6 +9,7 @@ namespace Kaidel {
 
 		virtual void Init() = 0;
 		virtual void SwapBuffers() = 0;
+		virtual void Shutdown() {};
 
 		static Scope<GraphicsContext> Create(void* window);
 	};

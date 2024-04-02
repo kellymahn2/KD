@@ -4,6 +4,9 @@
 
 #include "Kaidel/Core/Base.h"
 #include "Kaidel/Events/Event.h"
+#include "Kaidel/Renderer/GraphicsAPI/GraphicsContext.h"
+
+
 
 namespace Kaidel {
 
@@ -13,7 +16,6 @@ namespace Kaidel {
 		uint32_t Width;
 		uint32_t Height;
 		bool Fullscreen;
-
 
 		WindowProps(const std::string& title = "Kaidel Engine",
 					bool fullscreen = true,
@@ -36,7 +38,7 @@ namespace Kaidel {
 
 		virtual uint32_t GetWidth() const = 0;
 		virtual uint32_t GetHeight() const = 0;
-
+		virtual const Scope<GraphicsContext>& GetContext()const = 0;
 		// Window attributes
 		virtual void SetEventCallback(const EventCallbackFn& callback) = 0;
 		virtual void SetVSync(bool enabled) = 0;

@@ -4,7 +4,6 @@
 #include "Kaidel/Renderer/Renderer.h"
 
 #include "Platform/OpenGL/OpenGLFramebuffer.h"
-#include "Platform/D3D/D3DFramebuffer.h"
 
 namespace Kaidel {
 	

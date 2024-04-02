@@ -102,9 +102,12 @@ namespace Kaidel
 		uint64_t GetIndex()const { return m_LightIndex; }
 		static uint64_t GetLightCount() { return s_InternalData.size(); }
 		static void SetLights() {
-			static Ref<UAVInput> s_MaterialUAV = UAVInput::Create(s_InternalData.size(), sizeof(T));
-			s_MaterialUAV->SetBufferData(s_InternalData.data(), s_InternalData.size());
-			s_MaterialUAV->Bind(BindingSlot);
+
+			if (!s_UAV)
+				s_UAV = UAVInput::Create(s_InternalData.size(), sizeof(T));
+
+			s_UAV->SetBufferData(s_InternalData.data(), s_InternalData.size());
+			s_UAV->Bind(BindingSlot);
 			if(!s_LightDepthMaps)
 				s_LightDepthMaps = Texture2DArray::Create(_ShadowMapWidth, _ShadowMapHeight,TextureFormat::Depth32F, false);
 			float clearVal = 1.0f;
@@ -112,12 +115,16 @@ namespace Kaidel
 			s_LightDepthMaps->Bind(BindingSlot);
 		}
 
+
+		static inline Ref<UAVInput> GetUAV(){ return s_UAV; }
+
 		static inline const std::vector<Light*>& GetLights(){ return s_Lights; }
 
 	private:
 		static inline std::vector<T> s_InternalData{};
 		static inline std::vector<Light*> s_Lights{};
 		static inline Ref<Texture2DArray> s_LightDepthMaps;
+		static inline Ref<UAVInput> s_UAV;
 		uint64_t m_LightIndex;
 		friend class SceneRenderer;
 		friend static void BindLights(void* m_Context);

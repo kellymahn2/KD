@@ -5,9 +5,11 @@ project "GLAD"
 	targetdir ("bin-int/"..outputdir.."/%{prj.name}")
 	staticruntime "on"
 	files{
-		"include/Glad/glad.h",
+		"include/glad/glad.h",
+		"include/glad/vulkan.h",
 		"include/KHR/khrplatform.h",
-		"src/glad.c"
+		"src/glad.c",
+		"src/vulkan.c"
 
 	}
 	includedirs{

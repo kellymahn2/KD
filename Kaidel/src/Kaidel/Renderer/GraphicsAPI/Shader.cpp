@@ -3,9 +3,7 @@
 
 #include "Kaidel/Renderer/Renderer.h"
 #include "Platform/OpenGL/OpenGLShader.h"
-#include "Platform/D3D/D3DShader.h"
 #include "Platform/OpenGL/OpenGLComputeShader.h"
-#include "Platform/D3D/D3DComputeShader.h"
 
 namespace Kaidel {
 
@@ -30,7 +28,6 @@ namespace Kaidel {
 		switch (Renderer::GetAPI())
 		{
 		case RendererAPI::API::OpenGL:  return CreateRef<OpenGLComputeShaderUAVInput>(count,sizeofElement,data);
-		case RendererAPI::API::DirectX: return CreateRef<D3DUAVInput>(count,sizeofElement,data);
 		}
 		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
 		return nullptr;
@@ -39,7 +36,6 @@ namespace Kaidel {
 		switch (Renderer::GetAPI())
 		{
 		case RendererAPI::API::OpenGL:  return CreateRef<OpenGLTypedBufferInput>(type,accessMode,width,height,data);
-		case RendererAPI::API::DirectX: return CreateRef<D3DTypedBufferInput>(type,accessMode,width,height,data);
 		}
 		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
 		return nullptr;

@@ -3,6 +3,6 @@
 
 namespace Kaidel {
 
-	Scope<RendererAPI> RenderCommand::s_RendererAPI = RendererAPI::Create();
+	Scope<RendererAPI> RenderCommand::s_RendererAPI;
 
 }

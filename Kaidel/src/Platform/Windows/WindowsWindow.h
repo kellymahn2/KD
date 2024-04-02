@@ -22,6 +22,8 @@ namespace Kaidel {
 		void SetEventCallback(const EventCallbackFn& callback) override { m_Data.EventCallback = callback; }
 		void SetVSync(bool enabled) override;
 		bool IsVSync() const override;
+		virtual const Scope<GraphicsContext>& GetContext()const override{return m_Context;}
+
 
 		virtual void WrapCursor() const override;
 
@@ -31,6 +33,7 @@ namespace Kaidel {
 		virtual void Shutdown();
 	private:
 		GLFWwindow* m_Window;
+
 		Scope<GraphicsContext> m_Context;
 
 		struct WindowData

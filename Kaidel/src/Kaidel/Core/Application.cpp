@@ -30,8 +30,6 @@ namespace Kaidel {
 		m_Window = Window::Create(WindowProps(m_Specification.Name));
 		m_Window->SetEventCallback(KD_BIND_EVENT_FN(Application::OnEvent));
 
-
-
 		Renderer::Init();
 		ScriptEngine::Init();
 

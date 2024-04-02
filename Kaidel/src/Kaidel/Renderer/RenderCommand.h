@@ -86,6 +86,9 @@ namespace Kaidel {
 			s_RendererAPI->RenderFullScreenQuad(shader,width,height);
 		}
 
+		static Scope<RendererAPI>& GetRendererAPI() { return s_RendererAPI; }
+
+		
 	private:
 		static Scope<RendererAPI> s_RendererAPI;
 	};

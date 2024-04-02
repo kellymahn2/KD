@@ -19,6 +19,8 @@ namespace Kaidel {
 		virtual void Bind() const = 0;
 		virtual void Unbind() const = 0;
 
+		virtual void SetVertexBuffers(std::initializer_list<Ref<VertexBuffer>> buffers) = 0;
+
 		virtual void SetIndexBuffer(Ref<IndexBuffer> indexBuffer) = 0;
 		
 		virtual const std::vector<Ref<VertexBuffer>>& GetVertexBuffers() const = 0;

@@ -72,6 +72,7 @@ namespace Kaidel {
 	using Path = FileSystem::path;
 	using DirectoryEntry = FileSystem::directory_entry;
 
+
 }
 
 #include "Kaidel/Core/Log.h"

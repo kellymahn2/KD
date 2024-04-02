@@ -436,7 +436,7 @@ namespace Kaidel {
 		}
 
 
-		SceneRenderer sceneRenderer{ this };
+		static SceneRenderer sceneRenderer{ this };
 		sceneRenderer.Render(_3DOutputFramebuffer, _2DOutputFramebuffer, camera.GetViewProjection(), camera.GetPosition());
 
 	}

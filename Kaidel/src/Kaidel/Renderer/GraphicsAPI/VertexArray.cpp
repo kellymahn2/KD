@@ -3,7 +3,6 @@
 
 #include "Kaidel/Renderer/Renderer.h"
 #include "Platform/OpenGL/OpenGLVertexArray.h"
-#include "Platform/D3D/D3DVertexArray.h"
 namespace Kaidel {
 
 	Ref<VertexArray> VertexArray::Create(const VertexArraySpecification& spec) {

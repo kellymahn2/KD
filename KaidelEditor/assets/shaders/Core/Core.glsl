@@ -26,11 +26,12 @@ layout(std430,binding = 4) buffer SpotLights{
 	SpotLight u_SpotLights[];
 };
 
+layout(binding = 4) uniform sampler2DArray u_SpotLightDepthMaps;
+
 layout(std430,binding = 1) buffer Materials{
 	Material u_Materials[];
 };
 
-layout(binding = 4) uniform sampler2DArray u_SpotLightDepthMaps;
 
 
 layout(std140, binding = 5) uniform Settings

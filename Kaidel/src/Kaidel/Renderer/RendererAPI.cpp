@@ -2,7 +2,7 @@
 #include "Kaidel/Renderer/RendererAPI.h"
 
 #include "Platform/OpenGL/OpenGLRendererAPI.h"
-#include "Platform/D3D/D3DRendererAPI.h"
+#include "Platform/Vulkan/VulkanRendererAPI.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -12,7 +12,7 @@
 
 namespace Kaidel {
 
-	RendererAPI::API RendererAPI::s_API = RendererAPI::API::OpenGL;
+	RendererAPI::API RendererAPI::s_API = RendererAPI::API::Vulkan;
 	glm::mat4 _GetTransform(const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& scl) {
 		glm::mat4 rotation = glm::toMat4(glm::quat(rot));
 		/*switch (RendererAPI::GetAPI())
@@ -51,6 +51,7 @@ namespace Kaidel {
 		{
 			case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
 			case RendererAPI::API::OpenGL:  return CreateScope<OpenGLRendererAPI>();
+			case RendererAPI::API::Vulkan: return CreateScope<VulkanRendererAPI>();
 			//case RendererAPI::API::DirectX: return CreateScope<D3DRendererAPI>();
 		}
 

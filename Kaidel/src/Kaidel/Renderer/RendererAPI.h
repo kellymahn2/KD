@@ -10,7 +10,7 @@ namespace Kaidel {
 	public:
 		enum class API
 		{
-			None = 0, OpenGL = 1,DirectX=2
+			None = 0, OpenGL = 1,DirectX=2,Vulkan = 3
 		};
 	public:
 		virtual ~RendererAPI() = default;

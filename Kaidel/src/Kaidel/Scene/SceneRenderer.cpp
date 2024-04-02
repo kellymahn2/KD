@@ -17,7 +17,7 @@
 #include "Kaidel/Renderer/3D/Material.h"
 #include "Kaidel/Renderer/Primitives.h"
 #include "Kaidel/Renderer/RenderCommand.h"
-
+#include "Kaidel/Renderer/RenderPass.h"
 #include "Kaidel/Renderer/GraphicsAPI/CubeMap.h"
 
 #include <glm/gtx/compatibility.hpp>
@@ -29,20 +29,30 @@ namespace Kaidel {
 	static std::mutex s_MeshRenderingMutex;
 	static std::mutex s_MeshPushingMutex;
 
-	static Ref<CubeMap> cb;
+	static Ref<RenderPass> s_ShadowPass;
+
+	static Ref<Mesh> s_ActiveMesh;
+
+
+
+	static void FlushShadowPass(Ref<VertexArray> vertexArray) {
+
+	}
 
 	SceneRenderer::SceneRenderer(void* scene)
 		:m_Context(scene)
 	{
-		if (!cb) {
-			cb = CubeMap::Create(1024,1024, TextureFormat::RGBA8);
-			cb->SetData(CubeMapSide::Left, "assets/skybox/left.jpg",true);
-			cb->SetData(CubeMapSide::Right, "assets/skybox/right.jpg", true);
-			cb->SetData(CubeMapSide::Top, "assets/skybox/top.jpg", true);
-			cb->SetData(CubeMapSide::Bottom, "assets/skybox/bottom.jpg", true);
-			cb->SetData(CubeMapSide::Front, "assets/skybox/front.jpg", true);
-			cb->SetData(CubeMapSide::Back, "assets/skybox/back.jpg", true);
-		}
+		RenderPassSpecification spec;
+		spec.DebugName = "Shadow";
+
+		spec.Buffers = { Primitives::CubePrimitive->GetVertexBuffer(),Primitives::CubePrimitive->GetShadowPerInstanecBuffer() };
+		spec.FlushFunction = &FlushShadowPass;
+		
+		s_ShadowPass = RenderPass::Create(spec, GlobalRendererData->ShadowPassShader, GlobalRendererData->ShadowDepthBuffer);
+
+
+		s_ShadowPass->SetInput(SpotLight::GetDepthMaps());
+		s_ShadowPass->SetInput(SpotLight::GetUAV());
 	}
 
 	void SceneRenderer::Reset()
@@ -84,76 +94,36 @@ namespace Kaidel {
 				}
 			}
 
+			GlobalRendererData->CameraBuffer.Position = cameraPos;
+			GlobalRendererData->CameraBuffer.ViewProj = cameraViewProj;
 
-			BeginPass bp;
+			GlobalRendererData->CameraUniformBuffer->SetData(&GlobalRendererData->CameraBuffer, sizeof(GlobalRenderer3DData::CameraBufferData));
+			SpotLight::SetLights();
+
+			//Shadows
+			{
+
+				reg.view<TransformComponent, MeshComponent>().each([](auto e, TransformComponent& tc, MeshComponent& mc) {
+					if (!mc.Mesh)
+						return;
+					auto& dd = mc.Mesh->GetShadowDrawData();
+
+
+					auto bvi = dd.Reserve(1);
+					bvi[0] = tc.GetTransform();
+				});
+			}
+
+
+
+
+			/*BeginPass bp;
 			StartData data{};
 			data.CameraPosition = cameraPos;
 			data.CameraVP = cameraViewProj;
 			data.Outputbuffer = _3DOutputFramebuffer;
 			bp.Render(data);
 
-
-#if 0
-			SCOPED_TIMER(MT_RENDERING);
-			{
-				auto meshView = reg.view<TransformComponent, MeshComponent>();
-				for (auto e : meshView) {
-
-					JobSystem::GetMainJobSystem().Execute([this, meshView, &reg, e]() {
-						auto [tc, mc] = meshView.get(e);
-						auto& mesh = mc.Mesh;
-						auto& dd = mesh->GetDrawData();
-			
-						{
-							std::scoped_lock<std::mutex> lock(s_MeshPushingMutex);
-							if (!dd.CanReserveWithoutOverflow(1)) {
-								std::scoped_lock<std::mutex> lock1(s_MeshRenderingMutex);
-								RenderMesh(mesh.Data);
-							}
-						}
-						
-						MeshDrawData mdd{};
-						mdd.Transform = tc.GetTransform();
-						mdd.NormalTransform = glm::transpose(glm::inverse(mdd.Transform));
-						uint32_t matID = 0;
-						if (auto mc = reg.try_get<MaterialComponent>(e); mc && mc->Material) {
-							matID = mc->Material->GetIndex();
-						}
-						mdd.MaterialID = matID;
-			
-						std::scoped_lock<std::mutex> lock(s_MeshPushingMutex);
-						auto bvi = dd.Reserve(1);
-						bvi[0] = std::move(mdd);
-					});
-
-				}
-				JobSystem::GetMainJobSystem().Wait();
-			}
-			{
-				auto meshView = reg.view<MeshComponent>();
-
-				{
-					auto cube = Primitives::CubePrimitive;
-					if (cube->GetDrawData().Size() != 0) {
-						RenderMesh(cube.Data);
-					}
-				}
-
-				/*for (auto e : meshView) {
-					JobSystem::GetMainJobSystem().Execute([this, meshView, e]() {
-						auto& mc = meshView.get<MeshComponent>(e);
-						auto& mesh = mc.Mesh;
-						auto& dd = mesh->GetDrawData();
-			
-						if (dd.Size() != 0) {
-							std::scoped_lock<std::mutex> lock(s_MeshRenderingMutex);
-							RenderMesh(mesh.Data);
-						}
-					});
-				}
-				JobSystem::GetMainJobSystem().Wait();*/
-			}
-#else
 				{
 					SCOPED_TIMER(ST_RENDERING);
 					{
@@ -203,40 +173,8 @@ namespace Kaidel {
 				GlobalRendererData->GBuffers->BindColorAttachmentToSlot(1, 1);
 				GlobalRendererData->GBuffers->BindColorAttachmentToSlot(2, 2);
 				GlobalRendererData->GBuffers->BindColorAttachmentToSlot(3, 3);
-
 				RenderCommand::RenderFullScreenQuad(GlobalRendererData->LightingPassShader,_3DOutputFramebuffer->GetSpecification().Width,_3DOutputFramebuffer->GetSpecification().Height);
-
-
-
-
-				_3DOutputFramebuffer->Unbind();
-
-#endif
-
-				/*	Renderer3DBeginData data;
-
-					data.OutputBuffer = _3DOutputFramebuffer;
-					data.CameraPosition = cameraPos;
-					data.CameraVP = cameraViewProj;
-
-					{
-						Renderer3D::Begin(data);
-						{
-							auto view = activeScene->m_Registry.view<TransformComponent, MeshComponent>();
-							for (auto e : view) {
-								auto [tc, mc] = view.get<TransformComponent, MeshComponent>(e);
-								if (!mc.Mesh)
-									continue;
-								auto meshMat = mc.Mesh.Data->GetMaterial();
-								if (auto p = activeScene->m_Registry.try_get<MaterialComponent>(e); p != nullptr)
-									meshMat = p->Material;
-								Renderer3D::DrawMesh(tc.GetTransform(), mc.Mesh, meshMat);
-							}
-						}
-
-						Renderer3D::End();
-					}*/
-
+				_3DOutputFramebuffer->Unbind();*/
 		}
 
 		//2D

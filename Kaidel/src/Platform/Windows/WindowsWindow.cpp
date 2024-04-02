@@ -22,7 +22,6 @@ namespace Kaidel {
 
 	WindowsWindow::WindowsWindow(const WindowProps& props)
 	{
-
 		Init(props);
 	}
 
@@ -63,13 +62,15 @@ namespace Kaidel {
 			if (Renderer::GetAPI() == RendererAPI::API::OpenGL)
 				glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 		#endif
-			if(Renderer::GetAPI() == RendererAPI::API::DirectX)
+			if(Renderer::GetAPI() == RendererAPI::API::DirectX || Renderer::GetAPI() == RendererAPI::API::Vulkan)
 				glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 			m_Window = glfwCreateWindow((int)m_Data.Width, (int)m_Data.Height, m_Data.Title.c_str(), nullptr, nullptr);
 			++s_GLFWWindowCount;
 		}
 		m_Context = GraphicsContext::Create(m_Window);
 		m_Context->Init();
+
+		RenderCommand::GetRendererAPI() = RendererAPI::Create();
 
 		glfwSetWindowUserPointer(m_Window, &m_Data);
 
@@ -167,12 +168,13 @@ namespace Kaidel {
 
 	void WindowsWindow::Shutdown()
 	{
-
 		glfwDestroyWindow(m_Window);
 		--s_GLFWWindowCount;
 
 		if (s_GLFWWindowCount == 0)
 		{
+			RenderCommand::GetRendererAPI()->Shutdown();
+			m_Context->Shutdown();
 			glfwTerminate();
 		}
 	}

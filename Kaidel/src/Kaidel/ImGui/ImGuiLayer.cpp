@@ -4,6 +4,7 @@
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
+#include <backends/imgui_impl_vulkan.h>
 #include <backends/imgui_impl_dx11.h>
 
 #include "Kaidel/Core/Application.h"
@@ -28,7 +29,6 @@ namespace Kaidel {
 
 	void ImGuiLayer::OnAttach()
 	{
-
 		// Setup Dear ImGui context
 		IMGUI_CHECKVERSION();
 		ImGui::CreateContext();
@@ -60,38 +60,21 @@ namespace Kaidel {
 		Application& app = Application::Get();
 		GLFWwindow* window = static_cast<GLFWwindow*>(app.GetWindow().GetNativeWindow());
 
+		ImGui_ImplGlfw_InitForVulkan(window,false);
+
+		//ImGui_ImplVulkan_InitInfo info;
+
+		//ImGui_ImplVulkan_Init(;
+
 		// Setup Platform/Renderer bindings
-		switch (RendererAPI::GetAPI())
-		{
-		case RendererAPI::API::OpenGL: {
-			ImGui_ImplGlfw_InitForOpenGL(window, true);
-			ImGui_ImplOpenGL3_Init("#version 410");
-		}
-		break;
-		case RendererAPI::API::DirectX: {
-			ImGui_ImplGlfw_InitForOther(window, true);
-			auto data = InitImGuiForDirectX();
-			ImGui_ImplDX11_Init(data.Device, data.DeviceContext);
-		}
-		break;
-		}
 	}
 
 	void ImGuiLayer::OnDetach()
 	{
-		switch (RendererAPI::GetAPI())
-		{
-		case RendererAPI::API::OpenGL: {
-			ImGui_ImplOpenGL3_Shutdown();
-			ImGui_ImplGlfw_Shutdown();
-		}
-		break;
-		case RendererAPI::API::DirectX: {
-			ImGui_ImplDX11_Shutdown();
-			ImGui_ImplGlfw_Shutdown();
-		}
-		break;
-		}
+		
+		ImGui_ImplVulkan_Shutdown();
+		ImGui_ImplGlfw_Shutdown();
+
 		ImGui::DestroyContext();
 	}
 
@@ -108,20 +91,10 @@ namespace Kaidel {
 	void ImGuiLayer::Begin()
 	{
 
-		switch (RendererAPI::GetAPI())
-		{
-		case RendererAPI::API::OpenGL: {
-			ImGui_ImplOpenGL3_NewFrame();
-			ImGui_ImplGlfw_NewFrame();
-		}
-		break;
-		case RendererAPI::API::DirectX: {
-			ImGui_ImplDX11_NewFrame();
-			ImGui_ImplGlfw_NewFrame();
-		}
-		break;
-		}
-		
+
+		ImGui_ImplVulkan_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+
 		ImGui::NewFrame();
 		ImGuizmo::BeginFrame();
 	}
@@ -135,17 +108,10 @@ namespace Kaidel {
 
 		// Rendering
 		ImGui::Render();
-		switch (RendererAPI::GetAPI())
-		{
-		case RendererAPI::API::OpenGL: {
-			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-		}
-		break;
-		case RendererAPI::API::DirectX: {
-			ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-		}
-		break;
-		}
+
+		VkCommandBuffer buff = VK_NULL_HANDLE;
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(),buff);
+
 
 		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 		{

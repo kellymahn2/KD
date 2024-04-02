@@ -36,10 +36,6 @@ namespace Kaidel {
 		const Math::AABB& GetBoundingBox()const { return m_BoundingBox; }
 		const std::string& GetMeshName()const { return m_MeshName; }
 
-
-
-		bool Draw(const glm::mat4& transform,Ref<Material>& mat);
-		void Flush();
 		const glm::vec3& GetCenter()const { return m_Center; }
 		
 		Ref<Material> GetMaterial() const { return {}; }
@@ -50,28 +46,31 @@ namespace Kaidel {
 		auto GetPerInstanceBuffer()const { return m_PerInstanceVBO; }
 		auto GetIndexBuffer()const { return m_IBO; }
 		auto& GetDrawData() { return m_DrawData; }
-
+		auto& GetShadowDrawData() { return m_ShadowDrawData; }
 		auto GetShadowVAO()const { return m_ShadowVAO; }
-
+		auto GetShadowPerInstanecBuffer()const { return m_ShadowPerInstanceVBO; }
 	private:
+		
 		std::vector<MeshVertex> m_Vertices;
 		Ref<VertexArray> m_VAO;
 		Ref<VertexArray> m_ShadowVAO;
 
-
 		Ref<VertexBuffer> m_VBO;
 		Ref<VertexBuffer> m_PerInstanceVBO;
+		Ref<VertexBuffer> m_ShadowPerInstanceVBO;
 		Ref<IndexBuffer> m_IBO;
+		
 		uint32_t m_IndexCount = 0;
-		uint32_t m_InstanceCount = 0;
-		BoundedVector<MeshDrawData> m_DrawData = { 0,1024,[](MeshDrawData* slot, uint64_t size) {
-			} };
+
+		BoundedVector<MeshDrawData> m_DrawData = { 0,1024,[](MeshDrawData* slot, uint64_t size){}};
+		BoundedVector<glm::mat4> m_ShadowDrawData = { 0,1024,[](auto,auto) {} };
+
+
 
 		void Setup(const std::vector<uint32_t>& indices);
 
 		Math::AABB m_BoundingBox{};
 		std::string m_MeshName;
-		bool m_Flushed = false;
 		glm::vec3 m_Center;
 
 		friend class Model;

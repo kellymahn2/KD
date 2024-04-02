@@ -93,11 +93,10 @@ namespace Kaidel {
 			}	
 		}
 
-		static uint32_t CreateVertexArray(const VertexArraySpecification& spec) {
+		static uint32_t CreateVertexArray(const VertexArraySpecification& spec,uint32_t& currentVertexBufferIndex) {
 			uint32_t vertexArray;
 			glCreateVertexArrays(1, &vertexArray);
 			glBindVertexArray(vertexArray);
-			uint32_t currentVertexBufferIndex = 0;
 			for (auto& vb : spec.VertexBuffers) {
 				AddVertexBuffer(vertexArray, currentVertexBufferIndex, vb);
 			}
@@ -115,10 +114,26 @@ namespace Kaidel {
 		Unbind();
 	}
 
+	void OpenGLVertexArray::SetVertexBuffers(std::initializer_list<Ref<VertexBuffer>> buffers)
+	{
+		glBindVertexArray(m_RendererID);
+		m_Specification.VertexBuffers = buffers;
+		uint32_t currentVertexBufferIndex = 0;
+		for (auto& vb : m_Specification.VertexBuffers) {
+			Utils::AddVertexBuffer(m_RendererID, currentVertexBufferIndex, vb);
+		}
+
+		for (uint32_t i = currentVertexBufferIndex; i < m_CurrentVertexBufferIndex;++i) {
+			glDisableVertexAttribArray(i);
+		}
+		glBindVertexArray(0);
+	}
+
+
 	OpenGLVertexArray::OpenGLVertexArray(const VertexArraySpecification& spec)
 		:m_Specification(spec)
 	{
-		m_RendererID = Utils::CreateVertexArray(spec);
+		m_RendererID = Utils::CreateVertexArray(spec,m_CurrentVertexBufferIndex);
 	}
 
 	OpenGLVertexArray::~OpenGLVertexArray()
