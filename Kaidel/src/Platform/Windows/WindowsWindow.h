@@ -24,6 +24,7 @@ namespace Kaidel {
 		bool IsVSync() const override;
 		virtual const Scope<GraphicsContext>& GetContext()const override{return m_Context;}
 
+		void SwapBuffers() const override;
 
 		virtual void WrapCursor() const override;
 
@@ -46,6 +47,8 @@ namespace Kaidel {
 		};
 
 		WindowData m_Data;
+
+		
 	};
 
 }

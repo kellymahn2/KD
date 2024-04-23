@@ -51,7 +51,7 @@ namespace Kaidel {
 		R8NORM,//1-component 8-bits
 		R8I,//1-component 8-bits
 
-		Depth16F,
+		Depth16,
 		Depth32F,
 		Depth32,
 

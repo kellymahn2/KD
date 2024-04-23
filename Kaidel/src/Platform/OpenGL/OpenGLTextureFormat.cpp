@@ -43,7 +43,7 @@ namespace Kaidel {
 			case Kaidel::TextureFormat::R8UI:		return GL_R8UI;
 			case Kaidel::TextureFormat::R8NORM:		return GL_R8_SNORM;
 			case Kaidel::TextureFormat::R8I:		return GL_R8I;
-			case Kaidel::TextureFormat::Depth16F:		return GL_DEPTH_COMPONENT16;
+			case Kaidel::TextureFormat::Depth16:		return GL_DEPTH_COMPONENT16;
 			case Kaidel::TextureFormat::Depth32F:		return GL_DEPTH_COMPONENT32F;
 			case Kaidel::TextureFormat::Depth32:		return GL_DEPTH_COMPONENT32;
 			case Kaidel::TextureFormat::Depth24Stencil8:		return GL_DEPTH24_STENCIL8;
@@ -90,7 +90,7 @@ namespace Kaidel {
 			case Kaidel::TextureFormat::R8UI:		return GL_RED_INTEGER;
 			case Kaidel::TextureFormat::R8NORM:		return GL_RED;
 			case Kaidel::TextureFormat::R8I:		return GL_RED_INTEGER;
-			case Kaidel::TextureFormat::Depth16F:		return GL_DEPTH_COMPONENT;
+			case Kaidel::TextureFormat::Depth16:		return GL_DEPTH_COMPONENT;
 			case Kaidel::TextureFormat::Depth32F:		return GL_DEPTH_COMPONENT;
 			case Kaidel::TextureFormat::Depth32:		return GL_DEPTH_COMPONENT;
 			case Kaidel::TextureFormat::Depth24Stencil8:		return GL_DEPTH_STENCIL;
@@ -138,7 +138,7 @@ namespace Kaidel {
 			case Kaidel::TextureFormat::R8UI:		return GL_UNSIGNED_BYTE;
 			case Kaidel::TextureFormat::R8NORM:		return GL_BYTE;
 			case Kaidel::TextureFormat::R8I:		return GL_BYTE;
-			case Kaidel::TextureFormat::Depth16F:		return GL_DEPTH_COMPONENT;
+			case Kaidel::TextureFormat::Depth16:		return GL_DEPTH_COMPONENT;
 			case Kaidel::TextureFormat::Depth32F:		return GL_DEPTH_COMPONENT;
 			case Kaidel::TextureFormat::Depth32:		return GL_DEPTH_COMPONENT;
 			case Kaidel::TextureFormat::Depth24Stencil8:		return GL_DEPTH_STENCIL;
@@ -187,7 +187,7 @@ namespace Kaidel {
 			case Kaidel::TextureFormat::R8UI:		return 1;
 			case Kaidel::TextureFormat::R8NORM:		return 1;
 			case Kaidel::TextureFormat::R8I:		return 1;
-			case Kaidel::TextureFormat::Depth16F:		return 1;
+			case Kaidel::TextureFormat::Depth16:		return 1;
 			case Kaidel::TextureFormat::Depth32F:		return 1;
 			case Kaidel::TextureFormat::Depth32:		return 1;
 			case Kaidel::TextureFormat::Depth24Stencil8:		return 2;
@@ -235,7 +235,7 @@ namespace Kaidel {
 			case Kaidel::TextureFormat::R8UI:		return 1;
 			case Kaidel::TextureFormat::R8NORM:		return 1;
 			case Kaidel::TextureFormat::R8I:		return 1;
-			case Kaidel::TextureFormat::Depth16F:		return 2;
+			case Kaidel::TextureFormat::Depth16:		return 2;
 			case Kaidel::TextureFormat::Depth32F:		return 4;
 			case Kaidel::TextureFormat::Depth32:		return 4;
 			case Kaidel::TextureFormat::Depth24Stencil8:		return 4;

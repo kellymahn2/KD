@@ -33,6 +33,10 @@ namespace Kaidel {
 			:Definitions(definitions),ShaderName(shaderName) {}
 		std::vector<ShaderDefinition> Definitions;
 		std::string ShaderName;
+
+
+
+
 	};
 
 

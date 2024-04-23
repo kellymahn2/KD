@@ -74,7 +74,7 @@ namespace Kaidel {
 		{
 			switch (format)
 			{
-				case TextureFormat::Depth16F:  return true;
+				case TextureFormat::Depth16:  return true;
 				case TextureFormat::Depth32F: return true;
 				case TextureFormat::Depth32: return true;
 				case TextureFormat::Depth24Stencil8: return true;
@@ -106,7 +106,7 @@ namespace Kaidel {
 	OpenGLFramebuffer::OpenGLFramebuffer(const FramebufferSpecification& spec)
 		: m_Specification(spec)
 	{
-		for (auto spec : m_Specification.Attachments.Attachments)
+		for (auto& spec : m_Specification.Attachments.Attachments)
 		{
 			if (!Utils::IsDepthFormat(spec.Format))
 				m_ColorAttachmentSpecifications.emplace_back(spec);

@@ -179,9 +179,14 @@ namespace Kaidel {
 		}
 	}
 
+	void WindowsWindow::SwapBuffers() const
+	{
+	}
+
 	void WindowsWindow::OnUpdate()
 	{
 		glfwPollEvents();
+
 		m_Context->SwapBuffers();
 	}
 

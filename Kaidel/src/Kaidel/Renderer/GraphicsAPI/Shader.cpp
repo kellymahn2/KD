@@ -4,6 +4,7 @@
 #include "Kaidel/Renderer/Renderer.h"
 #include "Platform/OpenGL/OpenGLShader.h"
 #include "Platform/OpenGL/OpenGLComputeShader.h"
+#include "Platform/Vulkan/VulkanShader.h"
 
 namespace Kaidel {
 
@@ -14,6 +15,7 @@ namespace Kaidel {
 		switch (Renderer::GetAPI())
 		{
 		case RendererAPI::API::OpenGL:  return CreateRef<OpenGLShader>(specification);
+		case RendererAPI::API::Vulkan: return CreateRef<VulkanShader>(specification);
 		//case RendererAPI::API::DirectX: return CreateRef<D3DShader>(specification);
 		}
 		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
