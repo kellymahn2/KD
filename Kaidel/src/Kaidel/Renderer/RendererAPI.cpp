@@ -2,7 +2,7 @@
 #include "Kaidel/Renderer/RendererAPI.h"
 
 #include "Platform/OpenGL/OpenGLRendererAPI.h"
-#include "Platform/Vulkan/VulkanRendererAPI.h"
+#include "Platform/Vulkan/GraphicsAPI/VulkanRendererAPI.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -51,7 +51,7 @@ namespace Kaidel {
 		{
 			case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
 			case RendererAPI::API::OpenGL:  return CreateScope<OpenGLRendererAPI>();
-			case RendererAPI::API::Vulkan: return CreateScope<VulkanRendererAPI>();
+			case RendererAPI::API::Vulkan: return CreateScope<Vulkan::VulkanRendererAPI>();
 			//case RendererAPI::API::DirectX: return CreateScope<D3DRendererAPI>();
 		}
 
