@@ -293,7 +293,7 @@ namespace Kaidel {
 			case Kaidel::TextureFormat::R8I:	return nullptr;
 			}
 
-
+			return nullptr;
 		}
 
 		

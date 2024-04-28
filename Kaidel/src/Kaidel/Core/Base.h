@@ -61,7 +61,7 @@ namespace Kaidel {
 		return n * Fact<T>(n - 1);
 	}
 	template<typename  T>
-	float CalcBinomialCoefficient(T n, T r) {
+	T CalcBinomialCoefficient(T n, T r) {
 		return (Fact(n)) / (Fact(r) * Fact(n - r));
 
 	}

@@ -152,7 +152,7 @@ namespace Kaidel {
 		uint32_t csShader = 0;
 		csShader = glCreateShader(GL_COMPUTE_SHADER);
 		const char* src = s.c_str();
-		int length = s.capacity();
+		int length = (int)s.capacity();
 		glShaderSource(csShader, 1, &src, nullptr);
 		glCompileShader(csShader);
 		{
@@ -235,7 +235,7 @@ namespace Kaidel {
 	void OpenGLComputeShader::Execute(uint64_t x, uint64_t y, uint64_t z) const
 	{
 		Bind();
-		glDispatchCompute(x, y, z);
+		glDispatchCompute((GLuint)x, (GLuint)y, (GLuint)z);
 		Unbind();	
 	}
 

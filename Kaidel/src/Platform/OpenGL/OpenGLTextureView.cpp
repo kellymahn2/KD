@@ -22,7 +22,7 @@ namespace Kaidel {
 
 		glGenTextures(1, &m_RendererID);
 		
-		glTextureView(m_RendererID, GL_TEXTURE_2D, textureArray->m_RendererID, Utils::KaidelTextureFormatToGLInternalFormat(textureArray->m_TextureFormat), 0, 1, handle.SlotIndex, 1);
+		glTextureView(m_RendererID, GL_TEXTURE_2D, textureArray->m_RendererID, Utils::KaidelTextureFormatToGLInternalFormat(textureArray->m_TextureFormat), 0, 1, (GLuint)handle.SlotIndex, 1);
 	}
 	OpenGLTextureView::~OpenGLTextureView() {
 		glDeleteTextures(1, &m_RendererID);

@@ -64,6 +64,8 @@ namespace Kaidel {
 
 		void SubmitToMainThread(const std::function<void()>& func);
 	private:
+		void OnUpdate();
+
 		void Run();
 		bool OnWindowClose(WindowCloseEvent& e);
 		bool OnWindowResize(WindowResizeEvent& e);

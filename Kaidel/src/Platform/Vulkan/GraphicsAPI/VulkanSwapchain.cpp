@@ -1,5 +1,6 @@
 #include "KDpch.h"
 #include "VulkanSwapchain.h"
+#include "VulkanGraphicsContext.h"
 
 
 namespace Kaidel {
@@ -152,8 +153,23 @@ namespace Kaidel {
 
 					VK_ASSERT(vkCreateImageView(specification.LogicalDevice, &createInfo, VK_ALLOCATOR_PTR, &frame.ImageView));
 
+					std::vector<VkImageView> attachments = { frame.ImageView};
+
+					VkFramebufferCreateInfo framebufferInfo{};
+					framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+					framebufferInfo.renderPass = specification.RenderPass;
+					framebufferInfo.attachmentCount = (uint32_t)attachments.size();
+					framebufferInfo.pAttachments = attachments.data();
+					framebufferInfo.width = size.width;
+					framebufferInfo.height = size.height;
+					framebufferInfo.layers = 1;
+
+
+					vkCreateFramebuffer(specification.LogicalDevice, &framebufferInfo, nullptr, &frame.Framebuffer);
+
 					result.Frames.push_back(frame);
 				}
+
 
 				specification.SwapchainFormat = format;
 				specification.SwapchainPresentMode = presentMode;
@@ -190,17 +206,35 @@ namespace Kaidel {
 
 			m_Specification.Extent.width= width;
 			m_Specification.Extent.height = height;
+			Invalidate();
 		}
 
 		void VulkanSwapchain::Present(uint32_t imageIndex)
 		{
-
+			VkSemaphore waitSemaphores[] = {m_Specification.RenderFinishedSemaphore};
+			// Present the acquired image
+			VkPresentInfoKHR presentInfo = {};
+			presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+			presentInfo.waitSemaphoreCount = 1;
+			presentInfo.pWaitSemaphores = waitSemaphores;
+			presentInfo.swapchainCount = 1;
+			presentInfo.pSwapchains = &m_Swapchain;
+			presentInfo.pImageIndices = &imageIndex;
+			auto res = vkQueuePresentKHR(m_Specification.PresentQueue, &presentInfo);
+			if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
+				Invalidate();
+			}
 		}
 
-		uint32_t VulkanSwapchain::AcquireImage()
+		uint32_t VulkanSwapchain::AcquireImage(VkFence inFlightFence, VkSemaphore imageAvailSemaphore)
 		{
+			if(inFlightFence) {
+				VK_ASSERT(vkWaitForFences(m_Specification.LogicalDevice, 1, &inFlightFence, VK_TRUE, UINT64_MAX));
+				VK_ASSERT(vkResetFences(m_Specification.LogicalDevice, 1, &inFlightFence));
+			}
+
 			uint32_t imageIndex;
-			VK_ASSERT(vkAcquireNextImageKHR(m_Specification.LogicalDevice, m_Swapchain, UINT64_MAX, m_Specification.ImageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex));
+			VK_ASSERT(vkAcquireNextImageKHR(m_Specification.LogicalDevice, m_Swapchain, UINT64_MAX, imageAvailSemaphore,VK_NULL_HANDLE,&imageIndex));
 			return imageIndex;
 		}
 
@@ -217,6 +251,7 @@ namespace Kaidel {
 
 		void VulkanSwapchain::Invalidate()
 		{
+			vkDeviceWaitIdle(m_Specification.LogicalDevice);
 			if (m_Swapchain) {
 				DestroyCurrentSwapchain();
 			}

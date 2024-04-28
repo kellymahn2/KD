@@ -74,6 +74,36 @@ namespace Kaidel {
 		m_AppThreadQueue.push_back(func);
 	}
 
+	void Application::OnUpdate()
+	{
+		float time = (float)glfwGetTime();
+		Timestep timestep = time - m_LastFrameTime;
+		m_LastFrameTime = time;
+
+		{
+			if (!m_Minimized)
+			{
+				ExecuteMainThreadQueue();
+
+				{
+					for (Layer* layer : m_LayerStack)
+						layer->OnUpdate(timestep);
+				}
+
+				{
+					m_ImGuiLayer->Begin();
+					{
+
+						for (Layer* layer : m_LayerStack)
+							layer->OnImGuiRender();
+					}
+					m_ImGuiLayer->End();
+				}
+			}
+			
+		}
+	}
+
 	void Application::OnEvent(Event& e)
 	{
 
@@ -96,34 +126,10 @@ namespace Kaidel {
 
 		while (m_Running)
 		{
-			float time = glfwGetTime();
-			Timestep timestep = time - m_LastFrameTime;
-			m_LastFrameTime = time;
-
+			OnUpdate();
 			{
-				if (!m_Minimized)
-				{
-					ExecuteMainThreadQueue();
-
-					{
-						for (Layer* layer : m_LayerStack)
-							layer->OnUpdate(timestep);
-					}
-
-					{
-						m_ImGuiLayer->Begin();
-						{
-
-							for (Layer* layer : m_LayerStack)
-								layer->OnImGuiRender();
-						}
-						m_ImGuiLayer->End();
-					}
-				}
-				{
-					SCOPED_TIMER(Swap Buffers)
-					m_Window->OnUpdate();
-				}
+				SCOPED_TIMER(Swap Buffers)
+				m_Window->OnUpdate();
 			}
 		}
 	}

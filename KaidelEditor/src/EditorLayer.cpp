@@ -144,7 +144,7 @@ namespace Kaidel {
 		{
 			float colors[4] = { .1,.1,.1,1 };
 			m_ActiveScene->OnUpdateEditor(ts, m_EditorCamera, m_OutputBuffer, m_OutputBuffer);
-			TextureCopier::Copy(m_ScreenOutputbuffer, m_OutputBuffer);
+			//TextureCopier::Copy(m_ScreenOutputbuffer, m_OutputBuffer);
 			// Project Auto Save
 			auto& currentProjectConfig = Project::GetActive()->GetConfig();
 			if (currentProjectConfig.ProjectAutoSave) {
@@ -282,15 +282,15 @@ namespace Kaidel {
 			}
 
 
-			m_SceneHierarchyPanel.OnImGuiRender();
-			m_ConsolePanel.OnImGuiRender();
-			m_ContentBrowserPanel.OnImGuiRender();
+			//m_SceneHierarchyPanel.OnImGuiRender();
+			//m_ConsolePanel.OnImGuiRender();
+			//m_ContentBrowserPanel.OnImGuiRender();
 			//m_AnimationPanel.OnImGuiRender();
-			m_PropertiesPanel.OnImGuiRender();
+			//m_PropertiesPanel.OnImGuiRender();
 
 			ShowDebugWindow();
-			ShowViewport();
-			UI_Toolbar();
+			//ShowViewport();
+			//UI_Toolbar();
 			ImGui::End();
 			//if (m_ConsoleOpen) {
 			//	ImGui::Begin("Debug Console", &m_ConsoleOpen, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoNavFocus);
@@ -538,7 +538,7 @@ namespace Kaidel {
 
 
 		ImGui::Text("UI Vertex Count: %d", ImGui::GetIO().MetricsRenderVertices);
-		ImGui::Image((ImTextureID)SpotLight::GetDepthMaps()->GetView(0)->GetRendererID(), {64,64}, {0,1}, {1,0});
+		//ImGui::Image((ImTextureID)SpotLight::GetDepthMaps()->GetView(0)->GetRendererID(), {64,64}, {0,1}, {1,0});
 		AccumulativeTimer::ResetTimers();
 
 
@@ -617,16 +617,16 @@ namespace Kaidel {
 	}
 
 	void EditorLayer::HandleViewportResize() {
-		if (FramebufferSpecification spec = m_OutputBuffer->GetSpecification();
-			m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f && // zero sized framebuffer is invalid
-			(spec.Width != m_ViewportSize.x || spec.Height != m_ViewportSize.y))
-		{
-			m_OutputBuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
-			m_ScreenOutputbuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+		//if (FramebufferSpecification spec = m_OutputBuffer->GetSpecification();
+		//	m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f && // zero sized framebuffer is invalid
+		//	(spec.Width != m_ViewportSize.x || spec.Height != m_ViewportSize.y))
+		//{
+		//	m_OutputBuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+		//	m_ScreenOutputbuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 
-			m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);
-			m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
-		}
+		//	m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);
+		//	m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+		//}
 	}
 
 

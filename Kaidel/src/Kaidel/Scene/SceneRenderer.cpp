@@ -17,7 +17,6 @@
 #include "Kaidel/Renderer/3D/Material.h"
 #include "Kaidel/Renderer/Primitives.h"
 #include "Kaidel/Renderer/RenderCommand.h"
-#include "Kaidel/Renderer/RenderPass.h"
 #include "Kaidel/Renderer/GraphicsAPI/CubeMap.h"
 
 #include <glm/gtx/compatibility.hpp>
@@ -29,7 +28,6 @@ namespace Kaidel {
 	static std::mutex s_MeshRenderingMutex;
 	static std::mutex s_MeshPushingMutex;
 
-	static Ref<RenderPass> s_ShadowPass;
 
 	static Ref<Mesh> s_ActiveMesh;
 
@@ -42,17 +40,6 @@ namespace Kaidel {
 	SceneRenderer::SceneRenderer(void* scene)
 		:m_Context(scene)
 	{
-		RenderPassSpecification spec;
-		spec.DebugName = "Shadow";
-
-		spec.Buffers = { Primitives::CubePrimitive->GetVertexBuffer(),Primitives::CubePrimitive->GetShadowPerInstanecBuffer() };
-		spec.FlushFunction = &FlushShadowPass;
-		
-		s_ShadowPass = RenderPass::Create(spec, GlobalRendererData->ShadowPassShader, GlobalRendererData->ShadowDepthBuffer);
-
-
-		s_ShadowPass->SetInput(SpotLight::GetDepthMaps());
-		s_ShadowPass->SetInput(SpotLight::GetUAV());
 	}
 
 	void SceneRenderer::Reset()
@@ -63,19 +50,16 @@ namespace Kaidel {
 
 		if (mesh->GetDrawData().Size() == 0)
 			return;
-		mesh->GetPerInstanceBuffer()->SetData(mesh->GetDrawData().Get(),sizeof(MeshDrawData) * mesh->GetDrawData().Size());
-
-		ShadowPass shadowPass;
-		shadowPass.Render(mesh);
-
-		GeometryPass geoPass;
-		geoPass.Render(mesh);
+		mesh->GetPerInstanceBuffer()->SetData(mesh->GetDrawData().Get(), (uint32_t)(mesh->GetDrawData().Size() * sizeof(MeshDrawData) ));
 
 		mesh->GetDrawData().Reset();
 	}
 
 	void SceneRenderer::Render(Ref<Framebuffer> _3DOutputFramebuffer,Ref<Framebuffer> _2DOutputFramebuffer,const glm::mat4& cameraViewProj,const glm::vec3& cameraPos)
 	{
+
+#if 0
+
 
 		Scene* activeScene = static_cast<Scene*>(m_Context);
 
@@ -114,67 +98,6 @@ namespace Kaidel {
 				});
 			}
 
-
-
-
-			/*BeginPass bp;
-			StartData data{};
-			data.CameraPosition = cameraPos;
-			data.CameraVP = cameraViewProj;
-			data.Outputbuffer = _3DOutputFramebuffer;
-			bp.Render(data);
-
-				{
-					SCOPED_TIMER(ST_RENDERING);
-					{
-						auto meshView = reg.view<TransformComponent, MeshComponent>();
-						for (auto e : meshView) {
-
-							auto [tc, mc] = meshView.get(e);
-							auto& mesh = mc.Mesh;
-							auto& dd = mesh->GetDrawData();
-
-							if (!dd.CanReserveWithoutOverflow(1)) {
-								RenderMesh(mesh.Data);
-							}
-							MeshDrawData mdd{};
-							mdd.Transform = tc.GetTransform();
-							mdd.NormalTransform = glm::transpose(glm::inverse(mdd.Transform));
-							uint32_t matID = 0;
-							if (auto mc = reg.try_get<MaterialComponent>(e); mc && mc->Material) {
-								matID = mc->Material->GetIndex();
-							}
-							mdd.MaterialID = matID;
-
-							std::scoped_lock<std::mutex> lock(s_MeshPushingMutex);
-							auto bvi = dd.Reserve(1);
-							bvi[0] = std::move(mdd);
-
-						}
-						JobSystem::GetMainJobSystem().Wait();
-					}
-					{
-						auto meshView = reg.view<MeshComponent>();
-						for (auto e : meshView) {
-							auto& mc = meshView.get<MeshComponent>(e);
-							auto& mesh = mc.Mesh;
-							auto& dd = mesh->GetDrawData();
-
-							if (dd.Size() != 0) {
-								RenderMesh(mesh.Data);
-							}
-						}
-						JobSystem::GetMainJobSystem().Wait();
-					}
-				}
-
-				_3DOutputFramebuffer->Bind();
-				GlobalRendererData->GBuffers->BindColorAttachmentToSlot(0, 0);
-				GlobalRendererData->GBuffers->BindColorAttachmentToSlot(1, 1);
-				GlobalRendererData->GBuffers->BindColorAttachmentToSlot(2, 2);
-				GlobalRendererData->GBuffers->BindColorAttachmentToSlot(3, 3);
-				RenderCommand::RenderFullScreenQuad(GlobalRendererData->LightingPassShader,_3DOutputFramebuffer->GetSpecification().Width,_3DOutputFramebuffer->GetSpecification().Height);
-				_3DOutputFramebuffer->Unbind();*/
 		}
 
 		//2D
@@ -214,6 +137,7 @@ namespace Kaidel {
 				Renderer2D::End();
 			}
 		}
+#endif // 0
 
 	}
 

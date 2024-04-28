@@ -21,8 +21,8 @@ namespace Kaidel{
 		}
     }
     void Material::SetMaterials(){
-        static Ref<UAVInput> s_MaterialUAV = UAVInput::Create(s_InternalData.size(),sizeof(_MaterialInternal));
-        s_MaterialUAV->SetBufferData(s_InternalData.data(),s_InternalData.size());
+        static Ref<UAVInput> s_MaterialUAV = UAVInput::Create((uint32_t)s_InternalData.size(),sizeof(_MaterialInternal));
+        s_MaterialUAV->SetBufferData(s_InternalData.data(),(uint32_t)s_InternalData.size());
         s_MaterialUAV->Bind(_MaterialInternalBindingSlot);
     }
 

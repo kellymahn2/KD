@@ -94,6 +94,7 @@ namespace Kaidel {
 			if (bindingMode & ImageBindingMode_Write) {
 				return GL_WRITE_ONLY;
 			}
+			return (GLenum)0;
 		}
 
 
@@ -164,7 +165,7 @@ namespace Kaidel {
 		{
 			Unbind();
 			if (m_ColorAttachments.size())
-				glDeleteTextures(m_ColorAttachments.size(), m_ColorAttachments.data());
+				glDeleteTextures((uint32_t)m_ColorAttachments.size(), m_ColorAttachments.data());
 			if (m_DepthAttachment)
 				glDeleteTextures(1, &m_DepthAttachment);
 
@@ -180,6 +181,15 @@ namespace Kaidel {
 		handle.Framebuffer = const_cast<OpenGLFramebuffer*>(this);
 		handle.AttachmentIndex = index;
 		return handle;
+	}
+
+	FramebufferImageHandle OpenGLFramebuffer::GetImageHandle(uint64_t index) const
+	{
+		FramebufferImageHandle imageHandle{};
+		/*imageHandle.OGL.Framebuffer = m_RendererID;
+		imageHandle.OGL.Image = m_ColorAttachments[index];
+		imageHandle.OGL.ImageIndexInFramebuffer = index;*/
+		return imageHandle;
 	}
 
 	void OpenGLFramebuffer::ClearDepthAttachment(float value) {
@@ -198,14 +208,14 @@ namespace Kaidel {
 		KD_CORE_ASSERT(attachmentIndex < m_DrawBuffers.size());
 		m_DrawBuffers[attachmentIndex] = GL_NONE;
 		glBindFramebuffer(GL_FRAMEBUFFER, m_RendererID);
-		glDrawBuffers(m_DrawBuffers.size(), m_DrawBuffers.data());
+		glDrawBuffers((GLsizei)m_DrawBuffers.size(), m_DrawBuffers.data());
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 	void OpenGLFramebuffer::EnableColorAttachment(uint32_t attachmentIndex) {
 		KD_CORE_ASSERT(attachmentIndex < m_DrawBuffers.size());
 		m_DrawBuffers[attachmentIndex] = GL_COLOR_ATTACHMENT0 + attachmentIndex;
 		glBindFramebuffer(GL_FRAMEBUFFER, m_RendererID);
-		glDrawBuffers(m_DrawBuffers.size(), m_DrawBuffers.data());
+		glDrawBuffers((GLsizei)m_DrawBuffers.size(), m_DrawBuffers.data());
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 	void OpenGLFramebuffer::Unbind()
@@ -262,7 +272,7 @@ namespace Kaidel {
 		{
 			Unbind();
 			if (m_ColorAttachments.size())
-				glDeleteTextures(m_ColorAttachments.size(), m_ColorAttachments.data());
+				glDeleteTextures((GLsizei)m_ColorAttachments.size(), m_ColorAttachments.data());
 			if (m_DepthAttachment)
 				glDeleteTextures(1, &m_DepthAttachment);
 
@@ -284,14 +294,14 @@ namespace Kaidel {
 		if (m_ColorAttachmentSpecifications.size())
 		{
 			m_ColorAttachments.resize(m_ColorAttachmentSpecifications.size());
-			Utils::CreateTextures(multisample, m_ColorAttachments.data(), m_ColorAttachments.size());
+			Utils::CreateTextures(multisample, m_ColorAttachments.data(), (uint32_t)m_ColorAttachments.size());
 
 			for (size_t i = 0; i < m_ColorAttachments.size(); i++)
 			{
 				Utils::BindTexture(multisample, m_ColorAttachments[i]);
 				Utils::AttachColorTexture(m_ColorAttachments[i], m_Specification.Samples, Utils::KaidelTextureFormatToGLInternalFormat(m_ColorAttachmentSpecifications[i].Format),
-					Utils::KaidelTextureFormatToGLFormat(m_ColorAttachmentSpecifications[i].Format), m_Specification.Width, m_Specification.Height, i);
-				m_DrawBuffers.push_back(GL_COLOR_ATTACHMENT0 + i);
+					Utils::KaidelTextureFormatToGLFormat(m_ColorAttachmentSpecifications[i].Format), m_Specification.Width, m_Specification.Height, (int)i);
+				m_DrawBuffers.push_back((uint32_t)(GL_COLOR_ATTACHMENT0 + i));
 			}
 		}
 
@@ -304,7 +314,7 @@ namespace Kaidel {
 
 		if (!m_DrawBuffers.empty())
 		{
-			glDrawBuffers(m_DrawBuffers.size(), m_DrawBuffers.data());
+			glDrawBuffers((GLsizei)m_DrawBuffers.size(), m_DrawBuffers.data());
 		}
 		else {
 			glDrawBuffer(GL_NONE);
@@ -323,7 +333,7 @@ namespace Kaidel {
 	void OpenGLFramebuffer::SetAttachment(const TextureArrayHandle& handle, uint32_t index){
 		OpenGLTexture2DArray* array = ((OpenGLTexture2DArray*)handle.Array.Get());
 		KD_CORE_ASSERT(index < m_ColorAttachmentSpecifications.size() && array->m_TextureFormat == m_ColorAttachmentSpecifications.at(index).Format);
-		glNamedFramebufferTextureLayer(m_RendererID, GL_COLOR_ATTACHMENT0 + index,array->m_RendererID, 0, handle.SlotIndex);
+		glNamedFramebufferTextureLayer(m_RendererID, GL_COLOR_ATTACHMENT0 + index,array->m_RendererID, 0, (GLint)handle.SlotIndex);
 	}
 	void OpenGLFramebuffer::SetDepthAttachment(const TextureHandle& handle){
 		OpenGLTexture2D* texture = ((OpenGLTexture2D*)handle.Texture.Get());
@@ -333,6 +343,6 @@ namespace Kaidel {
 	void OpenGLFramebuffer::SetDepthAttachment(const TextureArrayHandle& handle) {
 		OpenGLTexture2DArray* array = ((OpenGLTexture2DArray*)handle.Array.Get());
 		KD_CORE_ASSERT(m_DepthAttachment && array->m_TextureFormat == m_DepthAttachmentSpecification.Format);
-		glNamedFramebufferTextureLayer(m_RendererID,GL_DEPTH_ATTACHMENT , array->m_RendererID, 0, handle.SlotIndex);
+		glNamedFramebufferTextureLayer(m_RendererID,GL_DEPTH_ATTACHMENT , array->m_RendererID, 0, (GLint)handle.SlotIndex);
 	}
 }

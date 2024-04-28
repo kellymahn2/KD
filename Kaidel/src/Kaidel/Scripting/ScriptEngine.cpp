@@ -55,7 +55,7 @@ namespace Kaidel {
 
 			std::streampos end = stream.tellg();
 			stream.seekg(0, std::ios::beg);
-			uint32_t size = end - stream.tellg();
+			uint32_t size = (uint32_t)(end - stream.tellg());
 
 			if (size == 0)
 			{
@@ -125,8 +125,9 @@ namespace Kaidel {
 				Switch(Vector3);
 				Switch(Vector4);
 			}
-		}
 #undef Switch
+			return "";
+		}
 	}
 #pragma endregion
 	struct ScriptEngineData
@@ -451,7 +452,7 @@ MonoObject* ScriptClass::Instantiate()
 
 	MonoMethod* ScriptClass::GetMethod(const std::string& name, size_t parameterCount)
 	{
-		return mono_class_get_method_from_name(m_MonoClass, name.c_str(), parameterCount);
+		return mono_class_get_method_from_name(m_MonoClass, name.c_str(), (int)parameterCount);
 	}
 
 	MonoObject* ScriptClass::InvokeMethod(MonoObject* instance,MonoMethod* method, void** params)
@@ -503,7 +504,7 @@ MonoObject* ScriptClass::Instantiate()
 
 	void ScriptInstance::SetStringFieldValueImpl(const ScriptField& field, const char* value)
 	{
-		MonoString* str = mono_string_new_len(s_Data->AppDomain, value, strlen(value));
+		MonoString* str = mono_string_new_len(s_Data->AppDomain, value, (uint32_t)strlen(value));
 		mono_field_set_value(m_Instance, field.Field, (void*)str);
 	}
 

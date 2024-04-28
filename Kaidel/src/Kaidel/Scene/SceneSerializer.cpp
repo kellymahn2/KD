@@ -594,7 +594,7 @@ namespace Kaidel {
 
 				DeserializeComponent<SpotLightComponent>(deserializedEntity, "SpotLightComponent", entityNode, 
 					[](SpotLightComponent& slc,auto& entity,auto& spotLightComponent) {
-						auto& light = slc.Light->GetLight();
+						/*auto& light = slc.Light->GetLight();
 						light.Direction = glm::vec4(spotLightComponent["Direction"].as<glm::vec4>());
 						light.Ambient = glm::vec4(spotLightComponent["Ambient"].as<glm::vec4>());
 						light.Diffuse = glm::vec4(spotLightComponent["Diffuse"].as<glm::vec4>());
@@ -602,7 +602,7 @@ namespace Kaidel {
 						light.CutOffAngle = spotLightComponent["CutOffAngle"].as<float>();
 						light.ConstantCoefficient = spotLightComponent["ConstantCoefficient"].as<float>();
 						light.LinearCoefficient = spotLightComponent["LinearCoefficient"].as<float>();
-						light.QuadraticCoefficient = spotLightComponent["QuadraticCoefficient"].as<float>();
+						light.QuadraticCoefficient = spotLightComponent["QuadraticCoefficient"].as<float>();*/
 					});
 
 				DeserializeComponent<MeshComponent>(deserializedEntity, "MeshComponent", entityNode,

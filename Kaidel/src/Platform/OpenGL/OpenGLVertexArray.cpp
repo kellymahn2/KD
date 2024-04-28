@@ -75,13 +75,13 @@ namespace Kaidel {
 					for (uint8_t i = 0; i < count; i++)
 					{
 						glEnableVertexAttribArray(currentVertexBufferIndex);
-						uint32_t offset = (element.Offset + sizeof(float) * count * i);
+						uint32_t offset = (uint32_t)(element.Offset + sizeof(float) * count * i);
 						glVertexAttribPointer(currentVertexBufferIndex,
 							count,
 							ShaderDataTypeToOpenGLBaseType(element.Type),
 							element.Normalized ? GL_TRUE : GL_FALSE,
 							layout.GetStride(),
-							(const void*)offset);
+							(const void*)(uint64_t)offset);
 						glVertexAttribDivisor(currentVertexBufferIndex, element.Divisor);
 						currentVertexBufferIndex++;
 					}

@@ -186,7 +186,9 @@ namespace Kaidel {
 	void WindowsWindow::OnUpdate()
 	{
 		glfwPollEvents();
-
+		glfwSetWindowRefreshCallback(m_Window, [](GLFWwindow* window) {
+			std::cout << "Redraw" << std::endl;
+			});
 		m_Context->SwapBuffers();
 	}
 

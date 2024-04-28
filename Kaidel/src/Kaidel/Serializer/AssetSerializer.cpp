@@ -27,6 +27,7 @@ namespace Kaidel {
 			node = YAML::Load(file);
 		}
 		catch(std::exception& e){
+			KD_CORE_ASSERT(false, e.what());
 			return false;
 		}
 

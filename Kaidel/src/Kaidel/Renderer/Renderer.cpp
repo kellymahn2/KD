@@ -15,8 +15,8 @@ namespace Kaidel {
 		RenderCommand::Init();
 
 
-		Renderer3D::Init();
-		Renderer2D::Init();
+		/*Renderer3D::Init();
+		Renderer2D::Init();*/
 
 
 		{
@@ -73,10 +73,10 @@ namespace Kaidel {
 				21, 20, 23,
 			};
 			Ref<Material> mat = {};
-			Primitives::CubePrimitive = SingleAssetManager<Mesh>::Manage(CreateRef<Mesh>("Cube", vertices, indices,glm::vec3(0,0,0)),UUID(CubeAssetID));
+			//Primitives::CubePrimitive = SingleAssetManager<Mesh>::Manage(CreateRef<Mesh>("Cube", vertices, indices,glm::vec3(0,0,0)),UUID(CubeAssetID));
 		}
 
-		MaterialTexture::Init();
+		//MaterialTexture::Init();
 		GlobalRenderer3DData* data = new GlobalRenderer3DData;
 		Kaidel::GlobalRendererData = data;
 		
@@ -84,8 +84,8 @@ namespace Kaidel {
 
 	void Renderer::Shutdown()
 	{
-		Renderer2D::Shutdown();
-		Renderer3D::Shutdown();
+		/*Renderer2D::Shutdown();
+		Renderer3D::Shutdown();*/
 		delete Kaidel::GlobalRendererData;
 	}
 

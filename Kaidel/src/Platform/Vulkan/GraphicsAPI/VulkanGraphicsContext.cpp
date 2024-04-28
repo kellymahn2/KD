@@ -1,15 +1,256 @@
 #include "KDpch.h"
 #include "VulkanGraphicsContext.h"
 #include "VulkanSingleShader.h"
+#include "VulkanRenderPass.h"
 #include <GLFW/glfw3.h>
 
 #include "Kaidel/Renderer/GraphicsAPI/Shader.h"
+
+#include <imgui.h>
+#include <backends/imgui_impl_vulkan.h>
+
 namespace Kaidel {
 
 	
+	static VkDescriptorPool descPool{};
+	static VkCommandPool commandPool;
+	static VkCommandBuffer commandBuff{};
+
+	VkFence inFlightFence;
+	VkSemaphore imageAvailSemaphore;
+	VkSemaphore renderFinishedSemaphore;
 
 
 	namespace Vulkan {
+
+		static VkSemaphore make_semaphore(VkDevice device, bool debug) {
+			VkSemaphoreCreateInfo semaphoreInfo{};
+			semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+			VkSemaphore semaphore = {};
+			vkCreateSemaphore(device, &semaphoreInfo, nullptr, &semaphore);
+			if (debug) {
+				std::cout << "Created semaphore" << std::endl;
+			}
+			return semaphore;
+		}
+
+		static VkFence make_fence(VkDevice device, bool debug) {
+			VkFenceCreateInfo fenceInfo{};
+			fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+			fenceInfo.flags = VkFenceCreateFlagBits::VK_FENCE_CREATE_SIGNALED_BIT;
+
+			VkFence fence = {};
+			vkCreateFence(device, &fenceInfo, nullptr, &fence);
+			if (debug) {
+				std::cout << "Created fence" << std::endl;
+			}
+			return fence;
+		}
+
+		// Function to create a descriptor pool
+		VkDescriptorPool CreateDescriptorPool(VkDevice device) {
+			VkDescriptorPool descriptorPool;
+
+			VkDescriptorPoolSize poolSizes[] = {
+				{VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
+				{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
+				{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
+				{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
+				{VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
+				{VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
+				{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
+				{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
+				{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
+				{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
+				{VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}
+			};
+
+			VkDescriptorPoolCreateInfo poolInfo = {};
+			poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+			poolInfo.poolSizeCount = sizeof(poolSizes) / sizeof(poolSizes[0]);
+			poolInfo.pPoolSizes = poolSizes;
+			poolInfo.maxSets = 1000; // Adjust as needed
+
+			if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
+				throw std::runtime_error("failed to create descriptor pool!");
+			}
+
+			return descriptorPool;
+		}
+
+		static VkRenderPass make_renderpass(VkDevice device, VkFormat swapchainImageFormat, bool debug) {
+			/*VkAttachmentDescription colorAttachement = {};
+			colorAttachement.flags = 0;
+			colorAttachement.format = swapchainImageFormat;
+			colorAttachement.samples = VK_SAMPLE_COUNT_1_BIT;
+			colorAttachement.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+			colorAttachement.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+			colorAttachement.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			colorAttachement.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			colorAttachement.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			colorAttachement.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+			VkAttachmentReference colorAttachementRef = {};
+			colorAttachementRef.attachment = 0;
+			colorAttachementRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+			VkSubpassDescription subpass = {};
+			subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+			subpass.colorAttachmentCount = 1;
+			subpass.pColorAttachments = &colorAttachementRef;
+
+			VkRenderPassCreateInfo renderPassInfo{};
+			renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+			renderPassInfo.attachmentCount = 1;
+			renderPassInfo.pAttachments = &colorAttachement;
+			renderPassInfo.subpassCount = 1;
+			renderPassInfo.pSubpasses = &subpass;
+
+			VkRenderPass renderPass = VK_NULL_HANDLE;
+
+			vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass);
+
+			return renderPass;*/
+
+			VkRenderPass renderPass;
+
+			// Color attachment description
+			VkAttachmentDescription colorAttachment = {};
+			colorAttachment.format = swapchainImageFormat;
+			colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+			colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+			colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+			colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+			// Attachment reference
+			VkAttachmentReference colorAttachmentRef = {};
+			colorAttachmentRef.attachment = 0;
+			colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+			// Subpass description
+			VkSubpassDescription subpass = {};
+			subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+			subpass.colorAttachmentCount = 1;
+			subpass.pColorAttachments = &colorAttachmentRef;
+
+			// Subpass dependency
+			VkSubpassDependency dependency = {};
+			dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+			dependency.dstSubpass = 0;
+			dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			dependency.srcAccessMask = 0;
+			dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+			// Render pass create info
+			VkRenderPassCreateInfo renderPassInfo = {};
+			renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+			renderPassInfo.attachmentCount = 1;
+			renderPassInfo.pAttachments = &colorAttachment;
+			renderPassInfo.subpassCount = 1;
+			renderPassInfo.pSubpasses = &subpass;
+			renderPassInfo.dependencyCount = 1;
+			renderPassInfo.pDependencies = &dependency;
+
+			if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
+				throw std::runtime_error("Failed to create render pass!");
+			}
+
+			return renderPass;
+
+		}
+
+		static VkRenderPass renderPass;
+
+		void ImGuiInit() {
+			auto p = ((VulkanGraphicsContext*)Application::Get().GetWindow().GetContext().get());
+
+			
+
+			ImGui_ImplVulkan_InitInfo init_info = {};
+			init_info.Instance = VK_INSTANCE;
+			init_info.PhysicalDevice = VK_PHYSICAL_DEVICE;
+			init_info.Device = VK_DEVICE;
+			init_info.QueueFamily = p->m_QueueFamilyIndices.GraphicsQueueFamilyIndex.value();
+			init_info.Queue = p->m_DeviceQueues.GraphicsQueue;
+			init_info.PipelineCache = VK_NULL_HANDLE;
+			init_info.DescriptorPool = descPool;
+			init_info.MinImageCount = p->m_Swapchain->GetSpecification().ImageCount;
+			init_info.ImageCount = p->m_Swapchain->GetSpecification().ImageCount;
+			init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+			init_info.Allocator = VK_ALLOCATOR_PTR;
+			init_info.CheckVkResultFn = nullptr;
+			ImGui_ImplVulkan_Init(&init_info,renderPass);
+
+			{
+				// Use any command queue
+				VkCommandPool command_pool = commandPool;
+				VkCommandBuffer command_buffer = commandBuff;
+
+				vkResetCommandPool(p->m_LogicalDevice, command_pool, 0);
+				VkCommandBufferBeginInfo begin_info = {};
+				begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+				begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+				vkBeginCommandBuffer(command_buffer, &begin_info);
+
+				ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+
+				VkSubmitInfo end_info = {};
+				end_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+				end_info.commandBufferCount = 1;
+				end_info.pCommandBuffers = &command_buffer;
+				vkEndCommandBuffer(command_buffer);
+				vkQueueSubmit(p->m_DeviceQueues.GraphicsQueue, 1, &end_info, VK_NULL_HANDLE);
+				
+				vkDeviceWaitIdle(p->m_LogicalDevice);
+				ImGui_ImplVulkan_DestroyFontUploadObjects();
+			}
+
+		}
+
+		void ImGuiNewFrame() {
+			ImGui_ImplVulkan_NewFrame();
+		}
+		void ImGuiRender(ImDrawData* drawData){
+
+			auto p = ((VulkanGraphicsContext*)Application::Get().GetWindow().GetContext().get());
+			VkCommandBufferBeginInfo begin_info = {};
+			begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+			begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+			vkResetCommandBuffer(commandBuff, VkCommandBufferResetFlagBits::VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+			vkBeginCommandBuffer(commandBuff, &begin_info);
+
+
+			VkRenderPassBeginInfo renderPassInfo{};
+			renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+			renderPassInfo.renderPass = renderPass;
+			renderPassInfo.framebuffer = p->m_Swapchain->GetFrames()[p->CurrentImage].Framebuffer;
+			renderPassInfo.renderArea.offset.x = 0;
+			renderPassInfo.renderArea.offset.y = 0;
+			renderPassInfo.renderArea.extent = p->m_Swapchain->GetSpecification().Extent;
+
+			VkClearValue clearColor;
+			clearColor.color = { 0.5f,0.6,.7,1.0f };
+			renderPassInfo.clearValueCount = 1;
+			renderPassInfo.pClearValues = &clearColor;
+
+			vkCmdBeginRenderPass(commandBuff, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+			ImGui_ImplVulkan_RenderDrawData(drawData, commandBuff);
+
+			vkCmdEndRenderPass(commandBuff);
+			vkEndCommandBuffer(commandBuff);
+
+		}
+		void ImGuiShutdown(){
+			ImGui_ImplVulkan_Shutdown();
+		}
+
+		static VkDevice s_Device;
 		namespace Utils {
 			static std::vector<VkExtensionProperties> QuerySupportedInstanceExtensions() {
 				std::vector<VkExtensionProperties> supportedInstanceExtensions;
@@ -254,9 +495,9 @@ namespace Kaidel {
 			{
 				switch (messageSeverity)
 				{
-				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT: KD_CORE_INFO(pCallbackData->pMessage);break;
-				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:KD_CORE_WARN(pCallbackData->pMessage);break;
-				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT: KD_CORE_ERROR(pCallbackData->pMessage); break;
+				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT: std::cout<<pCallbackData->pMessage<<std::endl;break;
+				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:std::cout << pCallbackData->pMessage << std::endl;break;
+				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT: std::cout << pCallbackData->pMessage << std::endl; break;
 				}
 				return VK_FALSE;
 			}
@@ -283,6 +524,7 @@ namespace Kaidel {
 				VK_ASSERT(vkCreateDebugUtilsMessengerEXT(instance, &messengerCreateInfo, VK_ALLOCATOR_PTR, &result.Messenger));
 				return result;
 			}
+
 		}
 		VulkanGraphicsContext::VulkanGraphicsContext(GLFWwindow* window)
 			:m_Window(window)
@@ -349,9 +591,37 @@ namespace Kaidel {
 			auto logicalDeviceCreateResult = Utils::CreateLogicalDevice(m_PhysicalDevice, m_QueueFamilyIndices, m_LogicalDeviceSpecification);
 			m_DeviceQueues = logicalDeviceCreateResult.Queues;
 			m_LogicalDevice = logicalDeviceCreateResult.LogicalDevice;
-
+			s_Device = m_LogicalDevice;
 
 			gladLoaderLoadVulkan(m_Instance, m_PhysicalDevice, m_LogicalDevice);
+
+
+
+			inFlightFence = make_fence(m_LogicalDevice, false);
+			imageAvailSemaphore = make_semaphore(m_LogicalDevice, false);
+			renderFinishedSemaphore = make_semaphore(m_LogicalDevice, false);
+
+
+			{
+				VkCommandPoolCreateInfo commandPoolInfo{};
+				commandPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+				commandPoolInfo.flags = VkCommandPoolCreateFlagBits::VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+				commandPoolInfo.queueFamilyIndex = m_QueueFamilyIndices.GraphicsQueueFamilyIndex.value();
+
+				vkCreateCommandPool(m_LogicalDevice, &commandPoolInfo, VK_ALLOCATOR_PTR, &commandPool);
+
+				VkCommandBufferAllocateInfo commandBufferInfo{};
+				commandBufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+				commandBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+				commandBufferInfo.commandBufferCount = 1;
+				commandBufferInfo.commandPool = commandPool;
+				vkAllocateCommandBuffers(m_LogicalDevice, &commandBufferInfo, &commandBuff);
+			}
+
+			descPool = CreateDescriptorPool(m_LogicalDevice);
+			renderPass = make_renderpass(m_LogicalDevice, VK_FORMAT_R8G8B8A8_UNORM,false);
+
+
 
 			//Swapchain
 			VulkanSwapchainSpecification swapchainSpecification{};
@@ -372,9 +642,13 @@ namespace Kaidel {
 			swapchainSpecification.Surface = m_Surface;
 			swapchainSpecification.SwapchainFormat = VkSurfaceFormatKHR{ VK_FORMAT_R8G8B8A8_UNORM,VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
 			swapchainSpecification.SwapchainPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
-
+			swapchainSpecification.InFlightFence = inFlightFence;
+			swapchainSpecification.ImageAvailableSemaphore = imageAvailSemaphore;
+			swapchainSpecification.RenderFinishedSemaphore = renderFinishedSemaphore;
+			swapchainSpecification.RenderPass = renderPass;
 
 			m_Swapchain = CreateRef<VulkanSwapchain>(swapchainSpecification);
+			CurrentImage = m_Swapchain->AcquireImage(inFlightFence,imageAvailSemaphore);
 		}
 
 		void VulkanGraphicsContext::Shutdown() {
@@ -392,9 +666,53 @@ namespace Kaidel {
 			vkDestroyInstance(m_Instance, VK_ALLOCATOR_PTR);
 		}
 
+
+		static uint64_t frames = 0;
+
+		void VulkanGraphicsContext::OnResize(uint32_t width,uint32_t height)
+		{
+			FlushCommandBuffers();
+			m_Swapchain->Resize(width, height);
+			CurrentImage = -1;
+		}
+
+
+		void VulkanGraphicsContext::FlushCommandBuffers() {
+			
+
+			//Render
+			if (CurrentImage != -1) {
+				VkSubmitInfo submitInfo = {};
+				submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+				VkSemaphore waitSemaphores[] = { imageAvailSemaphore };
+				VkPipelineStageFlags waitStages[] = { VkPipelineStageFlagBits::VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+				submitInfo.waitSemaphoreCount = 1;
+				submitInfo.pWaitSemaphores = waitSemaphores;
+				submitInfo.pWaitDstStageMask = waitStages;
+
+				submitInfo.commandBufferCount = 1;
+				submitInfo.pCommandBuffers = &commandBuff;
+
+
+				submitInfo.signalSemaphoreCount = 1;
+				submitInfo.pSignalSemaphores = &renderFinishedSemaphore;
+
+				vkQueueSubmit(m_DeviceQueues.GraphicsQueue, 1, &submitInfo, inFlightFence);
+
+			}
+
+
+			if (CurrentImage != -1) {
+				//Present
+				m_Swapchain->Present(CurrentImage);
+			}
+		}
+
 		void VulkanGraphicsContext::SwapBuffers()
 		{
-			//TODO: implement buffer swapping
+			FlushCommandBuffers();
+			CurrentImage = m_Swapchain->AcquireImage(inFlightFence,imageAvailSemaphore);
+			++frames;
 		}
 	}
 }

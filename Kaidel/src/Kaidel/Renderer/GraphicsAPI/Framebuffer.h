@@ -1,7 +1,8 @@
 #pragma once
 
 #include "Kaidel/Core/Base.h"
-#include "Core.h"
+#include "Constants.h"
+#include "Definitions.h"
 namespace Kaidel {
 
 	
@@ -64,6 +65,7 @@ namespace Kaidel {
 
 		virtual uint64_t GetColorAttachmentRendererID(uint32_t index = 0) const = 0;
 		virtual FramebufferAttachmentHandle GetAttachmentHandle(uint32_t index = 0)const = 0;
+		virtual FramebufferImageHandle GetImageHandle(uint64_t index = 0) const = 0;
 		virtual const FramebufferSpecification& GetSpecification() const = 0;
 
 

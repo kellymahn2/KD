@@ -42,7 +42,7 @@ namespace Kaidel {
 		virtual void ClearLayer(uint32_t slot, const float* data)const override;
 		virtual void Clear(const float* data) const override;
 
-		virtual const std::unordered_map<std::string, uint32_t>& GetLoadedTextures() override { return {}; }
+		virtual const std::unordered_map<std::string, uint32_t>& GetLoadedTextures() override { return m_LoadedTextures; }
 
 		virtual const std::vector<ArraySlotSpecification>& GetSpecifications()const override { return m_Specifications; }
 
@@ -68,6 +68,7 @@ namespace Kaidel {
 		uint32_t m_RendererID;
 		uint32_t m_Width, m_Height, m_Depth;
 		uint32_t m_SetCount = 0;
+		std::unordered_map<std::string, uint32_t> m_LoadedTextures;
 
 		TextureFormat m_TextureFormat;
 

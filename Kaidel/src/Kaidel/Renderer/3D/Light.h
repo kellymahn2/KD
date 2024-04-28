@@ -1,7 +1,7 @@
 #pragma once
 
 
-#include "Kaidel/Renderer/GraphicsAPI/Shader.h""
+#include "Kaidel/Renderer/GraphicsAPI/Shader.h"
 #include "Kaidel/Renderer/GraphicsAPI/Texture.h"
 #include "Kaidel/Renderer/GraphicsAPI/TextureArray.h"
 #include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
@@ -104,9 +104,9 @@ namespace Kaidel
 		static void SetLights() {
 
 			if (!s_UAV)
-				s_UAV = UAVInput::Create(s_InternalData.size(), sizeof(T));
+				s_UAV = UAVInput::Create((uint32_t)s_InternalData.size(), sizeof(T));
 
-			s_UAV->SetBufferData(s_InternalData.data(), s_InternalData.size());
+			s_UAV->SetBufferData(s_InternalData.data(), (uint32_t)s_InternalData.size());
 			s_UAV->Bind(BindingSlot);
 			if(!s_LightDepthMaps)
 				s_LightDepthMaps = Texture2DArray::Create(_ShadowMapWidth, _ShadowMapHeight,TextureFormat::Depth32F, false);

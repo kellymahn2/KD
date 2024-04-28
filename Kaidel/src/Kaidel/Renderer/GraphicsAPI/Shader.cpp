@@ -14,7 +14,7 @@ namespace Kaidel {
 		switch (Renderer::GetAPI())
 		{
 		case RendererAPI::API::OpenGL:  return CreateRef<OpenGLShader>(specification);
-		//case RendererAPI::API::Vulkan: return CreateRef<VulkanShader>(specification);
+		case RendererAPI::API::Vulkan: return {};
 		//case RendererAPI::API::DirectX: return CreateRef<D3DShader>(specification);
 		}
 		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
@@ -52,6 +52,7 @@ namespace Kaidel {
 		case RendererAPI::API::None:KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
 		case RendererAPI::API::OpenGL:return CreateRef<OpenGLComputeShader>(filepath);
 		//case RendererAPI::API::DirectX:return CreateRef<D3DComputeShader>(filepath);
+		case RendererAPI::API::Vulkan: return {};
 
 		}
 		KD_CORE_ASSERT(false, "Unkown RendererAPI!");

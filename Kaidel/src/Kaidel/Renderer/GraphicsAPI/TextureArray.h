@@ -3,7 +3,7 @@
 
 #include "TextureView.h"
 #include "Kaidel/Assets/AssetManager.h"
-#include "Core.h"
+#include "Constants.h"
 #include <string>
 namespace Kaidel {
 

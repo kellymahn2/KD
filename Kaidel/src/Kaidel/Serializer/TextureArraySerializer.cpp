@@ -15,6 +15,7 @@ namespace Kaidel {
 
 		std::ofstream file(path);
 		file << out.c_str();
+		return true;
 	}
 	void TextureArraySerializer::Deserialize(Ref<Texture2DArray> array, const FileSystem::path& path) {
 		std::ifstream file(path);

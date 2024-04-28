@@ -27,8 +27,6 @@ namespace Kaidel {
 	template<>
 	struct _SpriteVertex<0> : public _SpriteVertexBase {};
 
-
-
 	struct _LineVertexBase {
 		glm::vec3 Position;
 		glm::vec4 Color;
@@ -66,6 +64,9 @@ namespace Kaidel {
 	struct _PointVertex : public _PointVertexBase {
 		uint8_t AdditionalDataBlock[Size];
 	};
+
+	template<>
+	struct _PointVertex<0> : public _PointVertexBase {};
 
 
 	using SpriteVertex = _SpriteVertex<0>;
@@ -142,7 +143,7 @@ namespace Kaidel {
 			auto& renderer = s_Renderer2DData.PointRendererData.CustomRenderers.top();
 			if (s_Renderer2DData.PointRendererData.PointsWaitingForRender) {
 				s_Renderer2DData.OutputBuffer->Bind();
-				renderer.VAO->GetVertexBuffers().front()->SetData(vertices.Get(), vertices.Size() * sizeof(_PointVertex<Size>));
+				renderer.VAO->GetVertexBuffers().front()->SetData(vertices.Get(), (uint32_t)(vertices.Size() * sizeof(_PointVertex<Size>)));
 				renderer.Shader->Bind();
 				RenderCommand::SetCullMode(CullMode::None);
 				RenderCommand::DrawPoints(renderer.VAO, s_Renderer2DData.PointRendererData.PointsWaitingForRender);

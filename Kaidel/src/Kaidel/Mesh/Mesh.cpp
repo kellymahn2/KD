@@ -6,7 +6,7 @@ namespace Kaidel {
 
 
 	Mesh::Mesh(const std::string& meshName,const std::vector<MeshVertex>& vertices, const std::vector<uint32_t> indices,glm::vec3 center)
-		:m_Vertices(vertices),m_IndexCount(indices.size()),m_MeshName(meshName)
+		:m_Vertices(vertices),m_IndexCount((uint32_t)indices.size()),m_MeshName(meshName)
 	{
 		KD_CORE_ASSERT(!vertices.empty());
 
@@ -23,10 +23,10 @@ namespace Kaidel {
 	
 	void Mesh::Setup(const std::vector<uint32_t>& indices) {
 
-		m_VBO = VertexBuffer::Create((float*)m_Vertices.data(),m_Vertices.size() * sizeof(MeshVertex));
+		m_VBO = VertexBuffer::Create((float*)m_Vertices.data(),(uint32_t)(m_Vertices.size() * sizeof(MeshVertex)));
 
 		m_PerInstanceVBO = VertexBuffer::Create(1024*sizeof(MeshDrawData));
-		Ref<IndexBuffer> ib = IndexBuffer::Create((uint32_t*)indices.data(), indices.size());
+		Ref<IndexBuffer> ib = IndexBuffer::Create((uint32_t*)indices.data(), (uint32_t)indices.size());
 
 
 		BufferLayout vboLayout = {

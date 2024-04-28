@@ -51,7 +51,7 @@ namespace Kaidel {
 				
 				uint32_t slot = node["Slot"].as<uint32_t>();
 				bool shouldFlip = node["ShouldFlip"].as<bool>();
-				MaterialTexture::GetTextureArray()->InsertOrReplaceTexture(slot,assetPath.string(),shouldFlip);
+				//MaterialTexture::GetTextureArray()->InsertOrReplaceTexture(slot,assetPath.string(),shouldFlip);
 				return {};
 			}break;
 			}

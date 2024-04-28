@@ -1,6 +1,6 @@
 #pragma once
 #include "Kaidel/Core/Base.h"
-#include "Kaidel/Renderer/GraphicsAPI/Core.h"
+#include "Kaidel/Renderer/GraphicsAPI/Constants.h"
 #include <vector>
 namespace Kaidel {
 

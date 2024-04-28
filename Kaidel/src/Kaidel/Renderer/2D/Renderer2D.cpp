@@ -271,7 +271,7 @@ namespace Kaidel {
 		for (uint32_t i = 0; i < 4; ++i) {
 			vertex[i].Position = transform * glm::vec4(s_Renderer2DData.SpriteRendererData.DefaultSpriteVertices[i].Position, 1.0f);
 			vertex[i].TexCoords = s_Renderer2DData.SpriteRendererData.DefaultSpriteVertices[i].TexCoords;
-			vertex[i].MaterialID = material->GetIndex();
+			vertex[i].MaterialID = (int32_t)material->GetIndex();
 		}
 
 		std::unique_lock<std::mutex> lock(s_Renderer2DData.SpriteRendererData.SpriteRenderingMutex);
@@ -288,7 +288,7 @@ namespace Kaidel {
 
 		if (s_Renderer2DData.SpriteRendererData.SpritesWaitingForRender) {
 			s_Renderer2DData.OutputBuffer->Bind();
-			s_Renderer2DData.SpriteRendererData.SpriteVBO->SetData(vertices.Get(), vertices.Size() * sizeof(SpriteVertex));
+			s_Renderer2DData.SpriteRendererData.SpriteVBO->SetData(vertices.Get(), (uint32_t)(vertices.Size() * sizeof(SpriteVertex)));
 			s_Renderer2DData.SpriteRendererData.SpriteShader->Bind();
 			RenderCommand::SetCullMode(CullMode::None);
 			RenderCommand::DrawIndexed(s_Renderer2DData.SpriteRendererData.SpriteVAO, s_Renderer2DData.SpriteRendererData.SpritesWaitingForRender * 6);
@@ -320,11 +320,11 @@ namespace Kaidel {
 	void Renderer2D::DrawBezier(const glm::mat4& transform, const std::vector<glm::vec3>& points, const glm::vec4& color, float increment) {
 
 		glm::mat4 mvp = s_Renderer2DData.CameraBuffer.CameraViewProjection * transform;
-		s_Renderer2DData.BezierRendererData.BezierVBO->SetData(points.data(), points.size() * sizeof(glm::vec3));
+		s_Renderer2DData.BezierRendererData.BezierVBO->SetData(points.data(), (uint32_t)(points.size() * sizeof(glm::vec3)));
 		s_Renderer2DData.BezierRendererData.BezierShader->Bind();
 		s_Renderer2DData.BezierRendererData.BezierShader->SetMat4("u_MVP", s_Renderer2DData.CameraBuffer.CameraViewProjection * transform);
 
-		s_Renderer2DData.BezierRendererData.BezierShader->SetInt("u_NumControlPoints", points.size());
+		s_Renderer2DData.BezierRendererData.BezierShader->SetInt("u_NumControlPoints", (uint32_t)points.size());
 		s_Renderer2DData.BezierRendererData.BezierShader->SetFloat4("u_Color",color);
 
 		float totalNumSegments = ceilf(1.0f / (float)increment);
@@ -335,9 +335,9 @@ namespace Kaidel {
 
 		s_Renderer2DData.OutputBuffer->Bind();
 		RenderCommand::SetCullMode(CullMode::None);
-		RenderCommand::SetPatchVertexCount(points.size());
+		RenderCommand::SetPatchVertexCount((uint32_t)points.size());
 		RenderCommand::SetDefaultTessellationLevels({ numLines,numSegmentsPerLine,1.0,1.0 });
-		RenderCommand::DrawPatches(s_Renderer2DData.BezierRendererData.BezierVAO, points.size());
+		RenderCommand::DrawPatches(s_Renderer2DData.BezierRendererData.BezierVAO, (uint32_t)points.size());
 		RenderCommand::SetPatchVertexCount(3);
 		RenderCommand::SetDefaultTessellationLevels();
 		s_Renderer2DData.OutputBuffer->Unbind();
@@ -366,10 +366,10 @@ namespace Kaidel {
 
 		if (s_Renderer2DData.LineRendererData.LinesWaitingForRender) {
 			s_Renderer2DData.OutputBuffer->Bind();
-			s_Renderer2DData.LineRendererData.LineVBO->SetData(vertices.Get(), vertices.Size() * sizeof(LineVertex));
+			s_Renderer2DData.LineRendererData.LineVBO->SetData(vertices.Get(), (uint32_t)(vertices.Size() * sizeof(LineVertex)));
 			s_Renderer2DData.LineRendererData.LineShader->Bind();
 			RenderCommand::SetCullMode(CullMode::None);
-			RenderCommand::DrawLines(s_Renderer2DData.LineRendererData.LineVAO, vertices.Size());
+			RenderCommand::DrawLines(s_Renderer2DData.LineRendererData.LineVAO, (uint32_t)vertices.Size());
 			s_Renderer2DData.LineRendererData.RenderedLineCount+= s_Renderer2DData.LineRendererData.LinesWaitingForRender;
 			s_Renderer2DData.LineRendererData.LinesWaitingForRender = 0;
 			s_Renderer2DData.OutputBuffer->Unbind();

@@ -17,6 +17,16 @@
 #include "ImGuizmo.h"
 
 namespace Kaidel {
+
+
+	namespace Vulkan {
+		void ImGuiInit();
+		void ImGuiNewFrame();
+		void ImGuiRender(ImDrawData* drawData);
+		void ImGuiShutdown();
+	}
+
+
 	struct ImGuiDirectXRes {
 		ID3D11Device* Device;
 		ID3D11DeviceContext* DeviceContext;
@@ -60,11 +70,8 @@ namespace Kaidel {
 		Application& app = Application::Get();
 		GLFWwindow* window = static_cast<GLFWwindow*>(app.GetWindow().GetNativeWindow());
 
-		ImGui_ImplGlfw_InitForVulkan(window,false);
-
-		//ImGui_ImplVulkan_InitInfo info;
-
-		//ImGui_ImplVulkan_Init(;
+		ImGui_ImplGlfw_InitForVulkan(window,true);
+		Vulkan::ImGuiInit();
 
 		// Setup Platform/Renderer bindings
 	}
@@ -72,7 +79,7 @@ namespace Kaidel {
 	void ImGuiLayer::OnDetach()
 	{
 		
-		ImGui_ImplVulkan_Shutdown();
+		Vulkan::ImGuiShutdown();
 		ImGui_ImplGlfw_Shutdown();
 
 		ImGui::DestroyContext();
@@ -90,8 +97,6 @@ namespace Kaidel {
 	
 	void ImGuiLayer::Begin()
 	{
-
-
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 
@@ -109,8 +114,7 @@ namespace Kaidel {
 		// Rendering
 		ImGui::Render();
 
-		VkCommandBuffer buff = VK_NULL_HANDLE;
-		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(),buff);
+		Vulkan::ImGuiRender(ImGui::GetDrawData());
 
 
 		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)

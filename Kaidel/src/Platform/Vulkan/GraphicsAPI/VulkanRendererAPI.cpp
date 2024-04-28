@@ -1,6 +1,6 @@
 #include "KDpch.h"
 #include "VulkanRendererAPI.h"
-
+#include "VulkanGraphicsContext.h"
 
 namespace Kaidel {
 	namespace Vulkan {
@@ -10,9 +10,11 @@ namespace Kaidel {
 		}
 		void VulkanRendererAPI::SetViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
 		{
+			((VulkanGraphicsContext*)Application::Get().GetWindow().GetContext().get())->OnResize(width, height);
 		}
 		void VulkanRendererAPI::GetViewport(uint32_t& x, uint32_t& y, uint32_t& width, uint32_t& height)
 		{
+
 		}
 		void VulkanRendererAPI::SetClearColor(const glm::vec4& color)
 		{

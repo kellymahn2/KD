@@ -55,8 +55,8 @@ namespace Kaidel {
 		//Light counts
 		{
 			GlobalRenderer3DData::LightCount lightCount{};
-			lightCount.SpotLightCount = SpotLight::GetLightCount();
-			lightCount.PointLightCount = PointLight::GetLightCount();
+			lightCount.SpotLightCount = (int)SpotLight::GetLightCount();
+			lightCount.PointLightCount = (int)PointLight::GetLightCount();
 			GlobalRendererData->LightCountUniformBuffer->SetData(&lightCount, sizeof(GlobalRenderer3DData::LightCount));
 			GlobalRendererData->LightCountUniformBuffer->Bind();
 		}

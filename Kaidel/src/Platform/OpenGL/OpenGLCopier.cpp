@@ -28,7 +28,7 @@ namespace Kaidel {
 		OpenGLTexture2D* dstTexture = (OpenGLTexture2D*)dst.Texture.Get();
 		OpenGLTexture2DArray* srcArray = (OpenGLTexture2DArray*)src.Array.Get();
 
-		glCopyImageSubData(srcArray->m_RendererID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, src.SlotIndex, dstTexture->m_RendererID, GL_TEXTURE_2D, 0, 0, 0, 0, srcArray->m_Width, srcArray->m_Height, 1);
+		glCopyImageSubData(srcArray->m_RendererID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, (GLint)src.SlotIndex, dstTexture->m_RendererID, GL_TEXTURE_2D, 0, 0, 0, 0, srcArray->m_Width, srcArray->m_Height, 1);
 		return true;
 	}
 	bool OpenGLTextureCopier::Copy(const FramebufferAttachmentHandle& dst, const TextureHandle& src){
@@ -58,10 +58,10 @@ namespace Kaidel {
 		OpenGLTexture2DArray* srcArray = (OpenGLTexture2DArray*)src.Array.Get();
 
 		if (dst.AttachmentIndex == -1) {
-			glCopyImageSubData(srcArray->m_RendererID, GL_TEXTURE_2D_ARRAY,0,0,0,src.SlotIndex, dstFramebuffer->m_DepthAttachment, GL_TEXTURE_2D, 0, 0, 0, 0, srcArray->m_Width, srcArray->m_Height, 1);
+			glCopyImageSubData(srcArray->m_RendererID, GL_TEXTURE_2D_ARRAY,0,0,0,(GLint)src.SlotIndex, dstFramebuffer->m_DepthAttachment, GL_TEXTURE_2D, 0, 0, 0, 0, srcArray->m_Width, srcArray->m_Height, 1);
 		}
 		else {
-			glCopyImageSubData(srcArray->m_RendererID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, src.SlotIndex, dstFramebuffer->m_ColorAttachments.at(dst.AttachmentIndex), GL_TEXTURE_2D, 0, 0, 0, 0, srcArray->m_Width, srcArray->m_Height, 1);
+			glCopyImageSubData(srcArray->m_RendererID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, (GLint)src.SlotIndex, dstFramebuffer->m_ColorAttachments.at(dst.AttachmentIndex), GL_TEXTURE_2D, 0, 0, 0, 0, srcArray->m_Width, srcArray->m_Height, 1);
 		}
 		return true;
 	}
@@ -69,7 +69,7 @@ namespace Kaidel {
 		OpenGLTexture2DArray* dstArray= (OpenGLTexture2DArray*)dst.Array.Get();
 		OpenGLTexture2D* srcTexture = (OpenGLTexture2D*)src.Texture.Get();
 
-		glCopyImageSubData(srcTexture->m_RendererID, GL_TEXTURE_2D, 0, 0, 0, 0, dstArray->m_RendererID, GL_TEXTURE_2D, 0, 0, 0, dst.SlotIndex, srcTexture->m_Width, srcTexture->m_Height, 1);
+		glCopyImageSubData(srcTexture->m_RendererID, GL_TEXTURE_2D, 0, 0, 0, 0, dstArray->m_RendererID, GL_TEXTURE_2D, 0, 0, 0, (GLint)dst.SlotIndex, srcTexture->m_Width, srcTexture->m_Height, 1);
 		return true;
 	}
 	bool OpenGLTextureCopier::Copy(const TextureArrayHandle& dst, const FramebufferAttachmentHandle& src){
@@ -77,10 +77,10 @@ namespace Kaidel {
 		OpenGLFramebuffer* srcFramebuffer = (OpenGLFramebuffer*)src.Framebuffer.Get();
 
 		if (src.AttachmentIndex == -1) {
-			glCopyImageSubData(srcFramebuffer->m_DepthAttachment, GL_TEXTURE_2D, 0, 0, 0, 0, dstArray->m_RendererID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, dst.SlotIndex, srcFramebuffer->m_Specification.Width, srcFramebuffer->m_Specification.Width, 1);
+			glCopyImageSubData(srcFramebuffer->m_DepthAttachment, GL_TEXTURE_2D, 0, 0, 0, 0, dstArray->m_RendererID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, (GLint)dst.SlotIndex, srcFramebuffer->m_Specification.Width, srcFramebuffer->m_Specification.Width, 1);
 		}
 		else {
-			glCopyImageSubData(srcFramebuffer->m_ColorAttachments.at(src.AttachmentIndex), GL_TEXTURE_2D, 0, 0, 0, 0, dstArray->m_RendererID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, dst.SlotIndex, srcFramebuffer->m_Specification.Width, srcFramebuffer->m_Specification.Width, 1);
+			glCopyImageSubData(srcFramebuffer->m_ColorAttachments.at(src.AttachmentIndex), GL_TEXTURE_2D, 0, 0, 0, 0, dstArray->m_RendererID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, (GLint)dst.SlotIndex, srcFramebuffer->m_Specification.Width, srcFramebuffer->m_Specification.Width, 1);
 		}
 		return true;
 
@@ -89,7 +89,7 @@ namespace Kaidel {
 		OpenGLTexture2DArray* dstArray = (OpenGLTexture2DArray*)dst.Array.Get();
 		OpenGLTexture2DArray* srcArray = (OpenGLTexture2DArray*)src.Array.Get();
 
-		glCopyImageSubData(srcArray->m_RendererID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, src.SlotIndex, dstArray->m_RendererID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, dst.SlotIndex, srcArray->m_Width, srcArray->m_Height, 1);
+		glCopyImageSubData(srcArray->m_RendererID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, (GLint)src.SlotIndex, dstArray->m_RendererID, GL_TEXTURE_2D_ARRAY, 0, 0, 0, (GLint)dst.SlotIndex, srcArray->m_Width, srcArray->m_Height, 1);
 		return true;
 	}
 

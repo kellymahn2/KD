@@ -69,12 +69,19 @@ namespace Kaidel {
 			ImageSharingMode SharingMode;
 			VkQueue PresentQueue;
 			std::vector<VkSemaphore> WaitSemaphores;
+
+			VkSemaphore RenderFinishedSemaphore;
+			VkFence InFlightFence;
 			VkSemaphore ImageAvailableSemaphore;
+
 			VkSurfaceFormatKHR SwapchainFormat;
 			VkPresentModeKHR SwapchainPresentMode;
 			VkExtent2D Extent;
-			uint32_t ImageCount = -1;
+			uint32_t ImageCount = (uint32_t)(-1);
 			std::vector<uint32_t> QueueFamiliesToShare;
+
+			VkRenderPass RenderPass;
+
 		};
 
 

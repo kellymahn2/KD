@@ -84,7 +84,7 @@ namespace Kaidel {
 	};
 	template<typename T, typename _Points>
 	glm::vec3 Bezier(const std::vector<_Points>& controlPoints, T t) {
-		uint32_t n = controlPoints.size() - 1;
+		uint32_t n = (uint32_t)controlPoints.size() - 1U;
 		glm::vec3 result{ 0.0f };
 		T oneMinusT = 1.0f - t;
 		for (uint32_t i = 0; i <= n; ++i) {
@@ -165,7 +165,7 @@ namespace Kaidel {
 		using LightType = SpotLight;
 		Ref<LightType> Light;
 		SpotLightComponent() {
-			Light = CreateRef<LightType>();
+			//Light = CreateRef<LightType>();
 		}
 		SpotLightComponent(const SpotLightComponent& rhs) {
 			Light = CreateRef<LightType>();

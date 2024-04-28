@@ -23,7 +23,11 @@ namespace Kaidel {
 
 			void Resize(uint32_t width,uint32_t height);
 			void Present(uint32_t imageIndex);
-			uint32_t AcquireImage();
+			uint32_t AcquireImage(VkFence inFlightFence,VkSemaphore imageAvailSemaphore);
+
+			auto GetSwapchain()const { return m_Swapchain; }
+
+			auto& GetFrames() { return m_Frames; }
 
 		private:
 			void DestroyCurrentSwapchain();
