@@ -64,10 +64,10 @@ namespace Kaidel {
 		inline std::string GetFileContents(const FileSystem::path& filePath) {
 			std::ifstream file(filePath, std::ios::binary | std::ios::in);
 			std::string res;
-			KD_CORE_ASSERT(file, "Could not read from file: {}", filePath);
+			KD_CORE_ASSERT(file, "Could not read from file");
 			file.seekg(0, std::ios::end);
 			uint64_t size = file.tellg();
-			KD_CORE_ASSERT(size != -1, "Could not read from file: {}", filePath);
+			KD_CORE_ASSERT(size != -1, "Could not read from file");
 
 			res.resize(size);
 

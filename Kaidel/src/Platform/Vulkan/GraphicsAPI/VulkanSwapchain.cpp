@@ -92,6 +92,45 @@ namespace Kaidel {
 				return swapchainImages;
 			}
 
+			static VkFramebuffer CreateSwapchainFramebuffer(VkDevice device,uint32_t width, uint32_t height,VkImageView attachment,VkRenderPass renderPass) {
+				VkFramebuffer framebuffer = VK_NULL_HANDLE;
+
+				VkFramebufferCreateInfo framebufferInfo{};
+				framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+				framebufferInfo.renderPass = renderPass;
+				framebufferInfo.attachmentCount = 1;
+				framebufferInfo.pAttachments = &attachment;
+				framebufferInfo.width = width;
+				framebufferInfo.height = height;
+				framebufferInfo.layers = 1;
+				VK_ASSERT(vkCreateFramebuffer(device , &framebufferInfo, nullptr, &framebuffer));
+				return framebuffer;
+			}
+
+			static VkImageView CreateSwapchainImageView(VkDevice device,VkImage image,VkFormat format) {
+
+				VkImageView imageView = VK_NULL_HANDLE;
+
+				VkImageSubresourceRange subresourceRange{};
+				subresourceRange.baseArrayLayer = 0;
+				subresourceRange.baseMipLevel = 0;
+				subresourceRange.layerCount = 1;
+				subresourceRange.levelCount = 1;
+				subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				VkImageViewCreateInfo createInfo{};
+				createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+				createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+				createInfo.subresourceRange = subresourceRange;
+				createInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+				createInfo.components.g = VK_COMPONENT_SWIZZLE_G;
+				createInfo.components.b = VK_COMPONENT_SWIZZLE_B;
+				createInfo.components.a = VK_COMPONENT_SWIZZLE_A;
+				createInfo.image = image;
+				createInfo.format = format;
+				VK_ASSERT(vkCreateImageView(device, &createInfo, VK_ALLOCATOR_PTR, &imageView));
+				return imageView;
+			}
+
 			struct SwapchainCreateResult {
 				std::vector<SwapchainFrame> Frames;
 				VkSwapchainKHR Swapchain = VK_NULL_HANDLE;
@@ -133,43 +172,29 @@ namespace Kaidel {
 					SwapchainFrame frame{};
 					frame.FrameImage = image;
 
-					VkImageSubresourceRange subresourceRange{};
-					subresourceRange.baseArrayLayer = 0;
-					subresourceRange.baseMipLevel = 0;
-					subresourceRange.layerCount = 1;
-					subresourceRange.levelCount = 1;
-					subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+					//Image view
+					frame.ImageView = CreateSwapchainImageView(specification.LogicalDevice, image, format.format);
+					
+					//Framebuffer
+					frame.Framebuffer = CreateSwapchainFramebuffer(specification.LogicalDevice, size.width, size.height, frame.ImageView, specification.RenderPass);
 
-					VkImageViewCreateInfo createInfo{};
-					createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-					createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-					createInfo.subresourceRange = subresourceRange;
-					createInfo.components.r = VK_COMPONENT_SWIZZLE_R;
-					createInfo.components.g = VK_COMPONENT_SWIZZLE_G;
-					createInfo.components.b = VK_COMPONENT_SWIZZLE_B;
-					createInfo.components.a = VK_COMPONENT_SWIZZLE_A;
-					createInfo.image = image;
-					createInfo.format = format.format;
+					//Sync objects
+					frame.ImageAvailable = CreateRef<VulkanSemaphore>(specification.LogicalDevice);
+					frame.RenderFinished = CreateRef<VulkanSemaphore>(specification.LogicalDevice);
+					frame.InFlightFence = CreateRef<VulkanFence>(specification.LogicalDevice, true);
 
-					VK_ASSERT(vkCreateImageView(specification.LogicalDevice, &createInfo, VK_ALLOCATOR_PTR, &frame.ImageView));
+					VkCommandBufferAllocateInfo allocInfo{};
+					allocInfo.commandPool = specification.CommandPool;
+					allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+					allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+					allocInfo.commandBufferCount = 1;
 
-					std::vector<VkImageView> attachments = { frame.ImageView};
+					VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
+					VK_ASSERT(vkAllocateCommandBuffers(specification.LogicalDevice, &allocInfo, &commandBuffer));
 
-					VkFramebufferCreateInfo framebufferInfo{};
-					framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-					framebufferInfo.renderPass = specification.RenderPass;
-					framebufferInfo.attachmentCount = (uint32_t)attachments.size();
-					framebufferInfo.pAttachments = attachments.data();
-					framebufferInfo.width = size.width;
-					framebufferInfo.height = size.height;
-					framebufferInfo.layers = 1;
-
-
-					vkCreateFramebuffer(specification.LogicalDevice, &framebufferInfo, nullptr, &frame.Framebuffer);
-
+					frame.CommandBuffer = commandBuffer;
 					result.Frames.push_back(frame);
 				}
-
 
 				specification.SwapchainFormat = format;
 				specification.SwapchainPresentMode = presentMode;
@@ -211,7 +236,7 @@ namespace Kaidel {
 
 		void VulkanSwapchain::Present(uint32_t imageIndex)
 		{
-			VkSemaphore waitSemaphores[] = {m_Specification.RenderFinishedSemaphore};
+			VkSemaphore waitSemaphores[] = {m_Frames[imageIndex].RenderFinished->GetSemaphore()};
 			// Present the acquired image
 			VkPresentInfoKHR presentInfo = {};
 			presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -226,15 +251,17 @@ namespace Kaidel {
 			}
 		}
 
-		uint32_t VulkanSwapchain::AcquireImage(VkFence inFlightFence, VkSemaphore imageAvailSemaphore)
+		uint32_t VulkanSwapchain::AcquireImage(uint32_t lastImageIndex)
 		{
-			if(inFlightFence) {
-				VK_ASSERT(vkWaitForFences(m_Specification.LogicalDevice, 1, &inFlightFence, VK_TRUE, UINT64_MAX));
-				VK_ASSERT(vkResetFences(m_Specification.LogicalDevice, 1, &inFlightFence));
-			}
+			
+			KD_CORE_ASSERT(lastImageIndex >= 0 && lastImageIndex < m_Frames.size(), "At least one image should be acquired");
+
+			m_Frames[lastImageIndex].InFlightFence->Wait();
+			m_Frames[lastImageIndex].InFlightFence->Reset();
 
 			uint32_t imageIndex;
-			VK_ASSERT(vkAcquireNextImageKHR(m_Specification.LogicalDevice, m_Swapchain, UINT64_MAX, imageAvailSemaphore,VK_NULL_HANDLE,&imageIndex));
+			VK_ASSERT(vkAcquireNextImageKHR(m_Specification.LogicalDevice, m_Swapchain, UINT64_MAX, m_Frames[lastImageIndex].ImageAvailable->GetSemaphore(), VK_NULL_HANDLE, &imageIndex));
+			m_LastAcquiredImage = imageIndex;
 			return imageIndex;
 		}
 
@@ -260,6 +287,7 @@ namespace Kaidel {
 
 			m_Swapchain = swapchainCreateResult.Swapchain;
 			m_Frames = swapchainCreateResult.Frames;
+
 		}
 
 	}

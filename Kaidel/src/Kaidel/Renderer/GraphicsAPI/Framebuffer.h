@@ -3,8 +3,10 @@
 #include "Kaidel/Core/Base.h"
 #include "Constants.h"
 #include "Definitions.h"
+
 namespace Kaidel {
 
+	class RenderPass;
 	
 
 	struct FramebufferTextureSpecification
@@ -32,6 +34,9 @@ namespace Kaidel {
 		uint32_t Width = 0, Height = 0;
 		FramebufferAttachmentSpecification Attachments;
 		uint32_t Samples = 1;
+		
+		const Kaidel::RenderPass* RenderPass;
+
 
 		bool SwapChainTarget = false;
 	};

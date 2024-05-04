@@ -72,7 +72,10 @@ namespace Kaidel {
 				shaderc_compiler_release(compiler);
 				shaderc_compile_options_release(options);
 
-				KD_CORE_ASSERT(shaderc_result_get_compilation_status(result) == shaderc_compilation_status_success,"Shader compilation failed");
+				if (shaderc_result_get_compilation_status(result) != shaderc_compilation_status_success) {
+					KD_CORE_ERROR("\n");
+					KD_CORE_ASSERT(false,shaderc_result_get_error_message(result));
+				}
 
 				std::vector<uint32_t> spirv(shaderc_result_get_length(result) / sizeof(uint32_t));
 				memcpy(spirv.data(), shaderc_result_get_bytes(result), shaderc_result_get_length(result));
@@ -98,7 +101,7 @@ namespace Kaidel {
 					spirv = CompileShader(ReadFile(specification.ControlString), specification.ControlString, specification.Type);
 				}
 				else {
-					spirv = CompileShader(specification.ControlString, {}, specification.Type);
+					spirv = CompileShader(specification.ControlString, "RandomFileName.glsl", specification.Type);
 				}
 
 				VK_STRUCT(VkShaderModuleCreateInfo, moduleInfo, SHADER_MODULE_CREATE_INFO);

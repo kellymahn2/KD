@@ -163,6 +163,14 @@ namespace Kaidel {
 			MouseMovedEvent event((float)xPos, (float)yPos);
 			data.EventCallback(event);
 		});
+
+
+		glfwSetWindowRefreshCallback(m_Window, [](GLFWwindow* window) {
+			WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+			WindowRedrawEvent event;
+			data.EventCallback(event);
+			});
+
 		SetVSync(false);
 	}
 
@@ -179,17 +187,20 @@ namespace Kaidel {
 		}
 	}
 
+	void WindowsWindow::PollEvents() const
+	{
+		glfwPollEvents();
+	}
+
 	void WindowsWindow::SwapBuffers() const
 	{
+		m_Context->SwapBuffers();
 	}
 
 	void WindowsWindow::OnUpdate()
 	{
-		glfwPollEvents();
-		glfwSetWindowRefreshCallback(m_Window, [](GLFWwindow* window) {
-			std::cout << "Redraw" << std::endl;
-			});
-		m_Context->SwapBuffers();
+		PollEvents();
+		SwapBuffers();
 	}
 
 	void WindowsWindow::SetVSync(bool enabled)

@@ -12,40 +12,40 @@ namespace Kaidel {
 
 
 		{
-			{
-				ShaderSpecification spec;
-				spec.Definitions = { ShaderDefinition("assets/shaders/ShadowPass_VS.glsl",ShaderType::VertexShader),ShaderDefinition("assets/shaders/ShadowPass_FS.glsl",ShaderType::FragmentShader) };
-				//ShadowPassShader = Shader::Create({ {"assets/shaders/ShadowPass/Mesh_VS.glsl",ShaderType::VertexShader} ,{"assets/shaders/ShadowPass/Mesh_FS.glsl",ShaderType::FragmentShader} });
-				ShadowPassShader = Shader::Create(spec);
-			}
-			
-			{
-				FramebufferSpecification fbSpec{};
-				fbSpec.Width = _ShadowMapWidth;
-				fbSpec.Height = _ShadowMapHeight;
-				fbSpec.Attachments = { TextureFormat::Depth32F };
-				ShadowDepthBuffer = Framebuffer::Create(fbSpec);
-			}
+			//{
+			//	ShaderSpecification spec;
+			//	spec.Definitions = { ShaderDefinition("assets/shaders/ShadowPass_VS.glsl",ShaderType::VertexShader),ShaderDefinition("assets/shaders/ShadowPass_FS.glsl",ShaderType::FragmentShader) };
+			//	//ShadowPassShader = Shader::Create({ {"assets/shaders/ShadowPass/Mesh_VS.glsl",ShaderType::VertexShader} ,{"assets/shaders/ShadowPass/Mesh_FS.glsl",ShaderType::FragmentShader} });
+			//	ShadowPassShader = Shader::Create(spec);
+			//}
+			//
+			//{
+			//	FramebufferSpecification fbSpec{};
+			//	fbSpec.Width = _ShadowMapWidth;
+			//	fbSpec.Height = _ShadowMapHeight;
+			//	fbSpec.Attachments = { TextureFormat::Depth32F };
+			//	ShadowDepthBuffer = Framebuffer::Create(fbSpec);
+			//}
 
-			{
-				FramebufferSpecification fbSpec{};
-				fbSpec.Width = 1280;
-				fbSpec.Height = 720;
-				fbSpec.Samples = 1;
-				fbSpec.Attachments = { TextureFormat::RGBA32F,TextureFormat::RGBA32F ,TextureFormat::R32I,TextureFormat::RGBA8 ,TextureFormat::Depth32F };
-				GBuffers = Framebuffer::Create(fbSpec);
-			}
+			//{
+			//	FramebufferSpecification fbSpec{};
+			//	fbSpec.Width = 1280;
+			//	fbSpec.Height = 720;
+			//	fbSpec.Samples = 1;
+			//	fbSpec.Attachments = { TextureFormat::RGBA32F,TextureFormat::RGBA32F ,TextureFormat::R32I,TextureFormat::RGBA8 ,TextureFormat::Depth32F };
+			//	GBuffers = Framebuffer::Create(fbSpec);
+			//}
 
-			{
-				ShaderSpecification spec;
-				spec.Definitions = { ShaderDefinition("assets/shaders/GeometryPass_VS.glsl",ShaderType::VertexShader),ShaderDefinition("assets/shaders/GeometryPass_FS.glsl",ShaderType::FragmentShader) };
-				GeometryPassShader = Shader::Create(spec);
-			}
+			//{
+			//	ShaderSpecification spec;
+			//	spec.Definitions = { ShaderDefinition("assets/shaders/GeometryPass_VS.glsl",ShaderType::VertexShader),ShaderDefinition("assets/shaders/GeometryPass_FS.glsl",ShaderType::FragmentShader) };
+			//	GeometryPassShader = Shader::Create(spec);
+			//}
 
-			{
-				ShaderSpecification spec = { {ShaderDefinition("assets/shaders/FullScreenQuad_VS.glsl",ShaderType::VertexShader),ShaderDefinition("assets/shaders/LightingPass_FS.glsl",ShaderType::FragmentShader)} };
-				LightingPassShader = Shader::Create(spec);
-			}
+			//{
+			//	ShaderSpecification spec = { {ShaderDefinition("assets/shaders/FullScreenQuad_VS.glsl",ShaderType::VertexShader),ShaderDefinition("assets/shaders/LightingPass_FS.glsl",ShaderType::FragmentShader)} };
+			//	LightingPassShader = Shader::Create(spec);
+			//}
 		}
 
 	}

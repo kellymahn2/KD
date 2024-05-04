@@ -16,10 +16,9 @@
 	#define KD_INTERNAL_ASSERT_GET_MACRO(...) KD_EXPAND_MACRO( KD_INTERNAL_ASSERT_GET_MACRO_NAME(__VA_ARGS__, KD_INTERNAL_ASSERT_WITH_MSG, KD_INTERNAL_ASSERT_NO_MSG) )
 
 	// Currently accepts at least the condition and one additional parameter (the message) being optional
-	/*#define KD_ASSERT(...) KD_EXPAND_MACRO( KD_INTERNAL_ASSERT_GET_MACRO(__VA_ARGS__)(_, __VA_ARGS__) )
-	#define KD_CORE_ASSERT(...) KD_EXPAND_MACRO( KD_INTERNAL_ASSERT_GET_MACRO(__VA_ARGS__)(_CORE_, __VA_ARGS__) )*/
-	#define KD_ASSERT(check,...) {if(!(check)){KD_ERROR(__VA_ARGS__);__debugbreak();}}
-	#define KD_CORE_ASSERT(check,...) {if(!(check)){KD_CORE_ERROR(__VA_ARGS__);__debugbreak();}}
+	#define KD_ASSERT(...) KD_EXPAND_MACRO( KD_INTERNAL_ASSERT_GET_MACRO(__VA_ARGS__)(_, __VA_ARGS__) )
+	#define KD_CORE_ASSERT(...) KD_EXPAND_MACRO( KD_INTERNAL_ASSERT_GET_MACRO(__VA_ARGS__)(_CORE_, __VA_ARGS__) )
+	
 #else
 	#define KD_ASSERT(check,...) check
 	#define KD_CORE_ASSERT(check,...) check

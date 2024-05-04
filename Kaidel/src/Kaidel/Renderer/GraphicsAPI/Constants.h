@@ -63,11 +63,17 @@ namespace Kaidel {
 		Depth24Stencil8
 
 	};
+
+
+
 	namespace Utils {
 		GLenum KaidelTextureFormatToGLInternalFormat(TextureFormat format);
 		GLenum KaidelTextureFormatToGLFormat(TextureFormat format);
 		GLenum KaidelTextureFormatToGLValueFormat(TextureFormat format);
 		VkFormat KaidelTextureFormatToVkFormat(TextureFormat format);
+
+		bool IsDepthFormat(TextureFormat format);
+
 	}
 
 

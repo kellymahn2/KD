@@ -13,7 +13,7 @@ namespace Kaidel {
 			~VulkanSingleShader();
 
 			const SingleShaderSpecification& GetSpecification() const {  return m_Specification;}
-
+			VkShaderModule GetModule()const { return m_ShaderModule; }
 		private:
 			VkShaderModule m_ShaderModule = VK_NULL_HANDLE;
 			SingleShaderSpecification m_Specification = {};

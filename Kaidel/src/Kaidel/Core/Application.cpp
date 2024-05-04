@@ -110,6 +110,7 @@ namespace Kaidel {
 		EventDispatcher dispatcher(e);
 		dispatcher.Dispatch<WindowCloseEvent>(KD_BIND_EVENT_FN(Application::OnWindowClose));
 		dispatcher.Dispatch<WindowResizeEvent>(KD_BIND_EVENT_FN(Application::OnWindowResize));
+		dispatcher.Dispatch<WindowRedrawEvent>(KD_BIND_EVENT_FN(Application::OnWindowRedraw));
 
 		for (auto it = m_LayerStack.rbegin(); it != m_LayerStack.rend(); ++it)
 		{
@@ -160,6 +161,11 @@ namespace Kaidel {
 
 
 		return true;
+	}
+
+	bool Application::OnWindowRedraw(WindowRedrawEvent& e)
+	{
+		return false;
 	}
 
 	void Application::ExecuteMainThreadQueue()

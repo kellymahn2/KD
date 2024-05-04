@@ -13,13 +13,16 @@ namespace Kaidel {
 			VulkanRenderPass(const RenderPassSpecification& specification);
 			~VulkanRenderPass();
 
-
-		private:
-			VkRenderPass m_RenderPass = VK_NULL_HANDLE;
-			VkCommandBuffer m_RecordCommandBuffer = VK_NULL_HANDLE;
-			// Inherited via RenderPass
 			void Begin() const override;
 			void End() const override;
+
+			const RenderPassSpecification& GetSpecification()const override { return m_Specification; }
+
+			VkRenderPass GetRenderPass()const { return m_RenderPass; }
+		private:
+			RenderPassSpecification m_Specification;
+			VkRenderPass m_RenderPass = VK_NULL_HANDLE;
+			VkCommandBuffer m_RecordCommandBuffer = VK_NULL_HANDLE;
 		};
 	}
 }

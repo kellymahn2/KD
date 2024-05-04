@@ -6,11 +6,12 @@
 
 #include "Kaidel/Renderer/GraphicsAPI/Shader.h"
 
+
+
 #include <imgui.h>
 #include <backends/imgui_impl_vulkan.h>
 
 namespace Kaidel {
-
 	
 	static VkDescriptorPool descPool{};
 	static VkCommandPool commandPool;
@@ -19,7 +20,6 @@ namespace Kaidel {
 	VkFence inFlightFence;
 	VkSemaphore imageAvailSemaphore;
 	VkSemaphore renderFinishedSemaphore;
-
 
 	namespace Vulkan {
 
@@ -80,38 +80,6 @@ namespace Kaidel {
 		}
 
 		static VkRenderPass make_renderpass(VkDevice device, VkFormat swapchainImageFormat, bool debug) {
-			/*VkAttachmentDescription colorAttachement = {};
-			colorAttachement.flags = 0;
-			colorAttachement.format = swapchainImageFormat;
-			colorAttachement.samples = VK_SAMPLE_COUNT_1_BIT;
-			colorAttachement.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-			colorAttachement.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-			colorAttachement.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-			colorAttachement.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-			colorAttachement.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-			colorAttachement.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-			VkAttachmentReference colorAttachementRef = {};
-			colorAttachementRef.attachment = 0;
-			colorAttachementRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-			VkSubpassDescription subpass = {};
-			subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-			subpass.colorAttachmentCount = 1;
-			subpass.pColorAttachments = &colorAttachementRef;
-
-			VkRenderPassCreateInfo renderPassInfo{};
-			renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-			renderPassInfo.attachmentCount = 1;
-			renderPassInfo.pAttachments = &colorAttachement;
-			renderPassInfo.subpassCount = 1;
-			renderPassInfo.pSubpasses = &subpass;
-
-			VkRenderPass renderPass = VK_NULL_HANDLE;
-
-			vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass);
-
-			return renderPass;*/
 
 			VkRenderPass renderPass;
 
@@ -169,8 +137,6 @@ namespace Kaidel {
 		void ImGuiInit() {
 			auto p = ((VulkanGraphicsContext*)Application::Get().GetWindow().GetContext().get());
 
-			
-
 			ImGui_ImplVulkan_InitInfo init_info = {};
 			init_info.Instance = VK_INSTANCE;
 			init_info.PhysicalDevice = VK_PHYSICAL_DEVICE;
@@ -216,35 +182,60 @@ namespace Kaidel {
 			ImGui_ImplVulkan_NewFrame();
 		}
 		void ImGuiRender(ImDrawData* drawData){
-
 			auto p = ((VulkanGraphicsContext*)Application::Get().GetWindow().GetContext().get());
+
+			uint32_t img = p->CurrentImage;
+			if (img == -1) {
+				return;
+			}
+
 			VkCommandBufferBeginInfo begin_info = {};
 			begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 			begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-			vkResetCommandBuffer(commandBuff, VkCommandBufferResetFlagBits::VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
-			vkBeginCommandBuffer(commandBuff, &begin_info);
+
+
+			VkCommandBuffer commandBuffer = p->m_Swapchain->GetFrames()[img].CommandBuffer;
+
+			vkResetCommandBuffer(commandBuffer, VkCommandBufferResetFlagBits::VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+			vkBeginCommandBuffer(commandBuffer, &begin_info);
 
 
 			VkRenderPassBeginInfo renderPassInfo{};
 			renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 			renderPassInfo.renderPass = renderPass;
-			renderPassInfo.framebuffer = p->m_Swapchain->GetFrames()[p->CurrentImage].Framebuffer;
+			renderPassInfo.framebuffer = p->m_Swapchain->GetFrames()[img].Framebuffer;
 			renderPassInfo.renderArea.offset.x = 0;
 			renderPassInfo.renderArea.offset.y = 0;
 			renderPassInfo.renderArea.extent = p->m_Swapchain->GetSpecification().Extent;
 
-			VkClearValue clearColor;
+			VkClearValue clearColor{};
 			clearColor.color = { 0.5f,0.6,.7,1.0f };
 			renderPassInfo.clearValueCount = 1;
 			renderPassInfo.pClearValues = &clearColor;
 
-			vkCmdBeginRenderPass(commandBuff, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+			vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-			ImGui_ImplVulkan_RenderDrawData(drawData, commandBuff);
+			ImGui_ImplVulkan_RenderDrawData(drawData, commandBuffer);
 
-			vkCmdEndRenderPass(commandBuff);
-			vkEndCommandBuffer(commandBuff);
+			vkCmdEndRenderPass(commandBuffer);
+			vkEndCommandBuffer(commandBuffer);
 
+			//Render
+			VkSubmitInfo submitInfo = {};
+			submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+			VkSemaphore waitSemaphores[] = { p->m_Swapchain->GetFrames()[img].ImageAvailable->GetSemaphore() };
+			VkPipelineStageFlags waitStages[] = { VkPipelineStageFlagBits::VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+			submitInfo.waitSemaphoreCount = 1;
+			submitInfo.pWaitSemaphores = waitSemaphores;
+			submitInfo.pWaitDstStageMask = waitStages;
+			submitInfo.commandBufferCount = 1;
+			submitInfo.pCommandBuffers = &commandBuffer;
+
+			VkSemaphore renderFinished = p->m_Swapchain->GetFrames()[img].RenderFinished->GetSemaphore();
+			submitInfo.signalSemaphoreCount = 1;
+			submitInfo.pSignalSemaphores = &renderFinished;
+
+			vkQueueSubmit(p->m_DeviceQueues.GraphicsQueue, 1, &submitInfo, p->m_Swapchain->GetFrames()[img].InFlightFence->GetFence());
 		}
 		void ImGuiShutdown(){
 			ImGui_ImplVulkan_Shutdown();
@@ -488,6 +479,17 @@ namespace Kaidel {
 				VkDebugUtilsMessengerEXT Messenger;
 			};
 
+			static std::string FilterDebugMessenge(const char* message) {
+
+				// Validation Error: 
+				// [ VUID-VkAttachmentReference-layout-03077 ] | MessageID = 0xdfca001c | vkCreateRenderPass(): 
+				// pCreateInfo->pSubpasses[0].pDepthStencilAttachment is VK_IMAGE_LAYOUT_UNDEFINED. 
+				// The Vulkan spec states: If attachment is not VK_ATTACHMENT_UNUSED, layout must not be VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PREINITIALIZED, or VK_IMAGE_LAYOUT_PRESENT_SRC_KHR 
+				// (https://vulkan.lunarg.com/doc/view/1.3.280.0/windows/1.3-extensions/vkspec.html#VUID-VkAttachmentReference-layout-03077)
+
+				return message;
+			}
+
 			static VkBool32 DebugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 				VkDebugUtilsMessageTypeFlagsEXT messageTypes,
 				const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
@@ -495,9 +497,9 @@ namespace Kaidel {
 			{
 				switch (messageSeverity)
 				{
-				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT: std::cout<<pCallbackData->pMessage<<std::endl;break;
-				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:std::cout << pCallbackData->pMessage << std::endl;break;
-				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT: std::cout << pCallbackData->pMessage << std::endl; break;
+				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT: KD_CORE_INFO(FilterDebugMessenge(pCallbackData->pMessage)); break;
+				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:KD_CORE_WARN(FilterDebugMessenge(pCallbackData->pMessage)); break;
+				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:KD_CORE_ERROR(FilterDebugMessenge(pCallbackData->pMessage)); break;
 				}
 				return VK_FALSE;
 			}
@@ -619,7 +621,7 @@ namespace Kaidel {
 			}
 
 			descPool = CreateDescriptorPool(m_LogicalDevice);
-			renderPass = make_renderpass(m_LogicalDevice, VK_FORMAT_R8G8B8A8_UNORM,false);
+			renderPass = make_renderpass(m_LogicalDevice, VK_FORMAT_R8G8B8A8_UNORM, false);
 
 
 
@@ -646,9 +648,12 @@ namespace Kaidel {
 			swapchainSpecification.ImageAvailableSemaphore = imageAvailSemaphore;
 			swapchainSpecification.RenderFinishedSemaphore = renderFinishedSemaphore;
 			swapchainSpecification.RenderPass = renderPass;
+			swapchainSpecification.CommandPool = commandPool;
 
 			m_Swapchain = CreateRef<VulkanSwapchain>(swapchainSpecification);
-			CurrentImage = m_Swapchain->AcquireImage(inFlightFence,imageAvailSemaphore);
+
+			m_UniqueQueueFamilyIndices = Utils::GetUniqueFamilyIndices(m_QueueFamilyIndices);
+			CurrentImage = -1;
 		}
 
 		void VulkanGraphicsContext::Shutdown() {
@@ -666,7 +671,6 @@ namespace Kaidel {
 			vkDestroyInstance(m_Instance, VK_ALLOCATOR_PTR);
 		}
 
-
 		static uint64_t frames = 0;
 
 		void VulkanGraphicsContext::OnResize(uint32_t width,uint32_t height)
@@ -676,43 +680,20 @@ namespace Kaidel {
 			CurrentImage = -1;
 		}
 
-
 		void VulkanGraphicsContext::FlushCommandBuffers() {
-			
-
-			//Render
-			if (CurrentImage != -1) {
-				VkSubmitInfo submitInfo = {};
-				submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-				VkSemaphore waitSemaphores[] = { imageAvailSemaphore };
-				VkPipelineStageFlags waitStages[] = { VkPipelineStageFlagBits::VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-				submitInfo.waitSemaphoreCount = 1;
-				submitInfo.pWaitSemaphores = waitSemaphores;
-				submitInfo.pWaitDstStageMask = waitStages;
-
-				submitInfo.commandBufferCount = 1;
-				submitInfo.pCommandBuffers = &commandBuff;
-
-
-				submitInfo.signalSemaphoreCount = 1;
-				submitInfo.pSignalSemaphores = &renderFinishedSemaphore;
-
-				vkQueueSubmit(m_DeviceQueues.GraphicsQueue, 1, &submitInfo, inFlightFence);
-
-			}
-
 
 			if (CurrentImage != -1) {
 				//Present
-				m_Swapchain->Present(CurrentImage);
+				m_Swapchain->Present(m_Swapchain->GetLastAcquiredImage());
 			}
+			
 		}
 
 		void VulkanGraphicsContext::SwapBuffers()
 		{
 			FlushCommandBuffers();
-			CurrentImage = m_Swapchain->AcquireImage(inFlightFence,imageAvailSemaphore);
-			++frames;
+			CurrentImage = (CurrentImage + 1) % (m_Swapchain->GetSpecification().ImageCount);
+		    m_Swapchain->AcquireImage(CurrentImage);
 		}
 	}
 }

@@ -16,10 +16,13 @@
 #include "Kaidel/Utils/PlatformUtils.h"
 
 #include "Kaidel/Scripting/ScriptEngine.h"
+#include "Kaidel/Renderer/GraphicsAPI/RenderPass.h"
+#include "Kaidel/Renderer/GraphicsAPI/GraphicsPipeline.h"
 
 #include "yaml-cpp/yaml.h"
 
 #include "imguizmo/ImGuizmo.h"
+
 
 #include <forward_list>
 
@@ -34,10 +37,10 @@ namespace Kaidel {
 	static std::vector<uint8_t> ReadFile(const FileSystem::path& filePath) {
 		std::ifstream file(filePath, std::ios::binary | std::ios::in);
 		std::vector<uint8_t> res;
-		KD_CORE_ASSERT(file, "Could not read from file: {}", filePath);
+		KD_CORE_ASSERT(file, "Could not read from file");
 		file.seekg(0, std::ios::end);
 		uint64_t size = file.tellg();
-		KD_CORE_ASSERT(size != -1, "Could not read from file: {}", filePath);
+		KD_CORE_ASSERT(size != -1, "Could not read from file");
 
 		res.resize(size);
 
@@ -68,6 +71,65 @@ namespace Kaidel {
 		KD_INFO("Loaded Stop Button");
 
 
+		std::string vss = R"(
+#version 460 core
+layout(location = 0) in vec3 a_Position;
+layout(location = 1) in vec4 a_Color;
+
+void main(){
+	gl_Position = vec4(a_Position,1.0);
+}
+)";
+		std::string fss = R"(
+	#version 460 core
+	layout(location = 0) out vec4 o_Output;
+
+	void main(){
+		o_Output = vec4(1.0);
+	}
+)";
+		/*static Ref<SingleShader> vs;
+		{
+			SingleShaderSpecification spec{};
+			spec.ControlString = vss;
+			spec.IsPath = false;
+			spec.Type = ShaderType::VertexShader;
+			vs = SingleShader::CreateShader(spec);
+		}
+
+		static Ref<SingleShader> fs;
+		{
+			SingleShaderSpecification spec{};
+			spec.ControlString = fss;
+			spec.IsPath = false;
+			spec.Type = ShaderType::FragmentShader;
+			fs = SingleShader::CreateShader(spec);
+		}
+
+		static Ref<RenderPass> renderPass;
+		{
+			RenderPassSpecification rpSpec{};
+			rpSpec.BindingPoint = RenderPassBindPoint::Graphics;
+			rpSpec.OutputImages.push_back(RenderPassAttachmentSpecification(TextureFormat::RGBA8, RenderPassImageLoadOp::Clear, RenderPassImageStoreOp::Store));
+			renderPass = RenderPass::Create(rpSpec);
+		}
+		static Ref<GraphicsPipeline> pipeline;
+		{
+			GraphicsPipelineSpecification spec{};
+			spec.Culling = CullMode::None;
+			spec.FrontCCW = true;
+			spec.InputLayout = { 
+				{ShaderDataType::Float3,"a_Position"},
+				{ShaderDataType::Float4,"a_Color"}
+			};
+			spec.LineWidth = 1.0f;
+			spec.PrimitveTopology = GraphicsPrimitveTopology::TriangleList;
+			spec.RenderPass = renderPass;
+			spec.Stages = { {ShaderType::VertexShader,vs},{ShaderType::FragmentShader,fs} };
+			pipeline = GraphicsPipeline::Create(spec);
+			pipeline->Finalize();
+		}
+
 		{
 			FramebufferSpecification fbSpec;
 			fbSpec.Attachments = { TextureFormat::RGBA8 };
@@ -84,7 +146,7 @@ namespace Kaidel {
 			fbSpec.Height = 720;
 			fbSpec.Samples = 1;
 			m_ScreenOutputbuffer = Framebuffer::Create(fbSpec);
-		}
+		}*/
 
 
 
@@ -109,7 +171,7 @@ namespace Kaidel {
 
 		m_PanelContext->Scene = m_ActiveScene;
 
-		m_ConsolePanel.SetContext(::Log::GetClientLogger());
+		//m_ConsolePanel.SetContext(::Log::GetClientLogger());
 		m_ContentBrowserPanel.SetCurrentPath(Project::GetProjectDirectory());
 		m_ContentBrowserPanel.SetStartPath(Project::GetProjectDirectory());
 		m_SceneHierarchyPanel.SetContext(m_PanelContext);

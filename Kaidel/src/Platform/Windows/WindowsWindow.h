@@ -25,8 +25,10 @@ namespace Kaidel {
 		virtual const Scope<GraphicsContext>& GetContext()const override{return m_Context;}
 
 		void SwapBuffers() const override;
+		void PollEvents() const override;
 
 		virtual void WrapCursor() const override;
+
 
 		virtual void* GetNativeWindow() const { return m_Window; }
 	private:
@@ -49,6 +51,8 @@ namespace Kaidel {
 		WindowData m_Data;
 
 		
+
+
 	};
 
 }

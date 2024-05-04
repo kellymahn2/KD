@@ -70,6 +70,7 @@ namespace Kaidel {
 		bool OnWindowClose(WindowCloseEvent& e);
 		bool OnWindowResize(WindowResizeEvent& e);
 		bool OnRendererSettingsChanged(RendererSettingsChangedEvent& e);
+		bool OnWindowRedraw(WindowRedrawEvent& e);
 
 		void ExecuteMainThreadQueue();
 	private:

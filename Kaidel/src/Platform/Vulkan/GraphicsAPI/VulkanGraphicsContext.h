@@ -19,7 +19,7 @@ struct GLFWwindow;
 #define VK_DEVICE ((::Kaidel::Vulkan::VulkanGraphicsContext*)(::Kaidel::Application::Get().GetWindow().GetContext().get()))->GetDevice()
 #define VK_INSTANCE ((::Kaidel::Vulkan::VulkanGraphicsContext*)(::Kaidel::Application::Get().GetWindow().GetContext().get()))->GetInstance()
 #define VK_PHYSICAL_DEVICE ((::Kaidel::Vulkan::VulkanGraphicsContext*)(::Kaidel::Application::Get().GetWindow().GetContext().get()))->GetPhysicalDevice()
-
+#define VK_UNIQUE_INDICES ((::Kaidel::Vulkan::VulkanGraphicsContext*)(::Kaidel::Application::Get().GetWindow().GetContext().get()))->GetUniqueFamilyIndices()
 //#define VK_DEVICE ::Kaidel::Vulkan::VulkanGraphicsContext::GetDevice()
 
 struct ImDrawData;
@@ -37,14 +37,13 @@ namespace Kaidel {
 			void Shutdown() override;
 			void OnResize(uint32_t width,uint32_t height);
 
-
 			VkInstance GetInstance() const{ return m_Instance; }
 			VkPhysicalDevice GetPhysicalDevice()const { return m_PhysicalDevice; }
 			VkDevice GetDevice()const { return m_LogicalDevice; }
 			const DeviceQueues& GetDeviceQueues()const { return m_DeviceQueues; }
-
-
+			const auto& GetUniqueFamilyIndices()const { return m_UniqueQueueFamilyIndices; }
 		private:
+
 			GLFWwindow* m_Window = nullptr;
 
 			//Instance
@@ -72,6 +71,8 @@ namespace Kaidel {
 			Ref<VulkanSwapchain> m_Swapchain = {};
 
 			uint32_t CurrentImage = -1;
+
+			std::vector<uint32_t> m_UniqueQueueFamilyIndices;
 
 			friend void ImGuiInit();
 			friend void ImGuiRender(ImDrawData*);
