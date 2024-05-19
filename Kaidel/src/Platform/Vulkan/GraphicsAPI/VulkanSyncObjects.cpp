@@ -7,7 +7,7 @@ namespace Kaidel {
 		VulkanFence::VulkanFence(VkDevice device,bool open)
 			:m_LogicalDevice(device)
 		{
-			VK_STRUCT(VkFenceCreateInfo ,fenceInfo,FENCE_CREATE_INFO);
+			VK_STRUCT(VkFenceCreateInfo ,fenceInfo, VK_STRUCTURE_TYPE_FENCE_CREATE_INFO);
 			if (open)
 				fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 			open = m_Open;
@@ -38,7 +38,7 @@ namespace Kaidel {
 		VulkanSemaphore::VulkanSemaphore(VkDevice device)
 			:m_LogicalDevice(device)
 		{
-			VK_STRUCT(VkSemaphoreCreateInfo, semaphoreInfo, SEMAPHORE_CREATE_INFO);
+			VK_STRUCT(VkSemaphoreCreateInfo, semaphoreInfo, VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO);
 			VK_ASSERT(vkCreateSemaphore(m_LogicalDevice, &semaphoreInfo, VK_ALLOCATOR_PTR, &m_Semaphore));
 			
 		}

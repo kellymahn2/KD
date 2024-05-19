@@ -26,12 +26,17 @@ namespace Kaidel {
 			auto& GetFrames() const{ return m_Frames; }
 
 			uint32_t GetLastAcquiredImage()const { return m_LastAcquiredImage; }
+			VkRenderPass GetSwapchainRenderPass()const { return m_RenderPass; }
+
 
 		private:
 			void DestroyCurrentSwapchain();
 			void Invalidate();
 		private:
 			uint32_t m_LastAcquiredImage = -1;
+
+			VkRenderPass m_RenderPass;
+
 			VulkanSwapchainSpecification m_Specification;
 			std::vector<SwapchainFrame> m_Frames;
 			VkSwapchainKHR m_Swapchain = VK_NULL_HANDLE;

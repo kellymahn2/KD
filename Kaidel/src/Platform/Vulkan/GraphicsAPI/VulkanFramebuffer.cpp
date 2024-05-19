@@ -17,7 +17,7 @@ namespace Kaidel {
 
 		static FramebufferImageCreateResult CreateFramebufferImage(VkFormat format, uint32_t width, uint32_t height, bool isDepth,const uint32_t* queueIndices,uint32_t queueIndexCount) {
 
-			VK_STRUCT(VkImageCreateInfo, imageInfo, IMAGE_CREATE_INFO);
+			VK_STRUCT(VkImageCreateInfo, imageInfo, VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO);
 			imageInfo.arrayLayers = 1;
 			imageInfo.extent = { width,height,1};
 			imageInfo.format = format;
@@ -35,7 +35,7 @@ namespace Kaidel {
 
 			VK_ASSERT(vkCreateImage(VK_DEVICE, &imageInfo, VK_ALLOCATOR_PTR, &image.Image));
 
-			VK_STRUCT(VkImageViewCreateInfo, imageViewInfo, IMAGE_VIEW_CREATE_INFO);
+			VK_STRUCT(VkImageViewCreateInfo, imageViewInfo, VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO);
 			imageViewInfo.components.r = VK_COMPONENT_SWIZZLE_R;
 			imageViewInfo.components.g = VK_COMPONENT_SWIZZLE_G;
 			imageViewInfo.components.b = VK_COMPONENT_SWIZZLE_B;
@@ -218,7 +218,7 @@ namespace Kaidel {
 
 
 			//Create the framebuffer
-			VK_STRUCT(VkFramebufferCreateInfo, framebufferInfo, FRAMEBUFFER_CREATE_INFO);
+			VK_STRUCT(VkFramebufferCreateInfo, framebufferInfo, VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO);
 
 			framebufferInfo.attachmentCount = attachmentCount;
 			framebufferInfo.pAttachments = views.data();

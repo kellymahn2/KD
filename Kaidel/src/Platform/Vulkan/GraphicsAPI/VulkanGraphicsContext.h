@@ -5,6 +5,7 @@
 
 #include "Kaidel/Renderer/GraphicsAPI/GraphicsContext.h"
 #include "Kaidel/Core/Application.h"
+#include "VulkanQueueManager.h"
 
 #include "VulkanSwapchain.h"
 
@@ -16,10 +17,13 @@
 struct GLFWwindow;
 
 
-#define VK_DEVICE ((::Kaidel::Vulkan::VulkanGraphicsContext*)(::Kaidel::Application::Get().GetWindow().GetContext().get()))->GetDevice()
-#define VK_INSTANCE ((::Kaidel::Vulkan::VulkanGraphicsContext*)(::Kaidel::Application::Get().GetWindow().GetContext().get()))->GetInstance()
-#define VK_PHYSICAL_DEVICE ((::Kaidel::Vulkan::VulkanGraphicsContext*)(::Kaidel::Application::Get().GetWindow().GetContext().get()))->GetPhysicalDevice()
-#define VK_UNIQUE_INDICES ((::Kaidel::Vulkan::VulkanGraphicsContext*)(::Kaidel::Application::Get().GetWindow().GetContext().get()))->GetUniqueFamilyIndices()
+#define VK_DEVICE ::Kaidel::Vulkan::VulkanGraphicsContext::Get().GetDevice()
+#define VK_INSTANCE ::Kaidel::Vulkan::VulkanGraphicsContext::Get().GetInstance()
+#define VK_PHYSICAL_DEVICE ::Kaidel::Vulkan::VulkanGraphicsContext::Get().GetPhysicalDevice()
+#define VK_UNIQUE_INDICES ::Kaidel::Vulkan::VulkanGraphicsContext::Get().GetUniqueFamilyIndices()
+#define VK_CURRENT_IMAGE ::Kaidel::Vulkan::VulkanGraphicsContext::Get().GetCurrentFrame()
+#define VK_MAIN_COMMAND_BUFFER ::Kaidel::Vulkan::VulkanGraphicsContext::Get().GetMainCommandBuffer()
+#define VK_DEVICE_QUEUE(name) ::Kaidel::Vulkan::VulkanGraphicsContext::Get().GetQueue(name)
 //#define VK_DEVICE ::Kaidel::Vulkan::VulkanGraphicsContext::GetDevice()
 
 struct ImDrawData;
@@ -29,7 +33,11 @@ namespace Kaidel {
 	
 		class VulkanGraphicsContext : public GraphicsContext{
 		public:
+
 			VulkanGraphicsContext(GLFWwindow* window);
+
+			static VulkanGraphicsContext& Get() { return *s_GraphicsContext; }
+
 
 			void Init() override;
 			void SwapBuffers() override;
@@ -39,9 +47,15 @@ namespace Kaidel {
 
 			VkInstance GetInstance() const{ return m_Instance; }
 			VkPhysicalDevice GetPhysicalDevice()const { return m_PhysicalDevice; }
+
+			const VulkanQueue& GetQueue(const std::string& name)const { return m_QueueManager[name]; }
+
 			VkDevice GetDevice()const { return m_LogicalDevice; }
-			const DeviceQueues& GetDeviceQueues()const { return m_DeviceQueues; }
 			const auto& GetUniqueFamilyIndices()const { return m_UniqueQueueFamilyIndices; }
+			VkCommandBuffer GetMainCommandBuffer()const { return m_MainCommandBuffer; }
+
+			const auto& GetCurrentFrame()const { return m_Swapchain->GetFrames()[CurrentImage]; }
+
 		private:
 
 			GLFWwindow* m_Window = nullptr;
@@ -59,20 +73,25 @@ namespace Kaidel {
 			
 			//PhysicalDevice
 			PhysicalDeviceSpecification m_PhysicalDeviceSpecification = {};
-			QueueFamilyIndices m_QueueFamilyIndices = {};
+			VulkanQueueManager m_QueueManager;
 			VkPhysicalDevice m_PhysicalDevice = VK_NULL_HANDLE;
 
 			//LogicalDevice
 			LogicalDeviceSpecification m_LogicalDeviceSpecification = {};
-			DeviceQueues m_DeviceQueues = {};
 			VkDevice m_LogicalDevice = VK_NULL_HANDLE;
 
 			//Swapchain
 			Ref<VulkanSwapchain> m_Swapchain = {};
-
 			uint32_t CurrentImage = -1;
 
+			//MainCommandBuffer
+			VkCommandBuffer m_MainCommandBuffer = VK_NULL_HANDLE;
+
+
 			std::vector<uint32_t> m_UniqueQueueFamilyIndices;
+
+			static VulkanGraphicsContext* s_GraphicsContext;
+
 
 			friend void ImGuiInit();
 			friend void ImGuiRender(ImDrawData*);

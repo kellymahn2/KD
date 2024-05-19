@@ -2,9 +2,19 @@
 #include "VulkanGraphicsContext.h"
 #include "VulkanSingleShader.h"
 #include "VulkanRenderPass.h"
-#include <GLFW/glfw3.h>
+#include "VulkanBuffer.h"
+#include "VulkanInstance.h"
+#include "VulkanPhysicalDevice.h"
+#include "VulkanLogicalDevice.h"
+
+#include "VulkanCommandPool.h"
+#include "VulkanCommandBuffer.h"
+
 
 #include "Kaidel/Renderer/GraphicsAPI/Shader.h"
+
+#include <GLFW/glfw3.h>
+
 
 
 
@@ -12,41 +22,22 @@
 #include <backends/imgui_impl_vulkan.h>
 
 namespace Kaidel {
-	
-	static VkDescriptorPool descPool{};
-	static VkCommandPool commandPool;
-	static VkCommandBuffer commandBuff{};
 
-	VkFence inFlightFence;
-	VkSemaphore imageAvailSemaphore;
-	VkSemaphore renderFinishedSemaphore;
+	Vulkan::VulkanGraphicsContext* Vulkan::VulkanGraphicsContext::s_GraphicsContext = nullptr;
+
+//TODO: Destroy created resources.	
+
+
+
+
+	static VkDescriptorPool descPool{};
+
+	static Ref<Vulkan::VulkanCommandPool> commandPool;
+	static Ref<Vulkan::VulkanCommandBuffer> commandBuffer;
+
+	
 
 	namespace Vulkan {
-
-		static VkSemaphore make_semaphore(VkDevice device, bool debug) {
-			VkSemaphoreCreateInfo semaphoreInfo{};
-			semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-			VkSemaphore semaphore = {};
-			vkCreateSemaphore(device, &semaphoreInfo, nullptr, &semaphore);
-			if (debug) {
-				std::cout << "Created semaphore" << std::endl;
-			}
-			return semaphore;
-		}
-
-		static VkFence make_fence(VkDevice device, bool debug) {
-			VkFenceCreateInfo fenceInfo{};
-			fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-			fenceInfo.flags = VkFenceCreateFlagBits::VK_FENCE_CREATE_SIGNALED_BIT;
-
-			VkFence fence = {};
-			vkCreateFence(device, &fenceInfo, nullptr, &fence);
-			if (debug) {
-				std::cout << "Created fence" << std::endl;
-			}
-			return fence;
-		}
 
 		// Function to create a descriptor pool
 		VkDescriptorPool CreateDescriptorPool(VkDevice device) {
@@ -132,32 +123,32 @@ namespace Kaidel {
 
 		}
 
-		static VkRenderPass renderPass;
+
 
 		void ImGuiInit() {
-			auto p = ((VulkanGraphicsContext*)Application::Get().GetWindow().GetContext().get());
+			auto& graphicsContext = VulkanGraphicsContext::Get();
 
 			ImGui_ImplVulkan_InitInfo init_info = {};
 			init_info.Instance = VK_INSTANCE;
 			init_info.PhysicalDevice = VK_PHYSICAL_DEVICE;
 			init_info.Device = VK_DEVICE;
-			init_info.QueueFamily = p->m_QueueFamilyIndices.GraphicsQueueFamilyIndex.value();
-			init_info.Queue = p->m_DeviceQueues.GraphicsQueue;
+			init_info.QueueFamily = graphicsContext.m_QueueManager["GraphicsQueue"].FamilyIndex;
+			init_info.Queue = graphicsContext.m_QueueManager["GraphicsQueue"].Queue;
 			init_info.PipelineCache = VK_NULL_HANDLE;
 			init_info.DescriptorPool = descPool;
-			init_info.MinImageCount = p->m_Swapchain->GetSpecification().ImageCount;
-			init_info.ImageCount = p->m_Swapchain->GetSpecification().ImageCount;
+			init_info.MinImageCount = graphicsContext.m_Swapchain->GetSpecification().ImageCount;
+			init_info.ImageCount = graphicsContext.m_Swapchain->GetSpecification().ImageCount;
 			init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 			init_info.Allocator = VK_ALLOCATOR_PTR;
 			init_info.CheckVkResultFn = nullptr;
-			ImGui_ImplVulkan_Init(&init_info,renderPass);
+			ImGui_ImplVulkan_Init(&init_info, graphicsContext.m_Swapchain->GetSwapchainRenderPass());
 
 			{
 				// Use any command queue
-				VkCommandPool command_pool = commandPool;
-				VkCommandBuffer command_buffer = commandBuff;
+				VkCommandPool command_pool = commandPool->GetCommandPool();
+				VkCommandBuffer command_buffer = commandBuffer->GetCommandBuffer();
 
-				vkResetCommandPool(p->m_LogicalDevice, command_pool, 0);
+				vkResetCommandPool(graphicsContext.m_LogicalDevice, command_pool, 0);
 				VkCommandBufferBeginInfo begin_info = {};
 				begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 				begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -170,9 +161,9 @@ namespace Kaidel {
 				end_info.commandBufferCount = 1;
 				end_info.pCommandBuffers = &command_buffer;
 				vkEndCommandBuffer(command_buffer);
-				vkQueueSubmit(p->m_DeviceQueues.GraphicsQueue, 1, &end_info, VK_NULL_HANDLE);
-				
-				vkDeviceWaitIdle(p->m_LogicalDevice);
+				vkQueueSubmit(graphicsContext.m_QueueManager["GraphicsQueue"].Queue, 1, &end_info, VK_NULL_HANDLE);
+
+				vkDeviceWaitIdle(graphicsContext.m_LogicalDevice);
 				ImGui_ImplVulkan_DestroyFontUploadObjects();
 			}
 
@@ -181,10 +172,10 @@ namespace Kaidel {
 		void ImGuiNewFrame() {
 			ImGui_ImplVulkan_NewFrame();
 		}
-		void ImGuiRender(ImDrawData* drawData){
-			auto p = ((VulkanGraphicsContext*)Application::Get().GetWindow().GetContext().get());
+		void ImGuiRender(ImDrawData* drawData) {
+			auto& graphicsContext = VulkanGraphicsContext::Get();
 
-			uint32_t img = p->CurrentImage;
+			uint32_t img = graphicsContext.CurrentImage;
 			if (img == -1) {
 				return;
 			}
@@ -194,7 +185,7 @@ namespace Kaidel {
 			begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
 
-			VkCommandBuffer commandBuffer = p->m_Swapchain->GetFrames()[img].CommandBuffer;
+			VkCommandBuffer commandBuffer = graphicsContext.m_Swapchain->GetFrames()[img].CommandBuffer;
 
 			vkResetCommandBuffer(commandBuffer, VkCommandBufferResetFlagBits::VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
 			vkBeginCommandBuffer(commandBuffer, &begin_info);
@@ -202,14 +193,14 @@ namespace Kaidel {
 
 			VkRenderPassBeginInfo renderPassInfo{};
 			renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-			renderPassInfo.renderPass = renderPass;
-			renderPassInfo.framebuffer = p->m_Swapchain->GetFrames()[img].Framebuffer;
+			renderPassInfo.renderPass = graphicsContext.m_Swapchain->GetSwapchainRenderPass();
+			renderPassInfo.framebuffer = graphicsContext.m_Swapchain->GetFrames()[img].Framebuffer;
 			renderPassInfo.renderArea.offset.x = 0;
 			renderPassInfo.renderArea.offset.y = 0;
-			renderPassInfo.renderArea.extent = p->m_Swapchain->GetSpecification().Extent;
+			renderPassInfo.renderArea.extent = graphicsContext.m_Swapchain->GetSpecification().Extent;
 
 			VkClearValue clearColor{};
-			clearColor.color = { 0.5f,0.6,.7,1.0f };
+			clearColor.color = { 0.5f,0.6f,.7f,1.0f };
 			renderPassInfo.clearValueCount = 1;
 			renderPassInfo.pClearValues = &clearColor;
 
@@ -223,7 +214,7 @@ namespace Kaidel {
 			//Render
 			VkSubmitInfo submitInfo = {};
 			submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-			VkSemaphore waitSemaphores[] = { p->m_Swapchain->GetFrames()[img].ImageAvailable->GetSemaphore() };
+			VkSemaphore waitSemaphores[] = { graphicsContext.m_Swapchain->GetFrames()[img].ImageAvailable->GetSemaphore() };
 			VkPipelineStageFlags waitStages[] = { VkPipelineStageFlagBits::VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 			submitInfo.waitSemaphoreCount = 1;
 			submitInfo.pWaitSemaphores = waitSemaphores;
@@ -231,262 +222,20 @@ namespace Kaidel {
 			submitInfo.commandBufferCount = 1;
 			submitInfo.pCommandBuffers = &commandBuffer;
 
-			VkSemaphore renderFinished = p->m_Swapchain->GetFrames()[img].RenderFinished->GetSemaphore();
+			VkSemaphore renderFinished = graphicsContext.m_Swapchain->GetFrames()[img].RenderFinished->GetSemaphore();
 			submitInfo.signalSemaphoreCount = 1;
 			submitInfo.pSignalSemaphores = &renderFinished;
 
-			vkQueueSubmit(p->m_DeviceQueues.GraphicsQueue, 1, &submitInfo, p->m_Swapchain->GetFrames()[img].InFlightFence->GetFence());
+			vkQueueSubmit(graphicsContext.m_QueueManager["GraphicsQueue"].Queue, 1, &submitInfo, graphicsContext.m_Swapchain->GetFrames()[img].InFlightFence->GetFence());
 		}
-		void ImGuiShutdown(){
+		void ImGuiShutdown() {
 			ImGui_ImplVulkan_Shutdown();
 		}
 
-		static VkDevice s_Device;
+
 		namespace Utils {
-			static std::vector<VkExtensionProperties> QuerySupportedInstanceExtensions() {
-				std::vector<VkExtensionProperties> supportedInstanceExtensions;
-				uint32_t supportedInstanceExtensionCount = 0;
-				VK_ASSERT(vkEnumerateInstanceExtensionProperties(nullptr, &supportedInstanceExtensionCount, nullptr));
-				supportedInstanceExtensions.resize(supportedInstanceExtensionCount);
-				VK_ASSERT(vkEnumerateInstanceExtensionProperties(nullptr, &supportedInstanceExtensionCount, supportedInstanceExtensions.data()));
-				return supportedInstanceExtensions;
-			}
-
-			static std::vector<VkLayerProperties> QuerySupportedInstanceLayers() {
-				uint32_t supportedInstanceLayerCount = 0;
-				std::vector<VkLayerProperties> supportedInstanceLayers;
-				VK_ASSERT(vkEnumerateInstanceLayerProperties(&supportedInstanceLayerCount, nullptr));
-				supportedInstanceLayers.resize(supportedInstanceLayerCount);
-				VK_ASSERT(vkEnumerateInstanceLayerProperties(&supportedInstanceLayerCount, supportedInstanceLayers.data()));
-				return supportedInstanceLayers;
-			}
-
-			struct InstanceCreateResult {
-				uint32_t VulkanAPIVersion = 0;
-				VkInstance Instance;
-			};
-
-			static InstanceCreateResult CreateInstance(const InstanceSpecification& instanceSpecification) {
-
-				InstanceCreateResult result{};
-
-
-				gladLoaderLoadVulkan(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE);
-
-				//Query supported instance extensions
-				std::vector<VkExtensionProperties> supportedInstanceExtensions = Utils::QuerySupportedInstanceExtensions();
-
-				//Check wanted extesions against supported extensions
-				for (auto& wantedExtensionName : instanceSpecification.WantedInstanceExtensions) {
-					bool found = false;
-					for (auto& supportedInstanceExtension : supportedInstanceExtensions) {
-						if (strcmp(wantedExtensionName ,supportedInstanceExtension.extensionName) == 0) {
-							found = true;
-							break;
-						}
-					}
-					KD_CORE_ASSERT(found, "A wanted extension is not supported");
-				}
-
-				//Query supported instance layers
-				std::vector<VkLayerProperties> supportedInstanceLayers = Utils::QuerySupportedInstanceLayers();
-
-				//Check wanted layers against supported layers
-				for (auto& wantedLayerName : instanceSpecification.WantedInstanceLayers) {
-					bool found = false;
-					for (auto& supportedInstanceLayer : supportedInstanceLayers) {
-						if (strcmp(wantedLayerName ,supportedInstanceLayer.layerName)) {
-							found = true;
-							break;
-						}
-					}
-					KD_CORE_ASSERT(found, "A wanted layer is not supported");
-				}
-
-				//Query API version
-				VK_ASSERT(vkEnumerateInstanceVersion(&result.VulkanAPIVersion));
-
-				//Application info
-				VK_STRUCT(VkApplicationInfo, applicationInfo, APPLICATION_INFO);
-				applicationInfo.apiVersion = result.VulkanAPIVersion;
-				applicationInfo.applicationVersion = 1;
-				applicationInfo.engineVersion = 1;
-				applicationInfo.pEngineName = instanceSpecification.ApplicationName.c_str();
-				applicationInfo.pApplicationName = instanceSpecification.ApplicationName.c_str();
-
-				//Instance info
-				VK_STRUCT(VkInstanceCreateInfo, instanceInfo, INSTANCE_CREATE_INFO);
-				instanceInfo.pApplicationInfo = &applicationInfo;
-				instanceInfo.enabledExtensionCount = (uint32_t)instanceSpecification.WantedInstanceExtensions.size();
-				instanceInfo.ppEnabledExtensionNames = instanceSpecification.WantedInstanceExtensions.data();
-				instanceInfo.enabledLayerCount = (uint32_t)instanceSpecification.WantedInstanceLayers.size();
-				instanceInfo.ppEnabledLayerNames = instanceSpecification.WantedInstanceLayers.data();
-
-				//Creating the vulkan instance
-				VK_ASSERT(vkCreateInstance(&instanceInfo, VK_ALLOCATOR_PTR, &result.Instance));
-				return result;
-			}
-
-			struct SurfaceCreateResult {
-				VkSurfaceKHR Surface;
-			};
-
-			static SurfaceCreateResult CreateSurface(VkInstance instance, GLFWwindow* window) {
-				SurfaceCreateResult result{};
-				VK_ASSERT(glfwCreateWindowSurface(instance, window, VK_ALLOCATOR_PTR, &result.Surface));
-				return result;
-			}
-
-			struct PhysicalDeviceChooseResult {
-				VkPhysicalDevice PhysicalDevice;
-				QueueFamilyIndices Indices;
-			};
-
-			static std::vector<VkQueueFamilyProperties> QuerySupportedPhysicalDeviceQueueFamilies(VkPhysicalDevice physicalDevice) {
-				uint32_t supportedPhysicalDeviceQueueFamilyCount = 0;
-				std::vector<VkQueueFamilyProperties> supportedQueueFamilies;
-				vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &supportedPhysicalDeviceQueueFamilyCount, nullptr);
-				supportedQueueFamilies.resize(supportedPhysicalDeviceQueueFamilyCount);
-				vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &supportedPhysicalDeviceQueueFamilyCount, supportedQueueFamilies.data());
-				return supportedQueueFamilies;
-			}
-
-			static bool QueryPhysicalDeviceQueueFamilyPresentSupport(VkPhysicalDevice physicalDevice, uint32_t familyIndex, VkSurfaceKHR surface) {
-				VkBool32 supported = VK_TRUE;
-				vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, familyIndex, surface, &supported);
-				return supported;
-			}
-
-			static QueueFamilyIndices FindQueueFamilyIndices(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface) {
-
-				QueueFamilyIndices indices{};
-
-
-				std::vector<VkQueueFamilyProperties> queueFamilyProperties = QuerySupportedPhysicalDeviceQueueFamilies(physicalDevice);
-
-
-				uint32_t i = 0;
-				for (auto& family : queueFamilyProperties) {
-					if (family.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-						indices.GraphicsQueueFamilyIndex = i;
-					}
-
-					if (QueryPhysicalDeviceQueueFamilyPresentSupport(physicalDevice,i,surface) == VK_TRUE) {
-						indices.PresentQueueFamilyIndex = i;
-					}
-
-
-					if (indices.Valid())
-						break;
-
-					++i;
-				}
-
-				return indices;
-			}
-
-			static std::vector<VkExtensionProperties> QuerySupportedPhysicalDeviceExtensions(VkPhysicalDevice physicalDevice) {
-				uint32_t supportedPhysicalDeviceExtensionCount = 0;
-				std::vector<VkExtensionProperties> supportedPhysicalDeviceExtensions;
-				VK_ASSERT(vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &supportedPhysicalDeviceExtensionCount, nullptr));
-				supportedPhysicalDeviceExtensions.resize(supportedPhysicalDeviceExtensionCount);
-				VK_ASSERT(vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &supportedPhysicalDeviceExtensionCount, supportedPhysicalDeviceExtensions.data()));
-				return supportedPhysicalDeviceExtensions;
-			}
-
-			static bool IsPhysicalDeviceSuitable(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, const PhysicalDeviceSpecification& physicalDeviceSpecification) {
-				std::set<std::string> requiredExtensions(physicalDeviceSpecification.WantedPhysicalDeviceExtensions.begin(), physicalDeviceSpecification.WantedPhysicalDeviceExtensions.end());
-
-				std::vector<VkExtensionProperties> supportedPhysicalDeviceExtensions = QuerySupportedPhysicalDeviceExtensions(physicalDevice);
-
-				for (VkExtensionProperties& extension : supportedPhysicalDeviceExtensions) {
-					requiredExtensions.erase(extension.extensionName);
-				}
-
-				return requiredExtensions.empty();
-			}
-
-			static PhysicalDeviceChooseResult ChoosePhysicalDevice(VkInstance instance,VkSurfaceKHR surface, const PhysicalDeviceSpecification& physicalDeviceSpecification) {
-				PhysicalDeviceChooseResult result{};
-
-				uint32_t physicalDeviceCount = 0;
-				vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr);
-				std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount, VK_NULL_HANDLE);
-				vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data());
-
-				for (auto& physicalDevice : physicalDevices) {
-					if (IsPhysicalDeviceSuitable(physicalDevice, surface,physicalDeviceSpecification)) {
-						QueueFamilyIndices indices = FindQueueFamilyIndices(physicalDevice, surface);
-						if (indices.Valid()) {
-							result.PhysicalDevice = physicalDevice;
-							result.Indices = indices;
-							break;
-						}
-					}
-				}
-
-				return result;
-			}
-
-			struct LogicalDeviceCreateResult {
-				VkDevice LogicalDevice;
-				DeviceQueues Queues;
-			};
-
-			static std::vector<uint32_t> GetUniqueFamilyIndices(const QueueFamilyIndices& familyIndices) {
-				uint32_t families[] = { familyIndices.GraphicsQueueFamilyIndex.value(),familyIndices.PresentQueueFamilyIndex.value() };
-				uint32_t* uniqueFamiliesEnd = std::unique(families, families + ARRAYSIZE(families));
-				return { families,uniqueFamiliesEnd };
-			}
-
-			static LogicalDeviceCreateResult CreateLogicalDevice(VkPhysicalDevice physicalDevice,const QueueFamilyIndices& familyIndices, const LogicalDeviceSpecification& logicalDeviceSpecification) {
-				LogicalDeviceCreateResult result{};
-
-				KD_CORE_ASSERT(familyIndices.Valid());
-
-				uint32_t families[] = { familyIndices.GraphicsQueueFamilyIndex.value(),familyIndices.PresentQueueFamilyIndex.value() };
-				uint32_t* uniqueFamilies = std::unique(families, families + ARRAYSIZE(families));
-				
-				std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-				float queuePriority = 1.0f;
-
-				for (uint32_t* currFamily = families; currFamily != uniqueFamilies; ++currFamily) {
-					VK_STRUCT(VkDeviceQueueCreateInfo, queueCreateInfo, DEVICE_QUEUE_CREATE_INFO);
-					queueCreateInfo.pQueuePriorities = &queuePriority;
-					queueCreateInfo.queueCount = 1;
-					queueCreateInfo.queueFamilyIndex = *currFamily;
-					queueCreateInfos.push_back(queueCreateInfo);
-				}
-
-				VK_STRUCT(VkDeviceCreateInfo, deviceInfo, DEVICE_CREATE_INFO);
-				deviceInfo.queueCreateInfoCount = (uint32_t)queueCreateInfos.size();
-				deviceInfo.pQueueCreateInfos = queueCreateInfos.data();
-				deviceInfo.enabledExtensionCount = (uint32_t)logicalDeviceSpecification.Extensions.size();
-				deviceInfo.ppEnabledExtensionNames = logicalDeviceSpecification.Extensions.data();
-				deviceInfo.enabledLayerCount = (uint32_t)logicalDeviceSpecification.Layers.size();
-				deviceInfo.ppEnabledLayerNames = logicalDeviceSpecification.Layers.data();
-				deviceInfo.pEnabledFeatures = &logicalDeviceSpecification.Features;
-
-				VK_ASSERT(vkCreateDevice(physicalDevice, &deviceInfo, VK_ALLOCATOR_PTR, &result.LogicalDevice));
-
-				vkGetDeviceQueue(result.LogicalDevice, familyIndices.GraphicsQueueFamilyIndex.value(), 0, &result.Queues.GraphicsQueue);
-				vkGetDeviceQueue(result.LogicalDevice, familyIndices.PresentQueueFamilyIndex.value(), 0, &result.Queues.PresentQueue);
-
-				return result;
-			}
-
-			struct DebugMessengerCreateResult {
-				VkDebugUtilsMessengerEXT Messenger;
-			};
 
 			static std::string FilterDebugMessenge(const char* message) {
-
-				// Validation Error: 
-				// [ VUID-VkAttachmentReference-layout-03077 ] | MessageID = 0xdfca001c | vkCreateRenderPass(): 
-				// pCreateInfo->pSubpasses[0].pDepthStencilAttachment is VK_IMAGE_LAYOUT_UNDEFINED. 
-				// The Vulkan spec states: If attachment is not VK_ATTACHMENT_UNUSED, layout must not be VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PREINITIALIZED, or VK_IMAGE_LAYOUT_PRESENT_SRC_KHR 
-				// (https://vulkan.lunarg.com/doc/view/1.3.280.0/windows/1.3-extensions/vkspec.html#VUID-VkAttachmentReference-layout-03077)
-
 				return message;
 			}
 
@@ -503,35 +252,12 @@ namespace Kaidel {
 				}
 				return VK_FALSE;
 			}
-
-			static DebugMessengerCreateResult CreateDebugMessenger(VkInstance instance) {
-
-				DebugMessengerCreateResult result{};
-
-				gladLoaderLoadVulkan(instance, nullptr, nullptr);
-				
-				VkDebugUtilsMessengerCreateInfoEXT messengerCreateInfo{};
-				messengerCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-				messengerCreateInfo.messageType =
-					VkDebugUtilsMessageTypeFlagBitsEXT::VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
-					| VkDebugUtilsMessageTypeFlagBitsEXT::VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT
-					| VkDebugUtilsMessageTypeFlagBitsEXT::VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
-				messengerCreateInfo.messageSeverity =
-					VkDebugUtilsMessageSeverityFlagBitsEXT::VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
-					| VkDebugUtilsMessageSeverityFlagBitsEXT::VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
-					| VkDebugUtilsMessageSeverityFlagBitsEXT::VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-					;
-
-				messengerCreateInfo.pfnUserCallback = DebugMessengerCallback;
-				VK_ASSERT(vkCreateDebugUtilsMessengerEXT(instance, &messengerCreateInfo, VK_ALLOCATOR_PTR, &result.Messenger));
-				return result;
-			}
-
 		}
 		VulkanGraphicsContext::VulkanGraphicsContext(GLFWwindow* window)
 			:m_Window(window)
 		{
 			KD_CORE_ASSERT(window, "Window handle is null!");
+			s_GraphicsContext = this;
 		}
 
 		void VulkanGraphicsContext::Init()
@@ -568,7 +294,7 @@ namespace Kaidel {
 			m_VulkanAPIVersion = instanceCreateResult.VulkanAPIVersion;
 
 			//Debug messenger creation
-			auto debugMessengerCreateResult = Utils::CreateDebugMessenger(m_Instance);
+			auto debugMessengerCreateResult = Utils::CreateDebugMessenger(m_Instance,&Utils::DebugMessengerCallback);
 			m_DebugMessenger = debugMessengerCreateResult.Messenger;
 
 			//Surface creation
@@ -580,8 +306,35 @@ namespace Kaidel {
 			};
 
 			//Physical device choosing
-			auto physicalDeviceChooseResult = Utils::ChoosePhysicalDevice(m_Instance, m_Surface, m_PhysicalDeviceSpecification);
-			m_QueueFamilyIndices = physicalDeviceChooseResult.Indices;
+			VulkanQueueGroupSpecification groupSpec{};
+
+			{
+				//Graphics Queue
+				{
+					VulkanQueueSpecification queueSpec{};
+					queueSpec.Validator = [](const VkQueueFamilyProperties& props,uint32_t,VkPhysicalDevice physicalDevice) {
+						return QueueValidateResult{ static_cast<bool>(props.queueFlags & VK_QUEUE_GRAPHICS_BIT) };
+					};
+					groupSpec.QueueSpecifications["GraphicsQueue"] = queueSpec;
+				}
+				//Present Queue
+				{
+					VulkanQueueSpecification queueSpec{};
+
+					queueSpec.Validator = [surface = m_Surface](const VkQueueFamilyProperties& props,uint32_t familyIndex, VkPhysicalDevice physicalDevice) {
+						VkBool32 supported = VK_TRUE;
+						vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, familyIndex, surface, &supported);
+						return QueueValidateResult{ static_cast<bool>(supported) };
+					};
+
+					groupSpec.QueueSpecifications["PresentQueue"] = queueSpec;
+				}
+
+			}
+
+
+			auto physicalDeviceChooseResult = Utils::ChoosePhysicalDevice(m_Instance,{groupSpec}, m_PhysicalDeviceSpecification);
+			m_QueueManager = physicalDeviceChooseResult.QueueManager;
 			m_PhysicalDevice = physicalDeviceChooseResult.PhysicalDevice;
 
 			m_LogicalDeviceSpecification.Extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
@@ -590,40 +343,17 @@ namespace Kaidel {
 			}
 
 			//Logical device creation
-			auto logicalDeviceCreateResult = Utils::CreateLogicalDevice(m_PhysicalDevice, m_QueueFamilyIndices, m_LogicalDeviceSpecification);
-			m_DeviceQueues = logicalDeviceCreateResult.Queues;
+			auto logicalDeviceCreateResult = Utils::CreateLogicalDevice(m_PhysicalDevice,m_QueueManager, m_LogicalDeviceSpecification);
 			m_LogicalDevice = logicalDeviceCreateResult.LogicalDevice;
-			s_Device = m_LogicalDevice;
 
 			gladLoaderLoadVulkan(m_Instance, m_PhysicalDevice, m_LogicalDevice);
 
 
+			commandPool = CreateRef<VulkanCommandPool>(m_QueueManager["GraphicsQueue"].FamilyIndex);
 
-			inFlightFence = make_fence(m_LogicalDevice, false);
-			imageAvailSemaphore = make_semaphore(m_LogicalDevice, false);
-			renderFinishedSemaphore = make_semaphore(m_LogicalDevice, false);
-
-
-			{
-				VkCommandPoolCreateInfo commandPoolInfo{};
-				commandPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-				commandPoolInfo.flags = VkCommandPoolCreateFlagBits::VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-				commandPoolInfo.queueFamilyIndex = m_QueueFamilyIndices.GraphicsQueueFamilyIndex.value();
-
-				vkCreateCommandPool(m_LogicalDevice, &commandPoolInfo, VK_ALLOCATOR_PTR, &commandPool);
-
-				VkCommandBufferAllocateInfo commandBufferInfo{};
-				commandBufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-				commandBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-				commandBufferInfo.commandBufferCount = 1;
-				commandBufferInfo.commandPool = commandPool;
-				vkAllocateCommandBuffers(m_LogicalDevice, &commandBufferInfo, &commandBuff);
-			}
+			commandBuffer = CreateRef<VulkanCommandBuffer>(commandPool);
 
 			descPool = CreateDescriptorPool(m_LogicalDevice);
-			renderPass = make_renderpass(m_LogicalDevice, VK_FORMAT_R8G8B8A8_UNORM, false);
-
-
 
 			//Swapchain
 			VulkanSwapchainSpecification swapchainSpecification{};
@@ -631,9 +361,9 @@ namespace Kaidel {
 			swapchainSpecification.ImageCount = 4;
 			swapchainSpecification.LogicalDevice = m_LogicalDevice;
 			swapchainSpecification.PhysicalDevice = m_PhysicalDevice;
-			swapchainSpecification.PresentQueue = m_DeviceQueues.PresentQueue;
+			swapchainSpecification.PresentQueue = m_QueueManager["PresentQueue"];
 
-			auto uniqueFamilies = Utils::GetUniqueFamilyIndices(m_QueueFamilyIndices);
+			auto uniqueFamilies = m_QueueManager.GetUniqueFamilyIndices();
 			swapchainSpecification.QueueFamiliesToShare = uniqueFamilies;
 			if (swapchainSpecification.QueueFamiliesToShare.size() > 1) {
 				swapchainSpecification.SharingMode = ImageSharingMode::Share;
@@ -644,16 +374,24 @@ namespace Kaidel {
 			swapchainSpecification.Surface = m_Surface;
 			swapchainSpecification.SwapchainFormat = VkSurfaceFormatKHR{ VK_FORMAT_R8G8B8A8_UNORM,VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
 			swapchainSpecification.SwapchainPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
-			swapchainSpecification.InFlightFence = inFlightFence;
-			swapchainSpecification.ImageAvailableSemaphore = imageAvailSemaphore;
-			swapchainSpecification.RenderFinishedSemaphore = renderFinishedSemaphore;
-			swapchainSpecification.RenderPass = renderPass;
-			swapchainSpecification.CommandPool = commandPool;
+			
+			swapchainSpecification.CommandPool = commandPool->GetCommandPool();
 
 			m_Swapchain = CreateRef<VulkanSwapchain>(swapchainSpecification);
 
-			m_UniqueQueueFamilyIndices = Utils::GetUniqueFamilyIndices(m_QueueFamilyIndices);
+			m_UniqueQueueFamilyIndices = m_QueueManager.GetUniqueFamilyIndices();
 			CurrentImage = -1;
+			SwapBuffers();
+
+			//MainCommandBuffer
+			{
+				VK_STRUCT(VkCommandBufferAllocateInfo, bufferInfo, VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO);
+				bufferInfo.commandBufferCount = 1;
+				bufferInfo.commandPool = commandPool->GetCommandPool();
+				bufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+
+				vkAllocateCommandBuffers(m_LogicalDevice, &bufferInfo, &m_MainCommandBuffer);
+			}
 		}
 
 		void VulkanGraphicsContext::Shutdown() {
@@ -675,9 +413,10 @@ namespace Kaidel {
 
 		void VulkanGraphicsContext::OnResize(uint32_t width,uint32_t height)
 		{
-			FlushCommandBuffers();
 			m_Swapchain->Resize(width, height);
 			CurrentImage = -1;
+			CurrentImage = (CurrentImage + 1) % (m_Swapchain->GetSpecification().ImageCount);
+			m_Swapchain->AcquireImage(CurrentImage);
 		}
 
 		void VulkanGraphicsContext::FlushCommandBuffers() {

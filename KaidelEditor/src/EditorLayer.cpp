@@ -53,7 +53,24 @@ namespace Kaidel {
 	
 	
 	
-	
+	uint32_t* SetupSpriteIndices() {
+		uint32_t* quadIndices = new uint32_t[6000];
+
+		uint32_t offset = 0;
+		for (uint32_t i = 0; i < 6000; i += 6)
+		{
+			quadIndices[i + 0] = offset + 0;
+			quadIndices[i + 1] = offset + 1;
+			quadIndices[i + 2] = offset + 2;
+
+			quadIndices[i + 3] = offset + 2;
+			quadIndices[i + 4] = offset + 3;
+			quadIndices[i + 5] = offset + 0;
+
+			offset += 4;
+		}
+		return quadIndices;
+	}
 	
 	
 	void EditorLayer::OnAttach()
@@ -71,24 +88,29 @@ namespace Kaidel {
 		KD_INFO("Loaded Stop Button");
 
 
+
 		std::string vss = R"(
 #version 460 core
-layout(location = 0) in vec3 a_Position;
-layout(location = 1) in vec4 a_Color;
+
 
 void main(){
-	gl_Position = vec4(a_Position,1.0);
+	gl_Position = vec4(0);
+}
+
+
+)";
+
+		std::string fss = R"(
+		#version 460 core
+
+layout(location = 0)out vec4 col;
+
+void main(){
+	col = vec4(1.0);
 }
 )";
-		std::string fss = R"(
-	#version 460 core
-	layout(location = 0) out vec4 o_Output;
-
-	void main(){
-		o_Output = vec4(1.0);
-	}
-)";
 		/*static Ref<SingleShader> vs;
+
 		{
 			SingleShaderSpecification spec{};
 			spec.ControlString = vss;
@@ -96,40 +118,43 @@ void main(){
 			spec.Type = ShaderType::VertexShader;
 			vs = SingleShader::CreateShader(spec);
 		}
-
 		static Ref<SingleShader> fs;
+
 		{
 			SingleShaderSpecification spec{};
 			spec.ControlString = fss;
 			spec.IsPath = false;
-			spec.Type = ShaderType::FragmentShader;
+			spec.Type = ShaderType::PixelShader;
 			fs = SingleShader::CreateShader(spec);
 		}
 
-		static Ref<RenderPass> renderPass;
+		static Ref<RenderPass> rp;
+
 		{
-			RenderPassSpecification rpSpec{};
-			rpSpec.BindingPoint = RenderPassBindPoint::Graphics;
-			rpSpec.OutputImages.push_back(RenderPassAttachmentSpecification(TextureFormat::RGBA8, RenderPassImageLoadOp::Clear, RenderPassImageStoreOp::Store));
-			renderPass = RenderPass::Create(rpSpec);
+			RenderPassSpecification spec{};
+			spec.BindingPoint = RenderPassBindPoint::Graphics;
+
+			spec.OutputImages.push_back(RenderPassAttachmentSpecification(TextureFormat::RGBA8,RenderPassImageLoadOp::DontCare));
+			rp = RenderPass::Create(spec);
 		}
-		static Ref<GraphicsPipeline> pipeline;
+
+		static Ref<GraphicsPipeline> gp;
+
 		{
 			GraphicsPipelineSpecification spec{};
 			spec.Culling = CullMode::None;
 			spec.FrontCCW = true;
-			spec.InputLayout = { 
-				{ShaderDataType::Float3,"a_Position"},
-				{ShaderDataType::Float4,"a_Color"}
-			};
 			spec.LineWidth = 1.0f;
 			spec.PrimitveTopology = GraphicsPrimitveTopology::TriangleList;
-			spec.RenderPass = renderPass;
+			spec.RenderPass = rp;
 			spec.Stages = { {ShaderType::VertexShader,vs},{ShaderType::FragmentShader,fs} };
-			pipeline = GraphicsPipeline::Create(spec);
-			pipeline->Finalize();
-		}
 
+		}
+*/
+
+
+
+		/*
 		{
 			FramebufferSpecification fbSpec;
 			fbSpec.Attachments = { TextureFormat::RGBA8 };
@@ -138,7 +163,8 @@ void main(){
 			fbSpec.Samples = RendererAPI::GetSettings().MSAASampleCount;
 			m_OutputBuffer = Framebuffer::Create(fbSpec);
 		}
-
+		*/
+		/*
 		{
 			FramebufferSpecification fbSpec;
 			fbSpec.Attachments = { TextureFormat::RGBA8 };
@@ -147,13 +173,6 @@ void main(){
 			fbSpec.Samples = 1;
 			m_ScreenOutputbuffer = Framebuffer::Create(fbSpec);
 		}*/
-
-
-
-
-
-
-
 
 		m_2D3DCompositeShader = ComputeShader::Create("assets/shaders/Composite_CS_2D3D.glsl");
 		m_ActiveScene = CreateRef<Scene>();

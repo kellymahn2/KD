@@ -2,9 +2,14 @@
 #include "Kaidel\Core\Buffer.h"
 namespace Kaidel {
 
+	enum class BufferStorageType{
+		None = 0,
+		Static,
+		Dynamic
+	};
 	enum class ShaderDataType
 	{
-		None = 0, Float, Float2, Float3, Float4, Mat3, Mat4, Int, Int2, Int3, Int4, Bool
+		None = 0,Dummy, Float, Float2, Float3, Float4, Mat3, Mat4, Int, Int2, Int3, Int4, Bool
 	};
 
 	static uint32_t ShaderDataTypeSize(ShaderDataType type)
@@ -32,15 +37,23 @@ namespace Kaidel {
 	{
 		std::string Name;
 		ShaderDataType Type;
-		uint32_t Divisor;
-		uint32_t Size;
-		size_t Offset;
 
+		size_t Offset;
+		uint32_t Size;
+		uint32_t Divisor;
 		bool Normalized;
 		
 		BufferElement() = default;
-		
-		BufferElement(ShaderDataType type, const std::string& name,uint32_t divisor = 0,bool normalized = false)
+
+		//DummyElement
+		BufferElement(uint32_t size, const std::string& name = "")
+			:Name(name),Type(ShaderDataType::Dummy),Size(size),Offset(0),Divisor(0),Normalized(false)
+		{
+		}
+
+
+		//Active Element
+		BufferElement(ShaderDataType type, const std::string& name, uint32_t divisor = 0, bool normalized = false)
 			: Name(name), Type(type), Size(ShaderDataTypeSize(type)), Offset(0), Divisor(divisor), Normalized(normalized)
 		{
 		}
@@ -112,6 +125,8 @@ namespace Kaidel {
 	};
 
 
+
+
 	// Currently Kaidel only supports 32-bit index buffers
 	class IndexBuffer : public IRCCounter<false>
 	{
@@ -126,6 +141,12 @@ namespace Kaidel {
 		static Ref<IndexBuffer> Create(uint32_t* indices, uint32_t count);
 	};
 
+
+
+	struct VertexBufferSpecification {
+		uint32_t Size = 0;
+		const void* Data = nullptr;
+	};
 	class VertexBuffer : public IRCCounter<false>
 	{
 	public:
@@ -139,7 +160,7 @@ namespace Kaidel {
 		virtual const BufferLayout& GetLayout() const = 0;
 		virtual void SetLayout(const BufferLayout& layout) = 0;
 
-
+		static Ref<VertexBuffer> Create(const VertexBufferSpecification& specification);
 		static Ref<VertexBuffer> Create(uint32_t size);
 		static Ref<VertexBuffer> Create(float* vertices, uint32_t size);
 	};

@@ -418,7 +418,6 @@ namespace Kaidel {
 		s_Data->EntityScriptFields[entityID][scriptClass][name].Field = scriptClass->GetFields().at(name);
 		return &s_Data->EntityScriptFields.at(entityID).at(scriptClass).at(name);
 	}
-	//TODO: Make Reloading Work.
 	void ScriptEngine::ReloadAssembly()
 	{
 

@@ -13,4 +13,4 @@
 
 #define VK_ALLOCATOR_PTR nullptr
 
-#define VK_STRUCT(type,name,structType) type name = {};name.sType = VK_STRUCTURE_TYPE_##structType;
+#define VK_STRUCT(type,name,structType) type name = {};name.sType = structType;

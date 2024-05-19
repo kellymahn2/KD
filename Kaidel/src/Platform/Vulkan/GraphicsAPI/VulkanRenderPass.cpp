@@ -92,7 +92,7 @@ namespace Kaidel {
 			{
 				for (auto& attachment : specification.InputImages) {
 					VkAttachmentDescription desc = Utils::MakeAttachmentDescription(attachment);
-					VkAttachmentReference ref = Utils::MakeAttachmentReference(attachments.size(), attachment);
+					VkAttachmentReference ref = Utils::MakeAttachmentReference((uint32_t)attachments.size(), attachment);
 
 					attachments.push_back(desc);
 					inputRefs.push_back(ref);
@@ -137,7 +137,7 @@ namespace Kaidel {
 
 			subpass.pipelineBindPoint = Utils::KaidelBindPointToVkBindPoint(specification.BindingPoint);
 
-			VK_STRUCT(VkRenderPassCreateInfo, renderPassInfo, RENDER_PASS_CREATE_INFO);
+			VK_STRUCT(VkRenderPassCreateInfo, renderPassInfo, VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO);
 			renderPassInfo.attachmentCount = (uint32_t)attachments.size();
 			renderPassInfo.pAttachments = attachments.data();
 			renderPassInfo.subpassCount = 1;

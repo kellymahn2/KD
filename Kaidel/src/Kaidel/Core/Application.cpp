@@ -130,7 +130,8 @@ namespace Kaidel {
 			OnUpdate();
 			{
 				SCOPED_TIMER(Swap Buffers)
-				m_Window->OnUpdate();
+				m_Window->SwapBuffers();
+				m_Window->PollEvents();
 			}
 		}
 	}

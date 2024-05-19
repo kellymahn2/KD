@@ -136,7 +136,7 @@ namespace Kaidel {
 				VkSwapchainKHR Swapchain = VK_NULL_HANDLE;
 			};
 
-			static SwapchainCreateResult CreateSwapchain(VulkanSwapchainSpecification& specification) {
+			static SwapchainCreateResult CreateSwapchain(VulkanSwapchainSpecification& specification,VkRenderPass renderPass) {
 				SwapchainSupportDetails supportDetails = QuerySwapchainSupportDetails(specification.PhysicalDevice, specification.Surface);
 				
 				VkSurfaceFormatKHR format = ChooseSwapchainFormat(specification.SwapchainFormat, supportDetails.SupportedFormats);
@@ -147,7 +147,7 @@ namespace Kaidel {
 
 				uint32_t imageCount = ChooseImageCount(specification.ImageCount, supportDetails.Capabilities);
 
-				VK_STRUCT(VkSwapchainCreateInfoKHR, swapchainInfo, SWAPCHAIN_CREATE_INFO_KHR);
+				VK_STRUCT(VkSwapchainCreateInfoKHR, swapchainInfo, VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR);
 				swapchainInfo.clipped = VK_TRUE;
 				swapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 				swapchainInfo.imageArrayLayers = 1;
@@ -176,7 +176,7 @@ namespace Kaidel {
 					frame.ImageView = CreateSwapchainImageView(specification.LogicalDevice, image, format.format);
 					
 					//Framebuffer
-					frame.Framebuffer = CreateSwapchainFramebuffer(specification.LogicalDevice, size.width, size.height, frame.ImageView, specification.RenderPass);
+					frame.Framebuffer = CreateSwapchainFramebuffer(specification.LogicalDevice, size.width, size.height, frame.ImageView, renderPass);
 
 					//Sync objects
 					frame.ImageAvailable = CreateRef<VulkanSemaphore>(specification.LogicalDevice);
@@ -203,11 +203,74 @@ namespace Kaidel {
 
 				return  result;
 			}
+
+			static VkRenderPass CreateSwapchainRenderPass(VkDevice logicalDevice, VkSurfaceFormatKHR format) {
+
+				VkRenderPass renderPass = VK_NULL_HANDLE;
+
+				// Color attachment description
+				VkAttachmentDescription colorAttachment = {};
+				colorAttachment.format = format.format;
+				colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+				colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+				colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+				colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+				colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+				colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+				colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+				// Attachment reference
+				VkAttachmentReference colorAttachmentRef = {};
+				colorAttachmentRef.attachment = 0;
+				colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+				// Subpass description
+				VkSubpassDescription subpass = {};
+				subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+				subpass.colorAttachmentCount = 1;
+				subpass.pColorAttachments = &colorAttachmentRef;
+
+				// Subpass dependency
+				VkSubpassDependency dependency = {};
+				dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+				dependency.dstSubpass = 0;
+				dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+				dependency.srcAccessMask = 0;
+				dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+				dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+				// Render pass create info
+				VkRenderPassCreateInfo renderPassInfo = {};
+				renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+				renderPassInfo.attachmentCount = 1;
+				renderPassInfo.pAttachments = &colorAttachment;
+				renderPassInfo.subpassCount = 1;
+				renderPassInfo.pSubpasses = &subpass;
+				renderPassInfo.dependencyCount = 1;
+				renderPassInfo.pDependencies = &dependency;
+
+				VK_ASSERT(vkCreateRenderPass(logicalDevice, &renderPassInfo, nullptr, &renderPass));
+				return renderPass;
+			}
+
 		}
 
 		VulkanSwapchain::VulkanSwapchain(const VulkanSwapchainSpecification& specification)
 			:m_Specification(specification)
 		{
+			
+			VkSurfaceFormatKHR format{};
+			{
+				std::vector<VkSurfaceFormatKHR> surfaceFormats;
+				uint32_t surfaceFormatCount = 0;
+				vkGetPhysicalDeviceSurfaceFormatsKHR(specification.PhysicalDevice, specification.Surface, &surfaceFormatCount, nullptr);
+				surfaceFormats.resize(surfaceFormatCount);
+				vkGetPhysicalDeviceSurfaceFormatsKHR(specification.PhysicalDevice, specification.Surface, &surfaceFormatCount, surfaceFormats.data());
+
+				format = Utils::ChooseSwapchainFormat(specification.SwapchainFormat, surfaceFormats);
+			}
+			m_RenderPass = Utils::CreateSwapchainRenderPass(specification.LogicalDevice, format);
+
 			Invalidate();
 		}
 
@@ -216,6 +279,8 @@ namespace Kaidel {
 			if (m_Swapchain) {
 				DestroyCurrentSwapchain();
 			}
+
+			vkDestroyRenderPass(m_Specification.LogicalDevice, m_RenderPass, VK_ALLOCATOR_PTR);
 		}
 
 		void VulkanSwapchain::Resize(uint32_t width, uint32_t height)
@@ -283,7 +348,7 @@ namespace Kaidel {
 				DestroyCurrentSwapchain();
 			}
 
-			auto swapchainCreateResult = Utils::CreateSwapchain(m_Specification);
+			auto swapchainCreateResult = Utils::CreateSwapchain(m_Specification,m_RenderPass);
 
 			m_Swapchain = swapchainCreateResult.Swapchain;
 			m_Frames = swapchainCreateResult.Frames;

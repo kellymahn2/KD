@@ -24,7 +24,7 @@ namespace Kaidel {
 		struct QueueFamilyIndices {
 			std::optional<uint32_t> GraphicsQueueFamilyIndex, PresentQueueFamilyIndex, TransferQueueFamilyIndex, ComputeQueueFamilyIndex;
 			bool Valid() const {
-				return GraphicsQueueFamilyIndex.has_value() && PresentQueueFamilyIndex.has_value();
+				return GraphicsQueueFamilyIndex.has_value() && PresentQueueFamilyIndex.has_value() && TransferQueueFamilyIndex.has_value();
 			}
 			operator bool()const {
 				return Valid();
@@ -53,18 +53,12 @@ namespace Kaidel {
 			VkSurfaceKHR Surface;
 			ImageSharingMode SharingMode;
 			VkQueue PresentQueue;
-			std::vector<VkSemaphore> WaitSemaphores;
-
-			VkSemaphore RenderFinishedSemaphore;
-			VkFence InFlightFence;
-			VkSemaphore ImageAvailableSemaphore;
 
 			VkSurfaceFormatKHR SwapchainFormat;
 			VkPresentModeKHR SwapchainPresentMode;
 			VkExtent2D Extent;
 			uint32_t ImageCount = (uint32_t)(-1);
 			std::vector<uint32_t> QueueFamiliesToShare;
-			VkRenderPass RenderPass;
 
 			VkCommandPool CommandPool;
 

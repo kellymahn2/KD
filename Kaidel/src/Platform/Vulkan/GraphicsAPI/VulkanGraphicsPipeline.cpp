@@ -28,62 +28,83 @@ namespace Kaidel {
 			return VK_FORMAT_UNDEFINED;
 		}
 
+		static VkVertexInputRate KaidelInputRateToVkInputRate(GraphicsPipelineInputRate inputRate) {
+			switch (inputRate)
+			{
+			case Kaidel::GraphicsPipelineInputRate::PerVertex:return VK_VERTEX_INPUT_RATE_VERTEX;
+			case Kaidel::GraphicsPipelineInputRate::PerInstance:return VK_VERTEX_INPUT_RATE_INSTANCE;
+			}
+
+			KD_CORE_ASSERT(false, "Unknown input rate");
+			return VK_VERTEX_INPUT_RATE_MAX_ENUM;
+		}
+
 		struct VertexInputStateCreateResult {
 			VkPipelineVertexInputStateCreateInfo CreateInfo;
 			std::vector<VkVertexInputAttributeDescription> AttributeDescs;
 			std::vector<VkVertexInputBindingDescription> BindingDescs;
 		};
-
-		static void AddInputDescriptions(std::vector<VkVertexInputAttributeDescription>& attributeDescs, std::vector<VkVertexInputBindingDescription>& bindingDescs, 
-											VkFormat format, uint32_t offset, uint32_t stride,VkVertexInputRate inputRate) {
+		static VkVertexInputAttributeDescription MakeInputDescription(uint32_t binding,uint32_t location,VkFormat format, uint32_t offset) {
 			VkVertexInputAttributeDescription attribute{};
-			VkVertexInputBindingDescription binding{};
-			uint32_t bindingIndex = (uint32_t)bindingDescs.size();
-			attribute.location = bindingIndex;
-			attribute.binding = bindingIndex;
+			attribute.location = location;
+			attribute.binding = 0;
 			attribute.format = format;
 			attribute.offset = offset;
-			binding.binding = bindingIndex;
-			binding.stride = stride;
-			binding.inputRate = inputRate;
-			attributeDescs.push_back(attribute);
-			bindingDescs.push_back(binding);
+			return attribute;
 		}
 
-		static VertexInputStateCreateResult CreateVertexInputState(const BufferLayout& layout) {
+		static VertexInputStateCreateResult CreateVertexInputState(const GraphicsPipelineInputLayout& layouts) {
+
 			VertexInputStateCreateResult result{};
 			result.CreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
-			for (auto& element : layout) {
-				switch (element.Type)
+			uint32_t bindingIndex = 0;
+			uint32_t attributeIndex = 0;
+			
+			for (auto& bufferSpec : layouts) {
+
+				//Binding
 				{
-				case ShaderDataType::Float:
-				case ShaderDataType::Float2:
-				case ShaderDataType::Float3:
-				case ShaderDataType::Float4:
-				case ShaderDataType::Int:
-				case ShaderDataType::Int2:
-				case ShaderDataType::Int3:
-				case ShaderDataType::Int4:
-				case ShaderDataType::Bool:
-				{
-					AddInputDescriptions(result.AttributeDescs, result.BindingDescs, KaidelShaderDataTypeToVkFormat(element.Type), 
-											(uint32_t)element.Offset, layout.GetStride(), element.Divisor == 0 ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE);
-					break;
+					VkVertexInputBindingDescription binding{};
+					binding.binding = bindingIndex;
+					binding.inputRate = KaidelInputRateToVkInputRate(bufferSpec.InputRate);
+					binding.stride = bufferSpec.Stride;
+					result.BindingDescs.push_back(binding);
 				}
-				case ShaderDataType::Mat3:
-				case ShaderDataType::Mat4:
+
+				//Atrributes
 				{
-					for (uint32_t i = 0; i < element.GetComponentCount(); ++i) {
-						AddInputDescriptions(result.AttributeDescs, result.BindingDescs, KaidelShaderDataTypeToVkFormat(element.Type),
-							(uint32_t)element.Offset, layout.GetStride(), element.Divisor == 0 ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE);
+					for (auto& element : bufferSpec.Elements) {
+
+						if (element.DataType == GraphicsPipelineInputDataType::Dummy)
+							continue;
+
+						VkFormat format = VK_FORMAT_UNDEFINED;
+						uint32_t offset = element.Offset;
+
+						switch (element.DataType)
+						{
+
+						case GraphicsPipelineInputDataType::Float: format = VK_FORMAT_R32_SFLOAT; break;
+						case GraphicsPipelineInputDataType::Float2: format = VK_FORMAT_R32G32_SFLOAT; break;
+						case GraphicsPipelineInputDataType::Float3:format = VK_FORMAT_R32G32B32_SFLOAT; break;
+						case GraphicsPipelineInputDataType::Float4:format = VK_FORMAT_R32G32B32A32_SFLOAT; break;
+						case GraphicsPipelineInputDataType::Int: format = VK_FORMAT_R32_SINT; break;
+						case GraphicsPipelineInputDataType::Int2:  format = VK_FORMAT_R32G32_SINT; break;
+						case GraphicsPipelineInputDataType::Int3:  format = VK_FORMAT_R32G32B32_SINT; break;
+						case GraphicsPipelineInputDataType::Int4:  format = VK_FORMAT_R32G32B32A32_SINT; break;
+						case GraphicsPipelineInputDataType::Bool:  format = VK_FORMAT_R8_SINT; break;
+						}
+
+						result.AttributeDescs.push_back(MakeInputDescription(bindingIndex, attributeIndex, format, offset));
+						++attributeIndex;
 					}
-					break;
 				}
-				default:
-					KD_CORE_ASSERT(false, "Unknown ShaderDataType!");
-				}
+
+				++bindingIndex;
 			}
+
+
 
 			result.CreateInfo.pVertexAttributeDescriptions = result.AttributeDescs.data();
 			result.CreateInfo.vertexAttributeDescriptionCount = (uint32_t)result.AttributeDescs.size();
@@ -135,10 +156,8 @@ namespace Kaidel {
 		}
 	}
 
-
 	namespace Vulkan {
-
-
+		
 		VulkanGraphicsPipeline::VulkanGraphicsPipeline(const GraphicsPipelineSpecification& specification)
 			:m_Specification(specification)
 		{
@@ -152,7 +171,7 @@ namespace Kaidel {
 		}
 		void VulkanGraphicsPipeline::Finalize()
 		{
-			VK_STRUCT(VkGraphicsPipelineCreateInfo, pipelineInfo, GRAPHICS_PIPELINE_CREATE_INFO);
+			VK_STRUCT(VkGraphicsPipelineCreateInfo, pipelineInfo, VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO);
 			pipelineInfo.basePipelineIndex = 0;
 
 			//Vertex Input
@@ -160,14 +179,14 @@ namespace Kaidel {
 			pipelineInfo.pVertexInputState = &vertexInputCreateResult.CreateInfo;
 
 			//Input Assembly
-			VK_STRUCT(VkPipelineInputAssemblyStateCreateInfo, inputAssemblyInfo,PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO);
+			VK_STRUCT(VkPipelineInputAssemblyStateCreateInfo, inputAssemblyInfo, VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO);
 			inputAssemblyInfo.topology = Utils::KaidelPrimitiveTopologyToVkPrimitiveTopology(m_Specification.PrimitveTopology);
 			pipelineInfo.pInputAssemblyState = &inputAssemblyInfo;
 
 			//Shader Stages
 			std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
 			for (auto& [stage,shader] : m_Specification.Stages) {
-				VK_STRUCT(VkPipelineShaderStageCreateInfo, shaderStageInfo, PIPELINE_SHADER_STAGE_CREATE_INFO);
+				VK_STRUCT(VkPipelineShaderStageCreateInfo, shaderStageInfo, VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO);
 
 				shaderStageInfo.pName = "main";
 				shaderStageInfo.stage = Utils::KaidelShaderStageToVkShaderStage(stage);
@@ -179,7 +198,7 @@ namespace Kaidel {
 
 			//Dynamic states
 			std::vector<VkDynamicState> dynamicStates;
-			VK_STRUCT(VkPipelineDynamicStateCreateInfo, dynamicStateInfo, PIPELINE_DYNAMIC_STATE_CREATE_INFO);
+			VK_STRUCT(VkPipelineDynamicStateCreateInfo, dynamicStateInfo, VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO);
 			dynamicStates.push_back(VK_DYNAMIC_STATE_VIEWPORT);
 			dynamicStates.push_back(VK_DYNAMIC_STATE_SCISSOR);
 
@@ -197,7 +216,7 @@ namespace Kaidel {
 			scissor.offset.y = 0;
 			scissor.extent = { 0,0 };
 
-			VK_STRUCT(VkPipelineViewportStateCreateInfo, viewportCreateInfo, PIPELINE_VIEWPORT_STATE_CREATE_INFO);
+			VK_STRUCT(VkPipelineViewportStateCreateInfo, viewportCreateInfo, VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO);
 			viewportCreateInfo.pScissors = &scissor;
 			viewportCreateInfo.pViewports = &viewport;
 			viewportCreateInfo.viewportCount = 1;
@@ -205,7 +224,7 @@ namespace Kaidel {
 			pipelineInfo.pViewportState = &viewportCreateInfo;
 
 			//Rasterizer
-			VK_STRUCT(VkPipelineRasterizationStateCreateInfo, rasterizerCreateInfo, PIPELINE_RASTERIZATION_STATE_CREATE_INFO);
+			VK_STRUCT(VkPipelineRasterizationStateCreateInfo, rasterizerCreateInfo, VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO);
 			rasterizerCreateInfo.cullMode = Utils::KaidelCullModeToVkCullMode(m_Specification.Culling);
 			rasterizerCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
 			rasterizerCreateInfo.frontFace = m_Specification.FrontCCW ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE;
@@ -213,7 +232,7 @@ namespace Kaidel {
 			pipelineInfo.pRasterizationState = &rasterizerCreateInfo;
 
 			//Multi-Sampling
-			VK_STRUCT(VkPipelineMultisampleStateCreateInfo, multisampleInfo, PIPELINE_MULTISAMPLE_STATE_CREATE_INFO);
+			VK_STRUCT(VkPipelineMultisampleStateCreateInfo, multisampleInfo, VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO);
 			multisampleInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 			pipelineInfo.pMultisampleState = &multisampleInfo;
 
@@ -230,7 +249,7 @@ namespace Kaidel {
 			}
 
 			//Color Blend
-			VK_STRUCT(VkPipelineColorBlendStateCreateInfo, colorBlendInfo, PIPELINE_COLOR_BLEND_STATE_CREATE_INFO);
+			VK_STRUCT(VkPipelineColorBlendStateCreateInfo, colorBlendInfo, VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO);
 			colorBlendInfo.logicOp = VK_LOGIC_OP_COPY;
 			colorBlendInfo.pAttachments = colorBlendAttachments.data();
 			colorBlendInfo.attachmentCount = (uint32_t)colorBlendAttachments.size();
@@ -242,7 +261,7 @@ namespace Kaidel {
 
 			//Pipeline Layout
 
-			VK_STRUCT(VkPipelineLayoutCreateInfo, layoutInfo, PIPELINE_LAYOUT_CREATE_INFO);
+			VK_STRUCT(VkPipelineLayoutCreateInfo, layoutInfo, VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO);
 			VK_ASSERT(vkCreatePipelineLayout(VK_DEVICE, &layoutInfo, VK_ALLOCATOR_PTR, &m_Layout));
 			pipelineInfo.layout = m_Layout;
 			

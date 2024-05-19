@@ -104,7 +104,7 @@ namespace Kaidel {
 					spirv = CompileShader(specification.ControlString, "RandomFileName.glsl", specification.Type);
 				}
 
-				VK_STRUCT(VkShaderModuleCreateInfo, moduleInfo, SHADER_MODULE_CREATE_INFO);
+				VK_STRUCT(VkShaderModuleCreateInfo, moduleInfo, VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO);
 				moduleInfo.codeSize = spirv.size() * 4;
 				moduleInfo.pCode = spirv.data();
 
