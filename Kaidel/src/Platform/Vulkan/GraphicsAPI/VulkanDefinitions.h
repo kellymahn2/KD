@@ -42,6 +42,7 @@ namespace Kaidel {
 			std::vector<const char*> Extensions;
 			std::vector<const char*> Layers;
 			VkPhysicalDeviceFeatures Features;
+			VkPhysicalDeviceFeatures2 Features2;
 		};
 
 
@@ -73,6 +74,39 @@ namespace Kaidel {
 			Ref<VulkanFence> InFlightFence;
 			Ref<VulkanSemaphore> ImageAvailable, RenderFinished;
 		};
+
+
+		struct VulkanBuffer {
+			VkBuffer Buffer;
+			VkDeviceMemory DeviceMemory;
+			uint32_t Size;
+			void* MappedMemory = nullptr;
+
+			VulkanBuffer() = default;
+
+			VulkanBuffer(VkBuffer buffer, VkDeviceMemory deviceMemory, uint32_t size)
+				:Buffer(buffer),DeviceMemory(deviceMemory),Size(size)
+			{}
+
+			void Map(VkDevice device,uint32_t size = -1,uint32_t offset = 0,VkMemoryMapFlags flags = 0) {
+				if (size == -1)
+					size = Size;
+
+				VK_ASSERT(vkMapMemory(device, DeviceMemory, offset, size, flags, &MappedMemory));
+			}
+			void Unmap(VkDevice device) {
+				vkUnmapMemory(device, DeviceMemory);
+			}
+
+		};
+
+
+		enum class CommandBufferState {
+			Initial,
+			Recording,
+			Pending
+		};
+
 
 	}
 }

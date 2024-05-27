@@ -14,9 +14,8 @@ namespace Kaidel {
 
 		RenderCommand::Init();
 
-
-		/*Renderer3D::Init();
-		Renderer2D::Init();*/
+		Renderer2D::Init();
+		//Renderer3D::Init();
 
 
 		{

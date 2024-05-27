@@ -3,13 +3,13 @@
 #include "VulkanSingleShader.h"
 #include "VulkanRenderPass.h"
 #include "VulkanBuffer.h"
-#include "VulkanInstance.h"
-#include "VulkanPhysicalDevice.h"
-#include "VulkanLogicalDevice.h"
+#include "Initialization/VulkanInstance.h"
+#include "Initialization/VulkanPhysicalDevice.h"
+#include "Initialization/VulkanLogicalDevice.h"
 
 #include "VulkanCommandPool.h"
 #include "VulkanCommandBuffer.h"
-
+#include "VulkanMemory.h"
 
 #include "Kaidel/Renderer/GraphicsAPI/Shader.h"
 
@@ -27,15 +27,33 @@ namespace Kaidel {
 
 //TODO: Destroy created resources.	
 
-
-
-
 	static VkDescriptorPool descPool{};
 
 	static Ref<Vulkan::VulkanCommandPool> commandPool;
-	static Ref<Vulkan::VulkanCommandBuffer> commandBuffer;
 
-	
+
+
+	namespace Utils {
+
+		static std::string FilterDebugMessenge(const char* message) {
+			return message;
+		}
+
+		static VkBool32 DebugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+			VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+			const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+			void* pUserData)
+		{
+			switch (messageSeverity)
+			{
+			case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT: KD_CORE_INFO(FilterDebugMessenge(pCallbackData->pMessage)); break;
+			case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:KD_CORE_WARN(FilterDebugMessenge(pCallbackData->pMessage)); break;
+			case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:KD_CORE_ERROR(FilterDebugMessenge(pCallbackData->pMessage)); KD_CORE_ASSERT(false);
+			}
+			return VK_FALSE;
+		}
+	}
+
 
 	namespace Vulkan {
 
@@ -128,6 +146,9 @@ namespace Kaidel {
 		void ImGuiInit() {
 			auto& graphicsContext = VulkanGraphicsContext::Get();
 
+
+			
+
 			ImGui_ImplVulkan_InitInfo init_info = {};
 			init_info.Instance = VK_INSTANCE;
 			init_info.PhysicalDevice = VK_PHYSICAL_DEVICE;
@@ -146,9 +167,11 @@ namespace Kaidel {
 			{
 				// Use any command queue
 				VkCommandPool command_pool = commandPool->GetCommandPool();
-				VkCommandBuffer command_buffer = commandBuffer->GetCommandBuffer();
 
-				vkResetCommandPool(graphicsContext.m_LogicalDevice, command_pool, 0);
+				VulkanCommandBuffer commandBuffer = VulkanCommandBuffer(commandPool);
+
+				VkCommandBuffer command_buffer = commandBuffer.GetCommandBuffer();
+
 				VkCommandBufferBeginInfo begin_info = {};
 				begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 				begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -175,26 +198,22 @@ namespace Kaidel {
 		void ImGuiRender(ImDrawData* drawData) {
 			auto& graphicsContext = VulkanGraphicsContext::Get();
 
-			uint32_t img = graphicsContext.CurrentImage;
-			if (img == -1) {
-				return;
-			}
 
 			VkCommandBufferBeginInfo begin_info = {};
 			begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 			begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
 
-			VkCommandBuffer commandBuffer = graphicsContext.m_Swapchain->GetFrames()[img].CommandBuffer;
+			VkCommandBuffer commandBuffer = graphicsContext.m_Swapchain->GetFrames()[graphicsContext.m_AcquiredImage].CommandBuffer;
 
-			vkResetCommandBuffer(commandBuffer, VkCommandBufferResetFlagBits::VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT);
+			vkResetCommandBuffer(commandBuffer,0);
 			vkBeginCommandBuffer(commandBuffer, &begin_info);
 
 
 			VkRenderPassBeginInfo renderPassInfo{};
 			renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 			renderPassInfo.renderPass = graphicsContext.m_Swapchain->GetSwapchainRenderPass();
-			renderPassInfo.framebuffer = graphicsContext.m_Swapchain->GetFrames()[img].Framebuffer;
+			renderPassInfo.framebuffer = graphicsContext.m_Swapchain->GetFrames()[graphicsContext.m_AcquiredImage].Framebuffer;
 			renderPassInfo.renderArea.offset.x = 0;
 			renderPassInfo.renderArea.offset.y = 0;
 			renderPassInfo.renderArea.extent = graphicsContext.m_Swapchain->GetSpecification().Extent;
@@ -210,51 +229,15 @@ namespace Kaidel {
 
 			vkCmdEndRenderPass(commandBuffer);
 			vkEndCommandBuffer(commandBuffer);
-
-			//Render
-			VkSubmitInfo submitInfo = {};
-			submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-			VkSemaphore waitSemaphores[] = { graphicsContext.m_Swapchain->GetFrames()[img].ImageAvailable->GetSemaphore() };
-			VkPipelineStageFlags waitStages[] = { VkPipelineStageFlagBits::VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-			submitInfo.waitSemaphoreCount = 1;
-			submitInfo.pWaitSemaphores = waitSemaphores;
-			submitInfo.pWaitDstStageMask = waitStages;
-			submitInfo.commandBufferCount = 1;
-			submitInfo.pCommandBuffers = &commandBuffer;
-
-			VkSemaphore renderFinished = graphicsContext.m_Swapchain->GetFrames()[img].RenderFinished->GetSemaphore();
-			submitInfo.signalSemaphoreCount = 1;
-			submitInfo.pSignalSemaphores = &renderFinished;
-
-			vkQueueSubmit(graphicsContext.m_QueueManager["GraphicsQueue"].Queue, 1, &submitInfo, graphicsContext.m_Swapchain->GetFrames()[img].InFlightFence->GetFence());
+			
 		}
 		void ImGuiShutdown() {
 			ImGui_ImplVulkan_Shutdown();
 		}
 
 
-		namespace Utils {
-
-			static std::string FilterDebugMessenge(const char* message) {
-				return message;
-			}
-
-			static VkBool32 DebugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-				VkDebugUtilsMessageTypeFlagsEXT messageTypes,
-				const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-				void* pUserData)
-			{
-				switch (messageSeverity)
-				{
-				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT: KD_CORE_INFO(FilterDebugMessenge(pCallbackData->pMessage)); break;
-				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:KD_CORE_WARN(FilterDebugMessenge(pCallbackData->pMessage)); break;
-				case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:KD_CORE_ERROR(FilterDebugMessenge(pCallbackData->pMessage)); break;
-				}
-				return VK_FALSE;
-			}
-		}
 		VulkanGraphicsContext::VulkanGraphicsContext(GLFWwindow* window)
-			:m_Window(window)
+			:m_Window(window),m_AcquiredImage(0),m_MaxFramesInFlight(0),m_CurrentFrame(0)
 		{
 			KD_CORE_ASSERT(window, "Window handle is null!");
 			s_GraphicsContext = this;
@@ -329,9 +312,17 @@ namespace Kaidel {
 
 					groupSpec.QueueSpecifications["PresentQueue"] = queueSpec;
 				}
+				//Transfer Queue
+				{
+					VulkanQueueSpecification queueSpec{};
+					queueSpec.Validator = [](const VkQueueFamilyProperties& props, uint32_t, VkPhysicalDevice physicalDevice) {
+						return QueueValidateResult{ static_cast<bool>(props.queueFlags & VK_QUEUE_TRANSFER_BIT) };
+						};
+					groupSpec.QueueSpecifications["TransferQueue"] = queueSpec;
+				}
+
 
 			}
-
 
 			auto physicalDeviceChooseResult = Utils::ChoosePhysicalDevice(m_Instance,{groupSpec}, m_PhysicalDeviceSpecification);
 			m_QueueManager = physicalDeviceChooseResult.QueueManager;
@@ -342,6 +333,7 @@ namespace Kaidel {
 				m_LogicalDeviceSpecification.Layers.push_back("VK_LAYER_KHRONOS_validation");
 			}
 
+
 			//Logical device creation
 			auto logicalDeviceCreateResult = Utils::CreateLogicalDevice(m_PhysicalDevice,m_QueueManager, m_LogicalDeviceSpecification);
 			m_LogicalDevice = logicalDeviceCreateResult.LogicalDevice;
@@ -350,8 +342,6 @@ namespace Kaidel {
 
 
 			commandPool = CreateRef<VulkanCommandPool>(m_QueueManager["GraphicsQueue"].FamilyIndex);
-
-			commandBuffer = CreateRef<VulkanCommandBuffer>(commandPool);
 
 			descPool = CreateDescriptorPool(m_LogicalDevice);
 
@@ -380,8 +370,7 @@ namespace Kaidel {
 			m_Swapchain = CreateRef<VulkanSwapchain>(swapchainSpecification);
 
 			m_UniqueQueueFamilyIndices = m_QueueManager.GetUniqueFamilyIndices();
-			CurrentImage = -1;
-			SwapBuffers();
+			
 
 			//MainCommandBuffer
 			{
@@ -392,6 +381,73 @@ namespace Kaidel {
 
 				vkAllocateCommandBuffers(m_LogicalDevice, &bufferInfo, &m_MainCommandBuffer);
 			}
+
+			//Global graphics command buffer
+			{
+
+
+
+				VK_STRUCT(VkCommandBufferAllocateInfo, bufferInfo, VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO);
+				bufferInfo.commandBufferCount = m_Swapchain->GetSpecification().ImageCount;
+				bufferInfo.commandPool = commandPool->GetCommandPool();
+				bufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+				
+				m_GraphicsCommandBuffers.resize(bufferInfo.commandBufferCount);
+
+				VK_ASSERT(vkAllocateCommandBuffers(m_LogicalDevice, &bufferInfo, m_GraphicsCommandBuffers.data()));
+			}
+
+			m_TransferCommandPool = CreateRef<VulkanCommandPool>(GetQueue("TransferQueue").FamilyIndex,false);
+
+
+			{
+				Utils::BufferSpecification spec{};
+				spec.BufferUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+				spec.LogicalDevice = m_LogicalDevice;
+				spec.MemoryPropertyFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+				spec.PhysicalDevice = m_PhysicalDevice;
+				spec.QueueFamilies = { GetQueue("TransferQueue").FamilyIndex };
+				spec.Size = GlobalStagingBufferSize;
+				Utils::BufferCreateResult result = Utils::CreateBuffer(spec);
+				m_GlobalStagingBuffer = VulkanBuffer(result.Buffer, result.AllocatedMemory, GlobalStagingBufferSize);
+				m_GlobalStagingBuffer.Map(m_LogicalDevice);
+			}
+
+			/*m_GraphicsCommandBuffer->BeginRecording(0);
+
+			CurrentImage = -1;
+			SwapBuffers();*/
+			m_MaxFramesInFlight = m_Swapchain->GetSpecification().ImageCount;
+
+
+			VkDeviceSize offset = 0;
+			VkCommandBufferBeginInfo beginInfo{};
+			beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+			beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+			Utils::BufferSpecification spec{};
+			spec.BufferUsage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+			spec.LogicalDevice = m_LogicalDevice;
+			spec.PhysicalDevice = m_PhysicalDevice;
+			spec.MemoryPropertyFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+			spec.QueueFamilies = m_UniqueQueueFamilyIndices;
+			spec.Size = 4;
+			Utils::BufferCreateResult cr =  Utils::CreateBuffer(spec);
+
+			VkDeviceSize offset2 = 0;
+
+			/*vkBeginCommandBuffer(m_GraphicsCommandBuffers[0], &beginInfo);
+			vkCmdBindVertexBuffers(m_GraphicsCommandBuffers[0], 0, 1, &cr.Buffer, &offset2);
+			vkBeginCommandBuffer(m_GraphicsCommandBuffers[1], &beginInfo);
+			vkCmdBindVertexBuffers(m_GraphicsCommandBuffers[1], 0, 1, &cr.Buffer, &offset2);
+			vkEndCommandBuffer(m_GraphicsCommandBuffers[1]);
+			vkCmdBindVertexBuffers(m_GraphicsCommandBuffers[0], 0, 1, &cr.Buffer, &offset2);*/
+
+
+
+			StartSwapchain();
+			//SwapBuffers();
+
 		}
 
 		void VulkanGraphicsContext::Shutdown() {
@@ -409,30 +465,90 @@ namespace Kaidel {
 			vkDestroyInstance(m_Instance, VK_ALLOCATOR_PTR);
 		}
 
-		static uint64_t frames = 0;
-
 		void VulkanGraphicsContext::OnResize(uint32_t width,uint32_t height)
 		{
-			m_Swapchain->Resize(width, height);
+			/*m_Swapchain->Resize(width, height);
 			CurrentImage = -1;
 			CurrentImage = (CurrentImage + 1) % (m_Swapchain->GetSpecification().ImageCount);
-			m_Swapchain->AcquireImage(CurrentImage);
+			m_Swapchain->AcquireImage(CurrentImage);*/
+
+			m_Swapchain->Resize(width, height);
+			StartSwapchain();
+
+		}
+
+		void VulkanGraphicsContext::StartSwapchain()
+		{
+			m_CurrentFrame = 0;
+			m_AcquiredImage = m_Swapchain->AcquireImage(GetCurrentFrame().InFlightFence->GetFence(), VK_NULL_HANDLE, GetCurrentFrame().ImageAvailable->GetSemaphore());
+			VkCommandBufferBeginInfo beginInfo{};
+			beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+			VK_ASSERT(vkBeginCommandBuffer(m_GraphicsCommandBuffers[0], &beginInfo));
+		}
+
+		void VulkanGraphicsContext::Present()
+		{
+			//m_Swapchain->Present();
+
+			//m_Swapchain->Present({GetCurrentFrame().RenderFinished->GetSemaphore()},CurrentImage);
 		}
 
 		void VulkanGraphicsContext::FlushCommandBuffers() {
 
-			if (CurrentImage != -1) {
-				//Present
-				m_Swapchain->Present(m_Swapchain->GetLastAcquiredImage());
-			}
+			//if (CurrentImage != -1) {
+
+			//	//Present
+			//	m_Swapchain->Present(CurrentImage);
+			//}
+
 			
 		}
 
 		void VulkanGraphicsContext::SwapBuffers()
 		{
-			FlushCommandBuffers();
-			CurrentImage = (CurrentImage + 1) % (m_Swapchain->GetSpecification().ImageCount);
-		    m_Swapchain->AcquireImage(CurrentImage);
+
+			VK_ASSERT(vkEndCommandBuffer(GetGraphicsCommandBuffer()));
+
+			VkSemaphore signalSemaphores[] = { GetCurrentFrame().RenderFinished->GetSemaphore()};
+
+			VkCommandBuffer commandBuffers[] = { m_Swapchain->GetFrames()[m_AcquiredImage].CommandBuffer ,GetGraphicsCommandBuffer()};
+
+			VkSubmitInfo submitInfo = {};
+			submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+			VkSemaphore waitSemaphores[] = { GetCurrentFrame().ImageAvailable->GetSemaphore()};
+			VkPipelineStageFlags waitStages[] = { VkPipelineStageFlagBits::VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+			submitInfo.waitSemaphoreCount = 1;
+			submitInfo.pWaitSemaphores = waitSemaphores;
+			submitInfo.pWaitDstStageMask = waitStages;
+
+			submitInfo.commandBufferCount = ARRAYSIZE(commandBuffers);
+			submitInfo.pCommandBuffers = commandBuffers;
+
+
+			submitInfo.signalSemaphoreCount = 1;
+			submitInfo.pSignalSemaphores = signalSemaphores;
+
+			VK_ASSERT(vkQueueSubmit(GetQueue("GraphicsQueue").Queue, 1, &submitInfo, GetCurrentFrame().InFlightFence->GetFence()));
+
+			VkPresentInfoKHR presentInfo{};
+			presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+			presentInfo.waitSemaphoreCount = 1;
+			presentInfo.pWaitSemaphores = signalSemaphores;
+			VkSwapchainKHR swapchains[] = { m_Swapchain->GetSwapchain() };
+			presentInfo.swapchainCount = 1;
+			presentInfo.pSwapchains = swapchains;
+			presentInfo.pImageIndices = &m_AcquiredImage;
+			
+			vkQueuePresentKHR(GetQueue("PresentQueue"), &presentInfo);
+
+			m_CurrentFrame = (m_CurrentFrame + 1) % m_MaxFramesInFlight;
+
+			m_AcquiredImage = m_Swapchain->AcquireImage(GetCurrentFrame().InFlightFence->GetFence(), VK_NULL_HANDLE, GetCurrentFrame().ImageAvailable->GetSemaphore());
+			VK_ASSERT(vkResetCommandBuffer(GetGraphicsCommandBuffer(), 0));
+			VkCommandBufferBeginInfo beginInfo{};
+			beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+			beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+			VK_ASSERT(vkBeginCommandBuffer(GetGraphicsCommandBuffer(),&beginInfo));
 		}
 	}
 }

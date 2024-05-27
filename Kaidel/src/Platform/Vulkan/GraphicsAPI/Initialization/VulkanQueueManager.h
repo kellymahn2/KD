@@ -1,8 +1,8 @@
 #pragma once
 
 
-#include "VulkanBase.h"
-#include "VulkanDefinitions.h"
+#include "Platform/Vulkan/GraphicsAPI/VulkanBase.h"
+#include "Platform/Vulkan/GraphicsAPI/VulkanDefinitions.h"
 
 namespace Kaidel {
 	namespace Vulkan {

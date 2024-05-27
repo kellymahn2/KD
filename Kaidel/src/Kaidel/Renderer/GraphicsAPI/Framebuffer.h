@@ -35,7 +35,7 @@ namespace Kaidel {
 		FramebufferAttachmentSpecification Attachments;
 		uint32_t Samples = 1;
 		
-		const Kaidel::RenderPass* RenderPass;
+		Kaidel::RenderPass* RenderPass;
 
 
 		bool SwapChainTarget = false;
@@ -74,25 +74,10 @@ namespace Kaidel {
 		virtual const FramebufferSpecification& GetSpecification() const = 0;
 
 
-		virtual void BindColorAttachmentToSlot(uint32_t attachmentIndex, uint32_t slot)=0;
-		virtual void BindColorAttachmentToImageSlot(uint32_t attachmnetIndex, uint32_t slot, ImageBindingMode bindingMode)=0;
-		virtual void BindDepthAttachmentToSlot(uint32_t slot) = 0;
-
-
-		virtual void CopyColorAttachment(uint32_t dstAttachmentIndex, uint32_t srcAttachmentIndex, Ref<Framebuffer> src) = 0;
-		virtual void CopyDepthAttachment(Ref<Framebuffer> src) = 0;
-
-
-		virtual void EnableColorAttachment(uint32_t attachmentIndex) = 0;
-		virtual void DisableColorAttachment(uint32_t attachmentIndex) = 0;
-
 		virtual void ReadValues(uint32_t attachemntIndex, uint32_t x, uint32_t y, uint32_t w, uint32_t h, float* output) = 0;
 
-		virtual void SetAttachment(const TextureHandle& handle, uint32_t index = 0) = 0;
-		virtual void SetAttachment(const TextureArrayHandle& handle, uint32_t index = 0) = 0;
-		virtual void SetDepthAttachment(const TextureHandle& handle) = 0;
-		virtual void SetDepthAttachment(const TextureArrayHandle& handle) = 0;
-
+		virtual Ref<RenderPass> GetRenderPass()const = 0;
+		
 		static Ref<Framebuffer> Create(const FramebufferSpecification& spec);
 	};
 

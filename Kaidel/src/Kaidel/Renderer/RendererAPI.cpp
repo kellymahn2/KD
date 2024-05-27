@@ -34,6 +34,7 @@ namespace Kaidel {
 	glm::vec4 _GetUVs() {
 		switch (RendererAPI::GetAPI())
 		{
+		case RendererAPI::API::Vulkan:
 		case RendererAPI::API::OpenGL: {
 			return { 0,1,1,0 };
 		}
@@ -50,9 +51,8 @@ namespace Kaidel {
 		switch (s_API)
 		{
 			case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
-			case RendererAPI::API::OpenGL:  return CreateScope<OpenGLRendererAPI>();
+			//case RendererAPI::API::OpenGL:  return CreateScope<OpenGLRendererAPI>();
 			case RendererAPI::API::Vulkan: return CreateScope<Vulkan::VulkanRendererAPI>();
-			//case RendererAPI::API::DirectX: return CreateScope<D3DRendererAPI>();
 		}
 
 		KD_CORE_ASSERT(false, "Unknown RendererAPI!");

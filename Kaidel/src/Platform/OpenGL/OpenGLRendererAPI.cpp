@@ -96,16 +96,7 @@ namespace Kaidel {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	}
 
-	int OpenGLRendererAPI::QueryMaxTextureSlots() {
-		GLint maxTextures;
-		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxTextures);
-		return maxTextures;
-	}
-	float OpenGLRendererAPI::QueryMaxTessellationLevel() {
-		float maxTessLevel;
-		glGetFloatv(GL_MAX_TESS_GEN_LEVEL, &maxTessLevel);
-		return maxTessLevel;
-	}
+	
 
 	void OpenGLRendererAPI::DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount)
 	{
@@ -158,11 +149,6 @@ namespace Kaidel {
 
 	void OpenGLRendererAPI::SetPatchVertexCount(uint32_t count) {
 		glPatchParameteri(GL_PATCH_VERTICES, count);
-	}
-	void OpenGLRendererAPI::SetDefaultTessellationLevels(const glm::vec4& outer, const glm::vec2& inner) {
-		glPatchParameterfv(GL_PATCH_DEFAULT_OUTER_LEVEL, &outer.x);
-		glPatchParameterfv(GL_PATCH_DEFAULT_INNER_LEVEL, &inner.x);
-
 	}
 
 	void OpenGLRendererAPI::RenderFullScreenQuad(Ref<Shader> shader,uint32_t width, uint32_t height)const {

@@ -66,22 +66,10 @@ namespace Kaidel {
 		}
 
 
-		static int QueryMaxTextureSlots() {
-			return s_RendererAPI->QueryMaxTextureSlots();
-		}
-		
-		static float QueryMaxTessellationLevel() {
-			return s_RendererAPI->QueryMaxTessellationLevel();
-		}
-
 		static void SetPatchVertexCount(uint32_t count) {
 			s_RendererAPI->SetPatchVertexCount(count);
 		}
 
-
-		static void SetDefaultTessellationLevels(const glm::vec4& outer={1,1,1,1}, const glm::vec2& inner= {1,1}) {
-			s_RendererAPI->SetDefaultTessellationLevels(outer, inner);
-		}
 
 		static void RenderFullScreenQuad(Ref<Shader> shader,uint32_t width,uint32_t height) {
 			s_RendererAPI->RenderFullScreenQuad(shader,width,height);
@@ -90,6 +78,37 @@ namespace Kaidel {
 		static Scope<RendererAPI>& GetRendererAPI() { return s_RendererAPI; }
 
 		
+		static void BindVertexBuffers(std::initializer_list<Ref<VertexBuffer>> vertexBuffers) {
+			s_RendererAPI->BindVertexBuffers(vertexBuffers);
+		}
+		static void BindIndexBuffer(Ref<IndexBuffer> indexBuffer) {
+			s_RendererAPI->BindIndexBuffer(indexBuffer);
+		}
+
+		static void BeginRenderPass(Ref<Framebuffer> frameBuffer, Ref<RenderPass> renderPass) {
+			s_RendererAPI->BeginRenderPass(frameBuffer, renderPass);
+		}
+		static void EndRenderPass() {
+			s_RendererAPI->EndRenderPass();
+		}
+
+		static void BindGraphicsPipeline(Ref<GraphicsPipeline> pipeline) {
+			s_RendererAPI->BindGraphicsPipeline(pipeline);
+		}
+
+		static void Draw(uint32_t vertexCount, uint32_t firstVertexID = 0) {
+			s_RendererAPI->Draw(vertexCount, firstVertexID);
+		}
+		static void DrawInstanced(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertexID = 0) {
+			s_RendererAPI->DrawInstanced(vertexCount, instanceCount, firstVertexID);
+		}
+		static void DrawIndexed(uint32_t indexCount, uint32_t firstIndex = 0, uint32_t vertexOffset = 0) {
+			s_RendererAPI->DrawIndexed(indexCount, firstIndex, vertexOffset);
+		}
+		static void DrawIndexedInstanced(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex = 0, uint32_t vertexOffset = 0) {
+			s_RendererAPI->DrawIndexedInstanced(indexCount, instanceCount, firstIndex, vertexOffset);
+		}
+
 	private:
 		static Scope<RendererAPI> s_RendererAPI;
 	};

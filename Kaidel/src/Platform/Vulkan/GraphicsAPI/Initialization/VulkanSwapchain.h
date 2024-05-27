@@ -2,7 +2,7 @@
 
 
 
-#include "VulkanDefinitions.h"
+#include "Platform/Vulkan/GraphicsAPI/VulkanDefinitions.h"
 
 
 namespace Kaidel {
@@ -18,7 +18,12 @@ namespace Kaidel {
 			auto& GetSpecification()const { return m_Specification; }
 
 			void Resize(uint32_t width,uint32_t height);
-			void Present(uint32_t imageIndex);
+			void Present(std::initializer_list<VkSemaphore> waitSemaphores,uint32_t imageIndex);
+
+			uint32_t AcquireImage(VkFence inFlightFence,VkFence imageAvailFence, VkSemaphore imageAvailSemaphore);
+
+
+
 			uint32_t AcquireImage(uint32_t lastImageIndex);
 
 			auto GetSwapchain()const { return m_Swapchain; }
@@ -41,5 +46,9 @@ namespace Kaidel {
 			std::vector<SwapchainFrame> m_Frames;
 			VkSwapchainKHR m_Swapchain = VK_NULL_HANDLE;
 		};
+
+
+	
+
 	}
 }

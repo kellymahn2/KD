@@ -5,34 +5,61 @@ namespace Kaidel {
 
 	static uint64_t s_IndentCount = 0;
 
-	static std::unordered_map<std::string, std::string> s_TimerData;
 
-	const std::unordered_map<std::string, std::string>& Timer::GetTimerData() { return s_TimerData; }
 
 	Timer::Timer(const std::string& name)
-		:m_Name(name)
+		:m_Name(name),m_AccumulatedTimeInNanoSecs(0)
+	{}
+
+	void Timer::Start()
 	{
 		m_Start = std::chrono::high_resolution_clock::now();
 	}
 
-	static long long GetNanoseconds(std::chrono::steady_clock::time_point& start) {
+	void Timer::ResetTimer()
+	{
+		m_AccumulatedTimeInNanoSecs = 0;
+	}
+
+	void Timer::Stop()
+	{
+		auto end = std::chrono::high_resolution_clock::now();
+
+		m_AccumulatedTimeInNanoSecs += (uint64_t)std::chrono::duration_cast<std::chrono::nanoseconds>(end - m_Start).count();
+	}
+
+	void Timer::Print()
+	{
+		KD_CORE_INFO("{} Took:({}ns, {}ms, {}s)",m_Name,GetNS(),GetMS(),GetS());
+	}
+
+	double Timer::GetNS() const
+	{
+		return static_cast<double>(m_AccumulatedTimeInNanoSecs);
+	}
+
+	double Timer::GetMS() const
+	{
+		return GetNS() * 1e-6;
+	}
+	double Timer::GetS() const
+	{
+		return GetNS() * 1e-9;
+	}
+
+	
+
+	/*static long long GetNanoseconds(std::chrono::steady_clock::time_point& start) {
 		auto now = std::chrono::high_resolution_clock::now();
 		return std::chrono::duration_cast<std::chrono::nanoseconds>(now - start).count();
-	}
+	}*/
 
-	double Timer::GetMilliseconds()
+	/*double Timer::GetMilliseconds()
 	{
 		return GetNanoseconds(m_Start)*1e-6;
-	}
+	}*/
 	
-	Timer::~Timer()
-	{
-
-		s_TimerData[m_Name] = fmt::format("{0}{1} Took {2}ns ({3}ms)", std::string(s_IndentCount,' '), m_Name, GetNanoseconds(m_Start), GetMilliseconds());
-	}
-
 	static std::unordered_map<std::string, uint64_t> s_Timers;
-
 
 	AccumulativeTimer::AccumulativeTimer(const std::string& name)
 		:m_Name(name),m_AccumulatedTimeInNanoSecs(0)
@@ -75,6 +102,23 @@ namespace Kaidel {
 
 	ScopedAccumulativeTimer::~ScopedAccumulativeTimer() {
 		m_Timer.Stop();
+	}
+
+	ScopedTimer::ScopedTimer(const std::string& name)
+		:m_Timer(name)
+	{
+		m_Timer.Start();
+	}
+
+	ScopedTimer::~ScopedTimer()
+	{
+		m_Timer.Stop();
+		m_Timer.Print();
+	}
+
+	void ScopedTimer::Reset()
+	{
+		m_Timer.ResetTimer();
 	}
 
 }

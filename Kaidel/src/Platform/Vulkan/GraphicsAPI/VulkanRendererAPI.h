@@ -22,20 +22,36 @@ namespace Kaidel {
 			virtual void DrawPatches(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) override;
 			virtual void DrawPoints(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) override;
 
-
-
 			virtual void SetLineWidth(float thickness) override;
 			virtual void SetPointSize(float pixelSize) override;
-			virtual void SetCullMode(CullMode cullMode)override;
-			virtual int QueryMaxTextureSlots()override;
-			virtual float QueryMaxTessellationLevel()override;
+			virtual void SetCullMode(CullMode cullMode) override;
+
 			virtual void SetPatchVertexCount(uint32_t count)override;
-			virtual void SetDefaultTessellationLevels(const glm::vec4& outer, const glm::vec2& inner)override;
+
 			virtual void RenderFullScreenQuad(Ref<Shader> shader, uint32_t width, uint32_t height)const override;
 
+			virtual void BindVertexBuffers(std::initializer_list<Ref<VertexBuffer>> vertexBuffers) override;
+			virtual void BindIndexBuffer(Ref<IndexBuffer> indexBuffer) override;
+
+			virtual void BeginRenderPass(Ref<Framebuffer> frameBuffer, Ref<RenderPass> renderPass) override;
+			virtual void EndRenderPass() override;
+
+			virtual void BindGraphicsPipeline(Ref<GraphicsPipeline> pipeline) override;
 		private:
 			VkSwapchainKHR m_Swapchain;
 
+			static constexpr const uint32_t MaxVertexBuffersBoundAtOnce = 32;
+
+			Ref<Framebuffer> m_BoundFramebuffer;
+			std::vector<VkBuffer> m_CurrentBoundBuffers;
+			std::vector<VkDeviceSize> m_CurrentBoundBufferOffsets;
+			glm::vec4 m_ClearValues;
+
+			// Inherited via RendererAPI
+			void Draw(uint32_t vertexCount, uint32_t firstVertexID) override;
+			void DrawInstanced(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertexID) override;
+			void DrawIndexed(uint32_t indexCount, uint32_t firstIndex, uint32_t vertexOffset) override;
+			void DrawIndexedInstanced(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, uint32_t vertexOffset) override;
 		};
 	}
 }

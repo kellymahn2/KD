@@ -46,7 +46,7 @@ namespace Kaidel {
 			}
 		}
 
-		static void RenderAnimationGraph(Renderer2DBeginData& beginData, std::vector<KeyFrame<TranslationData>>& frameStorage, uint32_t currentPointBeingEdited, const glm::vec2& imagePos, const glm::vec2& lastFrameMousePos, const glm::vec3& minPos, const glm::vec3& maxPos, float pixelSize) {
+		//static void RenderAnimationGraph(Renderer2DBeginData& beginData, std::vector<KeyFrame<TranslationData>>& frameStorage, uint32_t currentPointBeingEdited, const glm::vec2& imagePos, const glm::vec2& lastFrameMousePos, const glm::vec3& minPos, const glm::vec3& maxPos, float pixelSize) {
 
 			/*int64_t accumSize = 0;
 			for (uint64_t i = 0; i < frameStorage.size() - 1; ++i) {
@@ -110,7 +110,6 @@ namespace Kaidel {
 				Renderer2D::End();
 			}
 		}*/
-		}
 	}
 
 

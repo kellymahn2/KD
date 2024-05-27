@@ -143,9 +143,16 @@ namespace Kaidel {
 
 
 
+	enum class VertexBufferMemoryType {
+		None = 0,
+		Static, //Make staging buffer each time on host, move to device memory at the end.
+		Dynamic //Make and cache staging buffer on host, move to device memory at the end.
+	};
 	struct VertexBufferSpecification {
 		uint32_t Size = 0;
 		const void* Data = nullptr;
+		VertexBufferMemoryType MemoryType = VertexBufferMemoryType::Dynamic;
+
 	};
 	class VertexBuffer : public IRCCounter<false>
 	{

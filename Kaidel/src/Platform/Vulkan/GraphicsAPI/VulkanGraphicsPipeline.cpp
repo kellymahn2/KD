@@ -5,6 +5,8 @@
 #include "VulkanSingleShader.h"
 #include "VulkanRenderPass.h"
 
+#include "VulkanUniformBuffer.h"
+
 
 namespace Kaidel {
 
@@ -154,6 +156,20 @@ namespace Kaidel {
 			KD_CORE_ASSERT(false, "Unknown culling mode");
 			return VK_CULL_MODE_NONE;
 		}
+
+		static std::vector<VkDescriptorSetLayoutBinding> GetDescriptorBindings(uint32_t count, VkDescriptorType descriptorType, VkShaderStageFlags stageFlags) {
+
+			std::vector<VkDescriptorSetLayoutBinding> layouts(count, VkDescriptorSetLayoutBinding{});
+			for (uint32_t i = 0; i < count; ++i) {
+				layouts[i].binding = i;
+				layouts[i].descriptorCount = 1;
+				layouts[i].descriptorType = descriptorType;
+				layouts[i].pImmutableSamplers = nullptr;
+				layouts[i].stageFlags = stageFlags;
+			}
+			return layouts;
+		}
+
 	}
 
 	namespace Vulkan {
@@ -167,6 +183,9 @@ namespace Kaidel {
 			if (m_Finalized) {
 				vkDestroyPipelineLayout(VK_DEVICE, m_Layout, VK_ALLOCATOR_PTR);
 				vkDestroyPipeline(VK_DEVICE, m_Pipeline, VK_ALLOCATOR_PTR);
+
+				vkDestroyDescriptorPool(VK_DEVICE, m_DescriptorPool, VK_ALLOCATOR_PTR);
+				vkDestroyDescriptorSetLayout(VK_DEVICE, m_DescriptorSetLayout, VK_ALLOCATOR_PTR);
 			}
 		}
 		void VulkanGraphicsPipeline::Finalize()
@@ -183,15 +202,19 @@ namespace Kaidel {
 			inputAssemblyInfo.topology = Utils::KaidelPrimitiveTopologyToVkPrimitiveTopology(m_Specification.PrimitveTopology);
 			pipelineInfo.pInputAssemblyState = &inputAssemblyInfo;
 
+			VkShaderStageFlags usedStageFlags = 0;
+
+
 			//Shader Stages
 			std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
 			for (auto& [stage,shader] : m_Specification.Stages) {
 				VK_STRUCT(VkPipelineShaderStageCreateInfo, shaderStageInfo, VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO);
-
 				shaderStageInfo.pName = "main";
 				shaderStageInfo.stage = Utils::KaidelShaderStageToVkShaderStage(stage);
 				shaderStageInfo.module = ((VulkanSingleShader*)shader.Get())->GetModule();
 				shaderStages.push_back(shaderStageInfo);
+				
+				usedStageFlags |= shaderStageInfo.stage;
 			}
 			pipelineInfo.pStages = shaderStages.data();
 			pipelineInfo.stageCount = (uint32_t)shaderStages.size();
@@ -201,6 +224,7 @@ namespace Kaidel {
 			VK_STRUCT(VkPipelineDynamicStateCreateInfo, dynamicStateInfo, VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO);
 			dynamicStates.push_back(VK_DYNAMIC_STATE_VIEWPORT);
 			dynamicStates.push_back(VK_DYNAMIC_STATE_SCISSOR);
+			
 
 			//Viewport and scissor
 			VkViewport viewport = {};
@@ -231,6 +255,12 @@ namespace Kaidel {
 			rasterizerCreateInfo.lineWidth = m_Specification.LineWidth;
 			pipelineInfo.pRasterizationState = &rasterizerCreateInfo;
 
+			VK_STRUCT(VkPipelineDepthStencilStateCreateInfo, depthStencilInfo, VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO);
+			depthStencilInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+			depthStencilInfo.depthWriteEnable = VK_TRUE;
+			depthStencilInfo.depthWriteEnable = VK_TRUE;
+			pipelineInfo.pDepthStencilState = &depthStencilInfo;
+
 			//Multi-Sampling
 			VK_STRUCT(VkPipelineMultisampleStateCreateInfo, multisampleInfo, VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO);
 			multisampleInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -259,12 +289,82 @@ namespace Kaidel {
 			colorBlendInfo.blendConstants[3] = 0.0f;
 			pipelineInfo.pColorBlendState = &colorBlendInfo;
 
-			//Pipeline Layout
+			std::vector<VkDescriptorPoolSize> poolSizes{};
+			uint32_t maxSetCount = 0;
+			
+			//Uniform buffer bindings
+			std::vector<VkDescriptorSetLayoutBinding> uniformBufferBindings = 
+				Utils::GetDescriptorBindings((uint32_t)m_Specification.UsedUniformBuffers.size(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, usedStageFlags);
+			
+			VK_STRUCT(VkDescriptorSetLayoutCreateInfo, descriptorSetLayoutInfo, VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO);
+			descriptorSetLayoutInfo.bindingCount = (uint32_t)uniformBufferBindings.size();
+			descriptorSetLayoutInfo.pBindings = uniformBufferBindings.data();
 
+			VK_ASSERT(vkCreateDescriptorSetLayout(VK_DEVICE, &descriptorSetLayoutInfo, VK_ALLOCATOR_PTR, &m_DescriptorSetLayout));
+
+
+			{
+				VkDescriptorPoolSize uniformBufferSize{};
+				uniformBufferSize.descriptorCount  = (uint32_t)m_Specification.UsedUniformBuffers.size() * VK_CONTEXT.GetSwapchain()->GetSpecification().ImageCount;
+				uniformBufferSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+				poolSizes.push_back(uniformBufferSize);
+				maxSetCount += uniformBufferSize.descriptorCount;
+			}
+			
+			//Descriptor Pool
+			VK_STRUCT(VkDescriptorPoolCreateInfo, poolInfo, VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO);
+			poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
+			poolInfo.pPoolSizes = poolSizes.data();
+			poolInfo.maxSets = maxSetCount * 2;
+			VK_ASSERT(vkCreateDescriptorPool(VK_DEVICE, &poolInfo, VK_ALLOCATOR_PTR, &m_DescriptorPool));
+
+
+			std::vector<VkDescriptorSetLayout> layouts(VK_CONTEXT.GetSwapchain()->GetSpecification().ImageCount, m_DescriptorSetLayout);
+			//Descriptor Sets
+			VK_STRUCT(VkDescriptorSetAllocateInfo, setInfo, VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO);
+			setInfo.descriptorPool = m_DescriptorPool;
+			setInfo.pSetLayouts = layouts.data();
+			setInfo.descriptorSetCount = (uint32_t)layouts.size();
+			VK_ASSERT(vkAllocateDescriptorSets(VK_DEVICE, &setInfo, m_UniformBufferDescriptorSets.begin()._Ptr));
+
+			std::vector<VkDescriptorBufferInfo> bufferInfos;
+			std::vector<VkWriteDescriptorSet> setWrites;
+
+			for (uint32_t i = 0; i < m_Specification.UsedUniformBuffers.size(); ++i) {
+
+				Ref<VulkanUniformBuffer> vub = m_Specification.UsedUniformBuffers[i];
+				VkDescriptorBufferInfo bufferInfo{};
+				bufferInfo.buffer = vub->GetBuffer().Buffer;
+				bufferInfo.offset = 0;
+				bufferInfo.range = vub->GetBuffer().Size;
+				bufferInfos.push_back(bufferInfo);
+
+				for (auto& descriptorSet : m_UniformBufferDescriptorSets) {
+
+					VK_STRUCT(VkWriteDescriptorSet, setWrite, VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET);
+					setWrite.descriptorCount = 1;
+					setWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+					setWrite.dstArrayElement = 0;
+					setWrite.dstBinding = vub->GetBindingIndex();
+					setWrite.dstSet = descriptorSet;
+					setWrite.pBufferInfo = &bufferInfos.back();
+					setWrites.push_back(setWrite);
+				}
+			}
+
+			vkUpdateDescriptorSets(VK_DEVICE, (uint32_t)setWrites.size(), setWrites.data(), 0, nullptr);
+			
+			
+			//Pipeline Layout
 			VK_STRUCT(VkPipelineLayoutCreateInfo, layoutInfo, VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO);
+			layoutInfo.pSetLayouts = &m_DescriptorSetLayout;
+			layoutInfo.setLayoutCount = 1;
+
 			VK_ASSERT(vkCreatePipelineLayout(VK_DEVICE, &layoutInfo, VK_ALLOCATOR_PTR, &m_Layout));
 			pipelineInfo.layout = m_Layout;
-			
+
+
+
 			Ref<VulkanRenderPass> rp = m_Specification.RenderPass;
 			//Render Pass
 			pipelineInfo.renderPass = rp->GetRenderPass();
@@ -277,7 +377,17 @@ namespace Kaidel {
 
 			VK_ASSERT(vkCreateGraphicsPipelines(VK_DEVICE, VK_NULL_HANDLE, 1, &pipelineInfo, VK_ALLOCATOR_PTR, &m_Pipeline));
 			m_Finalized = true;
-
+		}
+		void VulkanGraphicsPipeline::SetUniformBuffer(Kaidel::Ref<Kaidel::UniformBuffer> uniformBuffer, uint32_t binding)
+		{
+		}
+		void VulkanGraphicsPipeline::Bind()
+		{
+			vkCmdBindDescriptorSets(VK_CURRENT_IMAGE.CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Layout, 0, 1, &*m_UniformBufferDescriptorSets, 0, nullptr);
+			vkCmdBindPipeline(VK_CURRENT_IMAGE.CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline);
+		}
+		void VulkanGraphicsPipeline::Unbind()
+		{
 		}
 	}
 }

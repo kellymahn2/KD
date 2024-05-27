@@ -64,8 +64,6 @@ namespace Kaidel {
 
 	};
 
-
-
 	namespace Utils {
 		GLenum KaidelTextureFormatToGLInternalFormat(TextureFormat format);
 		GLenum KaidelTextureFormatToGLFormat(TextureFormat format);
@@ -75,9 +73,6 @@ namespace Kaidel {
 		bool IsDepthFormat(TextureFormat format);
 
 	}
-
-
-
 
 	struct TextureHandle;
 	struct TextureArrayHandle;

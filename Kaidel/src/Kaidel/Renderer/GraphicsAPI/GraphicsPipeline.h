@@ -6,6 +6,7 @@
 #include "SingleShader.h"
 #include "Kaidel/Renderer/Settings.h"
 #include "RenderPass.h"
+#include "UniformBuffer.h"
 
 
 namespace Kaidel {
@@ -40,12 +41,35 @@ namespace Kaidel {
 		PerInstance,
 	};
 
+	static uint32_t PipelineInputDataTypeSize(GraphicsPipelineInputDataType dataType) {
+		switch (dataType)
+		{
+		case GraphicsPipelineInputDataType::Float:return sizeof(float);
+		case GraphicsPipelineInputDataType::Float2:return sizeof(float) * 2;
+		case GraphicsPipelineInputDataType::Float3:return sizeof(float) * 3;
+		case GraphicsPipelineInputDataType::Float4:return sizeof(float) * 4;
+		case GraphicsPipelineInputDataType::Mat3:return sizeof(float) * 3;
+		case GraphicsPipelineInputDataType::Mat4:return sizeof(float) * 4;
+		case GraphicsPipelineInputDataType::Int:return sizeof(int32_t);
+		case GraphicsPipelineInputDataType::Int2:return sizeof(int32_t) * 2;
+		case GraphicsPipelineInputDataType::Int3:return sizeof(int32_t) * 3;
+		case GraphicsPipelineInputDataType::Int4:return sizeof(int32_t) * 4;
+		case GraphicsPipelineInputDataType::Bool:return sizeof(int8_t);
+		}
+		KD_CORE_ASSERT(false, "Unknown input data type");
+		return 0;
+	}
 
 	struct GraphicsPipelineInputElement {
 		std::string Name;
 		GraphicsPipelineInputDataType DataType;
 		uint32_t Size;
 		uint32_t Offset;
+
+		GraphicsPipelineInputElement(const std::string& name, GraphicsPipelineInputDataType dataType)
+			:Name(name),DataType(dataType),Size(PipelineInputDataTypeSize(dataType)),Offset(0)
+		{}
+
 	};
 
 
@@ -105,6 +129,15 @@ namespace Kaidel {
 		bool FrontCCW = true;
 		float LineWidth = 1.0f;
 		Ref<RenderPass> RenderPass;
+
+		std::vector<Ref<UniformBuffer>> UsedUniformBuffers;
+
+
+		uint32_t UniformBufferCount = 0;
+		uint32_t StorageBufferCount = 0;
+		uint32_t SamplerCount = 0;
+
+
 	};
 
 
@@ -113,6 +146,16 @@ namespace Kaidel {
 
 		virtual ~GraphicsPipeline() = default;
 		virtual void Finalize() = 0;
+
+		virtual void SetUniformBuffer(Ref<UniformBuffer> uniformBuffer,uint32_t binding = 0) = 0;
+
+		virtual void Bind() = 0;
+		virtual void Unbind() = 0;
+
+		//virtual void AddStorageBuffer() = 0;
+		//virtual void AddSampler() = 0;
+
+
 
 		static Ref<GraphicsPipeline> Create(const GraphicsPipelineSpecification& specification);
 	private:

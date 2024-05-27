@@ -2,6 +2,7 @@
 #include "Kaidel/Core/Base.h"
 #include "Framebuffer.h"
 
+#include <glm/glm.hpp>
 namespace Kaidel {
 
 
@@ -68,6 +69,11 @@ namespace Kaidel {
 
 
 		virtual const RenderPassSpecification& GetSpecification()const = 0;
+
+
+		virtual void SetClearColor(const glm::vec4& color) = 0;
+		virtual void SetClearColor(const glm::vec4& color, uint32_t attachment) = 0;
+
 
 		virtual void Begin()const = 0;
 		virtual void End() const = 0;

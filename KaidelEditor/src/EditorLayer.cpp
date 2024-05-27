@@ -88,82 +88,93 @@ namespace Kaidel {
 		KD_INFO("Loaded Stop Button");
 
 
+//		std::string vss = R"(
+//#version 460 core
+//
+//layout(std140,binding = 0) uniform data{
+//	mat4 m;
+//} d;
+//
+//void main(){
+//	gl_Position = vec4(0);
+//}
+//
+//
+//)";
+//
+//		std::string fss = R"(
+//		#version 460 core
+//
+//layout(location = 0)out vec4 col;
+//
+//void main(){
+//	col = vec4(1.0);
+//}
+//)";
+//			static Ref<SingleShader> vs;
+//
+//			{
+//				SingleShaderSpecification spec{};
+//				spec.ControlString = vss;
+//				spec.IsPath = false;
+//				spec.Type = ShaderType::VertexShader;
+//				vs = SingleShader::CreateShader(spec);
+//			}
+//			static Ref<SingleShader> fs;
+//
+//			{
+//				SingleShaderSpecification spec{};
+//				spec.ControlString = fss;
+//				spec.IsPath = false;
+//				spec.Type = ShaderType::PixelShader;
+//				fs = SingleShader::CreateShader(spec);
+//			}
+//
+//			static Ref<RenderPass> rp;
+//
+//			{
+//				RenderPassSpecification spec{};
+//				spec.BindingPoint = RenderPassBindPoint::Graphics;
+//
+//				spec.OutputImages.push_back(RenderPassAttachmentSpecification(TextureFormat::RGBA8,RenderPassImageLoadOp::DontCare));
+//				rp = RenderPass::Create(spec);
+//			}
+//
+//
+//			static Ref<UniformBuffer> ub;
+//			{
+//				ub = UniformBuffer::Create(sizeof(glm::mat4), 0);
+//			}
+//
+//			static Ref<GraphicsPipeline> gp;
+//
+//			{
+//				GraphicsPipelineSpecification spec{};
+//				spec.Culling = CullMode::None;
+//				spec.FrontCCW = true;
+//				spec.LineWidth = 1.0f;
+//				spec.PrimitveTopology = GraphicsPrimitveTopology::TriangleList;
+//				spec.RenderPass = rp;
+//				spec.Stages = { {ShaderType::VertexShader,vs},{ShaderType::FragmentShader,fs} };
+//				spec.UsedUniformBuffers = { ub };
+//
+//				gp = GraphicsPipeline::Create(spec);
+//				gp->Finalize();
+//				gp->Bind();
+//			}
+//	
 
-		std::string vss = R"(
-#version 460 core
 
 
-void main(){
-	gl_Position = vec4(0);
-}
-
-
-)";
-
-		std::string fss = R"(
-		#version 460 core
-
-layout(location = 0)out vec4 col;
-
-void main(){
-	col = vec4(1.0);
-}
-)";
-		/*static Ref<SingleShader> vs;
-
-		{
-			SingleShaderSpecification spec{};
-			spec.ControlString = vss;
-			spec.IsPath = false;
-			spec.Type = ShaderType::VertexShader;
-			vs = SingleShader::CreateShader(spec);
-		}
-		static Ref<SingleShader> fs;
-
-		{
-			SingleShaderSpecification spec{};
-			spec.ControlString = fss;
-			spec.IsPath = false;
-			spec.Type = ShaderType::PixelShader;
-			fs = SingleShader::CreateShader(spec);
-		}
-
-		static Ref<RenderPass> rp;
-
-		{
-			RenderPassSpecification spec{};
-			spec.BindingPoint = RenderPassBindPoint::Graphics;
-
-			spec.OutputImages.push_back(RenderPassAttachmentSpecification(TextureFormat::RGBA8,RenderPassImageLoadOp::DontCare));
-			rp = RenderPass::Create(spec);
-		}
-
-		static Ref<GraphicsPipeline> gp;
-
-		{
-			GraphicsPipelineSpecification spec{};
-			spec.Culling = CullMode::None;
-			spec.FrontCCW = true;
-			spec.LineWidth = 1.0f;
-			spec.PrimitveTopology = GraphicsPrimitveTopology::TriangleList;
-			spec.RenderPass = rp;
-			spec.Stages = { {ShaderType::VertexShader,vs},{ShaderType::FragmentShader,fs} };
-
-		}
-*/
-
-
-
-		/*
+		
 		{
 			FramebufferSpecification fbSpec;
-			fbSpec.Attachments = { TextureFormat::RGBA8 };
+			fbSpec.Attachments = { TextureFormat::RGBA8 , TextureFormat::Depth32F};
 			fbSpec.Width = 1280;
 			fbSpec.Height = 720;
-			fbSpec.Samples = RendererAPI::GetSettings().MSAASampleCount;
 			m_OutputBuffer = Framebuffer::Create(fbSpec);
 		}
-		*/
+		
 		/*
 		{
 			FramebufferSpecification fbSpec;
@@ -198,8 +209,17 @@ void main(){
 		m_ContentBrowserPanel.SetContext(m_PanelContext);
 
 
-		{
-			m_FXAAComputeShader = ComputeShader::Create("assets/shaders/FXAA/FXAA_CS_2D3D.glsl");
+//		{
+//			m_FXAAComputeShader = ComputeShader::Create("assets/shaders/FXAA/FXAA_CS_2D3D.glsl");
+//		}
+
+		uint32_t count = 1;
+		for (uint32_t i = 0; i < count; ++i) {
+			for (uint32_t j = 0; j < count; ++j) {
+				Entity e = m_ActiveScene->CreateEntity("Sprite");
+				e.AddComponent<SpriteRendererComponent>();
+				e.GetComponent<TransformComponent>().Translation = { i,j,0 };
+			}
 		}
 
 	}
@@ -370,7 +390,7 @@ void main(){
 			//m_PropertiesPanel.OnImGuiRender();
 
 			ShowDebugWindow();
-			//ShowViewport();
+			ShowViewport();
 			//UI_Toolbar();
 			ImGui::End();
 			//if (m_ConsoleOpen) {
@@ -578,7 +598,7 @@ void main(){
 	}
 
 	static void GetSegmentCount(float totalSegmentCount, float* lineCount, float* segmentPerLineCount) {
-		float maxTessLevel = RenderCommand::QueryMaxTessellationLevel();
+		/*float maxTessLevel = RenderCommand::QueryMaxTessellationLevel();
 		for (float i = 1.0f; i < maxTessLevel; i += 1.0f) {
 			for (float j = 1.0f; j < maxTessLevel; j += 1.0f) {
 				if (i * j >= totalSegmentCount) {
@@ -589,7 +609,7 @@ void main(){
 			}
 		}
 		*lineCount = maxTessLevel;
-		*segmentPerLineCount = maxTessLevel;
+		*segmentPerLineCount = maxTessLevel;*/
 	}
 
 	void EditorLayer::ShowDebugWindow()
@@ -677,10 +697,10 @@ void main(){
 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 		m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };
 
-		auto textureID = m_ScreenOutputbuffer->GetColorAttachmentRendererID();
+		auto textureID = m_OutputBuffer->GetColorAttachmentRendererID();
 		glm::vec4 uvs = _GetUVs();
 		int sampleCount = m_OutputBuffer->GetSpecification().Samples;
-		ImGui::Image(reinterpret_cast<void*>(textureID), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, { uvs.x,uvs.y }, { uvs.z,uvs.w });
+		//ImGui::Image(reinterpret_cast<void*>(textureID), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, { uvs.x,uvs.y }, { uvs.z,uvs.w });
 		//ImGui::Image((ImTextureID)SpotLight::GetDepthMaps()->GetView(0)->GetRendererID(), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, { uvs.x,uvs.y }, { uvs.z,uvs.w });
 		if (ImGui::BeginDragDropTarget()) {
 			if (auto payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
@@ -698,16 +718,16 @@ void main(){
 	}
 
 	void EditorLayer::HandleViewportResize() {
-		//if (FramebufferSpecification spec = m_OutputBuffer->GetSpecification();
-		//	m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f && // zero sized framebuffer is invalid
-		//	(spec.Width != m_ViewportSize.x || spec.Height != m_ViewportSize.y))
-		//{
-		//	m_OutputBuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
-		//	m_ScreenOutputbuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+		if (FramebufferSpecification spec = m_OutputBuffer->GetSpecification();
+			m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f && // zero sized framebuffer is invalid
+			(spec.Width != m_ViewportSize.x || spec.Height != m_ViewportSize.y))
+		{
+			m_OutputBuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+			//m_ScreenOutputbuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 
-		//	m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);
-		//	m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
-		//}
+			m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);
+			m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+		}
 	}
 
 

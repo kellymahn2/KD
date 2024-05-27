@@ -115,8 +115,8 @@ namespace Kaidel {
 			bool depthSet = false;
 
 			if (specification.OutputDepthAttachment.ImageFormat != TextureFormat::None) {
-				depthAttachment = Utils::MakeAttachmentDescription(specification.OutputDepthAttachment);
-				depthRef = Utils::MakeAttachmentReference(0, specification.OutputDepthAttachment);
+				attachments.push_back(Utils::MakeAttachmentDescription(specification.OutputDepthAttachment));
+				depthRef = Utils::MakeAttachmentReference(outputRefs.size(), specification.OutputDepthAttachment);
 				depthSet = true;
 			}
 			
@@ -144,6 +144,8 @@ namespace Kaidel {
 			renderPassInfo.pSubpasses = &subpass;
 
 			VK_ASSERT(vkCreateRenderPass(VK_DEVICE, &renderPassInfo, VK_ALLOCATOR_PTR, &m_RenderPass));
+
+			m_ClearColors.resize((uint32_t)depthSet + subpass.colorAttachmentCount);
 		}
 		VulkanRenderPass::~VulkanRenderPass()
 		{
@@ -155,5 +157,6 @@ namespace Kaidel {
 		void VulkanRenderPass::End() const
 		{
 		}
+		
 	}
 }

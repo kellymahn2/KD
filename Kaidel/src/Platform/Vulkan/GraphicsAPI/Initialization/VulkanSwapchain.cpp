@@ -1,6 +1,6 @@
 #include "KDpch.h"
 #include "VulkanSwapchain.h"
-#include "VulkanGraphicsContext.h"
+#include "Platform/Vulkan/GraphicsAPI/VulkanGraphicsContext.h"
 
 
 namespace Kaidel {
@@ -252,7 +252,6 @@ namespace Kaidel {
 				VK_ASSERT(vkCreateRenderPass(logicalDevice, &renderPassInfo, nullptr, &renderPass));
 				return renderPass;
 			}
-
 		}
 
 		VulkanSwapchain::VulkanSwapchain(const VulkanSwapchainSpecification& specification)
@@ -299,21 +298,32 @@ namespace Kaidel {
 			Invalidate();
 		}
 
-		void VulkanSwapchain::Present(uint32_t imageIndex)
+		void VulkanSwapchain::Present(std::initializer_list<VkSemaphore> waitSemaphores,uint32_t imageIndex)
 		{
-			VkSemaphore waitSemaphores[] = {m_Frames[imageIndex].RenderFinished->GetSemaphore()};
 			// Present the acquired image
 			VkPresentInfoKHR presentInfo = {};
 			presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-			presentInfo.waitSemaphoreCount = 1;
-			presentInfo.pWaitSemaphores = waitSemaphores;
+			presentInfo.waitSemaphoreCount = waitSemaphores.size();
+			presentInfo.pWaitSemaphores = waitSemaphores.begin();
 			presentInfo.swapchainCount = 1;
 			presentInfo.pSwapchains = &m_Swapchain;
 			presentInfo.pImageIndices = &imageIndex;
-			auto res = vkQueuePresentKHR(m_Specification.PresentQueue, &presentInfo);
-			if (res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) {
-				Invalidate();
+			VK_ASSERT(vkQueuePresentKHR(m_Specification.PresentQueue, &presentInfo));
+		}
+
+		
+
+		uint32_t VulkanSwapchain::AcquireImage(VkFence inFlightFence, VkFence imageAvailFence,VkSemaphore imageAvailSemaphore)
+		{
+			if (inFlightFence) {
+				VK_ASSERT(vkWaitForFences(m_Specification.LogicalDevice, 1, &inFlightFence, VK_TRUE, UINT64_MAX));
+				VK_ASSERT(vkResetFences(m_Specification.LogicalDevice, 1, &inFlightFence));
 			}
+
+			uint32_t imageIndex = 0;
+			VK_ASSERT(vkAcquireNextImageKHR(m_Specification.LogicalDevice, m_Swapchain, UINT64_MAX, imageAvailSemaphore, imageAvailFence, &imageIndex));
+
+			return imageIndex;
 		}
 
 		uint32_t VulkanSwapchain::AcquireImage(uint32_t lastImageIndex)

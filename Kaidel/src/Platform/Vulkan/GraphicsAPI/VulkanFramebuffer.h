@@ -3,7 +3,8 @@
 
 #include "VulkanBase.h"
 #include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
-
+#include "Kaidel/Renderer/GraphicsAPI/RenderPass.h"
+#include "PerFrameResource.h"
 
 namespace Kaidel {
 
@@ -28,7 +29,7 @@ namespace Kaidel {
 
 			void ClearDepthAttachment(float value) override;
 
-			uint64_t GetColorAttachmentRendererID(uint32_t index) const override;
+			uint64_t GetColorAttachmentRendererID(uint32_t index) const override { return (uint64_t)m_FramebufferResource->ColorAttachments[index].ImageView; }
 
 			FramebufferAttachmentHandle GetAttachmentHandle(uint32_t index) const override;
 
@@ -36,51 +37,49 @@ namespace Kaidel {
 
 			const FramebufferSpecification& GetSpecification() const override { return m_Specification; }
 
-			void BindColorAttachmentToSlot(uint32_t attachmentIndex, uint32_t slot) override;
-
-			void BindColorAttachmentToImageSlot(uint32_t attachmnetIndex, uint32_t slot, ImageBindingMode bindingMode) override;
-
-			void BindDepthAttachmentToSlot(uint32_t slot) override;
-
-			void CopyColorAttachment(uint32_t dstAttachmentIndex, uint32_t srcAttachmentIndex, Ref<Framebuffer> src) override;
-
-			void CopyDepthAttachment(Ref<Framebuffer> src) override;
-
-			void EnableColorAttachment(uint32_t attachmentIndex) override;
-
-			void DisableColorAttachment(uint32_t attachmentIndex) override;
 
 			void ReadValues(uint32_t attachemntIndex, uint32_t x, uint32_t y, uint32_t w, uint32_t h, float* output) override;
 
-			void SetAttachment(const TextureHandle& handle, uint32_t index) override;
-
-			void SetAttachment(const TextureArrayHandle& handle, uint32_t index) override;
-
-			void SetDepthAttachment(const TextureHandle& handle) override;
-
-			void SetDepthAttachment(const TextureArrayHandle& handle) override;
+			Ref<RenderPass> GetRenderPass() const override { return m_RenderPass; }
 
 
+			VkFramebuffer GetFramebuffer()const { return (*m_FramebufferResource).Framebuffer; };
+		private:
+			struct FramebufferImage {
+				VkImage Image = VK_NULL_HANDLE;
+				VkDeviceMemory Memory = VK_NULL_HANDLE;
+				VkImageView ImageView = VK_NULL_HANDLE;
+			};
+
+			struct FramebufferFrameResource {
+				VkFramebuffer Framebuffer = VK_NULL_HANDLE;
+				std::vector<FramebufferImage> ColorAttachments;
+				FramebufferImage DepthAttachment;
+			};
 		private:
 
 			void Invalidate();
 
+			void DeleteOldBuffers();
+
+			void CreateRenderPass();
+
+			bool HasDepthAttachment();
+
+			void DestroyAttachment(FramebufferImage& image);
+
 		private:
 
-			struct FramebufferImage {
-				VkImage Image = VK_NULL_HANDLE;
-				VkImageView ImageView = VK_NULL_HANDLE;
-			};
-
-			VkFramebuffer m_Framebuffer = VK_NULL_HANDLE;
-			std::vector<FramebufferImage> m_ColorAttachments;
-			FramebufferImage m_DepthAttachment;
-
+			PerFrameResource<FramebufferFrameResource> m_FramebufferResource;
 
 			std::vector<FramebufferTextureSpecification> m_ColorAttachmentSpecifications;
 			FramebufferTextureSpecification m_DepthAttachmentSpecification = TextureFormat::None;
 
 			FramebufferSpecification m_Specification;
+
+			Ref<RenderPass> m_RenderPass;
+
+			// Inherited via Framebuffer
 
 		};
 

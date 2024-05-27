@@ -118,47 +118,6 @@ namespace Kaidel {
 		Invalidate();
 	}
 
-	void OpenGLFramebuffer::BindColorAttachmentToSlot(uint32_t attachmnetIndex, uint32_t slot) {
-		glBindTextureUnit(slot, m_ColorAttachments[attachmnetIndex]);
-	}
-
-	void OpenGLFramebuffer::BindColorAttachmentToImageSlot(uint32_t attachmnetIndex, uint32_t slot, ImageBindingMode bindingMode) {
-		glBindImageTexture(slot,m_ColorAttachments[attachmnetIndex], 0, GL_FALSE, 0, Utils::KaidelImageBindingToGL(bindingMode), Utils::KaidelTextureFormatToGLInternalFormat(m_ColorAttachmentSpecifications[attachmnetIndex].Format));
-	}
-
-
-	void OpenGLFramebuffer::CopyColorAttachment(uint32_t dstAttachmentIndex, uint32_t srcAttachmentIndex, Ref<Framebuffer> src) {
-		auto oglSrc = DynamicPointerCast<OpenGLFramebuffer>(src);
-		if (dstAttachmentIndex >= m_Specification.Attachments.Attachments.size() || srcAttachmentIndex >= oglSrc->m_Specification.Attachments.Attachments.size())
-			return;
-		if (oglSrc->m_Specification.Width != m_Specification.Width || oglSrc->m_Specification.Height != m_Specification.Height)
-			return;
-		bool multiSampled = m_Specification.Samples > 1;
-		bool srcMultiSampled = oglSrc->m_Specification.Samples > 1;
-		glCopyImageSubData(oglSrc->m_ColorAttachments[srcAttachmentIndex], Utils::TextureTarget(srcMultiSampled), 0, 0, 0, 0, m_ColorAttachments[dstAttachmentIndex], Utils::TextureTarget(multiSampled), 0, 0, 0, 0, m_Specification.Width, m_Specification.Height, 1);
-	}
-	void OpenGLFramebuffer::CopyDepthAttachment(Ref<Framebuffer> src) {
-		auto oglSrc = DynamicPointerCast<OpenGLFramebuffer>(src);
-		if (oglSrc->m_Specification.Width != m_Specification.Width || oglSrc->m_Specification.Height != m_Specification.Height)
-			return;
-		if (!m_DepthAttachment || !oglSrc->m_DepthAttachment)
-			return;
-		bool multiSampled = m_Specification.Samples > 1;
-		bool srcMultiSampled = oglSrc->m_Specification.Samples > 1;
-		glCopyImageSubData(oglSrc->m_DepthAttachment, Utils::TextureTarget(srcMultiSampled), 0, 0, 0, 0, m_DepthAttachment, Utils::TextureTarget(multiSampled), 0, 0, 0, 0, m_Specification.Width, m_Specification.Height, 1);
-	}
-	
-
-
-	
-	void OpenGLFramebuffer::BindDepthAttachmentToSlot(uint32_t slot) {
-		if (!m_DepthAttachment)
-			return;
-		glActiveTexture(GL_TEXTURE0 + slot);
-		glBindTexture(GL_TEXTURE_2D, m_DepthAttachment);
-	}
-
-
 	OpenGLFramebuffer::~OpenGLFramebuffer()
 	{
 		if (m_RendererID)
@@ -204,20 +163,7 @@ namespace Kaidel {
 		glBindFramebuffer(GL_FRAMEBUFFER, m_RendererID);
 		glViewport(0, 0, m_Specification.Width, m_Specification.Height);
 	}
-	void OpenGLFramebuffer::DisableColorAttachment(uint32_t attachmentIndex){
-		KD_CORE_ASSERT(attachmentIndex < m_DrawBuffers.size());
-		m_DrawBuffers[attachmentIndex] = GL_NONE;
-		glBindFramebuffer(GL_FRAMEBUFFER, m_RendererID);
-		glDrawBuffers((GLsizei)m_DrawBuffers.size(), m_DrawBuffers.data());
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	}
-	void OpenGLFramebuffer::EnableColorAttachment(uint32_t attachmentIndex) {
-		KD_CORE_ASSERT(attachmentIndex < m_DrawBuffers.size());
-		m_DrawBuffers[attachmentIndex] = GL_COLOR_ATTACHMENT0 + attachmentIndex;
-		glBindFramebuffer(GL_FRAMEBUFFER, m_RendererID);
-		glDrawBuffers((GLsizei)m_DrawBuffers.size(), m_DrawBuffers.data());
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	}
+	
 	void OpenGLFramebuffer::Unbind()
 	{
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -323,26 +269,5 @@ namespace Kaidel {
 		KD_CORE_ASSERT((m_DepthAttachmentSpecification.Format == TextureFormat::None && m_DrawBuffers.empty()) || glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE, "Framebuffer is incomplete!");
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	}
-
-	void OpenGLFramebuffer::SetAttachment(const TextureHandle& handle, uint32_t index){
-		OpenGLTexture2D* texture = ((OpenGLTexture2D*)handle.Texture.Get());
-		KD_CORE_ASSERT(index < m_ColorAttachmentSpecifications.size() && texture->m_TextureFormat == m_ColorAttachmentSpecifications.at(index).Format);
-		glNamedFramebufferTexture(m_RendererID, GL_COLOR_ATTACHMENT0 + index,texture->m_RendererID, 0);
-	}
-	void OpenGLFramebuffer::SetAttachment(const TextureArrayHandle& handle, uint32_t index){
-		OpenGLTexture2DArray* array = ((OpenGLTexture2DArray*)handle.Array.Get());
-		KD_CORE_ASSERT(index < m_ColorAttachmentSpecifications.size() && array->m_TextureFormat == m_ColorAttachmentSpecifications.at(index).Format);
-		glNamedFramebufferTextureLayer(m_RendererID, GL_COLOR_ATTACHMENT0 + index,array->m_RendererID, 0, (GLint)handle.SlotIndex);
-	}
-	void OpenGLFramebuffer::SetDepthAttachment(const TextureHandle& handle){
-		OpenGLTexture2D* texture = ((OpenGLTexture2D*)handle.Texture.Get());
-		KD_CORE_ASSERT(m_DepthAttachment&& texture->m_TextureFormat == m_DepthAttachmentSpecification.Format);
-		glNamedFramebufferTexture(m_RendererID, GL_DEPTH_ATTACHMENT, texture->m_RendererID, 0);
-	}
-	void OpenGLFramebuffer::SetDepthAttachment(const TextureArrayHandle& handle) {
-		OpenGLTexture2DArray* array = ((OpenGLTexture2DArray*)handle.Array.Get());
-		KD_CORE_ASSERT(m_DepthAttachment && array->m_TextureFormat == m_DepthAttachmentSpecification.Format);
-		glNamedFramebufferTextureLayer(m_RendererID,GL_DEPTH_ATTACHMENT , array->m_RendererID, 0, (GLint)handle.SlotIndex);
 	}
 }

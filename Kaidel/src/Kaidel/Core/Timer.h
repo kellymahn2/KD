@@ -9,13 +9,29 @@ namespace Kaidel {
 	{
 	public:
 		Timer(const std::string& name);
-		double GetMilliseconds();
-		~Timer();
+		void Start();
+		void ResetTimer();
+		void Stop();
+		
+		void Print();
 
-		static const std::unordered_map<std::string, std::string>& GetTimerData();
+		double GetMS()const;
+		double GetS()const;
+		double GetNS()const;
+
 	private:
 		std::chrono::steady_clock::time_point m_Start;
+		uint64_t m_AccumulatedTimeInNanoSecs;
 		std::string m_Name;
+	};
+
+	class ScopedTimer {
+	public:
+		ScopedTimer(const std::string& name);
+		~ScopedTimer();
+		void Reset();
+	private:
+		Timer m_Timer;
 	};
 
 	class AccumulativeTimer {
@@ -53,5 +69,8 @@ namespace Kaidel {
 #define EXPAND(arg) arg
 #define MAKE(arg1,arg2) EXPAND(arg1) ## EXPAND(arg2)
 
+
 #define SCOPED_TIMER(name) ::Kaidel::ScopedAccumulativeTimer timer = ::Kaidel::ScopedAccumulativeTimer{#name};
 #define NEW_SCOPED_TIMER(name) SCOPED_TIMER(name); MAKE(_Timer,__LINE__).Reset();
+
+#define SCOPED_TIMER(name) ::Kaidel::ScopedTimer timer(name);

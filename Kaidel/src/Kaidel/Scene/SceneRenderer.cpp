@@ -58,6 +58,20 @@ namespace Kaidel {
 	void SceneRenderer::Render(Ref<Framebuffer> _3DOutputFramebuffer,Ref<Framebuffer> _2DOutputFramebuffer,const glm::mat4& cameraViewProj,const glm::vec3& cameraPos)
 	{
 
+		Scene* activeScene = static_cast<Scene*>(m_Context);
+
+		Renderer2D::Begin(cameraViewProj,_2DOutputFramebuffer);
+		//Sprites
+		{
+			auto view = activeScene->m_Registry.view<TransformComponent, SpriteRendererComponent>();
+			for (auto e : view) {
+				auto [tc, src] = view.get<TransformComponent, SpriteRendererComponent>(e);
+				Renderer2D::DrawSprite(tc.GetTransform(), glm::vec4{1.0f});
+			}
+		}
+
+		Renderer2D::End();
+
 #if 0
 
 

@@ -2,38 +2,45 @@
 #include "VulkanFramebuffer.h"
 #include "VulkanGraphicsContext.h"
 #include "VulkanRenderPass.h"
+#include "VulkanMemory.h"
 
 namespace Kaidel {
 
 
+	static const uint32_t s_MaxFramebufferSize = 8192;
 	namespace Utils {
 
 
 
 		struct FramebufferImageCreateResult {
 			VkImage Image = VK_NULL_HANDLE;
+			VkDeviceMemory Memory = VK_NULL_HANDLE;
 			VkImageView ImageView = VK_NULL_HANDLE;
 		};
 
-		static FramebufferImageCreateResult CreateFramebufferImage(VkFormat format, uint32_t width, uint32_t height, bool isDepth,const uint32_t* queueIndices,uint32_t queueIndexCount) {
-
-			VK_STRUCT(VkImageCreateInfo, imageInfo, VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO);
-			imageInfo.arrayLayers = 1;
-			imageInfo.extent = { width,height,1};
-			imageInfo.format = format;
-			imageInfo.imageType = VK_IMAGE_TYPE_2D;
-			imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-			imageInfo.mipLevels = 1;
-			imageInfo.pQueueFamilyIndices = queueIndices;
-			imageInfo.queueFamilyIndexCount = queueIndexCount;
-			imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-			imageInfo.sharingMode = queueIndexCount == 1 ? VK_SHARING_MODE_EXCLUSIVE : VK_SHARING_MODE_CONCURRENT;
-			imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-			imageInfo.usage = isDepth ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		static FramebufferImageCreateResult CreateFramebufferImage(VkFormat format, uint32_t width, uint32_t height, VkImageUsageFlags imageUsage,VkImageAspectFlags aspectFlags, const std::vector<uint32_t>& queueIndices) {
 
 			FramebufferImageCreateResult image{};
+			ImageSpecification imageSpecs{};
+			imageSpecs.ArrayLayerCount = 1;
+			imageSpecs.Width = width;
+			imageSpecs.Height = height;
+			imageSpecs.Depth = 1;
+			imageSpecs.Format = format;
+			imageSpecs.ImageType = VK_IMAGE_TYPE_2D;
+			imageSpecs.ImageUsage = imageUsage;
+			imageSpecs.InitialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			imageSpecs.LogicalDevice = VK_DEVICE;
+			imageSpecs.MemoryPropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+			imageSpecs.MipLevels = 1;
+			imageSpecs.PhysicalDevice = VK_PHYSICAL_DEVICE;
+			imageSpecs.QueueFamilies = queueIndices;
+			imageSpecs.SampleCount = VK_SAMPLE_COUNT_1_BIT;
+			ImageCreateResult imageCreateResult = Utils::CreateImage(imageSpecs);
 
-			VK_ASSERT(vkCreateImage(VK_DEVICE, &imageInfo, VK_ALLOCATOR_PTR, &image.Image));
+			image.Image = imageCreateResult.Image;
+			image.Memory = imageCreateResult.AllocatedMemory;
+
 
 			VK_STRUCT(VkImageViewCreateInfo, imageViewInfo, VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO);
 			imageViewInfo.components.r = VK_COMPONENT_SWIZZLE_R;
@@ -44,7 +51,7 @@ namespace Kaidel {
 			imageViewInfo.image = image.Image;
 			imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
 			VkImageSubresourceRange subresourceRange{};
-			subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			subresourceRange.aspectMask = aspectFlags;
 			subresourceRange.baseArrayLayer = 0;
 			subresourceRange.baseMipLevel = 0;
 			subresourceRange.layerCount = 1;
@@ -59,9 +66,10 @@ namespace Kaidel {
 	}
 
 
+	
+
 	namespace Vulkan {
-
-
+		
 
 
 
@@ -78,8 +86,9 @@ namespace Kaidel {
 				}
 			}
 
-			Invalidate();
+			CreateRenderPass();
 
+			Invalidate();
 		}
 
 		VulkanFramebuffer::~VulkanFramebuffer()
@@ -96,6 +105,18 @@ namespace Kaidel {
 
 		void VulkanFramebuffer::Resize(uint32_t width, uint32_t height)
 		{
+			vkDeviceWaitIdle(VK_DEVICE);
+			if (width == 0 || height == 0 || width > s_MaxFramebufferSize || height > s_MaxFramebufferSize)
+			{
+				KD_CORE_WARN("Attempted to resize framebuffer to {0}, {1}", width, height);
+				return;
+			}
+			m_Specification.Width = width;
+			m_Specification.Height = height;
+
+
+			//TODO: only invalidate the one that is used by this frame.
+			Invalidate();
 		}
 
 		void VulkanFramebuffer::Resample(uint32_t newSampleCount)
@@ -110,10 +131,6 @@ namespace Kaidel {
 		{
 		}
 
-		uint64_t VulkanFramebuffer::GetColorAttachmentRendererID(uint32_t index) const
-		{
-			return 0;
-		}
 
 		FramebufferAttachmentHandle VulkanFramebuffer::GetAttachmentHandle(uint32_t index) const
 		{
@@ -125,111 +142,107 @@ namespace Kaidel {
 			return FramebufferImageHandle();
 		}
 
-		void VulkanFramebuffer::BindColorAttachmentToSlot(uint32_t attachmentIndex, uint32_t slot)
-		{
-		}
-
-		void VulkanFramebuffer::BindColorAttachmentToImageSlot(uint32_t attachmnetIndex, uint32_t slot, ImageBindingMode bindingMode)
-		{
-		}
-
-		void VulkanFramebuffer::BindDepthAttachmentToSlot(uint32_t slot)
-		{
-		}
-
-		void VulkanFramebuffer::CopyColorAttachment(uint32_t dstAttachmentIndex, uint32_t srcAttachmentIndex, Ref<Framebuffer> src)
-		{
-		}
-
-		void VulkanFramebuffer::CopyDepthAttachment(Ref<Framebuffer> src)
-		{
-		}
-
-		void VulkanFramebuffer::EnableColorAttachment(uint32_t attachmentIndex)
-		{
-		}
-
-		void VulkanFramebuffer::DisableColorAttachment(uint32_t attachmentIndex)
-		{
-		}
-
 		void VulkanFramebuffer::ReadValues(uint32_t attachemntIndex, uint32_t x, uint32_t y, uint32_t w, uint32_t h, float* output)
-		{
-		}
-
-		void VulkanFramebuffer::SetAttachment(const TextureHandle& handle, uint32_t index)
-		{
-		}
-
-		void VulkanFramebuffer::SetAttachment(const TextureArrayHandle& handle, uint32_t index)
-		{
-		}
-
-		void VulkanFramebuffer::SetDepthAttachment(const TextureHandle& handle)
-		{
-		}
-
-		void VulkanFramebuffer::SetDepthAttachment(const TextureArrayHandle& handle)
 		{
 		}
 
 		void VulkanFramebuffer::Invalidate()
 		{
-			if (m_Framebuffer) {
-				//TODO: Destroy old framebuffer
-			}
 
-			m_ColorAttachments.clear();
-			m_ColorAttachmentSpecifications.clear();
-			m_DepthAttachment = {};
-			m_Framebuffer = VK_NULL_HANDLE;
+			if (m_FramebufferResource.GetResources()[0].Framebuffer) {
+				DeleteOldBuffers();
+			}
 
 			if (m_Specification.Width == 0 || m_Specification.Height == 0) {
 				return;
 			}
 
 
-			
+			for (auto& fb : m_FramebufferResource) {
+				std::vector<VkImageView> views;
 
-			std::vector<VkImageView> views;
+				//Create color attachments
+				for (auto& colorAttachment : m_ColorAttachmentSpecifications) {
+					auto framebufferImage = 
+						Utils::CreateFramebufferImage(Utils::KaidelTextureFormatToVkFormat(colorAttachment.Format), m_Specification.Width, m_Specification.Height,
+							VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_IMAGE_ASPECT_COLOR_BIT,VK_UNIQUE_INDICES);
+					fb.ColorAttachments.push_back({ framebufferImage.Image,framebufferImage.Memory,framebufferImage.ImageView });
+					views.push_back(framebufferImage.ImageView);
+				}
 
-			//Create color attachments
-			for (auto& colorAttachment : m_ColorAttachmentSpecifications) {
-				auto framebufferImage = Utils::CreateFramebufferImage(Utils::KaidelTextureFormatToVkFormat(colorAttachment.Format), m_Specification.Width, m_Specification.Height,false
-																		, VK_UNIQUE_INDICES.data(), (uint32_t)VK_UNIQUE_INDICES.size());
-				m_ColorAttachments.push_back({ framebufferImage.Image,framebufferImage.ImageView });
-				views.push_back(framebufferImage.ImageView);
+				uint32_t attachmentCount = (uint32_t)fb.ColorAttachments.size();
+
+				//Create a depth attachment if requested
+				if (HasDepthAttachment()) {
+					auto depthAttachmentImage = 
+						Utils::CreateFramebufferImage(Utils::KaidelTextureFormatToVkFormat(m_DepthAttachmentSpecification.Format), m_Specification.Width, m_Specification.Height,
+							VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,VK_IMAGE_ASPECT_DEPTH_BIT, VK_UNIQUE_INDICES);
+					fb.DepthAttachment = { depthAttachmentImage.Image,depthAttachmentImage.Memory,depthAttachmentImage.ImageView };
+					++attachmentCount;
+					views.push_back(depthAttachmentImage.ImageView);
+				}
+
+				//Create the framebuffer
+				VK_STRUCT(VkFramebufferCreateInfo, framebufferInfo, VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO);
+				framebufferInfo.attachmentCount = attachmentCount;
+				framebufferInfo.pAttachments = views.data();
+				framebufferInfo.flags = attachmentCount == 0 ? VK_FRAMEBUFFER_CREATE_IMAGELESS_BIT : 0;
+				framebufferInfo.width = m_Specification.Width;
+				framebufferInfo.height = m_Specification.Height;
+				framebufferInfo.layers = 1;
+				framebufferInfo.renderPass = ((VulkanRenderPass*)m_RenderPass.Get())->GetRenderPass();
+				vkCreateFramebuffer(VK_DEVICE, &framebufferInfo, VK_ALLOCATOR_PTR, &fb.Framebuffer);
 			}
 
 
-			uint32_t attachmentCount = (uint32_t)m_ColorAttachments.size();
-
-
-			//Create a depth attachment if requested
-			if (m_DepthAttachmentSpecification.Format != TextureFormat::None) {
-				auto depthAttachmentImage = Utils::CreateFramebufferImage(Utils::KaidelTextureFormatToVkFormat(m_DepthAttachmentSpecification.Format), m_Specification.Width, m_Specification.Height, true
-																			, VK_UNIQUE_INDICES.data(), (uint32_t)VK_UNIQUE_INDICES.size());
-				m_DepthAttachment = { depthAttachmentImage.Image,depthAttachmentImage.ImageView };
-				++attachmentCount;
-				views.push_back(depthAttachmentImage.ImageView);
-
-			}
-
-
-
-			//Create the framebuffer
-			VK_STRUCT(VkFramebufferCreateInfo, framebufferInfo, VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO);
-
-			framebufferInfo.attachmentCount = attachmentCount;
-			framebufferInfo.pAttachments = views.data();
-			framebufferInfo.flags = attachmentCount > 0 ? 0 : VK_FRAMEBUFFER_CREATE_IMAGELESS_BIT;
-			framebufferInfo.width = m_Specification.Width;
-			framebufferInfo.height = m_Specification.Height;
-			framebufferInfo.layers = 1;
-			framebufferInfo.renderPass = reinterpret_cast<const VulkanRenderPass*>(m_Specification.RenderPass)->GetRenderPass();
-
-			VK_ASSERT(vkCreateFramebuffer(VK_DEVICE, &framebufferInfo, VK_ALLOCATOR_PTR, &m_Framebuffer));
 		}
+
+		void VulkanFramebuffer::DeleteOldBuffers()
+		{
+			for (auto& fb : m_FramebufferResource) {
+				vkDestroyFramebuffer(VK_DEVICE, fb.Framebuffer, VK_ALLOCATOR_PTR);
+				if (HasDepthAttachment()) {
+					DestroyAttachment(fb.DepthAttachment);
+				}
+				for (auto& col : fb.ColorAttachments) {
+					DestroyAttachment(col);
+				}
+				fb.ColorAttachments.clear();
+				fb.DepthAttachment = FramebufferImage{};
+			}
+		}
+
+		void VulkanFramebuffer::CreateRenderPass()
+		{
+			RenderPassSpecification spec{};
+			spec.BindingPoint = RenderPassBindPoint::Graphics;
+
+			if (HasDepthAttachment()) {
+				spec.OutputDepthAttachment =
+					RenderPassAttachmentSpecification(m_DepthAttachmentSpecification.Format, RenderPassImageLoadOp::DontCare,
+						RenderPassImageStoreOp::DontCare, RenderPassImageLayout::Undefined, RenderPassImageLayout::Depth, RenderPassImageLayout::Depth);
+			}
+
+			for (auto& color : m_ColorAttachmentSpecifications) {
+				spec.OutputImages.push_back(RenderPassAttachmentSpecification(color.Format, RenderPassImageLoadOp::Clear,
+												RenderPassImageStoreOp::Store, RenderPassImageLayout::Undefined,RenderPassImageLayout::Color,
+													m_Specification.SwapChainTarget ? RenderPassImageLayout::Present : RenderPassImageLayout::Color));
+			}
+
+			m_RenderPass = RenderPass::Create(spec);
+		}
+
+		bool VulkanFramebuffer::HasDepthAttachment()
+		{
+			return Utils::IsDepthFormat(m_DepthAttachmentSpecification.Format);
+		}
+
+		void VulkanFramebuffer::DestroyAttachment(FramebufferImage& image)
+		{
+			vkDestroyImageView(VK_DEVICE, image.ImageView, VK_ALLOCATOR_PTR);
+			vkDestroyImage(VK_DEVICE, image.Image, VK_ALLOCATOR_PTR);
+		}
+
 
 	}
 }

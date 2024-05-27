@@ -2,9 +2,9 @@
 
 
 #include "VulkanBase.h"
-
+#include "VulkanDefinitions.h"
 #include "Kaidel/Renderer/GraphicsAPI/Buffer.h"
-
+#include "PerFrameResource.h"
 
 namespace Kaidel {
 	namespace Vulkan {
@@ -14,26 +14,32 @@ namespace Kaidel {
 
 			~VulkanVertexBuffer();
 
-			void Bind() const override;
+			void Bind() const override {}
 
-			void Unbind() const override;
+			void Unbind() const override {}
 
 			void SetData(const void* data, uint32_t size) override;
 
-			const BufferLayout& GetLayout() const override{ return m_Layout; }
+			const BufferLayout& GetLayout() const override { return {}; }
 
-			void SetLayout(const BufferLayout& layout) override { m_Layout = layout; }
+			void SetLayout(const BufferLayout& layout) override {}
+
+			const VulkanBuffer& GetBuffer()const { return *m_Buffers; }
+
 		private:
-			void DestroyCurrentBuffer();
 
-			void CreateVertexBuffer(const void* values = nullptr);
+			void ReadyStagingBuffer(const void* data,uint32_t size);
+
+			void CreateBuffer(VulkanBuffer& buffer,uint32_t size) const;
+			void DeleteBuffer(VulkanBuffer& buffer) const;
 
 		private:
 			VertexBufferSpecification m_Specification;
-			BufferLayout m_Layout{};
+			//BufferLayout m_Layout{};
 
-			VkBuffer m_Buffer = VK_NULL_HANDLE;
-			VkDeviceMemory m_Memory = VK_NULL_HANDLE;
+			PerFrameResource<VulkanBuffer> m_Buffers;
+			VulkanBuffer m_StagingBuffer;
+			void* m_MappedStagingBufferMemory = nullptr;
 		};
 
 
@@ -46,6 +52,9 @@ namespace Kaidel {
 			void Unbind() const override;
 
 			uint32_t GetCount() const override { return m_Count; }
+
+			const VkBuffer& GetBuffer() { return m_Buffer; }
+
 		private:
 			uint32_t m_Count;
 			VkBuffer m_Buffer;
