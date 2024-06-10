@@ -348,7 +348,6 @@ namespace Kaidel {
 			}
 			vkDestroySwapchainKHR(m_Specification.LogicalDevice, m_Swapchain, nullptr);
 			m_Swapchain = VK_NULL_HANDLE;
-			m_Frames.clear();
 		}
 
 		void VulkanSwapchain::Invalidate()

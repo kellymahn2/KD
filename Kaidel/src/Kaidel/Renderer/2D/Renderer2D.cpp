@@ -185,6 +185,7 @@ namespace Kaidel{
 	}
 	void Renderer2D::AddSprite(SpriteVertex vertices[4]) {
 		if (!s_RendererData->BakedSpriteVertices.CanReserveWithoutOverflow(4)) {
+			//TODO: this is wrong, instead flush contents of command buffer so far.
 			FlushSprites();
 		}
 		auto bvi = s_RendererData->BakedSpriteVertices.Reserve(4);

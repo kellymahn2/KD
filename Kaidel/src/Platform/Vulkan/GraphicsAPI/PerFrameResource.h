@@ -20,7 +20,7 @@ namespace Kaidel {
 			auto end() { return m_Resources.end(); }
 			auto begin()const { return m_Resources.begin(); }
 			auto end()const { return m_Resources.end(); }
-
+			auto& GetResources(){ return m_Resources; }
 			const auto& GetResources()const { return m_Resources; }
 
 		private:

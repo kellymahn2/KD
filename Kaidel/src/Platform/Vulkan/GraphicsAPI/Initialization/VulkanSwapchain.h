@@ -28,7 +28,7 @@ namespace Kaidel {
 
 			auto GetSwapchain()const { return m_Swapchain; }
 
-			auto& GetFrames() const{ return m_Frames; }
+			auto& GetFrames() { return m_Frames; }
 
 			uint32_t GetLastAcquiredImage()const { return m_LastAcquiredImage; }
 			VkRenderPass GetSwapchainRenderPass()const { return m_RenderPass; }

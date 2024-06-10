@@ -22,6 +22,7 @@ namespace Kaidel {
 		};
 
 
+
 		class VulkanSemaphore :public IRCCounter<false>{
 		public:
 			VulkanSemaphore(VkDevice device);
@@ -35,7 +36,17 @@ namespace Kaidel {
 			VkSemaphore m_Semaphore = VK_NULL_HANDLE;
 		};
 
+		class VulkanTimelineSemaphore : public IRCCounter<false> {
+		public:
+			VulkanTimelineSemaphore(VkDevice device, uint64_t initialValue);
+			~VulkanTimelineSemaphore();
 
+			VkSemaphore GetSemaphore()const { return m_Semaphore; }
+
+		private:
+			VkDevice m_LogicalDevice = VK_NULL_HANDLE;
+			VkSemaphore m_Semaphore = VK_NULL_HANDLE;
+		};
 
 	}
 }

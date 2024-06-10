@@ -66,6 +66,14 @@ namespace Kaidel {
 		};
 
 
+		struct TaskSyncVariables {
+			std::queue<std::function<void()>> Tasks;
+			std::shared_ptr<std::mutex> TaskSynchronizationMutex;
+			std::shared_ptr<std::condition_variable> TaskConditionVariable;
+			std::shared_ptr<std::thread> TaskWorkerThread;
+			bool StopWorkerThread = false;
+			bool TasksReady = false;
+		};
 		struct SwapchainFrame {
 			VkImage FrameImage;
 			VkImageView ImageView;
@@ -73,6 +81,7 @@ namespace Kaidel {
 			VkCommandBuffer CommandBuffer;
 			Ref<VulkanFence> InFlightFence;
 			Ref<VulkanSemaphore> ImageAvailable, RenderFinished;
+			TaskSyncVariables Task;
 		};
 
 

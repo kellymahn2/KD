@@ -167,13 +167,13 @@ namespace Kaidel {
 
 
 		
-		{
+		/*{
 			FramebufferSpecification fbSpec;
 			fbSpec.Attachments = { TextureFormat::RGBA8 , TextureFormat::Depth32F};
 			fbSpec.Width = 1280;
 			fbSpec.Height = 720;
 			m_OutputBuffer = Framebuffer::Create(fbSpec);
-		}
+		}*/
 		
 		/*
 		{
@@ -213,12 +213,12 @@ namespace Kaidel {
 //			m_FXAAComputeShader = ComputeShader::Create("assets/shaders/FXAA/FXAA_CS_2D3D.glsl");
 //		}
 
-		uint32_t count = 1;
+		uint32_t count = 10;
 		for (uint32_t i = 0; i < count; ++i) {
 			for (uint32_t j = 0; j < count; ++j) {
 				Entity e = m_ActiveScene->CreateEntity("Sprite");
 				e.AddComponent<SpriteRendererComponent>();
-				e.GetComponent<TransformComponent>().Translation = { i,j,0 };
+				e.GetComponent<TransformComponent>().Translation = { i * 2.0f,j * 2.0f,0 };
 			}
 		}
 
@@ -230,6 +230,9 @@ namespace Kaidel {
 
 	void EditorLayer::OnUpdate(Timestep ts)
 	{
+		RenderCommand::Submit([]() {
+			KD_INFO("Hello");
+		});
 
 		// Resize
 		HandleViewportResize();
@@ -244,7 +247,7 @@ namespace Kaidel {
 		case SceneState::Edit:
 		{
 			float colors[4] = { .1,.1,.1,1 };
-			m_ActiveScene->OnUpdateEditor(ts, m_EditorCamera, m_OutputBuffer, m_OutputBuffer);
+			//m_ActiveScene->OnUpdateEditor(ts, m_EditorCamera, m_OutputBuffer, m_OutputBuffer);
 			//TextureCopier::Copy(m_ScreenOutputbuffer, m_OutputBuffer);
 			// Project Auto Save
 			auto& currentProjectConfig = Project::GetActive()->GetConfig();
@@ -698,9 +701,12 @@ namespace Kaidel {
 		m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };
 
 		auto textureID = m_OutputBuffer->GetColorAttachmentRendererID();
+
+		Image* texture = m_OutputBuffer->GetImage(0);
+		texture->AssureLayout(ImageLayout::ShaderReadOptimal);
 		glm::vec4 uvs = _GetUVs();
 		int sampleCount = m_OutputBuffer->GetSpecification().Samples;
-		//ImGui::Image(reinterpret_cast<void*>(textureID), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, { uvs.x,uvs.y }, { uvs.z,uvs.w });
+		ImGui::Image(reinterpret_cast<ImTextureID>(texture->GetShaderID()), ImVec2{m_ViewportSize.x, m_ViewportSize.y}, {uvs.x,uvs.y}, {uvs.z,uvs.w});
 		//ImGui::Image((ImTextureID)SpotLight::GetDepthMaps()->GetView(0)->GetRendererID(), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, { uvs.x,uvs.y }, { uvs.z,uvs.w });
 		if (ImGui::BeginDragDropTarget()) {
 			if (auto payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
@@ -718,10 +724,10 @@ namespace Kaidel {
 	}
 
 	void EditorLayer::HandleViewportResize() {
-		if (FramebufferSpecification spec = m_OutputBuffer->GetSpecification();
-			m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f && // zero sized framebuffer is invalid
-			(spec.Width != m_ViewportSize.x || spec.Height != m_ViewportSize.y))
+		if (m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f && // zero sized framebuffer is invalid
+			(m_OutputBuffer->GetWidth() != m_ViewportSize.x || m_OutputBuffer->GetHeight() != m_ViewportSize.y))
 		{
+			KD_INFO("Viewport resized");
 			m_OutputBuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 			//m_ScreenOutputbuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 

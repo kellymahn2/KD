@@ -67,7 +67,7 @@ namespace Kaidel {
 
 			const auto& GetUniqueFamilyIndices()const { return m_UniqueQueueFamilyIndices; }
 
-			VkCommandBuffer GetGraphicsCommandBuffer() { return m_GraphicsCommandBuffers[m_AcquiredImage]; }
+			VkCommandBuffer GetGraphicsCommandBuffer() { return m_GraphicsCommandBuffers[m_CurrentFrame]; }
 
 			
 			VkCommandBuffer GetMainCommandBuffer()const { return m_MainCommandBuffer; }
@@ -75,10 +75,11 @@ namespace Kaidel {
 			//Swapchain
 			Ref<VulkanSwapchain> GetSwapchain()const { return m_Swapchain; }
 			const auto& GetCurrentFrame()const { return m_Swapchain->GetFrames()[m_CurrentFrame]; }
-			uint32_t GetCurrentFrameIndex()const { return m_AcquiredImage; }
+			uint32_t GetCurrentFrameIndex()const { return m_CurrentFrame; }
 
 			//Command pools
 			Ref<VulkanCommandPool> GetTransferCommandPool()const { return m_TransferCommandPool; }
+			Ref<VulkanCommandPool> GetGraphicsCommandPool()const { return m_GraphicsCommandPool; }
 
 
 			//Global staging buffer
@@ -88,6 +89,7 @@ namespace Kaidel {
 
 			void StartSwapchain();
 			void Present();
+
 
 		private:
 
@@ -133,12 +135,16 @@ namespace Kaidel {
 
 			//Command pools
 			Ref<VulkanCommandPool> m_TransferCommandPool;
+			Ref<VulkanCommandPool> m_GraphicsCommandPool;
 
 			//Global staging buffer
 			VulkanBuffer m_GlobalStagingBuffer;
 
 			std::vector<VkCommandBuffer> m_GraphicsCommandBuffers;
 
+			std::vector<std::thread*> m_Threads;
+
+			bool m_ThreadsShouldDestroy = false;
 
 			friend void ImGuiInit();
 			friend void ImGuiRender(ImDrawData*);

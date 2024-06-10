@@ -11,7 +11,6 @@
 #include <glm/glm.hpp>
 
 namespace Kaidel {
-
 	
 	class RendererAPI
 	{
@@ -58,6 +57,10 @@ namespace Kaidel {
 
 
 		virtual void BindGraphicsPipeline(Ref<GraphicsPipeline> pipeline) = 0;
+
+		virtual void Submit(std::function<void()>&& func) = 0;
+
+
 
 		static RendererSettings& GetSettings() { return s_RendererSettings; }
 

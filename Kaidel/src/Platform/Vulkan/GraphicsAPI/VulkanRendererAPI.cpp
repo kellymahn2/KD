@@ -12,6 +12,12 @@ namespace Kaidel {
 		{
 			m_CurrentBoundBufferOffsets = std::vector<VkDeviceSize>(MaxVertexBuffersBoundAtOnce, 0);
 			m_CurrentBoundBuffers = std::vector<VkBuffer>(MaxVertexBuffersBoundAtOnce, VK_NULL_HANDLE);
+			for (auto& block : m_SubmittedFunctions) {
+				block.ProcessingFinishedSemaphoreValue = 0;
+				block.RenderingFinishedSemaphoreValue = 1;
+				block.ProcessingFinished = CreateRef<VulkanTimelineSemaphore>(VK_DEVICE, 0);
+				block.RenderingFinished = CreateRef<VulkanTimelineSemaphore>(VK_DEVICE, 0);
+			}
 		}
 		void VulkanRendererAPI::SetViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
 		{
@@ -108,14 +114,18 @@ namespace Kaidel {
 			viewport.maxDepth = 1.0f;
 			viewport.x = 0;
 			viewport.y = 0;
-			viewport.width = m_BoundFramebuffer->GetSpecification().Width;
-			viewport.height = m_BoundFramebuffer->GetSpecification().Height;
+			viewport.width = m_BoundFramebuffer->GetWidth();
+			viewport.height = m_BoundFramebuffer->GetHeight();
 			VkRect2D scissor{};
 			scissor.offset = { 0,0 };
 			scissor.extent = { (uint32_t)viewport.width,(uint32_t)viewport.height };
 			vkCmdSetViewport(VK_CONTEXT.GetGraphicsCommandBuffer(), 0, 1,&viewport);
 			vkCmdSetScissor(VK_CONTEXT.GetGraphicsCommandBuffer(), 0, 1, &scissor);
 			vkCmdBindPipeline(VK_CONTEXT.GetGraphicsCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipeline->GetPipeline());
+		}
+		void VulkanRendererAPI::Submit(std::function<void()>&& func)
+		{
+			VK_CONTEXT.GetSwapchain()->GetFrames()[VK_CONTEXT.GetCurrentFrameIndex()].Task.Tasks.push(func);
 		}
 		void VulkanRendererAPI::Draw(uint32_t vertexCount, uint32_t firstVertexID)
 		{

@@ -109,6 +109,12 @@ namespace Kaidel {
 			s_RendererAPI->DrawIndexedInstanced(indexCount, instanceCount, firstIndex, vertexOffset);
 		}
 
+		static void Submit(std::function<void()>&& func) {
+			s_RendererAPI->Submit(std::move(func));
+		}
+
+		static Scope<RendererAPI>& Get() { return s_RendererAPI; }
+
 	private:
 		static Scope<RendererAPI> s_RendererAPI;
 	};

@@ -2,9 +2,23 @@
 
 #include "VulkanBase.h"
 #include "Kaidel/Renderer/RendererAPI.h"
+#include "VulkanSyncObjects.h"
+#include "PerFrameResource.h"
+#include <queue>
+
 
 namespace Kaidel {
 	namespace Vulkan {
+
+		struct SubmittingControlBlock {
+			Ref<VulkanTimelineSemaphore> ProcessingFinished;
+			Ref<VulkanTimelineSemaphore> RenderingFinished;
+			uint64_t ProcessingFinishedSemaphoreValue;
+			uint64_t RenderingFinishedSemaphoreValue;
+			std::queue<std::function<void()>> Functions;
+		};
+
+
 		class VulkanRendererAPI : public RendererAPI{
 		public:
 
@@ -37,6 +51,11 @@ namespace Kaidel {
 			virtual void EndRenderPass() override;
 
 			virtual void BindGraphicsPipeline(Ref<GraphicsPipeline> pipeline) override;
+
+			void Submit(std::function<void()>&& func)override;
+
+			PerFrameResource<SubmittingControlBlock>& GetControlBlocks() { return m_SubmittedFunctions; }
+
 		private:
 			VkSwapchainKHR m_Swapchain;
 
@@ -46,6 +65,14 @@ namespace Kaidel {
 			std::vector<VkBuffer> m_CurrentBoundBuffers;
 			std::vector<VkDeviceSize> m_CurrentBoundBufferOffsets;
 			glm::vec4 m_ClearValues;
+
+
+			//TODO: use semaphore as signal for render complete to start processing functions on seperate thread,
+			//		then after all processes signal a process finished semaphore which must be waited on at the end of 
+			//		every frame in which case dont make a seperate thread.
+			
+
+			PerFrameResource<SubmittingControlBlock> m_SubmittedFunctions;
 
 			// Inherited via RendererAPI
 			void Draw(uint32_t vertexCount, uint32_t firstVertexID) override;

@@ -9,14 +9,12 @@
 
 #include "VulkanCommandPool.h"
 #include "VulkanCommandBuffer.h"
+#include "Kaidel/Renderer/RenderCommand.h"
 #include "VulkanMemory.h"
-
+#include "VulkanRendererAPI.h"
 #include "Kaidel/Renderer/GraphicsAPI/Shader.h"
 
 #include <GLFW/glfw3.h>
-
-
-
 
 #include <imgui.h>
 #include <backends/imgui_impl_vulkan.h>
@@ -48,7 +46,7 @@ namespace Kaidel {
 			{
 			case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT: KD_CORE_INFO(FilterDebugMessenge(pCallbackData->pMessage)); break;
 			case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:KD_CORE_WARN(FilterDebugMessenge(pCallbackData->pMessage)); break;
-			case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:KD_CORE_ERROR(FilterDebugMessenge(pCallbackData->pMessage)); KD_CORE_ASSERT(false);
+			case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:KD_CORE_ERROR(FilterDebugMessenge(pCallbackData->pMessage)); break;
 			}
 			return VK_FALSE;
 		}
@@ -250,7 +248,7 @@ namespace Kaidel {
 #ifdef KD_DEBUG
 			isDebug = true;
 #endif // KD_DEBUG
-
+			#pragma region Instance creation
 			m_InstanceSpecification.ApplicationName = "Kaidel";
 			//GLFW extensions
 			{
@@ -275,6 +273,7 @@ namespace Kaidel {
 			auto instanceCreateResult = Utils::CreateInstance(m_InstanceSpecification);
 			m_Instance = instanceCreateResult.Instance;
 			m_VulkanAPIVersion = instanceCreateResult.VulkanAPIVersion;
+			#pragma endregion
 
 			//Debug messenger creation
 			auto debugMessengerCreateResult = Utils::CreateDebugMessenger(m_Instance,&Utils::DebugMessengerCallback);
@@ -288,6 +287,8 @@ namespace Kaidel {
 				VK_KHR_SWAPCHAIN_EXTENSION_NAME
 			};
 
+
+			#pragma region Physical and logical device
 			//Physical device choosing
 			VulkanQueueGroupSpecification groupSpec{};
 
@@ -333,18 +334,18 @@ namespace Kaidel {
 				m_LogicalDeviceSpecification.Layers.push_back("VK_LAYER_KHRONOS_validation");
 			}
 
-
 			//Logical device creation
 			auto logicalDeviceCreateResult = Utils::CreateLogicalDevice(m_PhysicalDevice,m_QueueManager, m_LogicalDeviceSpecification);
 			m_LogicalDevice = logicalDeviceCreateResult.LogicalDevice;
 
 			gladLoaderLoadVulkan(m_Instance, m_PhysicalDevice, m_LogicalDevice);
-
+			#pragma endregion
 
 			commandPool = CreateRef<VulkanCommandPool>(m_QueueManager["GraphicsQueue"].FamilyIndex);
 
 			descPool = CreateDescriptorPool(m_LogicalDevice);
 
+			#pragma region Swapchain
 			//Swapchain
 			VulkanSwapchainSpecification swapchainSpecification{};
 			swapchainSpecification.Extent = { 1280,720 };
@@ -369,8 +370,9 @@ namespace Kaidel {
 
 			m_Swapchain = CreateRef<VulkanSwapchain>(swapchainSpecification);
 
+			#pragma endregion
+
 			m_UniqueQueueFamilyIndices = m_QueueManager.GetUniqueFamilyIndices();
-			
 
 			//MainCommandBuffer
 			{
@@ -384,9 +386,6 @@ namespace Kaidel {
 
 			//Global graphics command buffer
 			{
-
-
-
 				VK_STRUCT(VkCommandBufferAllocateInfo, bufferInfo, VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO);
 				bufferInfo.commandBufferCount = m_Swapchain->GetSpecification().ImageCount;
 				bufferInfo.commandPool = commandPool->GetCommandPool();
@@ -398,6 +397,7 @@ namespace Kaidel {
 			}
 
 			m_TransferCommandPool = CreateRef<VulkanCommandPool>(GetQueue("TransferQueue").FamilyIndex,false);
+			m_GraphicsCommandPool = CreateRef<VulkanCommandPool>(GetQueue("GraphicsQueue").FamilyIndex, false);
 
 
 			{
@@ -419,35 +419,32 @@ namespace Kaidel {
 			SwapBuffers();*/
 			m_MaxFramesInFlight = m_Swapchain->GetSpecification().ImageCount;
 
+			for (auto& frame : m_Swapchain->GetFrames()) {
+				frame.Task.TaskConditionVariable = std::make_shared<std::condition_variable>();
+				frame.Task.TaskSynchronizationMutex = std::make_shared<std::mutex>();
+				frame.Task.TaskWorkerThread = std::make_shared<std::thread>([this,&frame]() {
+					while (!frame.Task.StopWorkerThread) {
+						std::unique_lock<std::mutex> lock(*frame.Task.TaskSynchronizationMutex);
 
-			VkDeviceSize offset = 0;
-			VkCommandBufferBeginInfo beginInfo{};
-			beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-			beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+						frame.Task.TaskConditionVariable->wait(lock, [&frame]() {return frame.Task.TasksReady || frame.Task.StopWorkerThread; });
 
-			Utils::BufferSpecification spec{};
-			spec.BufferUsage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-			spec.LogicalDevice = m_LogicalDevice;
-			spec.PhysicalDevice = m_PhysicalDevice;
-			spec.MemoryPropertyFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-			spec.QueueFamilies = m_UniqueQueueFamilyIndices;
-			spec.Size = 4;
-			Utils::BufferCreateResult cr =  Utils::CreateBuffer(spec);
+						if (frame.Task.StopWorkerThread)
+							break;
+						frame.InFlightFence->Wait();
 
-			VkDeviceSize offset2 = 0;
+						while (!frame.Task.Tasks.empty()) {
+							frame.Task.Tasks.front()();
+							frame.Task.Tasks.pop();
+						}
 
-			/*vkBeginCommandBuffer(m_GraphicsCommandBuffers[0], &beginInfo);
-			vkCmdBindVertexBuffers(m_GraphicsCommandBuffers[0], 0, 1, &cr.Buffer, &offset2);
-			vkBeginCommandBuffer(m_GraphicsCommandBuffers[1], &beginInfo);
-			vkCmdBindVertexBuffers(m_GraphicsCommandBuffers[1], 0, 1, &cr.Buffer, &offset2);
-			vkEndCommandBuffer(m_GraphicsCommandBuffers[1]);
-			vkCmdBindVertexBuffers(m_GraphicsCommandBuffers[0], 0, 1, &cr.Buffer, &offset2);*/
-
-
+						frame.Task.TasksReady = false;
+					}
+				});
+			}
 
 			StartSwapchain();
-			//SwapBuffers();
 
+			//SwapBuffers();
 		}
 
 		void VulkanGraphicsContext::Shutdown() {
@@ -474,7 +471,6 @@ namespace Kaidel {
 
 			m_Swapchain->Resize(width, height);
 			StartSwapchain();
-
 		}
 
 		void VulkanGraphicsContext::StartSwapchain()
@@ -507,16 +503,21 @@ namespace Kaidel {
 		void VulkanGraphicsContext::SwapBuffers()
 		{
 
+			auto& frames = m_Swapchain->GetFrames();
+
+			VkSemaphore waitSemaphores[] = { frames[m_CurrentFrame].ImageAvailable->GetSemaphore()};
+			VkSemaphore signalSemaphores[] = { frames[m_CurrentFrame].RenderFinished->GetSemaphore()};
+
+
 			VK_ASSERT(vkEndCommandBuffer(GetGraphicsCommandBuffer()));
+			
 
-			VkSemaphore signalSemaphores[] = { GetCurrentFrame().RenderFinished->GetSemaphore()};
-
-			VkCommandBuffer commandBuffers[] = { m_Swapchain->GetFrames()[m_AcquiredImage].CommandBuffer ,GetGraphicsCommandBuffer()};
+			VkCommandBuffer commandBuffers[] = { frames[m_AcquiredImage].CommandBuffer ,GetGraphicsCommandBuffer()};
 
 			VkSubmitInfo submitInfo = {};
 			submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-			VkSemaphore waitSemaphores[] = { GetCurrentFrame().ImageAvailable->GetSemaphore()};
 			VkPipelineStageFlags waitStages[] = { VkPipelineStageFlagBits::VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+			
 			submitInfo.waitSemaphoreCount = 1;
 			submitInfo.pWaitSemaphores = waitSemaphores;
 			submitInfo.pWaitDstStageMask = waitStages;
@@ -524,8 +525,7 @@ namespace Kaidel {
 			submitInfo.commandBufferCount = ARRAYSIZE(commandBuffers);
 			submitInfo.pCommandBuffers = commandBuffers;
 
-
-			submitInfo.signalSemaphoreCount = 1;
+			submitInfo.signalSemaphoreCount = ARRAYSIZE(signalSemaphores);
 			submitInfo.pSignalSemaphores = signalSemaphores;
 
 			VK_ASSERT(vkQueueSubmit(GetQueue("GraphicsQueue").Queue, 1, &submitInfo, GetCurrentFrame().InFlightFence->GetFence()));
@@ -540,15 +540,23 @@ namespace Kaidel {
 			presentInfo.pImageIndices = &m_AcquiredImage;
 			
 			vkQueuePresentKHR(GetQueue("PresentQueue"), &presentInfo);
+			m_Swapchain->GetFrames()[m_CurrentFrame].Task.TasksReady = true;
+			m_Swapchain->GetFrames()[m_CurrentFrame].Task.TaskConditionVariable->notify_one();
 
 			m_CurrentFrame = (m_CurrentFrame + 1) % m_MaxFramesInFlight;
 
-			m_AcquiredImage = m_Swapchain->AcquireImage(GetCurrentFrame().InFlightFence->GetFence(), VK_NULL_HANDLE, GetCurrentFrame().ImageAvailable->GetSemaphore());
+			frames[m_CurrentFrame].InFlightFence->Wait();
+			std::unique_lock<std::mutex> lock(*frames[m_CurrentFrame].Task.TaskSynchronizationMutex);
+			frames[m_CurrentFrame].InFlightFence->Reset();
+
+			vkAcquireNextImageKHR(m_LogicalDevice, m_Swapchain->GetSwapchain(), UINT64_MAX, frames[m_CurrentFrame].ImageAvailable->GetSemaphore(), VK_NULL_HANDLE, &m_AcquiredImage);
+
 			VK_ASSERT(vkResetCommandBuffer(GetGraphicsCommandBuffer(), 0));
 			VkCommandBufferBeginInfo beginInfo{};
 			beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 			beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 			VK_ASSERT(vkBeginCommandBuffer(GetGraphicsCommandBuffer(),&beginInfo));
+
 		}
 	}
 }

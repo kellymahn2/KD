@@ -93,7 +93,6 @@ namespace Kaidel {
 		RenderCommand::SetViewport(0, 0, width, height);
 	}
 
-
 	void Renderer::Submit(const Ref<Shader>& shader, const Ref<VertexArray>& vertexArray, const glm::mat4& transform)
 	{
 		shader->Bind();
@@ -103,5 +102,5 @@ namespace Kaidel {
 		vertexArray->Bind();
 		RenderCommand::DrawIndexed(vertexArray);
 	}
-
+	
 }

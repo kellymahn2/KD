@@ -47,8 +47,14 @@ namespace Kaidel {
 			VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures sepDepthStencil{};
 			sepDepthStencil.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES;
 			sepDepthStencil.separateDepthStencilLayouts = VK_TRUE;
-			deviceInfo.pNext = &sepDepthStencil;
 
+			VkPhysicalDeviceTimelineSemaphoreFeatures timelineSemaphoreFeatures{};
+			timelineSemaphoreFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES;
+			timelineSemaphoreFeatures.timelineSemaphore = VK_TRUE;
+			sepDepthStencil.pNext = &timelineSemaphoreFeatures;
+
+			deviceInfo.pNext = &sepDepthStencil;
+			
 			VK_ASSERT(vkCreateDevice(physicalDevice, &deviceInfo, VK_ALLOCATOR_PTR, &result.LogicalDevice));
 			for (auto& queueInfo : queueCreateInfos) {
 				delete[] queueInfo.pQueuePriorities;
