@@ -1,22 +1,25 @@
 #pragma once
-
-#include "VulkanBase.h"
-#include "VulkanDefinitions.h"
+#include "Platform/Vulkan/VulkanDefinitions.h"	
+#include "Kaidel/Renderer/GraphicsAPI/CommandPool.h"
 
 namespace Kaidel {
-	namespace Vulkan {
+	class VulkanCommandPool : public CommandPool{
+	public:
+		VulkanCommandPool(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags = 0);
+		VulkanCommandPool(CommandPoolOperationType opType, CommandPoolFlags flags);
+		~VulkanCommandPool();
+		VkCommandPool GetCommandPool() const { return m_CommandPool; }
 
-		class VulkanCommandPool : public IRCCounter<false> {
-		public:
-			VulkanCommandPool(uint32_t queueFamilyIndex,bool singleResetable = true);
-			~VulkanCommandPool();
+		VkCommandBuffer BeginSingleTimeCommands(VkCommandBufferUsageFlags flags);
 
-			VkCommandPool GetCommandPool()const { return m_CommandPool; }
+		void EndSingleTimeCommands(VkCommandBuffer commandBuffer, VkQueue queue, VkFence signalFence);
 
-		private:
-			VkCommandPool m_CommandPool;
-			uint32_t m_QueueFamilyIndex;
-		};
+		void EndSingleTimeCommands(VkCommandBuffer commandBuffer, VkQueue queue);
 
-	}
+		virtual void Reset(int flags) override;
+		virtual RendererID GetRendererID()const override { return (RendererID)m_CommandPool; }
+	private:
+		VkCommandPool m_CommandPool;
+	};
+
 }

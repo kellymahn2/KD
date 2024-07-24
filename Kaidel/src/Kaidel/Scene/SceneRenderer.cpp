@@ -66,12 +66,11 @@ namespace Kaidel {
 			auto view = activeScene->m_Registry.view<TransformComponent, SpriteRendererComponent>();
 			for (auto e : view) {
 				auto [tc, src] = view.get<TransformComponent, SpriteRendererComponent>(e);
-				Renderer2D::DrawSprite(tc.GetTransform(), glm::vec4{1.0f});
+				Renderer2D::DrawSprite(tc.GetTransform(), glm::vec4{1.0f,1.0f,0.0f,1.0f});
 			}
 		}
 
 		Renderer2D::End();
-
 #if 0
 
 
@@ -151,7 +150,7 @@ namespace Kaidel {
 				Renderer2D::End();
 			}
 		}
-#endif // 0
+#endif
 
 	}
 

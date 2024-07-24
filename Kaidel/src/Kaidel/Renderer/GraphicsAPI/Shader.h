@@ -14,31 +14,14 @@ namespace Kaidel {
 		FragmentShader,
 		GeometryShader,
 		TessellationControlShader,
-		TessellationEvaluationShader,
-		PixelShader = FragmentShader
-	};
-
-	struct ShaderDefinition {
-		std::string ControlString;
-		ShaderType ShaderType;
-		bool IsPath = true;
-		ShaderDefinition(const std::string& controlString, Kaidel::ShaderType type, bool isPath = true)
-			:ControlString(controlString),ShaderType(type),IsPath(isPath)
-		{}
+		TessellationEvaluationShader
 	};
 
 	struct ShaderSpecification {
-		ShaderSpecification() = default;
-		ShaderSpecification(const std::initializer_list<ShaderDefinition>& definitions,const std::string& shaderName = "")
-			:Definitions(definitions),ShaderName(shaderName) {}
-		std::vector<ShaderDefinition> Definitions;
-		std::string ShaderName;
-
-
-
-
+		std::string EntryPoint;
+		std::vector<uint32_t> SPIRV;
+		ShaderType Type;
 	};
-
 
 	class Shader : public IRCCounter<false>
 	{
@@ -49,20 +32,21 @@ namespace Kaidel {
 		virtual void Bind() const = 0;
 		virtual void Unbind() const = 0;
 
-		virtual void SetInt(const std::string& name, int value) = 0;
-		virtual void SetIntArray(const std::string& name, int* values, uint32_t count) = 0;
-		virtual void SetFloat(const std::string& name, float value) = 0;
-		virtual void SetFloat2(const std::string& name, const glm::vec2& value) = 0;
-		virtual void SetFloat3(const std::string& name, const glm::vec3& value) = 0;
-		virtual void SetFloat4(const std::string& name, const glm::vec4& value) = 0;
-		virtual void SetMat4(const std::string& name, const glm::mat4& value) = 0;
-		virtual const std::string& GetName() const = 0;
-		virtual const ShaderSpecification& GetSpecification()const = 0;
+		//virtual void SetInt(const std::string& name, int value) = 0;
+		//virtual void SetIntArray(const std::string& name, int* values, uint32_t count) = 0;
+		//virtual void SetFloat(const std::string& name, float value) = 0;
+		//virtual void SetFloat2(const std::string& name, const glm::vec2& value) = 0;
+		//virtual void SetFloat3(const std::string& name, const glm::vec3& value) = 0;
+		//virtual void SetFloat4(const std::string& name, const glm::vec4& value) = 0;
+		//virtual void SetMat4(const std::string& name, const glm::mat4& value) = 0;
 
+		virtual RendererID GetRendererID()const = 0;
+
+		virtual const ShaderSpecification& GetSpecification()const = 0;
+		
 		static Ref<Shader> Create(const ShaderSpecification& specification);
 	};
 
-	
 	enum class TypedBufferInputDataType {
 		None = 0,
 		RGBA8 = 1,

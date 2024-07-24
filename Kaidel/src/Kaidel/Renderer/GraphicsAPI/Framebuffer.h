@@ -3,20 +3,20 @@
 #include "Kaidel/Core/Base.h"
 #include "Constants.h"
 #include "Definitions.h"
+
+#include "RenderPass.h"
 #include "Image.h"
 
 namespace Kaidel {
 
-	class RenderPass;
-	
 
 	struct FramebufferTextureSpecification
 	{
 		FramebufferTextureSpecification() = default;
-		FramebufferTextureSpecification(TextureFormat format,bool isReadable = false)
-			: Format(format),Readable(isReadable) {}
+		FramebufferTextureSpecification(Format format,bool isReadable = false)
+			: AttachmentFormat(format),Readable(isReadable) {}
 
-		TextureFormat Format = TextureFormat::None;
+		Format AttachmentFormat = Format::None;
 		bool Readable;
 		// TODO: filtering/wrap
 	};
@@ -36,7 +36,7 @@ namespace Kaidel {
 		FramebufferAttachmentSpecification Attachments;
 		uint32_t Samples = 1;
 		
-		Kaidel::RenderPass* RenderPass;
+		//Kaidel::RenderPass* RenderPass;
 
 
 		bool SwapChainTarget = false;
@@ -67,18 +67,24 @@ namespace Kaidel {
 		virtual void ClearAttachment(uint32_t attachmentIndex, const void* colors) = 0;
 		virtual void ClearDepthAttachment(float value) = 0;
 		
-		virtual uint64_t GetColorAttachmentRendererID(uint32_t index = 0) const = 0;
-		virtual Image* GetImage(uint32_t index = 0) = 0;
+		virtual RendererID GetRendererID()const = 0;
 
-		virtual FramebufferAttachmentHandle GetAttachmentHandle(uint32_t index = 0)const = 0;
-		virtual FramebufferImageHandle GetImageHandle(uint64_t index = 0) const = 0;
 		virtual const FramebufferSpecification& GetSpecification() const = 0;
 		virtual uint32_t GetWidth()const = 0;
 		virtual uint32_t GetHeight()const = 0;
 
+		virtual Image& GetImage(uint32_t index) = 0;
+
+		virtual Ref<RenderPass> GetDefaultRenderPass()const = 0;
+
 		virtual void ReadValues(uint32_t attachemntIndex, uint32_t x, uint32_t y, uint32_t w, uint32_t h, float* output) = 0;
 
-		virtual Ref<RenderPass> GetRenderPass()const = 0;
+		virtual bool HasDepthStencilAttachment()const = 0;
+		virtual uint32_t GetColorAttachmentCount()const = 0;
+		virtual Image& GetDepthStencilAttachment() = 0;
+
+
+		//virtual Ref<RenderPass> GetRenderPass()const = 0;
 		
 		static Ref<Framebuffer> Create(const FramebufferSpecification& spec);
 	};

@@ -110,7 +110,7 @@ namespace Kaidel {
 		EventDispatcher dispatcher(e);
 		dispatcher.Dispatch<WindowCloseEvent>(KD_BIND_EVENT_FN(Application::OnWindowClose));
 		dispatcher.Dispatch<WindowResizeEvent>(KD_BIND_EVENT_FN(Application::OnWindowResize));
-		dispatcher.Dispatch<WindowRedrawEvent>(KD_BIND_EVENT_FN(Application::OnWindowRedraw));
+		//dispatcher.Dispatch<WindowRedrawEvent>(KD_BIND_EVENT_FN(Application::OnWindowRedraw));
 
 		for (auto it = m_LayerStack.rbegin(); it != m_LayerStack.rend(); ++it)
 		{
@@ -119,7 +119,7 @@ namespace Kaidel {
 			(*it)->OnEvent(e);
 		}
 
-		dispatcher.Dispatch<RendererSettingsChangedEvent>(KD_BIND_EVENT_FN(Application::OnRendererSettingsChanged));
+		//dispatcher.Dispatch<RendererSettingsChangedEvent>(KD_BIND_EVENT_FN(Application::OnRendererSettingsChanged));
 	}
 
 	void Application::Run()
@@ -127,12 +127,17 @@ namespace Kaidel {
 
 		while (m_Running)
 		{
+
+			m_Window->AcquireImage();
 			OnUpdate();
-			{
-				//SCOPED_TIMER(Swap Buffers)
-				m_Window->SwapBuffers();
-				m_Window->PollEvents();
-			}
+			//{
+			//	//SCOPED_TIMER(Swap Buffers)
+			//	m_Window->SwapBuffers();
+			//	m_Window->PollEvents();
+			//}
+
+			m_Window->PresentImage();
+			m_Window->PollEvents();
 		}
 	}
 

@@ -2,12 +2,13 @@
 #include "Kaidel/Renderer/GraphicsAPI/VertexArray.h"
 #include "Settings.h"
 
-#include "Kaidel/Renderer/GraphicsAPI/RenderPass.h"
 #include "Kaidel/Renderer/GraphicsAPI/Buffer.h"
-#include "Kaidel/Renderer/GraphicsAPI/GraphicsPipeline.h"
 #include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
 
-
+#include "Kaidel/Renderer/GraphicsAPI/Image.h"
+#include "Kaidel/Renderer/GraphicsAPI/RenderPass.h"
+#include "Kaidel/Renderer/GraphicsAPI/GraphicsPipeline.h"
+#include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
 #include <glm/glm.hpp>
 
 namespace Kaidel {
@@ -35,17 +36,19 @@ namespace Kaidel {
 		virtual void DrawIndexed(uint32_t indexCount, uint32_t firstIndex = 0, uint32_t vertexOffset = 0) = 0;
 		virtual void DrawIndexedInstanced(uint32_t indexCount, uint32_t instanceCount,uint32_t firstIndex = 0, uint32_t vertexOffset = 0) = 0;
 
-		virtual void DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount = 0) = 0;
+		/*virtual void DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount = 0) = 0;
 		virtual void DrawIndexedInstanced(const Ref<VertexArray>& vertexArray, uint32_t indexCount, uint32_t instanceCount) = 0;
 		virtual void DrawLines(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) = 0;
 		virtual void DrawPatches(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) = 0;
-		virtual void DrawPoints(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) = 0;
+		virtual void DrawPoints(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) = 0;*/
 
-		virtual void SetLineWidth(float thickness)=0;
+	/*	virtual void SetLineWidth(float thickness) = 0;
 		virtual void SetPointSize(float pixelSize) = 0;
 		virtual void SetCullMode(CullMode cullMode) = 0;
 
-		virtual void SetPatchVertexCount(uint32_t count) = 0;
+		virtual void SetPatchVertexCount(uint32_t count) = 0;*/
+		virtual void BindUniformBuffer(Ref<UniformBuffer> uniformBuffer, uint32_t index) = 0;
+
 
 		virtual void RenderFullScreenQuad(Ref<Shader> shader, uint32_t width, uint32_t height)const = 0;
 
@@ -59,6 +62,8 @@ namespace Kaidel {
 		virtual void BindGraphicsPipeline(Ref<GraphicsPipeline> pipeline) = 0;
 
 		virtual void Submit(std::function<void()>&& func) = 0;
+
+		virtual void Transition(Image& image, ImageLayout newLayout) = 0;
 
 
 

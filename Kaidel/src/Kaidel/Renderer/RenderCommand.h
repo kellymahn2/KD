@@ -2,6 +2,9 @@
 
 #include "Kaidel/Renderer/RendererAPI.h"
 #include "Kaidel/Renderer/GraphicsAPI/Shader.h"
+#include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/Image.h"
+#include "Kaidel/Renderer/GraphicsAPI/RenderPass.h"
 
 namespace Kaidel {
 
@@ -32,7 +35,6 @@ namespace Kaidel {
 			s_RendererAPI->Clear();
 		}
 
-
 		static void DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount = 0)
 		{
 			s_RendererAPI->DrawIndexed(vertexArray, indexCount);
@@ -40,7 +42,7 @@ namespace Kaidel {
 		static void DrawIndexedInstanced(const Ref<VertexArray>& vertexArray, uint32_t indexCount, uint32_t instanceCount) {
 			s_RendererAPI->DrawIndexedInstanced(vertexArray, indexCount, instanceCount);
 		}
-		static void DrawLines(const Ref<VertexArray>& vertexArray, uint32_t vertexCount = 0)
+		/*static void DrawLines(const Ref<VertexArray>& vertexArray, uint32_t vertexCount = 0)
 		{
 			s_RendererAPI->DrawLines(vertexArray, vertexCount);
 		}
@@ -68,7 +70,7 @@ namespace Kaidel {
 
 		static void SetPatchVertexCount(uint32_t count) {
 			s_RendererAPI->SetPatchVertexCount(count);
-		}
+		}*/
 
 
 		static void RenderFullScreenQuad(Ref<Shader> shader,uint32_t width,uint32_t height) {
@@ -92,6 +94,10 @@ namespace Kaidel {
 			s_RendererAPI->EndRenderPass();
 		}
 
+		static void BindUniformBuffer(Ref<UniformBuffer> uniformBuffer, uint32_t index) {
+			s_RendererAPI->BindUniformBuffer(uniformBuffer, index);
+		}
+
 		static void BindGraphicsPipeline(Ref<GraphicsPipeline> pipeline) {
 			s_RendererAPI->BindGraphicsPipeline(pipeline);
 		}
@@ -112,6 +118,11 @@ namespace Kaidel {
 		static void Submit(std::function<void()>&& func) {
 			s_RendererAPI->Submit(std::move(func));
 		}
+
+		static void Transition(Image& image, ImageLayout newLayout) {
+			s_RendererAPI->Transition(image, newLayout);
+		}
+
 
 		static Scope<RendererAPI>& Get() { return s_RendererAPI; }
 

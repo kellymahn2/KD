@@ -5,15 +5,14 @@
 #include "Kaidel/Renderer/GraphicsAPI/VertexArray.h"
 #include "Kaidel/Renderer/GraphicsAPI/Buffer.h"
 #include "Kaidel/Renderer/GraphicsAPI/Shader.h"
+#include "Kaidel/Renderer/GraphicsAPI/ShaderLibrary.h"
 #include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
 #include "Kaidel/Renderer/GraphicsAPI/GraphicsPipeline.h"
 #include "Kaidel/Renderer/GraphicsAPI/RenderPass.h"
-
 #include "Renderer2D.h"
 
 namespace Kaidel{
 	struct Renderer2DData {
-
 		static constexpr const uint32_t MaxSpriteCount = 10000;
 		static constexpr const uint32_t MaxSpriteVertexCount = MaxSpriteCount * 4;
 		static constexpr const uint32_t MaxSpriteIndexCount = MaxSpriteCount * 6;
@@ -27,11 +26,11 @@ namespace Kaidel{
 
 		Ref<VertexBuffer> SpriteVertexBuffer;
 		Ref<IndexBuffer> SpriteIndexBuffer;
-		Ref<GraphicsPipeline> SpritePipeline;
 		Ref<RenderPass> SpriteRenderPass;
+		Ref<GraphicsPipeline> SpritePipeline;
+
 
 		Ref<Framebuffer> OutputBuffer;
-		Ref<RenderPass> OutputRenderPass;
 		
 		Ref<UniformBuffer> CameraUnifomBuffer;
 		struct CameraUnifomData {
@@ -67,12 +66,7 @@ namespace Kaidel{
 		
 		{
 			SCOPED_TIMER("Vertex buffer");
-			VertexBufferSpecification spec{};
-			spec.Data = nullptr;
-			spec.Size = 0;
-			spec.MemoryType = VertexBufferMemoryType::Dynamic;
-
-			s_RendererData->SpriteVertexBuffer = VertexBuffer::Create(spec);
+			s_RendererData->SpriteVertexBuffer = VertexBuffer::Create(4);
 		}
 
 		{
@@ -87,79 +81,47 @@ namespace Kaidel{
 			s_RendererData->CameraUnifomBuffer = UniformBuffer::Create(sizeof(Renderer2DData::CameraUnifomData), 0);
 		}
 
-
 		{
 			SCOPED_TIMER("Render pass");
 			RenderPassSpecification spec{};
-			spec.BindingPoint = RenderPassBindPoint::Graphics;
-			spec.OutputImages = { RenderPassAttachmentSpecification(TextureFormat::RGBA8, RenderPassImageLoadOp::Clear,
-									RenderPassImageStoreOp::Store, RenderPassImageLayout::Undefined, RenderPassImageLayout::Color,
-										RenderPassImageLayout::Color) };
-			spec.OutputDepthAttachment = RenderPassAttachmentSpecification(TextureFormat::Depth32F, RenderPassImageLoadOp::DontCare,
-				RenderPassImageStoreOp::DontCare, RenderPassImageLayout::Undefined, RenderPassImageLayout::Depth, RenderPassImageLayout::Depth);
+			spec.OutputColors.push_back({ Format::RGBA8UN});
+			//spec.OutputDepth = { Format::Depth32F };
+			//spec.OutputDepth.FinalLayout = ImageLayout::DepthAttachmentOptimal;
 			s_RendererData->SpriteRenderPass = RenderPass::Create(spec);
 		}
 
 		{
-			Ref<SingleShader> fs;
-			Ref<SingleShader> vs;
-			
-			
-			{
-
-				SCOPED_TIMER("Vertex shader");
-
-				SingleShaderSpecification vsSpec{};
-
-				vsSpec.ControlString = "assets/shaders/GeometryPass/Geometry_Sprite_VS_2D.glsl";
-				vsSpec.Type = ShaderType::VertexShader;
-
-				vs = SingleShader::CreateShader(vsSpec);
-			}
-
-
-
-			{
-				SCOPED_TIMER("Fragment shader");
-
-				SingleShaderSpecification fsSpec{};
-
-				fsSpec.ControlString = "assets/shaders/GeometryPass/Geometry_Sprite_FS_2D.glsl";
-				fsSpec.Type = ShaderType::FragmentShader;
-
-				fs = SingleShader::CreateShader(fsSpec);
-			}
-
 			SCOPED_TIMER("Graphics pipeline");
+			Ref<Shader> vs = ShaderLibrary::LoadShader("assets/_shaders/SpriteVS.glsl", ShaderType::VertexShader);
+			Ref<Shader> fs = ShaderLibrary::LoadShader("assets/_shaders/SpriteFS.glsl", ShaderType::FragmentShader);
 
 			GraphicsPipelineSpecification spec{};
-			spec.Culling = CullMode::None;
+			spec.CullMode = PipelineCullMode::None;
 			spec.FrontCCW = true;
-			spec.LineWidth = 1.0f;
-			spec.PrimitveTopology = GraphicsPrimitveTopology::TriangleList;
-			spec.RenderPass = s_RendererData->SpriteRenderPass;
-			spec.Viewport = { 1280,720,0,0,0,1.0f };
-			spec.Stages = {
-				{ShaderType::VertexShader,vs },
-				{ ShaderType::FragmentShader,fs }
-			};
+			spec.Name = "Sprite pipeline";
+			spec.UsedRenderPass = s_RendererData->SpriteRenderPass;
+			spec.VertexShader = vs;
+			spec.FragmentShader = fs;
 
-			GraphicsPipelineInputBufferSpecification bufferSpec{};
-			bufferSpec.Elements = {
-				{"a_Position",GraphicsPipelineInputDataType::Float3},
-				{"a_Color",GraphicsPipelineInputDataType::Float4},
-			};
-			bufferSpec.InputRate = GraphicsPipelineInputRate::PerVertex;
-			spec.InputLayout = GraphicsPipelineInputLayout({ bufferSpec });
-			spec.UsedUniformBuffers = { s_RendererData->CameraUnifomBuffer };
+			VertexInpuBinding binding{};
+			binding.Elements = { {"a_Position",VertexInputType::Float3},{"a_Color",VertexInputType::Float4} };
+			binding.InputRate = VertexInputRate::Vertex;
+			VertexInputSpecification input{};
+			input.Bindings.push_back(binding);
+			spec.InputSpecification = input;
+
+			UniformBufferInputSpecification ubSpecs;
+			ubSpecs.UniformBufferBindings.push_back(0);
+			spec.UniformBufferInput = ubSpecs;
+
 			s_RendererData->SpritePipeline = GraphicsPipeline::Create(spec);
-			s_RendererData->SpritePipeline->Finalize();
 		}
 
 		s_RendererData->PresetSpriteVertices[0] = { glm::vec3{-.5f,-.5f,.0f} ,glm::vec4{1.0f}};
 		s_RendererData->PresetSpriteVertices[1] = { glm::vec3{ .5f,-.5f,.0f} ,glm::vec4{1.0f}};
 		s_RendererData->PresetSpriteVertices[2] = { glm::vec3{ .5f, .5f,.0f} ,glm::vec4{1.0f}};
 		s_RendererData->PresetSpriteVertices[3] = { glm::vec3{-.5f, .5f,.0f} ,glm::vec4{1.0f}};
+		s_RendererData->SpriteRenderPass->SetClearValue(0, { AttachmentColorClearValue(glm::vec4{1.0f}) });
 	}
     void Renderer2D::Shutdown() {
 		delete s_RendererData;
@@ -208,11 +170,10 @@ namespace Kaidel{
 			RenderCommand::BindIndexBuffer(s_RendererData->SpriteIndexBuffer);
 			RenderCommand::BeginRenderPass(s_RendererData->OutputBuffer,s_RendererData->SpriteRenderPass);
 			RenderCommand::BindGraphicsPipeline(s_RendererData->SpritePipeline);
+			RenderCommand::BindUniformBuffer(s_RendererData->CameraUnifomBuffer, 0);
 			RenderCommand::DrawIndexed(s_RendererData->SpritesWaitingForRender * 6);
 			RenderCommand::EndRenderPass();
 		}
 	}
-
-
 
 }

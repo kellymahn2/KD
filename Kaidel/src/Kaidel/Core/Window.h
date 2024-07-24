@@ -39,6 +39,9 @@ namespace Kaidel {
 		virtual uint32_t GetWidth() const = 0;
 		virtual uint32_t GetHeight() const = 0;
 		virtual const Scope<GraphicsContext>& GetContext()const = 0;
+
+		virtual std::vector<const char*> GetRequiredInstanceExtensions()const = 0;
+
 		// Window attributes
 		virtual void SetEventCallback(const EventCallbackFn& callback) = 0;
 		virtual void SetVSync(bool enabled) = 0;
@@ -49,6 +52,11 @@ namespace Kaidel {
 		virtual void* GetNativeWindow() const = 0;
 
 		virtual void SwapBuffers() const = 0;
+
+
+		virtual void AcquireImage()const = 0;
+		virtual void PresentImage()const = 0;
+
 		virtual void PollEvents() const = 0;
 
 		static Scope<Window> Create(const WindowProps& props = WindowProps());

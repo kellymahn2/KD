@@ -8,8 +8,12 @@
 #include "Kaidel/Events/KeyEvent.h"
 
 #include "Kaidel/Renderer/Renderer.h"
+#include "Kaidel/Renderer/RendererAPI.h"
 
 #include "Platform/OpenGL/OpenGLContext.h"
+
+
+
 
 namespace Kaidel {
 	
@@ -39,10 +43,6 @@ namespace Kaidel {
 		m_Data.Height = props.Height;
 		m_Data.Fullscreen = props.Fullscreen;
 
-
-
-
-
 		if (s_GLFWWindowCount == 0)
 		{
 			int success = glfwInit();
@@ -67,7 +67,7 @@ namespace Kaidel {
 			m_Window = glfwCreateWindow((int)m_Data.Width, (int)m_Data.Height, m_Data.Title.c_str(), nullptr, nullptr);
 			++s_GLFWWindowCount;
 		}
-		m_Context = GraphicsContext::Create(m_Window);
+		m_Context = GraphicsContext::Create(this);
 		m_Context->Init();
 
 		RenderCommand::GetRendererAPI() = RendererAPI::Create();
@@ -191,6 +191,18 @@ namespace Kaidel {
 	{
 		glfwPollEvents();
 	}
+
+	void WindowsWindow::AcquireImage() const
+	{
+		m_Context->AcquireImage();
+	}
+
+	void WindowsWindow::PresentImage() const
+	{
+		m_Context->PresentImage();
+	}
+
+	
 
 	void WindowsWindow::SwapBuffers() const
 	{

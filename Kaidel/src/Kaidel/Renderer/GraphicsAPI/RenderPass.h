@@ -1,83 +1,67 @@
 #pragma once
-#include "Kaidel/Core/Base.h"
-#include "Framebuffer.h"
+
+#include "Kaidel/Renderer/RendererDefinitions.h"
 
 #include <glm/glm.hpp>
+
 namespace Kaidel {
 
-
-	enum class RenderPassBindPoint {
-		None =0,
-		Graphics,
-		Compute
+	struct AttachmentSpecification {
+		Format AttachmentFormat = Format::None;
+		ImageLayout InitialLayout = ImageLayout::None;
+		ImageLayout FinalLayout = ImageLayout::ColorAttachmentOptimal;
 	};
 
-	enum class RenderPassImageLoadOp {
-		Clear = 0,
-		Load,
-		DontCare,
+	struct RenderPassSpecification {
+		std::vector<AttachmentSpecification> OutputColors;
+		AttachmentSpecification OutputDepth;
 	};
 
-	enum class RenderPassImageStoreOp {
-		None = 0,
-		Store,
-		DontCare,
-	};
-
-
-	enum class RenderPassImageLayout {
-		None = 0,
-		Undefined,
-		Color,
-		Depth,
-		DepthStencil,
-		ReadOnly,
-		Present,
-	};
-
-
-	struct RenderPassAttachmentSpecification {
-		TextureFormat ImageFormat = TextureFormat::None;
-		RenderPassImageLayout InitialLayout = RenderPassImageLayout::Undefined;
-		RenderPassImageLayout Layout = RenderPassImageLayout::Color;
-		RenderPassImageLayout FinalLayout = RenderPassImageLayout::Color;
-		RenderPassImageLoadOp LoadOp = RenderPassImageLoadOp::Load;
-		RenderPassImageStoreOp StoreOp = RenderPassImageStoreOp::Store;
-
-		RenderPassAttachmentSpecification() = default;
-		RenderPassAttachmentSpecification(const RenderPassAttachmentSpecification&) = default;
-		RenderPassAttachmentSpecification(TextureFormat format,
-											RenderPassImageLoadOp loadOp = RenderPassImageLoadOp::Load, RenderPassImageStoreOp storeOp = RenderPassImageStoreOp::Store, 
-											RenderPassImageLayout initialLayout = RenderPassImageLayout::Undefined,RenderPassImageLayout layout = RenderPassImageLayout::Color,
-											RenderPassImageLayout finalLayout = RenderPassImageLayout::Color)
-			:ImageFormat(format),InitialLayout(initialLayout),Layout(layout),FinalLayout(finalLayout),LoadOp(loadOp),StoreOp(storeOp)
+	union AttachmentColorClearValue {
+		glm::vec4 RGBAF;
+		glm::ivec4 RGBAI;
+		glm::uvec4 RGBAUI;
+		AttachmentColorClearValue() = default;
+		AttachmentColorClearValue(const glm::vec4& rgbaf)
+			:RGBAF(rgbaf)
+		{}
+		AttachmentColorClearValue(const glm::ivec4& rgbai)
+			:RGBAI(rgbai)
+		{}
+		AttachmentColorClearValue(const glm::uvec4& rgbaui)
+			:RGBAUI(rgbaui)
 		{}
 	};
 
+	struct AttachmentDepthStencilClearValue {
+		float Depth;
+		uint32_t Stencil;
+		AttachmentDepthStencilClearValue() = default;
+		AttachmentDepthStencilClearValue(float depth, uint32_t stencil)
+			:Depth(depth),Stencil(stencil)
+		{}
+	};
 
-	struct RenderPassSpecification {
-		RenderPassBindPoint BindingPoint;
-		std::vector<RenderPassAttachmentSpecification> InputImages;
-		std::vector<RenderPassAttachmentSpecification> OutputImages;
-		RenderPassAttachmentSpecification OutputDepthAttachment = {};
+	union AttachmentClearValue {
+		AttachmentColorClearValue ColorClear;
+		AttachmentDepthStencilClearValue DepthStencilClear;
 	};
 
 	class RenderPass : public IRCCounter<false> {
 	public:
-		virtual ~RenderPass() = default;
-		static Ref<RenderPass> Create(const RenderPassSpecification& specification);
 
+		virtual ~RenderPass() = default;
+
+		virtual RendererID GetRendererID()const = 0;
 
 		virtual const RenderPassSpecification& GetSpecification()const = 0;
 
+		virtual AttachmentClearValue GetClearValue(uint32_t attachmentIndex)const = 0;
+		virtual void SetClearValue(uint32_t attachmentIndex, const AttachmentClearValue& clearValue) = 0;
 
-		virtual void SetClearColor(const glm::vec4& color) = 0;
-		virtual void SetClearColor(const glm::vec4& color, uint32_t attachment) = 0;
+		static Ref<RenderPass> Create(const RenderPassSpecification& specification);
 
-
-		virtual void Begin()const = 0;
-		virtual void End() const = 0;
-
+	private:
 
 	};
 }

@@ -27,7 +27,18 @@ namespace Kaidel {
 		void SwapBuffers() const override;
 		void PollEvents() const override;
 
+		void AcquireImage()const override;
+		void PresentImage()const override;
+
 		virtual void WrapCursor() const override;
+
+		virtual std::vector<const char*> GetRequiredInstanceExtensions()const override 
+		{
+			uint32_t extensionCount = 0;
+			const char** extensions = glfwGetRequiredInstanceExtensions(&extensionCount);
+
+			return { extensions,extensions + extensionCount };
+		}
 
 
 		virtual void* GetNativeWindow() const { return m_Window; }
@@ -49,10 +60,6 @@ namespace Kaidel {
 		};
 
 		WindowData m_Data;
-
-		
-
-
 	};
 
 }

@@ -98,67 +98,66 @@ namespace Kaidel {
 
 	
 
-	void OpenGLRendererAPI::DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount)
-	{
-		vertexArray->Bind();
-		uint32_t count = indexCount ? indexCount : vertexArray->GetIndexBuffer()->GetCount();
-		glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
-	}
-	void OpenGLRendererAPI::DrawIndexedInstanced(const Ref<VertexArray>& vertexArray, uint32_t indexCount, uint32_t instanceCount){
-		/*if (instanceCount == 1) {
-			DrawIndexed(vertexArray, indexCount);
-			return;
-		}*/
-		vertexArray->Bind();
-		glDrawElementsInstanced(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, nullptr, instanceCount);
-	}
-	void OpenGLRendererAPI::DrawLines(const Ref<VertexArray>& vertexArray, uint32_t vertexCount)
-	{
-		vertexArray->Bind();
-		glDrawArrays(GL_LINES, 0,vertexCount);
-	}
-	void OpenGLRendererAPI::DrawPatches(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) {
-		vertexArray->Bind();
-		glDrawArrays(GL_PATCHES, 0, vertexCount);
-	}
+	//void OpenGLRendererAPI::DrawIndexed(const Ref<VertexArray>& vertexArray, uint32_t indexCount)
+	//{
+	//	vertexArray->Bind();
+	//	uint32_t count = indexCount ? indexCount : vertexArray->GetIndexBuffer()->GetCount();
+	//	glDrawElements(GL_TRIANGLES, count, GL_UNSIGNED_INT, nullptr);
+	//}
+	//void OpenGLRendererAPI::DrawIndexedInstanced(const Ref<VertexArray>& vertexArray, uint32_t indexCount, uint32_t instanceCount){
+	//	/*if (instanceCount == 1) {
+	//		DrawIndexed(vertexArray, indexCount);
+	//		return;
+	//	}*/
+	//	vertexArray->Bind();
+	//	glDrawElementsInstanced(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, nullptr, instanceCount);
+	//}
+	//void OpenGLRendererAPI::DrawLines(const Ref<VertexArray>& vertexArray, uint32_t vertexCount)
+	//{
+	//	vertexArray->Bind();
+	//	glDrawArrays(GL_LINES, 0,vertexCount);
+	//}
+	//void OpenGLRendererAPI::DrawPatches(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) {
+	//	vertexArray->Bind();
+	//	glDrawArrays(GL_PATCHES, 0, vertexCount);
+	//}
 
-	void OpenGLRendererAPI::DrawPoints(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) {
-		vertexArray->Bind();
-		glDrawArrays(GL_POINTS, 0, vertexCount);
-	}
+	//void OpenGLRendererAPI::DrawPoints(const Ref<VertexArray>& vertexArray, uint32_t vertexCount) {
+	//	vertexArray->Bind();
+	//	glDrawArrays(GL_POINTS, 0, vertexCount);
+	//}
 
-	void OpenGLRendererAPI::SetLineWidth(float width) {
-		glLineWidth(width);
-	}
+	//void OpenGLRendererAPI::SetLineWidth(float width) {
+	//	glLineWidth(width);
+	//}
 
-	void OpenGLRendererAPI::SetPointSize(float pixelSize) {
-		glPointSize(pixelSize);
-	}
+	//void OpenGLRendererAPI::SetPointSize(float pixelSize) {
+	//	glPointSize(pixelSize);
+	//}
 
 
-	void OpenGLRendererAPI::SetCullMode(CullMode cullMode) {
-		switch (cullMode)
-		{
-		case Kaidel::CullMode::None:glDisable(GL_CULL_FACE);return;
-		case Kaidel::CullMode::Front:glEnable(GL_CULL_FACE); glCullFace(GL_FRONT); return;
-		case Kaidel::CullMode::Back:glEnable(GL_CULL_FACE); glCullFace(GL_BACK); return;
-		case Kaidel::CullMode::FrontAndBack:glEnable(GL_CULL_FACE); glCullFace(GL_FRONT_AND_BACK); return;
-		}
-		s_RendererSettings.Culling = cullMode;
-	}
+	//void OpenGLRendererAPI::SetCullMode(CullMode cullMode) {
+	//	switch (cullMode)
+	//	{
+	//	case Kaidel::CullMode::None:glDisable(GL_CULL_FACE);return;
+	//	case Kaidel::CullMode::Front:glEnable(GL_CULL_FACE); glCullFace(GL_FRONT); return;
+	//	case Kaidel::CullMode::Back:glEnable(GL_CULL_FACE); glCullFace(GL_BACK); return;
+	//	case Kaidel::CullMode::FrontAndBack:glEnable(GL_CULL_FACE); glCullFace(GL_FRONT_AND_BACK); return;
+	//	}
+	//	s_RendererSettings.Culling = cullMode;
+	//}
 
-	void OpenGLRendererAPI::SetPatchVertexCount(uint32_t count) {
-		glPatchParameteri(GL_PATCH_VERTICES, count);
-	}
+	//void OpenGLRendererAPI::SetPatchVertexCount(uint32_t count) {
+	//	glPatchParameteri(GL_PATCH_VERTICES, count);
+	//}
 
 	void OpenGLRendererAPI::RenderFullScreenQuad(Ref<Shader> shader,uint32_t width, uint32_t height)const {
 		m_FullScreenQuadVAO->Bind();
 		shader->Bind();
-		shader->SetFloat2("u_ScreenSize", {(float)width,(float)height});
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		shader->Unbind();
 		m_FullScreenQuadVAO->Unbind();
 	}
-
+	
 
 }

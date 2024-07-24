@@ -85,7 +85,7 @@ namespace Kaidel {
 	}
 
 	void Renderer3D::Init() {
-		s_Data.MeshShader = Shader::Create({ {{"assets/shaders/GeometryPass/Mesh_VS.glsl",ShaderType::VertexShader} , {"assets/shaders/GeometryPass/Mesh_FS.glsl",ShaderType::FragmentShader}}, "Mesh" });
+		/*s_Data.MeshShader = Shader::Create({ {{"assets/shaders/GeometryPass/Mesh_VS.glsl",ShaderType::VertexShader} , {"assets/shaders/GeometryPass/Mesh_FS.glsl",ShaderType::FragmentShader}}, "Mesh" });
 		s_Data.CameraUniformBuffer = UniformBuffer::Create(80, 0);
 		s_Data.LightCountUniformBuffer = UniformBuffer::Create(sizeof(Renderer3DData::LightCount), 1);
 		{
@@ -132,7 +132,7 @@ namespace Kaidel {
 			spec.IndexBuffer = s_Data.MeshIBO;
 			s_Data.MeshVAO = VertexArray::Create(spec);
 
-		}
+		}*/
 
 	}
 	void Renderer3D::Shutdown() {

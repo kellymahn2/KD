@@ -1,158 +1,120 @@
 #pragma once
 
-
-#include "VulkanBase.h"
-
+#include "Platform/Vulkan/VulkanDefinitions.h"
 #include "Kaidel/Renderer/GraphicsAPI/GraphicsContext.h"
-#include "Kaidel/Core/Application.h"
-#include "Initialization/VulkanQueueManager.h"
+
+
+#include "VulkanInstance.h"
+#include "VulkanPhysicalDevice.h"
+#include "VulkanLogicalDevice.h"
+#include "VulkanSwapchain.h"
+#include "VulkanSurface.h"
+#include "VulkanCommandBuffer.h"
 #include "VulkanCommandPool.h"
-
-#include "Initialization/VulkanSwapchain.h"
-
-#include <vector>
-#include <string>
-#include <optional>
-#include <set>
-
-struct GLFWwindow;
+#include "VulkanAllocator.h"
+#include "VulkanDescriptorPool.h"
+#include "VulkanStager.h"
 
 
-#define VK_CONTEXT ::Kaidel::Vulkan::VulkanGraphicsContext::Get()
-
-#define VK_DEVICE ::Kaidel::Vulkan::VulkanGraphicsContext::Get().GetDevice()
-#define VK_INSTANCE ::Kaidel::Vulkan::VulkanGraphicsContext::Get().GetInstance()
-#define VK_PHYSICAL_DEVICE ::Kaidel::Vulkan::VulkanGraphicsContext::Get().GetPhysicalDevice()
-#define VK_UNIQUE_INDICES ::Kaidel::Vulkan::VulkanGraphicsContext::Get().GetUniqueFamilyIndices()
-#define VK_CURRENT_IMAGE ::Kaidel::Vulkan::VulkanGraphicsContext::Get().GetCurrentFrame()
-#define VK_DEVICE_QUEUE(name) ::Kaidel::Vulkan::VulkanGraphicsContext::Get().GetQueue(name)
-//#define VK_DEVICE ::Kaidel::Vulkan::VulkanGraphicsContext::GetDevice()
-
-struct ImDrawData;
+#define VK_CONTEXT ::Kaidel::VulkanGraphicsContext::Get()
+#define VK_INSTANCE VK_CONTEXT.GetInstance()
+#define VK_PHYSICAL_DEVICE VK_CONTEXT.GetPhysicalDevice()
+#define VK_DEVICE VK_CONTEXT.GetLogicalDevice()
+#define VK_ALLOCATOR VK_CONTEXT.GetAllocator()
 
 namespace Kaidel {
-	namespace Vulkan {
-	
-		//50 mb
-		static constexpr const uint32_t GlobalStagingBufferSize = 50 * 1024 * 1024;
 
 
-		class VulkanGraphicsContext : public GraphicsContext{
-		public:
+	struct PerSwapchainFrameData {
+		Ref<VulkanCommandBuffer> CommandBuffer;
 
-			VulkanGraphicsContext(GLFWwindow* window);
+		Ref<VulkanSemaphore> RenderFinished;
+		Ref<VulkanSemaphore> ImageAvailable;
+		Ref<VulkanFence> InFlightFence;
 
-			static VulkanGraphicsContext& Get() { return *s_GraphicsContext; }
+		std::shared_ptr<std::mutex> TaskSyncMutex;
+		std::shared_ptr<std::condition_variable> TaskConditionVariable;
+		std::shared_ptr<std::thread> TaskWorker;
+		bool TasksReady = false;
+		std::queue<std::function<void()>> Tasks;
 
-			void Init() override;
-			void SwapBuffers() override;
-			void FlushCommandBuffers();
-			void Shutdown() override;
-			void OnResize(uint32_t width,uint32_t height);
+		~PerSwapchainFrameData() {
+			TaskWorker = {};
+			TaskConditionVariable = {};
+			TaskSyncMutex = {};
 
-			//Instance
-			VkInstance GetInstance() const{ return m_Instance; }
-			
-			const VulkanQueue& GetQueue(const std::string& name)const { return m_QueueManager[name]; }
+		}
+	};
 
-			//Surface
-			VkSurfaceKHR GetSurface()const { return m_Surface; }
+	class VulkanGraphicsContext : public GraphicsContext{
+	public:
 
-			//PhysicalDevice
-			VkPhysicalDevice GetPhysicalDevice()const { return m_PhysicalDevice; }
-			VulkanQueueManager& GetQueueManager() { return m_QueueManager; }
+		VulkanGraphicsContext(Window* window);
+		void Init() override;
+		void SwapBuffers() override;
+		void Shutdown() override;
 
-			//LogicalDevice
-			VkDevice GetDevice()const { return m_LogicalDevice; }
+		static VulkanGraphicsContext& Get() { return *s_GraphicsContext; }
 
-			const auto& GetUniqueFamilyIndices()const { return m_UniqueQueueFamilyIndices; }
+		VulkanInstance& GetInstance() { return *m_Instance; }
+		VulkanPhysicalDevice& GetPhysicalDevice() { return *m_PhysicalDevice; }  
+		VulkanLogicalDevice& GetLogicalDevice() { return *m_LogicalDevice; }  
+		VulkanSwapchain& GetSwapchain() { return *m_Swapchain; }
+		VulkanAllocator& GetAllocator() { return *m_Allocator; }
 
-			VkCommandBuffer GetGraphicsCommandBuffer() { return m_GraphicsCommandBuffers[m_CurrentFrame]; }
-
-			
-			VkCommandBuffer GetMainCommandBuffer()const { return m_MainCommandBuffer; }
-
-			//Swapchain
-			Ref<VulkanSwapchain> GetSwapchain()const { return m_Swapchain; }
-			const auto& GetCurrentFrame()const { return m_Swapchain->GetFrames()[m_CurrentFrame]; }
-			uint32_t GetCurrentFrameIndex()const { return m_CurrentFrame; }
-
-			//Command pools
-			Ref<VulkanCommandPool> GetTransferCommandPool()const { return m_TransferCommandPool; }
-			Ref<VulkanCommandPool> GetGraphicsCommandPool()const { return m_GraphicsCommandPool; }
+		VulkanBufferStager& GetBufferStager() { return *m_BufferStager; }
 
 
-			//Global staging buffer
-			const VulkanBuffer& GetGlobalStagingBuffer()const { return m_GlobalStagingBuffer; }
+		void AcquireImage() override;
+		void PresentImage() override;
 
-		private:
+		uint32_t GetFramesInFlightCount()const { return m_MaxFramesInFlight; }
+		uint32_t GetCurrentFrameNumber()const { return m_CurrentFrameNumber; }
 
-			void StartSwapchain();
-			void Present();
+		VulkanDescriptorPool& GetUniformBufferDescriptorPool() { return *m_UniformBufferDescriptorPool; }
+		const std::vector<VkDescriptorSetLayout>& GetUniformBufferDescriptorSetLayouts()const { return m_UniformBufferDescriptorSetLayouts; }
+
+		Ref<VulkanCommandBuffer> GetActiveCommandBuffer()const { return m_FramesData[m_AcquiredImage].CommandBuffer; }
 
 
-		private:
 
-			GLFWwindow* m_Window = nullptr;
+		//ImGui callbacks
+		void ImGuiInit()const override;
+		void ImGuiBegin()const override;
+		void ImGuiEnd()const override;
+		void ImGuiShutdown()const override;
+	private:
 
-			//Instance
-			InstanceSpecification m_InstanceSpecification = {};
-			uint32_t m_VulkanAPIVersion = 0;
-			VkInstance m_Instance = VK_NULL_HANDLE;
-			
-			//Debug messenger
-			VkDebugUtilsMessengerEXT m_DebugMessenger = VK_NULL_HANDLE;
 
-			//Surface
-			VkSurfaceKHR m_Surface = VK_NULL_HANDLE;
-			
-			//PhysicalDevice
-			PhysicalDeviceSpecification m_PhysicalDeviceSpecification = {};
-			VulkanQueueManager m_QueueManager;
-			VkPhysicalDevice m_PhysicalDevice = VK_NULL_HANDLE;
+		void CreateImGuiDescriptorPool();
+		void LoadImGuiFonts()const;
+	private:
 
-			//LogicalDevice
-			LogicalDeviceSpecification m_LogicalDeviceSpecification = {};
-			VkDevice m_LogicalDevice = VK_NULL_HANDLE;
+		static VulkanGraphicsContext* s_GraphicsContext;
+		Scope<VulkanInstance> m_Instance;
+		Scope<VulkanSurface> m_Surface;
+		Scope<VulkanPhysicalDevice> m_PhysicalDevice;
+		Scope<VulkanLogicalDevice> m_LogicalDevice;
+		Scope<VulkanSwapchain> m_Swapchain;
+		Scope<VulkanAllocator> m_Allocator;
 
-			//Swapchain
-			Ref<VulkanSwapchain> m_Swapchain = {};
+		Window* m_Window;
 
-			//MainCommandBuffer
-			VkCommandBuffer m_MainCommandBuffer = VK_NULL_HANDLE;
+		std::vector<PerSwapchainFrameData> m_FramesData;
 
-			//Frames in flight
-			uint32_t m_MaxFramesInFlight;
-			uint32_t m_CurrentFrame;
-			uint32_t m_AcquiredImage;
+		uint32_t m_MaxFramesInFlight = 0;
+		uint32_t m_CurrentFrameNumber = 0;
+		uint32_t m_AcquiredImage = 0;
 
-			//Ref<VulkanCommandBuffer> m_GraphicsCommandBuffer;
+		bool m_ThreadsRunning = true;
 
-			std::vector<uint32_t> m_UniqueQueueFamilyIndices;
+		Ref<VulkanCommandPool> m_CommandPool;
 
-			static VulkanGraphicsContext* s_GraphicsContext;
-			bool m_SingleFramePassed = false;
+		Scope<VulkanDescriptorPool> m_ImGuiDescriptorPool;
+		Scope<VulkanDescriptorPool> m_UniformBufferDescriptorPool;
+		std::vector<VkDescriptorSetLayout> m_UniformBufferDescriptorSetLayouts;
 
-			//Command pools
-			Ref<VulkanCommandPool> m_TransferCommandPool;
-			Ref<VulkanCommandPool> m_GraphicsCommandPool;
 
-			//Global staging buffer
-			VulkanBuffer m_GlobalStagingBuffer;
-
-			std::vector<VkCommandBuffer> m_GraphicsCommandBuffers;
-
-			std::vector<std::thread*> m_Threads;
-
-			bool m_ThreadsShouldDestroy = false;
-
-			friend void ImGuiInit();
-			friend void ImGuiRender(ImDrawData*);
-			friend void ImGuiNewFrame();
-			friend void ImGuiShutdown();
-
-		};
-	}
-
+		Scope<VulkanBufferStager> m_BufferStager;
+	};
 }
-

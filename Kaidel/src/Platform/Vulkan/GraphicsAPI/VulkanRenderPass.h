@@ -1,51 +1,32 @@
 #pragma once
 
-
-
-#include "VulkanBase.h"
 #include "Kaidel/Renderer/GraphicsAPI/RenderPass.h"
 
-namespace Kaidel {
-	namespace Vulkan {
+#include "Platform/Vulkan/VulkanDefinitions.h"
 
-		class VulkanRenderPass : public RenderPass {
-		public:
-			VulkanRenderPass(const RenderPassSpecification& specification);
-			~VulkanRenderPass();
+namespace Kaidel
+{
+	class VulkanRenderPass : public RenderPass 
+	{
+	public:
 
-			void Begin() const override;
-			void End() const override;
+		VulkanRenderPass(const RenderPassSpecification& specification);
+		~VulkanRenderPass();
 
-			const RenderPassSpecification& GetSpecification()const override { return m_Specification; }
+		RendererID GetRendererID() const override { return (RendererID)m_RenderPass; }
 
-			VkRenderPass GetRenderPass()const { return m_RenderPass; }
+		void SetClearValue(uint32_t attachmentIndex, const AttachmentClearValue& clearValue) override;
 
-			void SetClearColor(const glm::vec4& color) override {
-				for (auto& col : m_ClearColors) {
-					SetClearColor(col, color);
-				}
-			}
+		const RenderPassSpecification& GetSpecification() const override { return m_Specification; }
 
-			void SetClearColor(const glm::vec4& color, uint32_t attachment) override { SetClearColor(m_ClearColors[attachment], color); }
+		AttachmentClearValue GetClearValue(uint32_t attachmentIndex) const override;
 
-			const std::vector<VkClearValue>& GetClearColors()const { return m_ClearColors; }
+		const std::vector<VkClearValue>& GetClearValues()const { return m_ClearValues; }
 
-		private:
+	private:
+		VkRenderPass m_RenderPass;
+		std::vector<VkClearValue> m_ClearValues;
+		RenderPassSpecification m_Specification;
+	};
 
-			inline void SetClearColor(VkClearValue& value, const glm::vec4& color) {
-				value.color.float32[0] = color.r;
-				value.color.float32[1] = color.g;
-				value.color.float32[2] = color.b;
-				value.color.float32[3] = color.a;
-			}
-
-			RenderPassSpecification m_Specification;
-			VkRenderPass m_RenderPass = VK_NULL_HANDLE;
-			VkCommandBuffer m_RecordCommandBuffer = VK_NULL_HANDLE;
-
-			std::vector<VkClearValue> m_ClearColors;
-
-			// Inherited via RenderPass
-		};
-	}
 }

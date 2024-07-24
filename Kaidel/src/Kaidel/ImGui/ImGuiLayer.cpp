@@ -10,11 +10,15 @@
 #include "Kaidel/Core/Application.h"
 #include "Kaidel/Renderer/RendererAPI.h"
 
+
 // TEMPORARY
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
 
 #include "ImGuizmo.h"
+
+
+
 
 namespace Kaidel {
 
@@ -70,17 +74,15 @@ namespace Kaidel {
 		Application& app = Application::Get();
 		GLFWwindow* window = static_cast<GLFWwindow*>(app.GetWindow().GetNativeWindow());
 
-		ImGui_ImplGlfw_InitForVulkan(window,true);
-		Vulkan::ImGuiInit();
+		app.GetWindow().GetContext()->ImGuiInit();
 
 		// Setup Platform/Renderer bindings
 	}
 
 	void ImGuiLayer::OnDetach()
 	{
-		
-		Vulkan::ImGuiShutdown();
-		ImGui_ImplGlfw_Shutdown();
+		Application& app = Application::Get();
+		app.GetWindow().GetContext()->ImGuiShutdown();
 
 		ImGui::DestroyContext();
 	}
@@ -93,12 +95,16 @@ namespace Kaidel {
 			e.Handled |= e.IsInCategory(EventCategoryMouse) & io.WantCaptureMouse;
 			e.Handled |= e.IsInCategory(EventCategoryKeyboard) & io.WantCaptureKeyboard;
 		}
+		if (e.GetEventType() == EventType::MouseButtonPressed) {
+			int x;
+		}
 	}
 	
 	void ImGuiLayer::Begin()
 	{
-		ImGui_ImplVulkan_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
+
+		Application& app = Application::Get();
+		app.GetWindow().GetContext()->ImGuiBegin();
 
 		ImGui::NewFrame();
 		ImGuizmo::BeginFrame();
@@ -114,8 +120,7 @@ namespace Kaidel {
 		// Rendering
 		ImGui::Render();
 
-		Vulkan::ImGuiRender(ImGui::GetDrawData());
-
+		app.GetWindow().GetContext()->ImGuiEnd();
 
 		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 		{

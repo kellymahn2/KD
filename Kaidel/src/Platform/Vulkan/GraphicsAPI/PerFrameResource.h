@@ -1,31 +1,31 @@
 #pragma once
 
-#include "VulkanGraphicsContext.h"
+#include <vector>
 
 namespace Kaidel {
-	namespace Vulkan {
-		template<typename T>
-		class PerFrameResource {
-		public:
-			PerFrameResource() {
-				m_Resources.resize(VK_CONTEXT.GetSwapchain()->GetSpecification().ImageCount);
-			}
-			T* operator->() { return &m_Resources[VK_CONTEXT.GetCurrentFrameIndex()]; }
-			T& operator*() { return m_Resources[VK_CONTEXT.GetCurrentFrameIndex()]; }
+	uint32_t GetFramesInFlightCount();
+	uint32_t GetCurrentFrameNumber();
 
-			const T* operator->() const{ return &m_Resources[VK_CONTEXT.GetCurrentFrameIndex()]; }
-			const T& operator*() const{ return m_Resources[VK_CONTEXT.GetCurrentFrameIndex()]; }
+	template<typename T>
+	class PerFrameResource {
+	public:
+		PerFrameResource() {
+			m_Resources.resize(GetFramesInFlightCount());
+		}
+		T* operator->() { return &m_Resources[GetCurrentFrameNumber()]; }
+		T& operator*() { return m_Resources[GetCurrentFrameNumber()]; }
 
-			auto begin() { return m_Resources.begin(); }
-			auto end() { return m_Resources.end(); }
-			auto begin()const { return m_Resources.begin(); }
-			auto end()const { return m_Resources.end(); }
-			auto& GetResources(){ return m_Resources; }
-			const auto& GetResources()const { return m_Resources; }
+		const T* operator->() const { return &m_Resources[GetCurrentFrameNumber()]; }
+		const T& operator*() const { return m_Resources[GetCurrentFrameNumber()]; }
 
-		private:
-			std::vector<T> m_Resources;
-		};
+		auto begin() { return m_Resources.begin(); }
+		auto end() { return m_Resources.end(); }
+		auto begin()const { return m_Resources.begin(); }
+		auto end()const { return m_Resources.end(); }
+		auto& GetResources() { return m_Resources; }
+		const auto& GetResources()const { return m_Resources; }
 
-	}
+	private:
+		std::vector<T> m_Resources;
+	};
 }

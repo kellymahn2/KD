@@ -58,17 +58,17 @@ namespace Kaidel {
 
 		static std::unordered_map<ShaderType, std::string> GetShaderSources(const ShaderSpecification& specification) {
 			std::unordered_map<ShaderType, std::string> shaderSources;
-			for (const auto& shaderDefinition : specification.Definitions) {
-				if (shaderSources.find(shaderDefinition.ShaderType) != shaderSources.end())
-					continue;
-				if (shaderDefinition.IsPath) {
-					std::string unprocessedSource = ReadFile(shaderDefinition.ControlString);
-					shaderSources[shaderDefinition.ShaderType] = PreprocessShaderSource(shaderDefinition.ControlString, unprocessedSource);
-				}
-				else {
-					shaderSources[shaderDefinition.ShaderType] = shaderDefinition.ControlString; 
-				}
-			}
+			//for (const auto& shaderDefinition : specification.Type) {
+			//	if (shaderSources.find(shaderDefinition.ShaderType) != shaderSources.end())
+			//		continue;
+			//	if (shaderDefinition.IsPath) {
+			//		std::string unprocessedSource = ReadFile(shaderDefinition.ControlString);
+			//		shaderSources[shaderDefinition.ShaderType] = PreprocessShaderSource(shaderDefinition.ControlString, unprocessedSource);
+			//	}
+			//	else {
+			//		shaderSources[shaderDefinition.ShaderType] = shaderDefinition.ControlString; 
+			//	}
+			//}
 			return shaderSources;
 		}
 

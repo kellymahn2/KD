@@ -19,11 +19,11 @@ namespace Kaidel {
 		virtual void Resample(uint32_t newSampleCount)override;
 
 		virtual void ClearDepthAttachment(float value) override;
-		virtual uint64_t GetColorAttachmentRendererID(uint32_t index = 0) const override { KD_CORE_ASSERT(index < m_ColorAttachments.size()); return (uint64_t)m_ColorAttachments[index]; }
+		/*virtual uint64_t GetColorAttachmentRendererID(uint32_t index = 0) const override { KD_CORE_ASSERT(index < m_ColorAttachments.size()); return (uint64_t)m_ColorAttachments[index]; }
 
 
 		virtual FramebufferAttachmentHandle GetAttachmentHandle(uint32_t index = 0)const override;
-		virtual FramebufferImageHandle GetImageHandle(uint64_t index = 0)const override;
+		virtual FramebufferImageHandle GetImageHandle(uint64_t index = 0)const override;*/
 
 		virtual const FramebufferSpecification& GetSpecification() const override { return m_Specification; }
 
@@ -38,7 +38,7 @@ namespace Kaidel {
 		FramebufferSpecification m_Specification;
 
 		std::vector<FramebufferTextureSpecification> m_ColorAttachmentSpecifications;
-		FramebufferTextureSpecification m_DepthAttachmentSpecification = TextureFormat::None;
+		FramebufferTextureSpecification m_DepthAttachmentSpecification = Format::None;
 
 		std::vector<uint32_t> m_ColorAttachments;
 		std::vector<uint32_t> m_DrawBuffers;

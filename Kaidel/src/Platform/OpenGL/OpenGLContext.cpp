@@ -6,8 +6,8 @@
 
 namespace Kaidel {
 
-	OpenGLContext::OpenGLContext(GLFWwindow* windowHandle)
-		: m_WindowHandle(windowHandle)
+	OpenGLContext::OpenGLContext(Window* windowHandle)
+		: m_WindowHandle((GLFWwindow*)windowHandle)
 	{
 		KD_CORE_ASSERT(windowHandle, "Window handle is null!");
 	}

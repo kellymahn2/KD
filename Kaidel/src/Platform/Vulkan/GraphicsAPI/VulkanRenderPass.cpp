@@ -1,162 +1,122 @@
 #include "KDpch.h"
+
 #include "VulkanRenderPass.h"
 #include "VulkanGraphicsContext.h"
-#include "Kaidel/Renderer/GraphicsAPI/Constants.h"
-
-namespace Kaidel {
-
-	namespace Utils {
-
-		static VkImageLayout KaidelImageLayoutToVKImageLayout(RenderPassImageLayout layout) {
-
-			switch (layout)
-			{
-			case Kaidel::RenderPassImageLayout::Undefined: return VK_IMAGE_LAYOUT_UNDEFINED;
-			case Kaidel::RenderPassImageLayout::Color:return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-			case Kaidel::RenderPassImageLayout::Depth:return VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-			case Kaidel::RenderPassImageLayout::DepthStencil:return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-			case Kaidel::RenderPassImageLayout::ReadOnly:return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			case Kaidel::RenderPassImageLayout::Present:return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-			}
-
-			KD_CORE_ASSERT(false, "Unknown layout");
-			return VK_IMAGE_LAYOUT_UNDEFINED;
-		}
-
-		static VkAttachmentLoadOp KaidelLoadOpToVKLoadOp(RenderPassImageLoadOp loadOp) {
-			switch (loadOp)
-			{
-			case Kaidel::RenderPassImageLoadOp::Clear:return VK_ATTACHMENT_LOAD_OP_CLEAR;
-			case Kaidel::RenderPassImageLoadOp::Load:return VK_ATTACHMENT_LOAD_OP_LOAD;
-			case Kaidel::RenderPassImageLoadOp::DontCare:return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-			}
-			KD_CORE_ASSERT(false, "Unknown load op");
-			return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		}
-
-		static VkAttachmentStoreOp KaidelStoreOpToVKStoreOp(RenderPassImageStoreOp storeOp) {
-			switch (storeOp)
-			{
-			case Kaidel::RenderPassImageStoreOp::None:return VK_ATTACHMENT_STORE_OP_NONE;
-			case Kaidel::RenderPassImageStoreOp::Store: return VK_ATTACHMENT_STORE_OP_STORE;
-			case Kaidel::RenderPassImageStoreOp::DontCare:return VK_ATTACHMENT_STORE_OP_DONT_CARE;
-			}
 
 
-			KD_CORE_ASSERT(false, "Unknown store op");
-			return VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		}
+namespace Kaidel 
+{
+	VulkanRenderPass::VulkanRenderPass(const RenderPassSpecification& specification)
+		:m_Specification(specification)
+	{
 
-		static VkPipelineBindPoint KaidelBindPointToVkBindPoint(RenderPassBindPoint bindPoint) {
-			switch (bindPoint)
-			{
-			case Kaidel::RenderPassBindPoint::Graphics:return VK_PIPELINE_BIND_POINT_GRAPHICS;
-			case Kaidel::RenderPassBindPoint::Compute:return VK_PIPELINE_BIND_POINT_COMPUTE;
-			}
-			KD_CORE_ASSERT(false, "Unknown bind point");
-			return VK_PIPELINE_BIND_POINT_MAX_ENUM;
-		}
-
-
-		static VkAttachmentDescription MakeAttachmentDescription(const RenderPassAttachmentSpecification& attachment) {
-			VkAttachmentDescription desc{};
-			desc.format = KaidelTextureFormatToVkFormat(attachment.ImageFormat);
-			desc.initialLayout = KaidelImageLayoutToVKImageLayout(attachment.InitialLayout);
-			desc.finalLayout = KaidelImageLayoutToVKImageLayout(attachment.FinalLayout);
-			desc.loadOp = KaidelLoadOpToVKLoadOp(attachment.LoadOp);
-			desc.storeOp = KaidelStoreOpToVKStoreOp(attachment.StoreOp);
-			desc.samples = VK_SAMPLE_COUNT_1_BIT;
-			desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-			desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-			return desc;
-		}
-
-		static VkAttachmentReference MakeAttachmentReference(uint32_t index,const RenderPassAttachmentSpecification& attachemnt) {
-			VkAttachmentReference ref{};
-			ref.attachment = index;
-			ref.layout = KaidelImageLayoutToVKImageLayout(attachemnt.Layout);
-			return ref;
-		}
-
-
-	}
-
-
-
-	namespace Vulkan {
-		VulkanRenderPass::VulkanRenderPass(const RenderPassSpecification& specification)
-			:m_Specification(specification)
+		std::vector<VkAttachmentDescription> descs;
+		std::vector<VkAttachmentReference> references;
+		for (auto& outputColor : m_Specification.OutputColors) 
 		{
-			std::vector<VkAttachmentDescription> attachments{};
-			std::vector<VkAttachmentReference> inputRefs{};
+
 			{
-				for (auto& attachment : specification.InputImages) {
-					VkAttachmentDescription desc = Utils::MakeAttachmentDescription(attachment);
-					VkAttachmentReference ref = Utils::MakeAttachmentReference((uint32_t)attachments.size(), attachment);
-
-					attachments.push_back(desc);
-					inputRefs.push_back(ref);
-				}
+				VkAttachmentDescription attachment{};
+				attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+				attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+				attachment.initialLayout = Utils::ImageLayoutToVulkanImageLayout(outputColor.InitialLayout);
+				attachment.finalLayout = Utils::ImageLayoutToVulkanImageLayout(outputColor.FinalLayout);
+				attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+				attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+				attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+				attachment.format = Utils::FormatToVulkanFormat(outputColor.AttachmentFormat);
+				descs.push_back(attachment);
 			}
 
-			std::vector<VkAttachmentReference> outputRefs{};
 			{
-				for (auto& attachment : specification.OutputImages) {
-					VkAttachmentDescription desc = Utils::MakeAttachmentDescription(attachment);
-					VkAttachmentReference ref = Utils::MakeAttachmentReference(attachments.size(), attachment);
-
-					attachments.push_back(desc);
-					outputRefs.push_back(ref);
-				}
+				VkAttachmentReference ref{};
+				ref.attachment = descs.size() - 1;
+				ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+				references.push_back(ref);
 			}
-
-			VkAttachmentDescription depthAttachment{};
-			VkAttachmentReference depthRef{};
-			bool depthSet = false;
-
-			if (specification.OutputDepthAttachment.ImageFormat != TextureFormat::None) {
-				attachments.push_back(Utils::MakeAttachmentDescription(specification.OutputDepthAttachment));
-				depthRef = Utils::MakeAttachmentReference(outputRefs.size(), specification.OutputDepthAttachment);
-				depthSet = true;
-			}
-			
-
-
-			VkSubpassDescription subpass{};
-			
-			subpass.inputAttachmentCount = (uint32_t)inputRefs.size();
-			subpass.pInputAttachments = inputRefs.data();
-
-			subpass.colorAttachmentCount = (uint32_t)outputRefs.size();
-			subpass.pColorAttachments = outputRefs.data();
-			
-			if (depthSet) {
-				subpass.pDepthStencilAttachment = &depthRef;
-			}
-
-
-			subpass.pipelineBindPoint = Utils::KaidelBindPointToVkBindPoint(specification.BindingPoint);
-
-			VK_STRUCT(VkRenderPassCreateInfo, renderPassInfo, VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO);
-			renderPassInfo.attachmentCount = (uint32_t)attachments.size();
-			renderPassInfo.pAttachments = attachments.data();
-			renderPassInfo.subpassCount = 1;
-			renderPassInfo.pSubpasses = &subpass;
-
-			VK_ASSERT(vkCreateRenderPass(VK_DEVICE, &renderPassInfo, VK_ALLOCATOR_PTR, &m_RenderPass));
-
-			m_ClearColors.resize((uint32_t)depthSet + subpass.colorAttachmentCount);
-		}
-		VulkanRenderPass::~VulkanRenderPass()
-		{
-			vkDestroyRenderPass(VK_DEVICE, m_RenderPass, VK_ALLOCATOR_PTR);
-		}
-		void VulkanRenderPass::Begin() const
-		{
-		}
-		void VulkanRenderPass::End() const
-		{
 		}
 		
+
+		VkAttachmentReference depthRef{};
+
+		VkSubpassDescription subpassDesc{};
+		subpassDesc.colorAttachmentCount = (uint32_t)references.size();
+		subpassDesc.pColorAttachments = references.data();
+
+		if (Utils::IsDepthFormat(m_Specification.OutputDepth.AttachmentFormat)) 
+		{
+			{
+				VkAttachmentDescription attachment{};
+				attachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+				attachment.storeOp = VK_ATTACHMENT_STORE_OP_NONE;
+				attachment.initialLayout = Utils::ImageLayoutToVulkanImageLayout(m_Specification.OutputDepth.InitialLayout);
+				attachment.finalLayout = Utils::ImageLayoutToVulkanImageLayout(m_Specification.OutputDepth.FinalLayout);
+				attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+				attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+				attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+				attachment.format = Utils::FormatToVulkanFormat(m_Specification.OutputDepth.AttachmentFormat);
+				descs.push_back(attachment);
+			}
+
+			{
+				depthRef.attachment = descs.size() - 1;
+				depthRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+				subpassDesc.pDepthStencilAttachment = &depthRef;
+			}
+		}
+
+		subpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+
+		VkRenderPassCreateInfo passInfo{ VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
+		passInfo.attachmentCount = (uint32_t)descs.size();
+		passInfo.pAttachments = descs.data();
+		passInfo.subpassCount = 1;
+		passInfo.pSubpasses = &subpassDesc;
+
+		VK_ASSERT(vkCreateRenderPass(VK_DEVICE.GetDevice(), &passInfo, nullptr, &m_RenderPass));
+
+		m_ClearValues.resize(specification.OutputColors.size() + (uint64_t)Utils::IsDepthFormat(specification.OutputDepth.AttachmentFormat));
+	}
+	VulkanRenderPass::~VulkanRenderPass()
+	{
+		vkDestroyRenderPass(VK_DEVICE.GetDevice(), m_RenderPass, nullptr);
+	}
+
+	void VulkanRenderPass::SetClearValue(uint32_t attachmentIndex, const AttachmentClearValue& clearValue)
+	{
+
+		auto& attachment = m_Specification.OutputColors[attachmentIndex];
+
+		auto& value = m_ClearValues[attachmentIndex];
+
+		if (Utils::IsDepthFormat(attachment.AttachmentFormat)) 
+		{
+			value.depthStencil.depth = clearValue.DepthStencilClear.Depth;
+			value.depthStencil.stencil = clearValue.DepthStencilClear.Stencil;
+		}
+		else 
+		{
+			value.color.float32[0] = clearValue.ColorClear.RGBAF.r;
+			value.color.float32[1] = clearValue.ColorClear.RGBAF.g;
+			value.color.float32[2] = clearValue.ColorClear.RGBAF.b;
+			value.color.float32[3] = clearValue.ColorClear.RGBAF.a;
+		}
+	}
+	AttachmentClearValue VulkanRenderPass::GetClearValue(uint32_t attachmentIndex) const
+	{
+		AttachmentClearValue value{};
+		auto& attachment = m_Specification.OutputColors[attachmentIndex];
+
+		if (Utils::IsDepthFormat(attachment.AttachmentFormat)) 
+		{
+			value.DepthStencilClear.Depth = m_ClearValues[attachmentIndex].depthStencil.depth;
+			value.DepthStencilClear.Stencil = m_ClearValues[attachmentIndex].depthStencil.stencil;
+		}
+		else 
+		{
+			auto clearValue = m_ClearValues[attachmentIndex].color.float32;
+			value.ColorClear.RGBAF = { clearValue[0],clearValue[1] ,clearValue[2] ,clearValue[3] };
+		}
+		return value;
 	}
 }

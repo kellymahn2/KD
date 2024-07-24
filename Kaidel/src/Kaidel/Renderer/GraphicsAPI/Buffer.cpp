@@ -4,7 +4,9 @@
 #include "Kaidel/Renderer/Renderer.h"
 
 #include "Platform/OpenGL/OpenGLBuffer.h"
-#include "Platform/Vulkan/GraphicsAPI/VulkanBuffer.h"
+#include "Platform/Vulkan/GraphicsAPI/VulkanVertexBuffer.h"
+#include "Platform/Vulkan/GraphicsAPI/VulkanIndexBuffer.h"
+
 
 namespace Kaidel {
 	Ref<VertexBuffer> VertexBuffer::Create(const VertexBufferSpecification& specification)
@@ -13,7 +15,7 @@ namespace Kaidel {
 		{
 		case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
 		//case RendererAPI::API::OpenGL:  return CreateRef<OpenGLVertexBuffer>(size);
-		case RendererAPI::API::Vulkan: return CreateRef<Vulkan::VulkanVertexBuffer>(specification);
+		//case RendererAPI::API::Vulkan: return CreateRef<VulkanVertexBuffer>(specification);
 		}
 
 		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
@@ -25,6 +27,7 @@ namespace Kaidel {
 		{
 			case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
 			case RendererAPI::API::OpenGL:  return CreateRef<OpenGLVertexBuffer>(size);
+			case RendererAPI::API::Vulkan: return CreateRef<VulkanVertexBuffer>(size);
 			//case RendererAPI::API::Vulkan: return CreateRef<Vulkan::VulkanVertexBuffer>(size);
 		}
 
@@ -51,7 +54,7 @@ namespace Kaidel {
 		{
 			case RendererAPI::API::None:    KD_CORE_ASSERT(false, "RendererAPI::None is currently not supported!"); return nullptr;
 			case RendererAPI::API::OpenGL:  return CreateRef<OpenGLIndexBuffer>(indices, size);
-			case RendererAPI::API::Vulkan: return CreateRef<Vulkan::VulkanIndexBuffer>(indices, size);
+			case RendererAPI::API::Vulkan: return CreateRef<VulkanIndexBuffer>(indices, size);
 		}
 
 		KD_CORE_ASSERT(false, "Unknown RendererAPI!");

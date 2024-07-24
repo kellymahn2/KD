@@ -16,8 +16,6 @@
 #include "Kaidel/Utils/PlatformUtils.h"
 
 #include "Kaidel/Scripting/ScriptEngine.h"
-#include "Kaidel/Renderer/GraphicsAPI/RenderPass.h"
-#include "Kaidel/Renderer/GraphicsAPI/GraphicsPipeline.h"
 
 #include "yaml-cpp/yaml.h"
 
@@ -76,7 +74,7 @@ namespace Kaidel {
 	void EditorLayer::OnAttach()
 	{
 
-		m_Icons.IconPlay = Texture2D::Create("Resources/Icons/PlayButton.png");
+		/*m_Icons.IconPlay = Texture2D::Create("Resources/Icons/PlayButton.png");
 		KD_INFO("Loaded Play Button");
 		m_Icons.IconPause = Texture2D::Create("Resources/Icons/PauseButton.png");
 		KD_INFO("Loaded Pause Button");
@@ -85,95 +83,15 @@ namespace Kaidel {
 		m_Icons.IconSimulateStop = Texture2D::Create("Resources/Icons/SimulateButtonStop.png");
 		KD_INFO("Loaded Simulation Stop Button");
 		m_Icons.IconStop = Texture2D::Create("Resources/Icons/StopButton.png");
-		KD_INFO("Loaded Stop Button");
+		KD_INFO("Loaded Stop Button");*/
 
-
-//		std::string vss = R"(
-//#version 460 core
-//
-//layout(std140,binding = 0) uniform data{
-//	mat4 m;
-//} d;
-//
-//void main(){
-//	gl_Position = vec4(0);
-//}
-//
-//
-//)";
-//
-//		std::string fss = R"(
-//		#version 460 core
-//
-//layout(location = 0)out vec4 col;
-//
-//void main(){
-//	col = vec4(1.0);
-//}
-//)";
-//			static Ref<SingleShader> vs;
-//
-//			{
-//				SingleShaderSpecification spec{};
-//				spec.ControlString = vss;
-//				spec.IsPath = false;
-//				spec.Type = ShaderType::VertexShader;
-//				vs = SingleShader::CreateShader(spec);
-//			}
-//			static Ref<SingleShader> fs;
-//
-//			{
-//				SingleShaderSpecification spec{};
-//				spec.ControlString = fss;
-//				spec.IsPath = false;
-//				spec.Type = ShaderType::PixelShader;
-//				fs = SingleShader::CreateShader(spec);
-//			}
-//
-//			static Ref<RenderPass> rp;
-//
-//			{
-//				RenderPassSpecification spec{};
-//				spec.BindingPoint = RenderPassBindPoint::Graphics;
-//
-//				spec.OutputImages.push_back(RenderPassAttachmentSpecification(TextureFormat::RGBA8,RenderPassImageLoadOp::DontCare));
-//				rp = RenderPass::Create(spec);
-//			}
-//
-//
-//			static Ref<UniformBuffer> ub;
-//			{
-//				ub = UniformBuffer::Create(sizeof(glm::mat4), 0);
-//			}
-//
-//			static Ref<GraphicsPipeline> gp;
-//
-//			{
-//				GraphicsPipelineSpecification spec{};
-//				spec.Culling = CullMode::None;
-//				spec.FrontCCW = true;
-//				spec.LineWidth = 1.0f;
-//				spec.PrimitveTopology = GraphicsPrimitveTopology::TriangleList;
-//				spec.RenderPass = rp;
-//				spec.Stages = { {ShaderType::VertexShader,vs},{ShaderType::FragmentShader,fs} };
-//				spec.UsedUniformBuffers = { ub };
-//
-//				gp = GraphicsPipeline::Create(spec);
-//				gp->Finalize();
-//				gp->Bind();
-//			}
-//	
-
-
-
-		
-		/*{
+		{
 			FramebufferSpecification fbSpec;
-			fbSpec.Attachments = { TextureFormat::RGBA8 , TextureFormat::Depth32F};
+			fbSpec.Attachments = { Format::RGBA8UN/*, Format::Depth32F*/};
 			fbSpec.Width = 1280;
 			fbSpec.Height = 720;
 			m_OutputBuffer = Framebuffer::Create(fbSpec);
-		}*/
+		}
 		
 		/*
 		{
@@ -202,25 +120,20 @@ namespace Kaidel {
 		m_PanelContext->Scene = m_ActiveScene;
 
 		//m_ConsolePanel.SetContext(::Log::GetClientLogger());
-		m_ContentBrowserPanel.SetCurrentPath(Project::GetProjectDirectory());
+		/*m_ContentBrowserPanel.SetCurrentPath(Project::GetProjectDirectory());
 		m_ContentBrowserPanel.SetStartPath(Project::GetProjectDirectory());
 		m_SceneHierarchyPanel.SetContext(m_PanelContext);
 		m_PropertiesPanel.SetContext(m_PanelContext);
-		m_ContentBrowserPanel.SetContext(m_PanelContext);
+		m_ContentBrowserPanel.SetContext(m_PanelContext);*/
 
-
-//		{
-//			m_FXAAComputeShader = ComputeShader::Create("assets/shaders/FXAA/FXAA_CS_2D3D.glsl");
-//		}
-
-		uint32_t count = 10;
-		for (uint32_t i = 0; i < count; ++i) {
-			for (uint32_t j = 0; j < count; ++j) {
-				Entity e = m_ActiveScene->CreateEntity("Sprite");
+		for (int i = 0; i < 20; ++i) {
+			for (int j = 0; j < 20; ++j) {
+				auto e = m_ActiveScene->CreateEntity("Square");
 				e.AddComponent<SpriteRendererComponent>();
-				e.GetComponent<TransformComponent>().Translation = { i * 2.0f,j * 2.0f,0 };
+				e.GetComponent<TransformComponent>().Translation = { i,j,0 };
 			}
 		}
+	
 
 	}
 	void EditorLayer::OnDetach()
@@ -230,10 +143,6 @@ namespace Kaidel {
 
 	void EditorLayer::OnUpdate(Timestep ts)
 	{
-		RenderCommand::Submit([]() {
-			KD_INFO("Hello");
-		});
-
 		// Resize
 		HandleViewportResize();
 		// Update
@@ -247,7 +156,7 @@ namespace Kaidel {
 		case SceneState::Edit:
 		{
 			float colors[4] = { .1,.1,.1,1 };
-			//m_ActiveScene->OnUpdateEditor(ts, m_EditorCamera, m_OutputBuffer, m_OutputBuffer);
+			m_ActiveScene->OnUpdateEditor(ts, m_EditorCamera, m_OutputBuffer, m_OutputBuffer);
 			//TextureCopier::Copy(m_ScreenOutputbuffer, m_OutputBuffer);
 			// Project Auto Save
 			auto& currentProjectConfig = Project::GetActive()->GetConfig();
@@ -273,17 +182,12 @@ namespace Kaidel {
 		}
 		}
 
-		const auto& c = AccumulativeTimer::GetTimers();
 
 	}
 
-
-
-
-
 	void EditorLayer::OnImGuiRender()
 	{
-
+		ImGui::ShowDemoWindow();
 		// Note: Switch this to true to enable dockspace
 		static bool dockspaceOpen = true;
 		static bool opt_fullscreen_persistant = true;
@@ -490,8 +394,6 @@ namespace Kaidel {
 		m_PanelContext->Scene = m_ActiveScene;
 	}
 
-
-
 	void EditorLayer::OnSceneSimulateStart() {
 		if (!m_EditorScene)
 			return;
@@ -621,7 +523,14 @@ namespace Kaidel {
 		ImGui::ShowStyleEditor();
 		ImGui::End();
 		ImGui::Begin("Stats");
-
+		if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+			KD_CORE_INFO("pressed");
+		}
+		if (ImGui::Button("Hello")) {
+			KD_CORE_INFO("Pressed");
+		}
+		static char s[450] = { 0 };
+		ImGui::InputText("has", s, 449);
 		ImGui::Text("Gizmo Mode : %d", m_GizmoType);
 		//auto stats = Renderer2D::GetStats();
 		ImGui::Text("Frame Rate: %.3f", ImGui::GetIO().Framerate);
@@ -700,14 +609,13 @@ namespace Kaidel {
 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 		m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };
 
-		auto textureID = m_OutputBuffer->GetColorAttachmentRendererID();
-
-		Image* texture = m_OutputBuffer->GetImage(0);
-		texture->AssureLayout(ImageLayout::ShaderReadOptimal);
+		Image& image = m_OutputBuffer->GetImage(0);
+		RenderCommand::Transition(image, ImageLayout::ShaderReadOnlyOptimal);
 		glm::vec4 uvs = _GetUVs();
-		int sampleCount = m_OutputBuffer->GetSpecification().Samples;
-		ImGui::Image(reinterpret_cast<ImTextureID>(texture->GetShaderID()), ImVec2{m_ViewportSize.x, m_ViewportSize.y}, {uvs.x,uvs.y}, {uvs.z,uvs.w});
-		//ImGui::Image((ImTextureID)SpotLight::GetDepthMaps()->GetView(0)->GetRendererID(), ImVec2{ m_ViewportSize.x, m_ViewportSize.y }, { uvs.x,uvs.y }, { uvs.z,uvs.w });
+		ImGui::Image(reinterpret_cast<ImTextureID>(image.ShaderBindable), ImVec2{m_ViewportSize.x, m_ViewportSize.y}, {uvs.x,uvs.y}, {uvs.z,uvs.w});
+		
+		//ImGui::Text("Hello");
+		
 		if (ImGui::BeginDragDropTarget()) {
 			if (auto payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
 				const wchar_t* path = (const wchar_t*)payload->Data;
@@ -718,7 +626,6 @@ namespace Kaidel {
 		// Gizmos
 		DrawGizmos();
 
-
 		ImGui::End();
 		ImGui::PopStyleVar();
 	}
@@ -727,7 +634,6 @@ namespace Kaidel {
 		if (m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f && // zero sized framebuffer is invalid
 			(m_OutputBuffer->GetWidth() != m_ViewportSize.x || m_OutputBuffer->GetHeight() != m_ViewportSize.y))
 		{
-			KD_INFO("Viewport resized");
 			m_OutputBuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 			//m_ScreenOutputbuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 
@@ -735,8 +641,6 @@ namespace Kaidel {
 			m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 		}
 	}
-
-
 
 	void EditorLayer::UI_Toolbar() {
 		constexpr auto windowFlags =

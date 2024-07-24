@@ -9,7 +9,7 @@ namespace Kaidel {
 	class OpenGLContext : public GraphicsContext
 	{
 	public:
-		OpenGLContext(GLFWwindow* windowHandle);
+		OpenGLContext(Window* windowHandle);
 
 		virtual void Init() override;
 		virtual void SwapBuffers() override;
