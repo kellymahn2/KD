@@ -233,7 +233,6 @@ namespace Kaidel {
 		framebufferInfo.renderPass = (VkRenderPass)m_RenderPass->GetRendererID();
 
 		VK_ASSERT(vkCreateFramebuffer(VK_DEVICE.GetDevice(), &framebufferInfo, nullptr, &fb.Framebuffer));
-		VkFramebufferAttachmentImageInfo
 	}
 	void VulkanFramebuffer::DestroyOne(FramebufferResources& fb)
 	{

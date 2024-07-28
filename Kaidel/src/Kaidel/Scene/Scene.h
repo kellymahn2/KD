@@ -4,8 +4,6 @@
 #include "Kaidel/Renderer/EditorCamera.h"
 #include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
 #include "Kaidel/Core/UUID.h"
-#include "Kaidel/Assets/AssetManager.h"
-#include "Kaidel/Mesh/Model.h"
 #include "entt.hpp"
 class b2World;
 
@@ -65,7 +63,6 @@ namespace Kaidel {
 	private:
 
 		Entity GetMainDirectionalLight();
-		void Scene::CreateModelOnEntity(const std::vector<Asset<Mesh>>& meshIDs, Entity entity);
 		entt::registry m_Registry;
 		uint32_t m_ViewportWidth = 0, m_ViewportHeight = 0;
 		b2World* m_PhysicsWorld = nullptr;

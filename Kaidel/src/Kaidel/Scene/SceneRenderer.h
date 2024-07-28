@@ -1,7 +1,6 @@
 #pragma once
 #include "Kaidel\Core\JobSystem.h"
 #include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
-#include "Kaidel/Mesh/Mesh.h"
 #include "entt.hpp"
 #include <glm/glm.hpp>
 #include <queue>
@@ -21,7 +20,6 @@ namespace Kaidel {
 			return *this;
 		}
 	private:
-		void RenderMesh(Ref<Mesh> mesh);
 		void* m_Context;
 	};
 }

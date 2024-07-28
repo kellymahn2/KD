@@ -69,42 +69,4 @@ namespace Kaidel {
 		glDeleteTextures(1, &m_RendererID);
 	}
 
-	void OpenGLTexture2D::SetData(void* data, uint32_t size)
-	{
-		glTextureSubImage2D(m_RendererID, 0, 0, 0, m_Width, m_Height, Utils::KaidelTextureFormatToGLFormat(m_TextureFormat), GL_UNSIGNED_BYTE, data);
-	}
-
-	void OpenGLTexture2D::Reset(void* data, uint32_t width, uint32_t height) {
-		if (m_Width != width || m_Height != height) {
-			glDeleteTextures(1, &m_RendererID);
-			glCreateTextures(GL_TEXTURE_2D, 1, &m_RendererID);
-			glBindTexture(GL_TEXTURE_2D, m_RendererID);
-			glTexImage2D(GL_TEXTURE_2D, 0, Utils::KaidelTextureFormatToGLInternalFormat(m_TextureFormat), width, height, GL_FALSE, Utils::KaidelTextureFormatToGLFormat(m_TextureFormat), GL_UNSIGNED_BYTE, data);
-			m_Width = width;
-			m_Height = height;
-			return;
-		}
-		SetData(data, 0);
-	}
-	void OpenGLTexture2D::Bind(uint32_t slot) const
-	{
-
-		glBindTextureUnit(slot, m_RendererID);
-	}
-
-
-	const std::string& OpenGLTexture2D::GetPath() const
-	{
-		return m_Path;
-	}
-
-
-
-
-	TextureHandle OpenGLTexture2D::GetHandle()const {
-		TextureHandle handle{};
-		handle.Texture = const_cast<OpenGLTexture2D*>(this);
-		return handle;
-	}
-	
 }

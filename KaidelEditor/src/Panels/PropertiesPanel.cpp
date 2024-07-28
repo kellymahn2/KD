@@ -1,9 +1,6 @@
 #include "PropertiesPanel.h"
 #include "Kaidel/Scripting/ScriptEngine.h"
-#include "Kaidel/Renderer/MaterialTexture.h"
-#include "Kaidel/Assets/AssetManager.h"	
 #include "Kaidel/Project/Project.h"
-#include "Kaidel/Renderer/GraphicsAPI/Copier.h"
 #include "UI/UIHelper.h"
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
@@ -356,12 +353,6 @@ namespace Kaidel {
 
 		DragDropTarget dragdropTarget;
 		// Materials
-		if (auto delivery = dragdropTarget.Receive<uint64_t>("ENTITY_ADD_MATERIAL"); delivery) {
-			auto& mc = entity.TryAddComponent<MaterialComponent>();
-			auto mat = AssetManager::AssetByID(*delivery.Data);
-			if (mat)
-				mc.Material = std::move(mat);
-		}
 	}
 
 
@@ -377,11 +368,6 @@ namespace Kaidel {
 		
 		
 		ImGui::End();
-	}
-
-	void PropertiesPanel::DrawAsset() {
- 		AssetFunctionApplier renderer(m_Context->SelectedAsset());
-		renderer.Apply<Material>(KD_BIND_EVENT_FN(DrawMaterialUI));
 	}
 
 	
@@ -407,121 +393,6 @@ namespace Kaidel {
 		}
 		chooserOpen = chooser;
 	}
-
-
-	void PropertiesPanel::DrawMaterialUI(Ref<Material> mat) {
-		//Default
-		if(!mat) {
-			const char* string = "Default";
-			ImGui::BeginDisabled();
-			Combo("Name", &string, 1, string);
-			ImGui::EndDisabled();
-			return;
-		}
-		//Custom 
-
-		bool assetChanged = true;
-
-		glm::vec4 color = mat->GetColor();
-		if (ImGui::ColorEdit4("Color", &color.x)) {
-			mat->SetColor(color);
-			assetChanged = true;
-		}
-		{
-			const ImGuiTreeNodeFlags treeNodeFlags = ImGuiTreeNodeFlags_Framed |
-				ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding;
-
-			{
-				Styler styler;
-				styler.PushStyle(ImGuiStyleVar_FramePadding, ImVec2{ 4, 4 });
-				styler.PushColor(ImGuiCol_Header, ImVec4{ 0,0,0,0 });
-				styler.PushColor(ImGuiCol_HeaderActive, ImVec4{ 0,0,0,0 });
-				styler.PushColor(ImGuiCol_HeaderHovered, ImVec4{ 0,0,0,0 });
-
-				if (ImGui::TreeNodeEx("Albedo", treeNodeFlags)) {
-					Ref<TextureView> albedoView = MaterialTexture::GetTextureArray()->GetView(mat->GetDiffuse());
-					if (albedoView) {
-						ImGui::Image((ImTextureID)albedoView->GetRendererID(), { 64,64 }, { 0,1 }, { 1,0 });
-					}
-
-					ImGui::SameLine();
-
-					DrawAssetChooser("Textures", [&mat, treeNodeFlags]() {
-						Ref<Texture2DArray> array = MaterialTexture::GetTextureArray();
-						for (uint32_t i = 1; i < array->GetLayerCount(); ++i) {
-							Ref<TextureView> view = array->GetView(i);
-							bool isSelected = i == mat->GetDiffuse();
-							if (ImGui::TreeNodeEx(fmt::format("{}", i).c_str(), treeNodeFlags | (isSelected ? ImGuiTreeNodeFlags_Selected : 0))) {
-								if (view)
-									ImGui::Image((ImTextureID)view->GetRendererID(), { 64,64 }, { 0,1 }, { 1,0 });
-
-								bool textureChosen = false;
-								if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && ImGui::IsItemHovered()) {
-									mat->SetDiffuse(i);
-									textureChosen = true;
-								}
-
-								ImGui::TreePop();
-
-								if (textureChosen)
-									return false;
-							}
-						}
-						return true;
-						});
-
-
-
-					ImGui::TreePop();
-				}
-
-				if (ImGui::TreeNodeEx("Specular", treeNodeFlags)) {
-					Ref<TextureView> specularView = MaterialTexture::GetTextureArray()->GetView(mat->GetSpecular());
-					if (specularView) {
-						ImGui::Image((ImTextureID)specularView->GetRendererID(), { 64,64 }, { 0,1 }, { 1,0 });
-					}
-
-					ImGui::SameLine();
-
-					DrawAssetChooser("Textures", [&mat, treeNodeFlags]() {
-						Ref<Texture2DArray> array = MaterialTexture::GetTextureArray();
-						for (uint32_t i = 1; i < array->GetLayerCount(); ++i) {
-							Ref<TextureView> view = array->GetView(i);
-							bool isSelected = i == mat->GetSpecular();
-							if (ImGui::TreeNodeEx(fmt::format("{}", i).c_str(), treeNodeFlags | (isSelected ? ImGuiTreeNodeFlags_Selected : 0))) {
-								if (view)
-									ImGui::Image((ImTextureID)view->GetRendererID(), { 64,64 }, { 0,1 }, { 1,0 });
-
-								bool textureChosen = false;
-								if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && ImGui::IsItemHovered()) {
-									mat->SetSpecular(i);
-									textureChosen = true;
-								}
-
-								ImGui::TreePop();
-
-								if (textureChosen)
-									return false;
-							}
-						}
-						return true;
-						});
-
-					ImGui::TreePop();
-
-				}
-			}
-		}
-
-		if (assetChanged) {
-			Project::OnChangeAssetActive(mat);
-		}
-
-	}
-
-
-
-
 
 	void PropertiesPanel::DrawComponents()
 	{
@@ -632,32 +503,6 @@ namespace Kaidel {
 
 			});
 
-		DrawComponent<MaterialComponent>("Material", entity, [this,entity](MaterialComponent& component) {
-			
-			DrawAssetChooser("Materials", [&component]() {
-
-				auto& physicalAssets =  AssetManager::GetPhysicalAssets();
-
-
-				for (auto& [path, asset] : physicalAssets) {
-
-					if (asset->AssetTypeID() != Material::StaticAssetTypeID())
-						continue;
-
-					bool selected = component.Material == asset;
-					if (ImGui::Selectable(path.stem().string().c_str(), &selected)) {
-						component.Material = asset;
-						return false;
-					}
-
-				}
-
-				return true;
-				});
-			
-			});
-
-
 		DrawComponent<AnimationPlayerComponent>("Animation Player", entity, [](AnimationPlayerComponent& component) {
 
 			const int stateCount = 3;
@@ -675,21 +520,6 @@ namespace Kaidel {
 				component.State = (AnimationPlayerComponent::PlayerState)combo;
 			}
 
-			if (auto ptr = component.Anim->GetPropertyMap<TranslationData>(); ptr) {
-				auto& frameMap = ptr->FrameStorage;
-				int32_t i = 0;
-				for (auto& frame : frameMap) {
-					ImGui::Text("KeyFrame %d: (%f, %f, %f)", i,frame.KeyFrameValue.TargetTranslation.x, frame.KeyFrameValue.TargetTranslation.y, frame.KeyFrameValue.TargetTranslation.z);
-					int32_t j = 0;
-					for (auto& intermediate : frame.Intermediates) {
-						ImGui::Text("Intermediate %d: (%f, %f, %f)", j, intermediate.TargetTranslation.x, intermediate.TargetTranslation.y, intermediate.TargetTranslation.z);
-						++j;
-					}
-					++i;
-				}
-
-			}
-
 		});
 
 
@@ -699,68 +529,6 @@ namespace Kaidel {
 				
 			});
 
-
-
-		DrawComponent<MeshComponent>("Mesh Renderer", entity, [](MeshComponent& component) {
-			/*ImGui::Text(component.Mesh->GetMeshName().c_str());
-			ImGui::Text("Min: (%f, %f, %f)",component.Mesh->GetBoundingBox().Min.x, component.Mesh->GetBoundingBox().Min.y, component.Mesh->GetBoundingBox().Min.z);
-			ImGui::Text("Max: (%f, %f, %f)", component.Mesh->GetBoundingBox().Max.x, component.Mesh->GetBoundingBox().Max.y, component.Mesh->GetBoundingBox().Max.z);*/
-
-			static bool isChooserOpen = false;
-
-			if (component.Mesh) {
-				
-				const std::string& meshName = component.Mesh->GetMeshName();
-				
-				ImGui::Text("Asset ID: %s", std::to_string(component.Mesh.UniqueAssetID.operator size_t()).c_str());
-				ImGui::BeginDisabled();
-				ImGui::InputText("##meshName", (char*)meshName.data(), meshName.length());
-				ImGui::EndDisabled();
-				ImGui::SameLine();
-				if (ImGui::Button("##chooser")) {
-					isChooserOpen = !isChooserOpen;
-				}
-			}
-
-
-			if (isChooserOpen) {
-
-				ImGui::Begin("Meshes");
-
-				const auto& assetMap = SingleAssetManager<Mesh>::GetManagedAssetsByUUID();
-
-				const int modelTreeFlags = ImGuiTreeNodeFlags_SpanAvailWidth;
-
-
-				/*for (const auto& [id, modelPtr] : assetMap) {
-					const auto& model = modelPtr;
-					
-					bool modelOpen = ImGui::TreeNodeEx(model->GetMeshName().string().c_str(), modelTreeFlags);
-
-
-					if (modelOpen) {
-						const auto& meshes = model->GetModelData();
-						
-						for (auto& m : meshes) {
-							bool meshOpen = ImGui::TreeNodeEx(m->GetMeshName().c_str(), modelTreeFlags | ImGuiTreeNodeFlags_Leaf);
-
-							if (ImGui::IsItemClicked()) {
-								component.Mesh = m;
-							}
-							if (meshOpen) {
-								ImGui::TreePop();
-							}
-						}
-						ImGui::TreePop();
-					}
-					
-
-				}*/
-
-				ImGui::End();
-			}
-
-			});
 		DrawComponent<CircleRendererComponent>("Circle Renderer", entity, [](CircleRendererComponent& component) {
 			ImGui::ColorEdit4("Color", glm::value_ptr(component.Color));
 			ImGui::DragFloat("Thickness", &component.Thickness, .1f, .0f, 1.f);
@@ -811,40 +579,6 @@ namespace Kaidel {
 			});
 
 
-		//Lights
-		DrawComponent<DirectionalLightComponent>("Directional Light", entity, [](DirectionalLightComponent& component) {
-			auto& light = component.Light->GetLight();
-			ImGui::DragFloat3("Ambient", &light.Ambient.x, .01f, 0.0f, 1.0f);
-			ImGui::DragFloat3("Diffuse", &light.Diffuse.x, .01f, 0.0f, 1.0f);
-			ImGui::DragFloat3("Specular", &light.Specular.x, .01f, 0.0f, 1.0f);
-			});
-		DrawComponent<PointLightComponent>("Point Light", entity, [](PointLightComponent& component) {
-			auto& light = component.Light->GetLight();
-			ImGui::DragFloat3("Ambient", &light.Ambient.x, .01f, 0.0f, 1.0f);
-			ImGui::DragFloat3("Diffuse", &light.Diffuse.x, .01f, 0.0f, 1.0f);
-			ImGui::DragFloat3("Specular", &light.Specular.x, .01f, 0.0f, 1.0f);
-			ImGui::DragFloat("Constant Coefficient", &light.ConstantCoefficient, 0.01f, 0.01f);
-			ImGui::DragFloat("Linear Coefficient", &light.LinearCoefficient, 0.01f, 0.01f);
-			ImGui::DragFloat("Quadratic Coefficient", &light.QuadraticCoefficient, 0.01f, 0.01f);
-
-			});
-
-		DrawComponent<SpotLightComponent>("Spot Light", entity, [](SpotLightComponent& component) {
-			auto& light = component.Light->GetLight();
-			float angle = glm::degrees(glm::acos(light.CutOffAngle));
-			if (ImGui::DragFloat("Half Range", &angle, 1.0f, 0.0f, 90.0f)) {
-				light.CutOffAngle = glm::cos(glm::radians(angle));
-			}
-			ImGui::DragFloat3("Direction", &light.Direction.x);
-			ImGui::DragFloat3("Ambient", &light.Ambient.x, .01f, 0.0f, 1.0f);
-			ImGui::DragFloat3("Diffuse", &light.Diffuse.x, .01f, 0.0f, 1.0f);
-			ImGui::DragFloat3("Specular", &light.Specular.x, .01f, 0.0f, 1.0f);
-			ImGui::DragFloat("Constant Coefficient", &light.ConstantCoefficient, 0.01f, 0.01f);
-			ImGui::DragFloat("Linear Coefficient", &light.LinearCoefficient, 0.01f, 0.01f);
-			ImGui::DragFloat("Quadratic Coefficient", &light.QuadraticCoefficient, 0.01f, 0.01f);
-
-			});
-
 		DrawComponent<LineRendererComponent>("Line Renderer", entity, [](LineRendererComponent& component) {
 
 
@@ -890,9 +624,6 @@ namespace Kaidel {
 				component.Points = std::move(componentCopy);
 				component.RecalculateFinalPoints();
 			}
-			});
-
-		DrawComponent<CubeRendererComponent>("Cube Renderer", entity, [entity, scene = scene](CubeRendererComponent& component) {
 			});
 
 		//Scripts
@@ -1015,23 +746,17 @@ namespace Kaidel {
 					entity.AddScript();
 				}
 				DrawAddComponentItems<CameraComponent>(entity, "Camera");
-				DrawAddComponentItems<SpriteRendererComponent, LineRendererComponent, CircleRendererComponent, CubeRendererComponent>(entity, "Sprite Renderer");
-				DrawAddComponentItems<CircleRendererComponent, LineRendererComponent, SpriteRendererComponent, CubeRendererComponent>(entity, "Circle Renderer");
+				DrawAddComponentItems<SpriteRendererComponent, LineRendererComponent, CircleRendererComponent>(entity, "Sprite Renderer");
+				DrawAddComponentItems<CircleRendererComponent, LineRendererComponent, SpriteRendererComponent>(entity, "Circle Renderer");
 				DrawAddComponentItems<Rigidbody2DComponent>(entity, "Rigidbody 2D");
 				DrawAddComponentItems<BoxCollider2DComponent>(entity, "Box Collider 2D");
 				DrawAddComponentItems<CircleCollider2DComponent>(entity, "Circle Collider 2D");
-				DrawAddComponentItems<LineRendererComponent, CircleRendererComponent, SpriteRendererComponent, CubeRendererComponent>(entity, "Line Renderer", [](LineRendererComponent& lrc) {
+				DrawAddComponentItems<LineRendererComponent, CircleRendererComponent, SpriteRendererComponent>(entity, "Line Renderer", [](LineRendererComponent& lrc) {
 					lrc.Points = { LineRendererComponent::Point{ {0,0,0} }, LineRendererComponent::Point{ {1,1,0} } };
 					lrc.RecalculateFinalPoints();
 					});
 				//DrawAddComponentItems<LightComponent>(entity, "Light");
-				DrawAddComponentItems<CubeRendererComponent, LineRendererComponent, CircleRendererComponent, SpriteRendererComponent >(entity, "Cube Renderer");
-				DrawAddComponentItems<DirectionalLightComponent>(entity, "Directional Light");
-				DrawAddComponentItems<PointLightComponent>(entity, "Point Light");
-				DrawAddComponentItems<SpotLightComponent>(entity, "Spot Light");
-
-				DrawAddComponentItems<MeshComponent>(entity, "Mesh Renderer");
-				DrawAddComponentItems<MaterialComponent>(entity, "Material");
+				DrawAddComponentItems<LineRendererComponent, CircleRendererComponent, SpriteRendererComponent >(entity, "Cube Renderer");
 
 				//DrawAddComponentItems<ParentComponent>(m_SelectionContext, "Parent");
 				//DrawAddComponentItems<ChildComponent>(m_SelectionContext, "Child");

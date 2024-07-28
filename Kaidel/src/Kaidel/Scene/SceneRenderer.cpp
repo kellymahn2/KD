@@ -7,15 +7,8 @@
 
 #include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
 #include "Kaidel/Renderer/2D\Renderer2D.h"
-#include "Kaidel/Renderer/3D\Renderer3D.h"
-#include "Kaidel/Renderer/3D/ShadowPass.h"
-#include "Kaidel/Renderer/3D/GeometryPass.h"
-#include "Kaidel/Renderer/3D/BeginPass.h"
 #include "Kaidel/Core/JobSystem.h"
 #include "Kaidel/Core/Timer.h"
-#include "Kaidel/Renderer/3D/Light.h"
-#include "Kaidel/Renderer/3D/Material.h"
-#include "Kaidel/Renderer/Primitives.h"
 #include "Kaidel/Renderer/RenderCommand.h"
 #include "Kaidel/Renderer/GraphicsAPI/CubeMap.h"
 
@@ -29,10 +22,6 @@ namespace Kaidel {
 	static std::mutex s_MeshPushingMutex;
 
 
-	static Ref<Mesh> s_ActiveMesh;
-
-
-
 	static void FlushShadowPass(Ref<VertexArray> vertexArray) {
 
 	}
@@ -44,15 +33,6 @@ namespace Kaidel {
 
 	void SceneRenderer::Reset()
 	{
-	}
-
-	void SceneRenderer::RenderMesh(Ref<Mesh> mesh) {
-
-		if (mesh->GetDrawData().Size() == 0)
-			return;
-		mesh->GetPerInstanceBuffer()->SetData(mesh->GetDrawData().Get(), (uint32_t)(mesh->GetDrawData().Size() * sizeof(MeshDrawData) ));
-
-		mesh->GetDrawData().Reset();
 	}
 
 	void SceneRenderer::Render(Ref<Framebuffer> _3DOutputFramebuffer,Ref<Framebuffer> _2DOutputFramebuffer,const glm::mat4& cameraViewProj,const glm::vec3& cameraPos)

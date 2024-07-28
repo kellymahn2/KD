@@ -112,9 +112,9 @@ namespace Kaidel {
 
 		Scope<VulkanDescriptorPool> m_ImGuiDescriptorPool;
 		Scope<VulkanDescriptorPool> m_UniformBufferDescriptorPool;
+		Scope<VulkanDescriptorPool> m_Texture2DDescriptorPool;
 		std::vector<VkDescriptorSetLayout> m_UniformBufferDescriptorSetLayouts;
-
-
+		std::vector<VkDescriptorSetLayout> m_Texture2DDescriptorSetLayouts;
 		Scope<VulkanBufferStager> m_BufferStager;
 	};
 }

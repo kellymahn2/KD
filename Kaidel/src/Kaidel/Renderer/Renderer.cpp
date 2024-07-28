@@ -1,10 +1,6 @@
 #include "KDpch.h"
 #include "Kaidel/Renderer/Renderer.h"
 #include "Kaidel/Renderer/2D/Renderer2D.h"
-#include "Kaidel/Renderer/3D/Renderer3D.h"
-#include "Kaidel/Renderer/MaterialTexture.h"
-#include "Kaidel/Renderer/Primitives.h"
-#include "Kaidel/Renderer/3D/BeginPass.h"
 #include "Kaidel/Renderer/GraphicsAPI/ShaderLibrary.h"
 namespace Kaidel {
 
@@ -88,7 +84,7 @@ namespace Kaidel {
 	{
 		/*Renderer2D::Shutdown();
 		Renderer3D::Shutdown();*/
-		delete Kaidel::GlobalRendererData;
+		//delete Kaidel::GlobalRendererData;
 	}
 
 	void Renderer::OnWindowResize(uint32_t width, uint32_t height)

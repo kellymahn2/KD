@@ -13,7 +13,7 @@ namespace Kaidel {
 		OpenGLTexture2D(const std::string& path);
 		virtual ~OpenGLTexture2D();
 
-		virtual uint32_t GetWidth() const override { return m_Width;  }
+		/*virtual uint32_t GetWidth() const override { return m_Width;  }
 		virtual uint32_t GetHeight() const override { return m_Height; }
 		virtual uint64_t GetRendererID() const override { return m_RendererID; }
 		
@@ -31,7 +31,7 @@ namespace Kaidel {
 
 		virtual TextureHandle GetHandle()const override;
 
-		const std::string& GetPath() const override;
+		const std::string& GetPath() const override;*/
 
 	private:
 		std::string m_Path;

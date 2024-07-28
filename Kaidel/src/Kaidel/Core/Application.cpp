@@ -4,8 +4,6 @@
 #include "Kaidel/Events/SettingsEvent.h"
 #include "Kaidel/Core/Log.h"
 
-#include "Kaidel/Assets/AssetManager.h"
-
 #include "Kaidel/Renderer/Renderer.h"
 
 #include "Kaidel/Scripting/ScriptEngine.h"

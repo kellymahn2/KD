@@ -1,11 +1,6 @@
 #include "KDpch.h"
 #include "ProjectSerializer.h"
 
-#include "Kaidel/Assets/AssetManager.h"
-#include "Kaidel/Renderer/3D/MaterialSerializer.h"
-#include "Kaidel/Renderer/MaterialTexture.h"
-#include "Kaidel/Serializer/MetaDataSerializer.h"
-#include "Kaidel/Serializer/TextureArraySerializer.h"
 #include "Kaidel/Core/UsedFileExtensions.h"
 #include <yaml-cpp/yaml.h>
 #include <fstream>
@@ -14,49 +9,6 @@ namespace Kaidel {
 	
 	namespace Utils {
 
-		static std::string KaidelAssetTypeToString(AssetType type) {
-			switch (type)
-			{
-			case Kaidel::AssetType::None:return "None";
-			case Kaidel::AssetType::Material:return "Material";
-			case Kaidel::AssetType::Material2D:return "Material2D";
-			case Kaidel::AssetType::Texture2D:return "Texture2D";
-			}
-			KD_CORE_ASSERT(false);
-			return "";
-		}
-
-		static AssetType KaidelAssetTypeFromString(const std::string& type) {
-			if (type == "Material")
-				return AssetType::Material;
-			if (type == "Material2D")
-				return AssetType::Material2D;
-
-			return AssetType::None;
-		}
-
-		static Ref<_Asset> DeserializeAsset(YAML::Node& assetNode,const FileSystem::path& absolutePath){
-
-			AssetType typeID = KaidelAssetTypeFromString(assetNode["AssetType"].as<std::string>());
-
-			switch (typeID)
-			{
-			case Kaidel::AssetType::Material: {
-				Ref<Material> mat = CreateRef<Material>();
-				MaterialSerializer deserializer(mat);
-				std::string relPath = assetNode["Path"].as<std::string>();
-				std::string path = (absolutePath / relPath).string();
-				if (deserializer.Deserialize(path)) {
-					AssetManager::Manage(mat, true, path);
-					return mat;
-				}
-			} break;
-			case Kaidel::AssetType::Material2D: {
-
-			} break;
-			}
-			return {};
-		}
 	}
 
 	
@@ -193,7 +145,7 @@ namespace Kaidel {
 				if (!de.is_directory()) {
 					auto& path = de.path();
 					if (path.extension()==Extensions::MetaData) {
-						MetaDataSerializer mds;
+						//MetaDataSerializer mds;
 						Path assetPath = "";
 						{
 							auto str = path.string();
@@ -201,9 +153,9 @@ namespace Kaidel {
 							assetPath = str.substr(0, index);
 						}
 
-						if (auto asset = mds.Deserialize(path,assetPath); asset) {
+						/*if (auto asset = mds.Deserialize(path,assetPath); asset) {
 							AssetManager::Manage(asset, true, assetPath);
-						}
+						}*/
 					}
 				}
 			}

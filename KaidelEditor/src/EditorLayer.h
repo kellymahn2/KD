@@ -4,13 +4,11 @@
 #include "Panels/SceneHierarchyPanel.h"
 #include "Panels/ContentBrowserPanel.h"
 #include "Panels/PropertiesPanel.h"
-#include "Panels/AnimationPanel.h"
 #include "Panels/ConsolePanel.h"
 #include "Kaidel/Renderer/EditorCamera.h"
 #include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
 #include "Kaidel/Renderer/2D/Renderer2D.h"
 #include "Kaidel/Renderer/RenderCommand.h"
-#include "Kaidel/ParticleSystem/ParticleSystem.h"
 namespace Kaidel {
 
 	class EditorLayer : public Layer
@@ -99,9 +97,6 @@ namespace Kaidel {
 		ConsolePanel m_ConsolePanel;
 		PropertiesPanel m_PropertiesPanel;
 
-		AnimationPanel m_AnimationPanel;
-
-		Ref<ComputeShader> m_2D3DCompositeShader;
 
 		struct Icons {
 			Ref<Texture2D> IconPlay;
@@ -118,7 +113,6 @@ namespace Kaidel {
 		SceneState m_SceneState = SceneState::Edit;
 
 		Ref<PanelContext> m_PanelContext;
-		Ref<ComputeShader> m_FXAAComputeShader;
 
 		RendererSettings m_RendererSettings = RendererAPI::GetSettings();
 

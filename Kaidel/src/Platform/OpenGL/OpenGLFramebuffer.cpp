@@ -1,7 +1,6 @@
 #include "KDpch.h"
 #include "Platform/OpenGL/OpenGLFramebuffer.h"
 #include "Platform/OpenGL/OpenGLTexture.h"
-#include "Platform/OpenGL/OpenGLTextureArray.h"
 #include "OpenGLTextureFormat.h"
 
 #include <GLFW/glfw3.h>

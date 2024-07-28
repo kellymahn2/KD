@@ -2,48 +2,59 @@
 
 #include "Constants.h"
 #include "Kaidel/Core/Base.h"
-#include "Kaidel/Assets/AssetManager.h"
+#include "Image.h"
 #include <string>
 #include <unordered_map>
 namespace Kaidel {
 
-	//TODO : Store Handles
-	class Texture
-	{
+	struct SamplerParameters {
+		SamplerFilter MinificationFilter;
+		SamplerFilter MagnificationFilter;
+		SamplerMipMapMode MipmapMode;
+		SamplerAddressMode AddressModeU;//x Coords
+		SamplerAddressMode AddressModeV;//y Coords
+		SamplerAddressMode AddressModeW;//z Coords
+		float LODBias = 0.0f;
+		float MinLOD = 0.0f;
+		float MaxLOD = 0.0f;
+		SamplerBorderColor BorderColor;
+	};
+
+	struct Texture2DSpecification {
+		SamplerParameters Sampler;
+
+		DeviceMemoryType TextureMemoryType;
+		Format TextureFormat;
+
+		uint32_t Width;
+		uint32_t Height;
+		uint32_t Layers;
+		uint32_t Levels;
+		void* Data;
+	};
+
+	class Texture2D : public IRCCounter<false> {
 	public:
-		virtual ~Texture() = default;
+		virtual ~Texture2D() = default;
+		
+		virtual Image& GetImage() = 0;
+		
+		virtual void AddLayer(void* data, uint64_t size) = 0;
 
-		virtual uint32_t GetWidth() const = 0;
-		virtual uint32_t GetHeight() const = 0;
-		virtual uint64_t GetRendererID() const = 0;
+		virtual const Texture2DSpecification& GetSpecification()const = 0;
 
-		virtual void SetData(void* data, uint32_t size) = 0;
-		virtual void Reset(void* data, uint32_t width, uint32_t height) = 0;
-		virtual const std::string& GetPath()const = 0;
-		virtual void Bind(uint32_t slot = 0) const = 0;
-
-		virtual bool operator==(const Texture& other) const = 0;
 	};
 
-	struct TextureHandle;
-
-	class Texture2D : public Texture , public _Asset
-	{
+	class ImmutableTexture2D : public Texture2D {
 	public:
-		static Ref<Texture2D> Create(uint32_t width, uint32_t height,TextureFormat format);
-		static Ref<Texture2D> Create(const std::string& path);
-
-		virtual TextureHandle GetHandle()const = 0;
-
-		virtual TextureFormat GetFormat()const = 0;
-
-		ASSET_EXTENSION_TYPE(Texture2D)
-
-	protected:
-		static std::unordered_map < std::string , Ref<Texture2D>> s_Map;
+		static Ref<ImmutableTexture2D> Create(const Texture2DSpecification& spec);
 	};
 
-	struct TextureHandle {
-		Ref<Texture2D> Texture;
+
+	class MutableTexture2D : public Texture2D {
+	public:
+		virtual void SetData(void* data, uint32_t layerIndex) = 0;
 	};
+
+
 }

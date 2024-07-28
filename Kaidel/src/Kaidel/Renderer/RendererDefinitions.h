@@ -78,7 +78,6 @@ namespace Kaidel {
 		FrontAndBack
 	};
 
-
 	enum class ImageLayout {
 		None = 0,
 		General,
@@ -127,5 +126,15 @@ namespace Kaidel {
 		IntOpaqueBlack,	// (0,0,0,1)
 		FloatOpaqueWhite,	// (1.0f,1.0f,1.0f,1.0f)
 		IntOpaqueWhite,	// (1,1,1,1)
+	};
+
+	enum class DeviceMemoryType {
+		None = 0,
+		Static,
+		Dynamic,
+		Immutable = Static,
+		Mutable = Dynamic,
+		Constant = Static,
+		Variable = Dynamic
 	};
 }

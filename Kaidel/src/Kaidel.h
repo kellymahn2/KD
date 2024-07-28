@@ -25,14 +25,9 @@
 #include "Kaidel/Project/Project.h"
 
 
-// ---Model---------------------------
-#include "Kaidel/Mesh/Model.h"
-
 // ---Renderer------------------------
 #include "Kaidel/Renderer/Renderer.h"
 #include "Kaidel/Renderer/2D/Renderer2D.h"
-#include "Kaidel/Renderer/3D/Renderer3D.h"
-#include "Kaidel/Renderer/Primitives.h"
 #include "Kaidel/Renderer/RenderCommand.h"
 
 #include "Kaidel/Renderer/GraphicsAPI/Buffer.h"

@@ -2,7 +2,6 @@
 
 #include "Kaidel/Core/Base.h"
 #include "Kaidel/Core/IRCP.h"
-#include "Kaidel/Assets/AssetManager.h"
 #include <string>
 #include <filesystem>
 #include <vector>
@@ -62,20 +61,9 @@ namespace Kaidel {
 
 
 
-		void OnChangeAsset(Ref<_Asset> asset) {
-			m_ChangedAssetsSinceLastSave.insert(asset);
-		}
-
-		static void OnChangeAssetActive(Ref<_Asset> asset) {
-			KD_CORE_ASSERT(GetActive());
-			return GetActive()->OnChangeAsset(asset);
-		}
-
 	private:
 		ProjectConfig m_Config;
 		std::filesystem::path m_ProjectDirectory;
-
-		std::unordered_set<Ref<_Asset>> m_ChangedAssetsSinceLastSave;
 
 		friend class ProjectSerializer;
 

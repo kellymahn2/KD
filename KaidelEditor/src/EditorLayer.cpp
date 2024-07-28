@@ -2,10 +2,6 @@
 
 #include "Kaidel/Math/Math.h"
 #include "Kaidel/Core/Timer.h"
-#include "Kaidel/Assets/AssetManager.h"
-#include "Kaidel/Renderer/GraphicsAPI/Copier.h"
-#include "Kaidel/Renderer/MaterialTexture.h"
-
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
 #include <glm/gtc/matrix_transform.hpp>
@@ -103,7 +99,6 @@ namespace Kaidel {
 			m_ScreenOutputbuffer = Framebuffer::Create(fbSpec);
 		}*/
 
-		m_2D3DCompositeShader = ComputeShader::Create("assets/shaders/Composite_CS_2D3D.glsl");
 		m_ActiveScene = CreateRef<Scene>();
 		m_EditorScene = m_ActiveScene;
 		m_EditorCamera = EditorCamera(30.0f, 1.778f, 0.1f, 1000.0f);
@@ -555,13 +550,6 @@ namespace Kaidel {
 		AccumulativeTimer::ResetTimers();
 
 
-		ImGui::Text("Renderer3D Stats:");
-		ImGui::Text("Geometry Pass Draw Call Count: %d", Renderer3D::GetStats().GeometryPassDrawCount);
-		ImGui::Text("Push Count: %d", Renderer3D::GetStats().PushCount);
-
-		ImGui::Text("SelectedEntiy: %lld", m_PanelContext->SelectedEntity().operator entt::entity());
-		ImGui::Text("SelecetdAsset: %lld", m_PanelContext->SelectedAsset().Get());
-
 		static bool isOpen = false;
 
 
@@ -587,7 +575,6 @@ namespace Kaidel {
 		}
 
 
-		Renderer3D::ResetStats();
 	}
 	static void UpdateBounds(glm::vec2 bounds[2]) {
 		auto viewportMinRegion = ImGui::GetWindowContentRegionMin();
@@ -673,7 +660,7 @@ namespace Kaidel {
 			Ref<Texture2D> icon = m_Icons.IconPlay;
 			if (m_SceneState == SceneState::Play)
 				icon = m_Icons.IconStop;
-			if (ImGui::ImageButton((ImTextureID)icon->GetRendererID(), { size,size }, { 0,0 }, { 1,1 }, 0)) {
+			/*if (ImGui::ImageButton((ImTextureID)icon->GetRendererID(), { size,size }, { 0,0 }, { 1,1 }, 0)) {
 				if (m_SceneState == SceneState::Edit) {
 					OnScenePlay();
 				}
@@ -684,16 +671,16 @@ namespace Kaidel {
 					OnSceneSimulateStop();
 					OnScenePlay();
 				}
-			}
+			}*/
 		}
 		{
 			if (m_SceneState == SceneState::Play) {
 				ImGui::SameLine();
 				Ref<Texture2D> icon = m_Icons.IconPause;
-				if (ImGui::ImageButton((ImTextureID)icon->GetRendererID(), { size,size }, { 0,0 }, { 1,1 }, 0)){
+				/*if (ImGui::ImageButton((ImTextureID)icon->GetRendererID(), { size,size }, { 0,0 }, { 1,1 }, 0)){
 					m_ActiveScene->ChangePauseState();
 
-				}
+				}*/
 			}
 		}
 		ImGui::SameLine();
@@ -701,12 +688,12 @@ namespace Kaidel {
 			Ref<Texture2D> icon = m_Icons.IconSimulateStart;
 			if (m_SceneState == SceneState::Simulate)
 				icon = m_Icons.IconSimulateStop;
-			if (ImGui::ImageButton((ImTextureID)icon->GetRendererID(), { size,size }, { 0,0 }, { 1,1 }, 0)) {
+			/*if (ImGui::ImageButton((ImTextureID)icon->GetRendererID(), { size,size }, { 0,0 }, { 1,1 }, 0)) {
 				if (m_SceneState == SceneState::Simulate)
 					OnSceneSimulateStop();
 				else
 					OnSceneSimulateStart();
-			}
+			}*/
 		}
 
 		ImGui::End();
@@ -896,7 +883,6 @@ namespace Kaidel {
 	void EditorLayer::ImportAsset() {
 		auto filePath = FileDialogs::OpenFile("Texture Format (*.png)\0*.png\0");
 		if (filePath) {
-			MaterialTexture::GetTextureArray()->PushTexture(*filePath, true);
 		}
 	}
 

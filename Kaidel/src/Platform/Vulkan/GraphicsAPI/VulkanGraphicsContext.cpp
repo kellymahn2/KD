@@ -17,6 +17,24 @@
 namespace Kaidel {
 
 
+	static std::vector<VkDescriptorSetLayout> CreateDescriptorLayouts(uint32_t count, VkDescriptorType type,VkDevice device) {
+		std::vector<VkDescriptorSetLayout> layouts;
+		for (uint32_t i = 0; i < count; ++i) {
+			VkDescriptorSetLayoutBinding binding{};
+			binding.binding = i;
+			binding.descriptorCount = 1;
+			binding.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
+			binding.descriptorType = type;
+			VkDescriptorSetLayoutCreateInfo setInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+			setInfo.bindingCount = 1;
+			setInfo.pBindings = &binding;
+			VkDescriptorSetLayout layout{};
+
+			VK_ASSERT(vkCreateDescriptorSetLayout(device, &setInfo, nullptr, &layout));
+			layouts.push_back(layout);
+		}
+		return layouts;
+	}
 
 
 	VulkanGraphicsContext* VulkanGraphicsContext::s_GraphicsContext;
@@ -42,6 +60,7 @@ namespace Kaidel {
 		KD_CORE_ASSERT(!s_GraphicsContext);
 		s_GraphicsContext = this;
 
+		#pragma region Instance
 		gladLoaderLoadVulkan(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE);
 		std::vector<const char*> extensions = m_Window->GetRequiredInstanceExtensions();
 		extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -50,9 +69,11 @@ namespace Kaidel {
 		layers.push_back("VK_LAYER_KHRONOS_validation");
 		m_Instance = CreateScope<VulkanInstance>("Vulkan Renderer", extensions, layers);
 
-
+		#pragma endregion
+		#pragma region Surface
 		m_Surface = CreateScope<VulkanSurface>(m_Window->GetNativeWindow());
-
+		#pragma endregion
+		#pragma region PhysicalDevice
 		VulkanQueueGroupSpecification groupSpec{};
 		{
 			{
@@ -81,19 +102,21 @@ namespace Kaidel {
 		}
 
 		m_PhysicalDevice = CreateScope<VulkanPhysicalDevice>(*m_Instance, std::vector<VulkanQueueGroupSpecification>{ groupSpec });
-
+		#pragma endregion
+		#pragma region LogicalDevice
 		VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures feature{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES,nullptr,VK_TRUE };
 
 		m_LogicalDevice = CreateScope<VulkanLogicalDevice>(*m_PhysicalDevice, std::vector<const char*>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME },
 																layers, VkPhysicalDeviceFeatures{}, &feature);
 
-
 		gladLoaderLoadVulkan(m_Instance->GetInstance(), m_PhysicalDevice->GetDevice(), m_LogicalDevice->GetDevice());
-
+		#pragma endregion
+		#pragma region Swapchain
 		m_Swapchain = CreateScope<VulkanSwapchain>(m_Surface->GetSurface(),
 			VkSurfaceFormatKHR{ VK_FORMAT_R8G8B8A8_UNORM,VK_COLORSPACE_SRGB_NONLINEAR_KHR }, VK_PRESENT_MODE_MAILBOX_KHR,
 			1280, 720, 4, m_PhysicalDevice->GetQueueManager().GetUniqueFamilyIndices());
 
+		#pragma endregion
 
 		m_MaxFramesInFlight = m_Swapchain->GetImageCount();
 
@@ -137,21 +160,10 @@ namespace Kaidel {
 		CreateImGuiDescriptorPool();
 
 		m_UniformBufferDescriptorPool = CreateScope<VulkanDescriptorPool>(std::vector<VkDescriptorPoolSize>{ VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000} }, 1000, VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT);
-	
-		for (uint32_t i = 0; i < 32; ++i) {
-			VkDescriptorSetLayoutBinding binding{};
-			binding.binding = i;
-			binding.descriptorCount = 1;
-			binding.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
-			binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			VkDescriptorSetLayoutCreateInfo setInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-			setInfo.bindingCount = 1;
-			setInfo.pBindings = &binding;
-			VkDescriptorSetLayout layout{};
-			
-			VK_ASSERT(vkCreateDescriptorSetLayout(m_LogicalDevice->GetDevice(), &setInfo, nullptr, &layout));
-			m_UniformBufferDescriptorSetLayouts.push_back(layout);
-		}
+		m_UniformBufferDescriptorSetLayouts = CreateDescriptorLayouts(32, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_LogicalDevice->GetDevice());
+		
+		m_Texture2DDescriptorPool = CreateScope<VulkanDescriptorPool>(std::vector<VkDescriptorPoolSize>{ VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 } }, 1000, VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT);
+		m_Texture2DDescriptorSetLayouts = CreateDescriptorLayouts(32, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_LogicalDevice->GetDevice());
 
 		m_BufferStager = CreateScope<VulkanBufferStager>(10 * 1024 * 1024, 4);
 	}
