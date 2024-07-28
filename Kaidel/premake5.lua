@@ -19,7 +19,9 @@ project "Kaidel"
 		"vendor/glm/glm/**.hpp",
 		"vendor/glm/glm/**.inl",
 		"vendor/ImGuizmo/ImGuizmo.h",
-		"vendor/ImGuizmo/ImGuizmo.cpp"
+		"vendor/ImGuizmo/ImGuizmo.cpp",
+		"vendor/VMA/**.h",
+		"vendor/VMA/**.cpp",
 	}
 
 	defines
@@ -92,6 +94,7 @@ project "Kaidel"
 			"%{Library.ShaderC_Debug}",
 			"%{Library.SPIRV_Cross_Debug}",
 			"%{Library.SPIRV_Cross_GLSL_Debug}",
+			"%{Library.SPIRV_Cross_Reflect_Debug}",
 		}
 
 
@@ -102,7 +105,8 @@ project "Kaidel"
 		links{
 			"%{Library.ShaderC_Release}",
 			"%{Library.SPIRV_Cross_Release}",
-			"%{Library.SPIRV_Cross_GLSL_Release}"
+			"%{Library.SPIRV_Cross_GLSL_Release}",
+			"%{Library.SPIRV_Cross_Reflect_Release}",
 		}
 
 
@@ -113,5 +117,6 @@ project "Kaidel"
 		links{
 			"%{Library.ShaderC_Release}",
 			"%{Library.SPIRV_Cross_Release}",
-			"%{Library.SPIRV_Cross_GLSL_Release}"
+			"%{Library.SPIRV_Cross_GLSL_Release}",
+			"%{Library.SPIRV_Cross_Reflect_Release}",
 		}

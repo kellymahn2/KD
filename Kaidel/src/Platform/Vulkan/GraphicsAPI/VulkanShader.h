@@ -6,7 +6,7 @@
 
 
 namespace Kaidel {
-	class VulkanShader : public Shader {
+	class VulkanShader : public ShaderModule {
 	public:
 		VulkanShader(const ShaderSpecification& spec);
 		~VulkanShader();
@@ -19,8 +19,15 @@ namespace Kaidel {
 
 		const ShaderSpecification& GetSpecification() const override { return m_Specification; }
 
+
+		ShaderReflection& Reflect()override;
+
+
 	private:
 		VkShaderModule m_Module;
 		ShaderSpecification m_Specification;
+
+		ShaderReflection m_Reflection;
+
 	};
 }

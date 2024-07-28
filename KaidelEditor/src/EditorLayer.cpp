@@ -45,8 +45,6 @@ namespace Kaidel {
 		return res;
 	}
 	
-	
-	
 	uint32_t* SetupSpriteIndices() {
 		uint32_t* quadIndices = new uint32_t[6000];
 

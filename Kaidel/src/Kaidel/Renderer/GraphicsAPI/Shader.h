@@ -1,12 +1,15 @@
 #pragma once
+#include "Buffer.h"
+#include "Kaidel/Renderer/RendererDefinitions.h"
+
+
 
 #include <filesystem>
 #include <string>
 #include <unordered_map>
-#include "Buffer.h"
 #include <glm/glm.hpp>
-namespace Kaidel {
 
+namespace Kaidel {
 
 	enum class ShaderType {
 		None,
@@ -23,27 +26,71 @@ namespace Kaidel {
 		ShaderType Type;
 	};
 
-	class Shader : public IRCCounter<false>
-	{
+
+	struct DescriptorSetBindingReflection {
+		uint32_t Binding;
+		uint32_t Count;
+		DescriptorType Type;
+	};
+
+
+	struct DescriptorSetReflection {
+		uint32_t Set;
+		std::unordered_map<uint32_t,DescriptorSetBindingReflection> Bindings;
+	};
+
+
+	class ShaderReflection {
 	public:
 
-		virtual ~Shader() = default;
+		const std::unordered_map<uint32_t,DescriptorSetReflection>& GetSets()const { return  m_Sets; }
+		void AddDescriptor(DescriptorType type, uint32_t count, uint32_t set, uint32_t binding) {
+			m_Sets[set].Set = set;
+			DescriptorSetBindingReflection setBinding;
+			setBinding.Binding = binding;
+			setBinding.Type = type;
+			setBinding.Count = count;
+			m_Sets[set].Bindings[binding] = setBinding;
+		}
+
+		void Add(const ShaderReflection& reflection) {
+			for (auto& [setIndex, set] : reflection.m_Sets) {
+				m_Sets[setIndex].Set = setIndex;
+				Add(m_Sets[setIndex], set);
+			}
+		}
+
+	private:
+		void Add(DescriptorSetReflection& dst, const DescriptorSetReflection& src) {
+			KD_CORE_ASSERT(dst.Set == src.Set);
+			for (auto& [bindingIndex, binding] : src.Bindings) {
+				dst.Bindings[bindingIndex] = binding;
+			}
+		}
+
+	private:
+
+		std::unordered_map<uint32_t,DescriptorSetReflection> m_Sets;
+	};
+
+
+
+	class ShaderModule : public IRCCounter<false>
+	{
+	public:
+		virtual ~ShaderModule() = default;
 
 		virtual void Bind() const = 0;
 		virtual void Unbind() const = 0;
-
-		//virtual void SetInt(const std::string& name, int value) = 0;
-		//virtual void SetIntArray(const std::string& name, int* values, uint32_t count) = 0;
-		//virtual void SetFloat(const std::string& name, float value) = 0;
-		//virtual void SetFloat2(const std::string& name, const glm::vec2& value) = 0;
-		//virtual void SetFloat3(const std::string& name, const glm::vec3& value) = 0;
-		//virtual void SetFloat4(const std::string& name, const glm::vec4& value) = 0;
-		//virtual void SetMat4(const std::string& name, const glm::mat4& value) = 0;
 
 		virtual RendererID GetRendererID()const = 0;
 
 		virtual const ShaderSpecification& GetSpecification()const = 0;
 		
-		static Ref<Shader> Create(const ShaderSpecification& specification);
+		static Ref<ShaderModule> Create(const ShaderSpecification& specification);
+
+		virtual ShaderReflection& Reflect() = 0;
+
+
 	};
 }

@@ -34,7 +34,7 @@ namespace Kaidel {
 
 		void DrawIndexedInstanced(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, uint32_t vertexOffset) override;
 
-		void RenderFullScreenQuad(Ref<Shader> shader, uint32_t width, uint32_t height) const override;
+		void RenderFullScreenQuad(Ref<ShaderModule> shader, uint32_t width, uint32_t height) const override;
 
 		void BindVertexBuffers(std::initializer_list<Ref<VertexBuffer>> vertexBuffers) override;
 

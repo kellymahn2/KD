@@ -73,7 +73,7 @@ namespace Kaidel {
 		}*/
 
 
-		static void RenderFullScreenQuad(Ref<Shader> shader,uint32_t width,uint32_t height) {
+		static void RenderFullScreenQuad(Ref<ShaderModule> shader,uint32_t width,uint32_t height) {
 			s_RendererAPI->RenderFullScreenQuad(shader,width,height);
 		}
 

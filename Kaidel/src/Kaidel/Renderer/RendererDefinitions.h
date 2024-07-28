@@ -137,4 +137,15 @@ namespace Kaidel {
 		Constant = Static,
 		Variable = Dynamic
 	};
+
+	enum class DescriptorType {
+		None,
+		Sampler,
+		CombinedSampler,
+		Texture,
+		ImageBuffer,
+		UniformBuffer,
+		StorageBuffer,
+	};
+
 }

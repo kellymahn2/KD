@@ -26,8 +26,8 @@ namespace Kaidel {
 	}
 
 	struct ShaderLibraryData {
-		std::unordered_map<Path, Ref<Shader>> Shaders;
-		std::unordered_map<std::string, Ref<Shader>> NamedShaders;
+		std::unordered_map<Path, Ref<ShaderModule>> Shaders;
+		std::unordered_map<std::string, Ref<ShaderModule>> NamedShaders;
 		Path CachePath;
 		std::string CachedFileExtension;
 	};
@@ -90,7 +90,7 @@ namespace Kaidel {
 	{
 		return s_LibraryData.Shaders.find(path) != s_LibraryData.Shaders.end();
 	}
-	Ref<Shader> ShaderLibrary::LoadShader(const Path& path, ShaderType type, bool cache)
+	Ref<ShaderModule> ShaderLibrary::LoadShader(const Path& path, ShaderType type, bool cache)
 	{
 		Path cachePath = GetCachePathForShader(path.filename());
 
@@ -144,7 +144,7 @@ namespace Kaidel {
 		spec.EntryPoint = "main";
 		spec.SPIRV = data;
 		spec.Type = type;
-		Ref<Shader> shader = Shader::Create(spec);
+		Ref<ShaderModule> shader = ShaderModule::Create(spec);
 
 		s_LibraryData.Shaders[path] = shader;
 
@@ -152,21 +152,21 @@ namespace Kaidel {
 
 		return shader;
 	}
-	Ref<Shader> ShaderLibrary::LoadShader(const std::string& name, const Path& path, ShaderType type, bool cache)
+	Ref<ShaderModule> ShaderLibrary::LoadShader(const std::string& name, const Path& path, ShaderType type, bool cache)
 	{
 		return s_LibraryData.NamedShaders[name] = LoadShader(path, type, cache);
 	}
-	Ref<Shader> ShaderLibrary::GetShader(const Path& path)
+	Ref<ShaderModule> ShaderLibrary::GetShader(const Path& path)
 	{
 		return s_LibraryData.Shaders.at(path);
 	}
-	Ref<Shader> ShaderLibrary::GetNamedShader(const std::string& name)
+	Ref<ShaderModule> ShaderLibrary::GetNamedShader(const std::string& name)
 	{
 		return s_LibraryData.NamedShaders.at(name);
 	}
-	Ref<Shader> ShaderLibrary::UnloadShader(const std::string& name)
+	Ref<ShaderModule> ShaderLibrary::UnloadShader(const std::string& name)
 	{
-		Ref<Shader> shader = s_LibraryData.NamedShaders.at(name);
+		Ref<ShaderModule> shader = s_LibraryData.NamedShaders.at(name);
 		s_LibraryData.NamedShaders.erase(name);
 		return shader;
 	}

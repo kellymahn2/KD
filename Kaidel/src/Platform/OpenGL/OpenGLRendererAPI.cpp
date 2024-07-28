@@ -151,7 +151,7 @@ namespace Kaidel {
 	//	glPatchParameteri(GL_PATCH_VERTICES, count);
 	//}
 
-	void OpenGLRendererAPI::RenderFullScreenQuad(Ref<Shader> shader,uint32_t width, uint32_t height)const {
+	void OpenGLRendererAPI::RenderFullScreenQuad(Ref<ShaderModule> shader,uint32_t width, uint32_t height)const {
 		m_FullScreenQuadVAO->Bind();
 		shader->Bind();
 		glDrawArrays(GL_TRIANGLES, 0, 6);

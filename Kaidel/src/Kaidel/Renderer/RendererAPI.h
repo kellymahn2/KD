@@ -50,7 +50,7 @@ namespace Kaidel {
 		virtual void BindUniformBuffer(Ref<UniformBuffer> uniformBuffer, uint32_t index) = 0;
 
 
-		virtual void RenderFullScreenQuad(Ref<Shader> shader, uint32_t width, uint32_t height)const = 0;
+		virtual void RenderFullScreenQuad(Ref<ShaderModule> shader, uint32_t width, uint32_t height)const = 0;
 
 		virtual void BindVertexBuffers(std::initializer_list<Ref<VertexBuffer>> vertexBuffers) = 0;
 		virtual void BindIndexBuffer(Ref<IndexBuffer> indexBuffer) = 0;

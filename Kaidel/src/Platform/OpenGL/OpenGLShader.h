@@ -8,7 +8,7 @@ typedef unsigned int GLenum;
 
 namespace Kaidel {
 
-	class OpenGLShader : public Shader
+	class OpenGLShader : public ShaderModule
 	{
 	public:
 		OpenGLShader(const ShaderSpecification& specification);

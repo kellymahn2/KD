@@ -44,7 +44,7 @@ namespace Kaidel {
     {
 		vkCmdDrawIndexed(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), indexCount, instanceCount, firstIndex, vertexOffset, 0);
 	}
-    void VulkanRendererAPI::RenderFullScreenQuad(Ref<Shader> shader, uint32_t width, uint32_t height) const
+    void VulkanRendererAPI::RenderFullScreenQuad(Ref<ShaderModule> shader, uint32_t width, uint32_t height) const
     {
 	}
     void VulkanRendererAPI::BindVertexBuffers(std::initializer_list<Ref<VertexBuffer>> vertexBuffers)

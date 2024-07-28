@@ -226,6 +226,19 @@ namespace Kaidel {
 			return VK_BORDER_COLOR_MAX_ENUM;
 		}
 
+		static VkDescriptorType DescriptorTypeToVulkanDescriptorType(DescriptorType type) {
+			switch (type)
+			{
+			case Kaidel::DescriptorType::Sampler:return VK_DESCRIPTOR_TYPE_SAMPLER;
+			case Kaidel::DescriptorType::CombinedSampler:return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			case Kaidel::DescriptorType::Texture:return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+			case Kaidel::DescriptorType::ImageBuffer:return VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
+			case Kaidel::DescriptorType::UniformBuffer:return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			case Kaidel::DescriptorType::StorageBuffer:return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			}
+			return VK_DESCRIPTOR_TYPE_MAX_ENUM;
+		}
+
 		static VulkanBuffer CreateBuffer(
 			VmaAllocator allocator,
 			VkDeviceSize size,

@@ -23,6 +23,7 @@ namespace Kaidel {
 	private:
 		GraphicsPipelineSpecification m_Specification;
 		VkPipeline m_Pipeline;
+		std::vector<VkDescriptorSetLayout> m_SetLayouts;
 		VkPipelineLayout m_Layout;
 	};
 

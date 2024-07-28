@@ -88,6 +88,7 @@ namespace Kaidel {
 		struct GraphicsPipelineCreateResult {
 			VkPipelineLayout Layout;
 			VkPipeline Pipeline;
+			std::vector<VkDescriptorSetLayout> SetLayouts;
 		};
 
 
@@ -109,11 +110,14 @@ namespace Kaidel {
 			assemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 			pipelineInfo.pInputAssemblyState = &assemblyInfo;
 
+			ShaderReflection reflection;
+
+
 			//Vertex input
 			VertexInputState inputState = MakeVertexInputState(spec.InputSpecification);
 			pipelineInfo.pVertexInputState = &inputState.State;
 
-#define SHADER_STAGE_INFO(shader,stage,vector) if(shader){vector.push_back(MakeShaderStage((VkShaderModule)shader->GetRendererID(),stage));}
+#define SHADER_STAGE_INFO(shader,stage,vector) if(shader){vector.push_back(MakeShaderStage((VkShaderModule)shader->GetRendererID(),stage));reflection.Add(shader->Reflect());}
 
 
 			//Vertex shader
@@ -189,11 +193,27 @@ namespace Kaidel {
 
 			std::vector<VkDescriptorSetLayout> setLayouts{};
 
-			//Uniform buffers
-			for (auto& binding : spec.UniformBufferInput.UniformBufferBindings) {
-				setLayouts.push_back(VK_CONTEXT.GetUniformBufferDescriptorSetLayouts()[binding]);
+			for (auto& [setIndex, set] : reflection.GetSets()) {
+				std::vector<VkDescriptorSetLayoutBinding> bindings;
+
+				for (auto& [bindingIndex, binding] : set.Bindings) {
+					VkDescriptorSetLayoutBinding layoutBinding;
+					layoutBinding.binding = bindingIndex;
+					layoutBinding.descriptorCount = binding.Count;
+					layoutBinding.descriptorType = DescriptorTypeToVulkanDescriptorType(binding.Type);
+					layoutBinding.stageFlags = VK_SHADER_STAGE_ALL;
+					bindings.push_back(layoutBinding);
+				}
+
+				VkDescriptorSetLayoutCreateInfo layoutInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+				layoutInfo.bindingCount = (uint32_t)bindings.size();
+				layoutInfo.pBindings = bindings.data();
+				VkDescriptorSetLayout layout{};
+				vkCreateDescriptorSetLayout(VK_DEVICE.GetDevice(), &layoutInfo, nullptr, &layout);
+				setLayouts.push_back(layout);
 			}
 
+			result.SetLayouts = setLayouts;
 			//Layout
 			VkPipelineLayoutCreateInfo layoutInfo{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
 			layoutInfo.pSetLayouts = setLayouts.data();
@@ -202,13 +222,9 @@ namespace Kaidel {
 			pipelineInfo.layout = result.Layout;
 
 			VK_ASSERT(vkCreateGraphicsPipelines(VK_DEVICE.GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &result.Pipeline));
-
 			return result;
 		}
-
 	}
-
-
 
 	VulkanGraphicsPipeline::VulkanGraphicsPipeline(const GraphicsPipelineSpecification& specification)
 		:m_Specification(specification)
@@ -216,8 +232,10 @@ namespace Kaidel {
 		Utils::GraphicsPipelineCreateResult result = Utils::CreateGraphicsPipeline(specification);
 
 		m_Pipeline = result.Pipeline;
+		m_SetLayouts = result.SetLayouts;
 		m_Layout = result.Layout;
 	}
+
 	VulkanGraphicsPipeline::~VulkanGraphicsPipeline()
 	{
 		DestroyPipeline();
@@ -228,11 +246,17 @@ namespace Kaidel {
 
 		Utils::GraphicsPipelineCreateResult result = Utils::CreateGraphicsPipeline(m_Specification);
 		m_Layout = result.Layout;
+		m_SetLayouts = result.SetLayouts;
 		m_Pipeline = result.Pipeline;
 	}
 	void VulkanGraphicsPipeline::DestroyPipeline()
 	{
 		vkDestroyPipelineLayout(VK_DEVICE.GetDevice(), m_Layout, nullptr);
+
+		for (auto& setLayout : m_SetLayouts) {
+			vkDestroyDescriptorSetLayout(VK_DEVICE.GetDevice(), setLayout, nullptr);
+		}
+
 		vkDestroyPipeline(VK_DEVICE.GetDevice(), m_Pipeline, nullptr);
 	}
 }

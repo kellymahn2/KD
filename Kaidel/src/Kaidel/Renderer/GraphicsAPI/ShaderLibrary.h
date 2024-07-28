@@ -10,11 +10,11 @@ namespace Kaidel {
 		static void Shutdown();
 
 		static bool ShaderLoaded(const Path& path);
-		static Ref<Shader> LoadShader(const Path& path, ShaderType type, bool cache = true);
-		static Ref<Shader> LoadShader(const std::string& name, const Path& path, ShaderType type, bool cache = true);
-		static Ref<Shader> GetShader(const Path& path);
-		static Ref<Shader> GetNamedShader(const std::string& name);
-		[[maybe_unused]] static Ref<Shader> UnloadShader(const std::string& name);
+		static Ref<ShaderModule> LoadShader(const Path& path, ShaderType type, bool cache = true);
+		static Ref<ShaderModule> LoadShader(const std::string& name, const Path& path, ShaderType type, bool cache = true);
+		static Ref<ShaderModule> GetShader(const Path& path);
+		static Ref<ShaderModule> GetNamedShader(const std::string& name);
+		[[maybe_unused]] static Ref<ShaderModule> UnloadShader(const std::string& name);
 	private:
 		static std::string ReadFile(const Path& filepath);
 		static void CreateCacheDirectoryIfNeeded();

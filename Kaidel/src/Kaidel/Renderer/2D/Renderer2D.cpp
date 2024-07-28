@@ -92,8 +92,8 @@ namespace Kaidel{
 
 		{
 			SCOPED_TIMER("Graphics pipeline");
-			Ref<Shader> vs = ShaderLibrary::LoadShader("assets/_shaders/SpriteVS.glsl", ShaderType::VertexShader);
-			Ref<Shader> fs = ShaderLibrary::LoadShader("assets/_shaders/SpriteFS.glsl", ShaderType::FragmentShader);
+			Ref<ShaderModule> vs = ShaderLibrary::LoadShader("assets/_shaders/SpriteVS.glsl", ShaderType::VertexShader);
+			Ref<ShaderModule> fs = ShaderLibrary::LoadShader("assets/_shaders/SpriteFS.glsl", ShaderType::FragmentShader);
 
 			GraphicsPipelineSpecification spec{};
 			spec.CullMode = PipelineCullMode::None;

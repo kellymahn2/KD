@@ -37,11 +37,11 @@ namespace Kaidel
 	struct GraphicsPipelineSpecification {
 		std::string Name;
 		VertexInputSpecification InputSpecification;
-		Ref<Shader> VertexShader;
-		Ref<Shader> TesselationControlShader;
-		Ref<Shader> TesselationEvaluationShader;
-		Ref<Shader> GeometryShader;
-		Ref<Shader> FragmentShader;
+		Ref<ShaderModule> VertexShader;
+		Ref<ShaderModule> TesselationControlShader;
+		Ref<ShaderModule> TesselationEvaluationShader;
+		Ref<ShaderModule> GeometryShader;
+		Ref<ShaderModule> FragmentShader;
 		PipelineCullMode CullMode;
 		bool FrontCCW = true;
 		Ref<RenderPass> UsedRenderPass;

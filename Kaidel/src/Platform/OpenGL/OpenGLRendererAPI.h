@@ -28,7 +28,7 @@ namespace Kaidel {
 		virtual void SetPointSize(float pixelSize) override;
 		virtual void SetCullMode(CullMode cullMode)override;
 		virtual void SetPatchVertexCount(uint32_t count)override;*/
-		virtual void RenderFullScreenQuad(Ref<Shader> shader, uint32_t width, uint32_t height)const override;
+		virtual void RenderFullScreenQuad(Ref<ShaderModule> shader, uint32_t width, uint32_t height)const override;
 	private:
 		Ref<VertexBuffer> m_FullScreenQuadVBO;
 		Ref<VertexArray> m_FullScreenQuadVAO;

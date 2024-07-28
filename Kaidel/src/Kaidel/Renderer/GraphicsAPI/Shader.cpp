@@ -9,7 +9,7 @@
 namespace Kaidel {
 
 
-	Ref<Shader> Shader::Create(const ShaderSpecification& specification) {
+	Ref<ShaderModule> ShaderModule::Create(const ShaderSpecification& specification) {
 		switch (Renderer::GetAPI())
 		{
 		//case RendererAPI::API::OpenGL:  return CreateRef<OpenGLShader>(specification);

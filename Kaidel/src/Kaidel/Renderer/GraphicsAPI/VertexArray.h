@@ -6,7 +6,7 @@
 namespace Kaidel {
 
 	struct VertexArraySpecification {
-		Ref<Shader> UsedShader;
+		Ref<ShaderModule> UsedShader;
 		std::vector<Ref<VertexBuffer>> VertexBuffers;
 		Ref<IndexBuffer> IndexBuffer;
 	};
