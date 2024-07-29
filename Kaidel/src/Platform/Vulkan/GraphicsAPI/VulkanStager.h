@@ -15,9 +15,8 @@ namespace Kaidel {
 
 	private:
 		struct PerFrameBlock {
-			std::vector<VulkanStagingBuffer*> StagingBuffers;
+			std::vector<Scope<VulkanStagingBuffer>> StagingBuffers;
 			uint32_t CurrentStagingBuffer = 0;
-			VulkanSemaphore* TransferCompleteSemaphore;
 		};
 
 	private:

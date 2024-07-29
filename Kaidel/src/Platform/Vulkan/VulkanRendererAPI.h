@@ -40,6 +40,8 @@ namespace Kaidel {
 
 		void BindIndexBuffer(Ref<IndexBuffer> indexBuffer) override;
 
+		void BindDescriptorSet(Ref<DescriptorSet> descriptorSet, uint32_t setIndex) override;
+
 		void BeginRenderPass(Ref<Framebuffer> frameBuffer, Ref<RenderPass> renderPass) override;
 
 		void EndRenderPass() override;
@@ -54,6 +56,7 @@ namespace Kaidel {
 	private:
 		static inline std::vector<VkBuffer> m_CurrentBoundBuffers = { 32 , 0 };
 		static inline std::vector<VkDeviceSize> m_CurrentBoundBufferOffsets = std::vector<VkDeviceSize>(32, VkDeviceSize(0));
+		static inline std::vector<VkDescriptorSet> m_DescriptorSets = { 32,VK_NULL_HANDLE };
 
 		Ref<GraphicsPipeline> m_CurrentBoundPipeline = {};
 

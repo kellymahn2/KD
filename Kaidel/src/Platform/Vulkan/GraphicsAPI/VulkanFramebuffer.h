@@ -64,6 +64,7 @@ namespace Kaidel {
 		void CreateDescriptorPool();
 		void InvalidateOne(FramebufferResources& fb);
 		void DestroyOne(FramebufferResources& fb);
+		void DestroyAttachmentResource(FramebufferAttachmentResource& resource);
 		void Invalidate();
 	private:
 
@@ -75,7 +76,6 @@ namespace Kaidel {
 		FramebufferTextureSpecification m_DepthAttachmentSpecification;
 
 
-		VkDescriptorPool m_DescriptorPool;
 		static inline VkDescriptorSetLayout s_SetLayout;
 
 		friend class RenderCommand;

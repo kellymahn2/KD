@@ -24,7 +24,7 @@ namespace Kaidel {
 	class VulkanStagingBuffer {
 	public:
 		VulkanStagingBuffer(uint64_t size);
-
+		~VulkanStagingBuffer();
 		bool HasUnusedSpace(uint64_t dataSize);
 
 		void AddCopyOperation(VulkanCommandBuffer* commandBuffer, const VulkanBuffer& buffer, const void* data, uint64_t dataSize);

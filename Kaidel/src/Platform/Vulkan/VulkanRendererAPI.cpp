@@ -27,6 +27,7 @@ namespace Kaidel {
     }
     void VulkanRendererAPI::Shutdown()
     {
+		m_CurrentBoundPipeline = {};
     }
     void VulkanRendererAPI::Draw(uint32_t vertexCount, uint32_t firstVertexID)
     {
@@ -62,6 +63,17 @@ namespace Kaidel {
 		VulkanIndexBuffer* vib = static_cast<VulkanIndexBuffer*>(indexBuffer.Get());
 		vkCmdBindIndexBuffer(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), vib->GetBuffer().Buffer, 0, VK_INDEX_TYPE_UINT32);
     }
+	void VulkanRendererAPI::BindDescriptorSet(Ref<DescriptorSet> descriptorSet, uint32_t setIndex)
+	{
+
+		if (!m_CurrentBoundPipeline)
+			return;
+
+		VulkanGraphicsPipeline* pipeline = (VulkanGraphicsPipeline*)m_CurrentBoundPipeline.Get();
+		VkDescriptorSet set = (VkDescriptorSet)descriptorSet->GetSetID();
+
+		vkCmdBindDescriptorSets(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetLayout(), setIndex, 1, &set, 0, nullptr);
+	}
     void VulkanRendererAPI::BeginRenderPass(Ref<Framebuffer> frameBuffer, Ref<RenderPass> renderPass)
     {
 		Ref<VulkanRenderPass> rp = renderPass;
@@ -151,11 +163,11 @@ namespace Kaidel {
     }
 	void VulkanRendererAPI::BindUniformBuffer(Ref<UniformBuffer> uniformBuffer, uint32_t index)
 	{
-		if (!m_CurrentBoundPipeline)
-			return;
-
-		VulkanGraphicsPipeline* pipeline = (VulkanGraphicsPipeline*)m_CurrentBoundPipeline.Get();
-		VkDescriptorSet set = ((VulkanUniformBuffer*)uniformBuffer.Get())->GetDescriptorSet();
-		vkCmdBindDescriptorSets(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetLayout(), index, 1,&set , 0, nullptr);
+		//if (!m_CurrentBoundPipeline)
+		//	return;
+		//
+		//VulkanGraphicsPipeline* pipeline = (VulkanGraphicsPipeline*)m_CurrentBoundPipeline.Get();
+		//VkDescriptorSet set = ((VulkanUniformBuffer*)uniformBuffer.Get())->GetDescriptorSet();
+		//vkCmdBindDescriptorSets(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetLayout(), index, 1,&set , 0, nullptr);
 	}
 }

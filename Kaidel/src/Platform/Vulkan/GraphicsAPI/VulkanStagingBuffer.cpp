@@ -9,6 +9,11 @@ namespace Kaidel {
 		m_MappedBufferCurrent = m_MappedBufferBegin;
 		m_MappedBufferEnd = m_MappedBufferBegin + size;
 	}
+	VulkanStagingBuffer::~VulkanStagingBuffer()
+	{
+		vmaUnmapMemory(VK_ALLOCATOR.GetAllocator(), m_StagingBuffer.Allocation);
+		VK_ALLOCATOR.DestroyBuffer(m_StagingBuffer);
+	}
 	bool VulkanStagingBuffer::HasUnusedSpace(uint64_t dataSize) {
 		return m_MappedBufferCurrent + dataSize < m_MappedBufferEnd;
 	}

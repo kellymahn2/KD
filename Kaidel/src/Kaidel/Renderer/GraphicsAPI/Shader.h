@@ -11,15 +11,6 @@
 
 namespace Kaidel {
 
-	enum class ShaderType {
-		None,
-		VertexShader,
-		FragmentShader,
-		GeometryShader,
-		TessellationControlShader,
-		TessellationEvaluationShader
-	};
-
 	struct ShaderSpecification {
 		std::string EntryPoint;
 		std::vector<uint32_t> SPIRV;

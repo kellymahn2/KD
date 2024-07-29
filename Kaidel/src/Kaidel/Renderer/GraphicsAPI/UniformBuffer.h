@@ -10,6 +10,7 @@ namespace Kaidel {
 		virtual void Bind(uint32_t binding)=0;
 		virtual void Bind() = 0;
 		virtual void UnBind() = 0;
+		virtual RendererID GetBufferID() const = 0;
 		static Ref<UniformBuffer> Create(uint32_t size, uint32_t binding);
 	protected:
 		uint32_t m_Binding = 0;

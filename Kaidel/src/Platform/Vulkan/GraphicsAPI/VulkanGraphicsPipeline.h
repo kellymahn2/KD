@@ -17,7 +17,7 @@ namespace Kaidel {
 		RendererID GetRendererID() const override { return (RendererID)m_Pipeline; }
 
 		VkPipelineLayout GetLayout()const { return m_Layout; }
-
+		VkDescriptorSetLayout GetSetLayout(uint32_t index)const { return m_SetLayouts[index]; }
 	private:
 		void DestroyPipeline();
 	private:

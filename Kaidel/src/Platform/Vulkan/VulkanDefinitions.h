@@ -239,6 +239,28 @@ namespace Kaidel {
 			return VK_DESCRIPTOR_TYPE_MAX_ENUM;
 		}
 
+		static VkShaderStageFlags ShaderStagesToVulkanShaderStageFlags(ShaderStages stages) {
+			VkShaderStageFlags flags = 0;
+
+			if (stages & ShaderStage_VertexShader) {
+				flags |= VK_SHADER_STAGE_VERTEX_BIT;
+			}
+			if (stages & ShaderStage_TessellationControlShader) {
+				flags |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+			}
+			if (stages & ShaderStage_TessellationEvaluationShader) {
+				flags |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+			}
+			if (stages & ShaderStage_GeometryShader) {
+				flags |= VK_SHADER_STAGE_GEOMETRY_BIT;
+			}
+			if (stages & ShaderStage_FragmentShader) {
+				flags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+			}
+			return flags;
+		}
+
+
 		static VulkanBuffer CreateBuffer(
 			VmaAllocator allocator,
 			VkDeviceSize size,

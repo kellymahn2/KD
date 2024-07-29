@@ -9,6 +9,7 @@
 #include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
 #include "Kaidel/Renderer/GraphicsAPI/GraphicsPipeline.h"
 #include "Kaidel/Renderer/GraphicsAPI/RenderPass.h"
+#include "Kaidel/Renderer/GraphicsAPI/DescriptorSet.h"
 #include "Renderer2D.h"
 
 namespace Kaidel{
@@ -37,6 +38,7 @@ namespace Kaidel{
 			glm::mat4 ViewProjection;
 		};
 		CameraUnifomData Camera;
+		Ref<DescriptorSet> CameraDescriptorSet;
     };
 
     static Renderer2DData* s_RendererData;
@@ -110,11 +112,13 @@ namespace Kaidel{
 			input.Bindings.push_back(binding);
 			spec.InputSpecification = input;
 
-			UniformBufferInputSpecification ubSpecs;
-			ubSpecs.UniformBufferBindings.push_back(0);
-			spec.UniformBufferInput = ubSpecs;
-
 			s_RendererData->SpritePipeline = GraphicsPipeline::Create(spec);
+		}
+
+		{
+			SCOPED_TIMER("Camera Descriptor set");
+			s_RendererData->CameraDescriptorSet = DescriptorSet::Create(s_RendererData->SpritePipeline, 0);
+			
 		}
 
 		s_RendererData->PresetSpriteVertices[0] = { glm::vec3{-.5f,-.5f,.0f} ,glm::vec4{1.0f}};
@@ -131,6 +135,16 @@ namespace Kaidel{
 
 		s_RendererData->Camera.ViewProjection = cameraVP;
 		s_RendererData->CameraUnifomBuffer->SetData(&s_RendererData->Camera, sizeof(Renderer2DData::CameraUnifomData));
+		{
+			DescriptorSetUpdate update{};
+			update.ArrayIndex = 0;
+			update.Binding = 0;
+			update.Type = DescriptorType::UniformBuffer;
+			update.BufferUpdate.Buffer = s_RendererData->CameraUnifomBuffer->GetBufferID();
+			update.BufferUpdate.Offset = 0;
+			update.BufferUpdate.Size = std::numeric_limits<uint64_t>::max();
+			s_RendererData->CameraDescriptorSet->Update(update);
+		}
 		s_RendererData->OutputBuffer = outputColorBuffer;
 		StartSpriteBatch();
 	}
@@ -170,7 +184,7 @@ namespace Kaidel{
 			RenderCommand::BindIndexBuffer(s_RendererData->SpriteIndexBuffer);
 			RenderCommand::BeginRenderPass(s_RendererData->OutputBuffer,s_RendererData->SpriteRenderPass);
 			RenderCommand::BindGraphicsPipeline(s_RendererData->SpritePipeline);
-			RenderCommand::BindUniformBuffer(s_RendererData->CameraUnifomBuffer, 0);
+			RenderCommand::BindDescriptorSet(s_RendererData->CameraDescriptorSet, 0);
 			RenderCommand::DrawIndexed(s_RendererData->SpritesWaitingForRender * 6);
 			RenderCommand::EndRenderPass();
 		}

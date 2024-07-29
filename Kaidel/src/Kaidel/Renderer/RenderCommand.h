@@ -5,6 +5,7 @@
 #include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
 #include "Kaidel/Renderer/GraphicsAPI/Image.h"
 #include "Kaidel/Renderer/GraphicsAPI/RenderPass.h"
+#include "Kaidel/Renderer/GraphicsAPI/DescriptorSet.h"
 
 namespace Kaidel {
 
@@ -42,6 +43,8 @@ namespace Kaidel {
 		static void DrawIndexedInstanced(const Ref<VertexArray>& vertexArray, uint32_t indexCount, uint32_t instanceCount) {
 			s_RendererAPI->DrawIndexedInstanced(vertexArray, indexCount, instanceCount);
 		}
+
+
 		/*static void DrawLines(const Ref<VertexArray>& vertexArray, uint32_t vertexCount = 0)
 		{
 			s_RendererAPI->DrawLines(vertexArray, vertexCount);
@@ -83,6 +86,11 @@ namespace Kaidel {
 		static void BindVertexBuffers(std::initializer_list<Ref<VertexBuffer>> vertexBuffers) {
 			s_RendererAPI->BindVertexBuffers(vertexBuffers);
 		}
+
+		static void BindDescriptorSet(Ref<DescriptorSet> descriptorSet, uint32_t setIndex) {
+			s_RendererAPI->BindDescriptorSet(descriptorSet, setIndex);
+		}
+
 		static void BindIndexBuffer(Ref<IndexBuffer> indexBuffer) {
 			s_RendererAPI->BindIndexBuffer(indexBuffer);
 		}

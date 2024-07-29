@@ -55,6 +55,8 @@ namespace Kaidel {
 		virtual void BindVertexBuffers(std::initializer_list<Ref<VertexBuffer>> vertexBuffers) = 0;
 		virtual void BindIndexBuffer(Ref<IndexBuffer> indexBuffer) = 0;
 
+		virtual void BindDescriptorSet(Ref<DescriptorSet> descriptorSet,uint32_t setIndex) = 0;
+
 		virtual void BeginRenderPass(Ref<Framebuffer> frameBuffer,Ref<RenderPass> renderPass) = 0;
 		virtual void EndRenderPass() = 0;
 

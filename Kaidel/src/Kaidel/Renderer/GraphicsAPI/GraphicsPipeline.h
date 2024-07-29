@@ -52,7 +52,7 @@ namespace Kaidel
 	class GraphicsPipeline : public IRCCounter<false> 
 	{
 	public:
-
+		virtual ~GraphicsPipeline() = default;
 		virtual GraphicsPipelineSpecification& GetSpecification() = 0;
 
 		virtual void Recreate() = 0;

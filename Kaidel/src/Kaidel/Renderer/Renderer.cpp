@@ -82,7 +82,9 @@ namespace Kaidel {
 
 	void Renderer::Shutdown()
 	{
-		/*Renderer2D::Shutdown();
+		Renderer2D::Shutdown();
+		ShaderLibrary::Shutdown();
+		/*
 		Renderer3D::Shutdown();*/
 		//delete Kaidel::GlobalRendererData;
 	}

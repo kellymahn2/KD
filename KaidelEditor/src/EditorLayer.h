@@ -9,6 +9,7 @@
 #include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
 #include "Kaidel/Renderer/2D/Renderer2D.h"
 #include "Kaidel/Renderer/RenderCommand.h"
+#include "Kaidel/Renderer/GraphicsAPI/DescriptorSet.h"
 namespace Kaidel {
 
 	class EditorLayer : public Layer
@@ -116,6 +117,7 @@ namespace Kaidel {
 
 		RendererSettings m_RendererSettings = RendererAPI::GetSettings();
 
+		Ref<DescriptorSet> m_OutputDescriptorSet;
 
 		Ref<CubeMap> cm;
 	};

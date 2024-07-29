@@ -14,7 +14,7 @@ namespace Kaidel {
 
 	void VulkanBufferStager::Stage(VulkanCommandBuffer* commandBuffer, const VulkanBuffer& buffer, const void* data, uint64_t size)
 	{
-		VulkanStagingBuffer* stagingBuffer = m_Blocks->StagingBuffers[m_Blocks->CurrentStagingBuffer];
+		VulkanStagingBuffer* stagingBuffer = m_Blocks->StagingBuffers[m_Blocks->CurrentStagingBuffer].get();
 
 		if (stagingBuffer->HasUnusedSpace(size)) {
 			stagingBuffer->AddCopyOperation(commandBuffer, buffer, data, size);
@@ -23,8 +23,8 @@ namespace Kaidel {
 			++m_Blocks->CurrentStagingBuffer;
 			KD_CORE_ASSERT(m_Blocks->CurrentStagingBuffer < m_Blocks->StagingBuffers.size());
 			if (!m_Blocks->StagingBuffers[m_Blocks->CurrentStagingBuffer])
-				m_Blocks->StagingBuffers[m_Blocks->CurrentStagingBuffer] = new VulkanStagingBuffer(m_EachBufferSize);
-			stagingBuffer = m_Blocks->StagingBuffers[m_Blocks->CurrentStagingBuffer];
+				m_Blocks->StagingBuffers[m_Blocks->CurrentStagingBuffer] = CreateScope<VulkanStagingBuffer>(m_EachBufferSize);
+			stagingBuffer = m_Blocks->StagingBuffers[m_Blocks->CurrentStagingBuffer].get();
 			stagingBuffer->AddCopyOperation(commandBuffer, buffer, data, size);
 		}
 	}
@@ -40,7 +40,7 @@ namespace Kaidel {
 		PerFrameBlock block{};
 		block.CurrentStagingBuffer = 0;
 		block.StagingBuffers.resize(maxStagingBuffersPerFrame);
-		block.StagingBuffers[0] = new VulkanStagingBuffer(bufferSize);
+		block.StagingBuffers[0] = CreateScope<VulkanStagingBuffer>(bufferSize);
 		return block;
 	}
 }

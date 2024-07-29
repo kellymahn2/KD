@@ -148,4 +148,24 @@ namespace Kaidel {
 		StorageBuffer,
 	};
 
+	enum class ShaderType {
+		None,
+		VertexShader,
+		FragmentShader,
+		GeometryShader,
+		TessellationControlShader,
+		TessellationEvaluationShader
+	};
+
+	enum ShaderStage_ {
+		ShaderStage_None = 0,
+		ShaderStage_VertexShader = BIT(0),
+		ShaderStage_FragmentShader = BIT(1),
+		ShaderStage_GeometryShader = BIT(2),
+		ShaderStage_TessellationControlShader = BIT(3),
+		ShaderStage_TessellationEvaluationShader = BIT(4),
+	};
+
+	typedef int ShaderStages;
+
 }

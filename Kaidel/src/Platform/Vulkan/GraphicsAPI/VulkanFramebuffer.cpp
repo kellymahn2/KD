@@ -53,14 +53,16 @@ namespace Kaidel {
 		}
 
 		CreateRenderPass();
-		if (!s_SetLayout)
-			CreateDescriptorSetLayout();
-		CreateDescriptorPool();
 
 		Invalidate();
 	}
 	VulkanFramebuffer::~VulkanFramebuffer()
 	{
+		for (auto& fb : m_Resources) {
+			if (fb.Framebuffer) {
+				DestroyOne(fb);
+			}
+		}
 	}
 	void VulkanFramebuffer::Bind()
 	{
@@ -116,33 +118,7 @@ namespace Kaidel {
 
 		m_RenderPass = RenderPass::Create(spec);
 	}
-	void VulkanFramebuffer::CreateDescriptorSetLayout()
-	{
-		VkDescriptorSetLayoutBinding binding{};
-		binding.binding = 0;
-		binding.descriptorCount = 1;
-		binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-		VkDescriptorSetLayoutCreateInfo layoutInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-		layoutInfo.bindingCount = 1;
-		layoutInfo.pBindings = &binding;
-		VK_ASSERT(vkCreateDescriptorSetLayout(VK_DEVICE.GetDevice(), &layoutInfo, nullptr, &s_SetLayout));
-	}
-	void VulkanFramebuffer::CreateDescriptorPool()
-	{
-		VkDescriptorPoolSize size{};
-		size.descriptorCount = m_Specification.Attachments.Attachments.size() * m_Resources.GetResources().size();
-		size.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-
-		VkDescriptorPoolCreateInfo poolInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
-		poolInfo.maxSets = 32;
-		poolInfo.maxSets = m_Specification.Attachments.Attachments.size() * m_Resources.GetResources().size();
-		poolInfo.poolSizeCount = 1;
-		poolInfo.pPoolSizes = &size;
-		poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-		VK_ASSERT(vkCreateDescriptorPool(VK_DEVICE.GetDevice(), &poolInfo, nullptr, &m_DescriptorPool));
-	}
+	
 	void VulkanFramebuffer::InvalidateOne(FramebufferResources& fb)
 	{
 		if (fb.Framebuffer) {
@@ -160,28 +136,8 @@ namespace Kaidel {
 			VkImageView view = Utils::CreateImageView(VK_DEVICE.GetDevice(), image, VK_IMAGE_ASPECT_COLOR_BIT);
 
 			VkSampler sampler = Utils::CreateSampler(VK_DEVICE.GetDevice());
-
-			VkDescriptorSetAllocateInfo setInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-			setInfo.descriptorPool = m_DescriptorPool;
-			setInfo.descriptorSetCount = 1;
-			setInfo.pSetLayouts = &s_SetLayout;
-
-			VK_ASSERT(vkAllocateDescriptorSets(VK_DEVICE.GetDevice(), &setInfo, (VkDescriptorSet*)&image.ShaderBindable));
-
-			VkDescriptorImageInfo imageInfo{};
-			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			imageInfo.imageView = view;
-			imageInfo.sampler = sampler;
-
-			VkWriteDescriptorSet write{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-			write.descriptorCount = 1;
-			write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			write.dstArrayElement = 0;
-			write.dstBinding = 0;
-			write.dstSet = (VkDescriptorSet)image.ShaderBindable;
-			write.pImageInfo = &imageInfo;
-
-			vkUpdateDescriptorSets(VK_DEVICE.GetDevice(), 1, &write, 0, nullptr);
+			image.Sampler = (RendererID)sampler;
+			image.ImageView = (RendererID)view;
 
 			fb.Colors.push_back({ image,sampler,view });
 			views.push_back(view);
@@ -195,29 +151,6 @@ namespace Kaidel {
 			VkImageView view = Utils::CreateImageView(VK_DEVICE.GetDevice(), image, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 			VkSampler sampler = Utils::CreateSampler(VK_DEVICE.GetDevice());
-
-			VkDescriptorSetAllocateInfo setInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-			setInfo.descriptorPool = m_DescriptorPool;
-			setInfo.descriptorSetCount = 1;
-			setInfo.pSetLayouts = &s_SetLayout;
-
-			VK_ASSERT(vkAllocateDescriptorSets(VK_DEVICE.GetDevice(), &setInfo, (VkDescriptorSet*)&image.ShaderBindable));
-
-			VkDescriptorImageInfo imageInfo{};
-			imageInfo.imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
-			imageInfo.imageView = view;
-			imageInfo.sampler = sampler;
-
-			VkWriteDescriptorSet write{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-			write.descriptorCount = 1;
-			write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			write.dstArrayElement = 0;
-			write.dstBinding = 0;
-			write.dstSet = (VkDescriptorSet)image.ShaderBindable;
-			write.pImageInfo = &imageInfo;
-
-			vkUpdateDescriptorSets(VK_DEVICE.GetDevice(), 1, &write, 0, nullptr);
-
 
 			fb.Depth = { image,sampler,view };
 			views.push_back(view);
@@ -237,26 +170,23 @@ namespace Kaidel {
 	void VulkanFramebuffer::DestroyOne(FramebufferResources& fb)
 	{
 		vkDestroyFramebuffer(VK_DEVICE.GetDevice(), fb.Framebuffer, nullptr);
-		std::vector<VkDescriptorSet> frees;
-		for (auto& image : fb.Colors) {
-			frees.push_back((VkDescriptorSet)image.Attachment.ShaderBindable);
-
-			vkDestroySampler(VK_DEVICE.GetDevice(), image.Sampler, nullptr);
-			vkDestroyImageView(VK_DEVICE.GetDevice(), image.View, nullptr);
-			vmaDestroyImage(VK_ALLOCATOR.GetAllocator(), (VkImage)image.Attachment._InternalImageID, (VmaAllocation)image.Attachment._DeviceMemory);
+		
+		for (auto& color : fb.Colors) {
+			DestroyAttachmentResource(color);
+		}
+		if (HasDepthStencilAttachment()) {
+			DestroyAttachmentResource(fb.Depth);
 		}
 
-		if (Utils::IsDepthFormat(m_DepthAttachmentSpecification.AttachmentFormat)) {
-			frees.push_back((VkDescriptorSet)fb.Depth.Attachment.ShaderBindable);
-
-			vkDestroySampler(VK_DEVICE.GetDevice(), fb.Depth.Sampler, nullptr);
-			vkDestroyImageView(VK_DEVICE.GetDevice(), fb.Depth.View, nullptr);
-			vmaDestroyImage(VK_ALLOCATOR.GetAllocator(), (VkImage)fb.Depth.Attachment._InternalImageID, (VmaAllocation)fb.Depth.Attachment._DeviceMemory);
-		}
 		fb.Framebuffer = VK_NULL_HANDLE;
 		fb.Colors.clear();
 		fb.Depth = {};
-		vkFreeDescriptorSets(VK_DEVICE.GetDevice(), m_DescriptorPool, (uint32_t)frees.size(), frees.data());
+	}
+	void VulkanFramebuffer::DestroyAttachmentResource(FramebufferAttachmentResource& resource)
+	{
+		vkDestroySampler(VK_DEVICE.GetDevice(), resource.Sampler, nullptr);
+		vkDestroyImageView(VK_DEVICE.GetDevice(), resource.View, nullptr);
+		VK_ALLOCATOR.DestroyImage(resource.Attachment);
 	}
 	void VulkanFramebuffer::Invalidate()
 	{

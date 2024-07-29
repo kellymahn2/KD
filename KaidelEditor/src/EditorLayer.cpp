@@ -112,21 +112,18 @@ namespace Kaidel {
 
 		m_PanelContext->Scene = m_ActiveScene;
 
+		m_SceneHierarchyPanel.SetContext(m_PanelContext);
 		//m_ConsolePanel.SetContext(::Log::GetClientLogger());
 		/*m_ContentBrowserPanel.SetCurrentPath(Project::GetProjectDirectory());
 		m_ContentBrowserPanel.SetStartPath(Project::GetProjectDirectory());
-		m_SceneHierarchyPanel.SetContext(m_PanelContext);
 		m_PropertiesPanel.SetContext(m_PanelContext);
 		m_ContentBrowserPanel.SetContext(m_PanelContext);*/
 
-		for (int i = 0; i < 20; ++i) {
-			for (int j = 0; j < 20; ++j) {
-				auto e = m_ActiveScene->CreateEntity("Square");
-				e.AddComponent<SpriteRendererComponent>();
-				e.GetComponent<TransformComponent>().Translation = { i,j,0 };
-			}
-		}
-	
+		auto e = m_ActiveScene->CreateEntity("Square");
+		e.AddComponent<SpriteRendererComponent>();
+		e.GetComponent<TransformComponent>().Translation = { 0,0,0 };
+
+		m_OutputDescriptorSet = DescriptorSet::Create(DescriptorType::CombinedSampler,ShaderStage_FragmentShader);
 
 	}
 	void EditorLayer::OnDetach()
@@ -180,7 +177,6 @@ namespace Kaidel {
 
 	void EditorLayer::OnImGuiRender()
 	{
-		ImGui::ShowDemoWindow();
 		// Note: Switch this to true to enable dockspace
 		static bool dockspaceOpen = true;
 		static bool opt_fullscreen_persistant = true;
@@ -283,7 +279,7 @@ namespace Kaidel {
 			}
 
 
-			//m_SceneHierarchyPanel.OnImGuiRender();
+			m_SceneHierarchyPanel.OnImGuiRender();
 			//m_ConsolePanel.OnImGuiRender();
 			//m_ContentBrowserPanel.OnImGuiRender();
 			//m_AnimationPanel.OnImGuiRender();
@@ -596,8 +592,20 @@ namespace Kaidel {
 
 		Image& image = m_OutputBuffer->GetImage(0);
 		RenderCommand::Transition(image, ImageLayout::ShaderReadOnlyOptimal);
+
+		{
+			DescriptorSetUpdate update{};
+			update.ArrayIndex = 0;
+			update.Binding = 0;
+			update.Type = DescriptorType::CombinedSampler;
+			update.ImageUpdate.ImageView = image.ImageView;
+			update.ImageUpdate.Sampler = image.Sampler;
+			update.ImageUpdate.Layout = ImageLayout::ShaderReadOnlyOptimal;
+			m_OutputDescriptorSet->Update(update);
+		}
+
 		glm::vec4 uvs = _GetUVs();
-		ImGui::Image(reinterpret_cast<ImTextureID>(image.ShaderBindable), ImVec2{m_ViewportSize.x, m_ViewportSize.y}, {uvs.x,uvs.y}, {uvs.z,uvs.w});
+		ImGui::Image(reinterpret_cast<ImTextureID>(m_OutputDescriptorSet->GetSetID()), ImVec2{m_ViewportSize.x, m_ViewportSize.y}, {uvs.x,uvs.y}, {uvs.z,uvs.w});
 		
 		//ImGui::Text("Hello");
 		

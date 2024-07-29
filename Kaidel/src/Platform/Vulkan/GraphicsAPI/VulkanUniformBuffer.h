@@ -14,15 +14,13 @@ namespace Kaidel {
 		void Bind(uint32_t binding) override {}
 		void Bind() override {}
 		void UnBind() override {}
-		RendererID GetRendererID()const { return (RendererID)*m_Sets; }
-		VkDescriptorSet GetDescriptorSet()const { return *m_Sets; }
-	private:
-		void CreateDescriptorSets();
+
+		RendererID GetBufferID() const override { return (RendererID)m_Buffer->Buffer; }
+
 	private:
 		uint32_t m_Binding;
 		uint32_t m_Size;
 		PerFrameResource<VulkanBuffer> m_Buffer;
-		PerFrameResource<VkDescriptorSet> m_Sets;
 	};
 
 }

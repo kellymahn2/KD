@@ -17,30 +17,27 @@
 namespace Kaidel {
 
 
-	static std::vector<VkDescriptorSetLayout> CreateDescriptorLayouts(uint32_t count, VkDescriptorType type,VkDevice device) {
-		std::vector<VkDescriptorSetLayout> layouts;
-		for (uint32_t i = 0; i < count; ++i) {
-			VkDescriptorSetLayoutBinding binding{};
-			binding.binding = i;
-			binding.descriptorCount = 1;
-			binding.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
-			binding.descriptorType = type;
-			VkDescriptorSetLayoutCreateInfo setInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-			setInfo.bindingCount = 1;
-			setInfo.pBindings = &binding;
+
+	namespace Utils {
+		static VkDescriptorSetLayout CreateSingleDescriptorSetLayout(VkDevice device, VkDescriptorType type, uint32_t binding, uint32_t descriptorCount,VkShaderStageFlags flags) {
+			VkDescriptorSetLayoutBinding setBinding{};
+			setBinding.binding = binding;
+			setBinding.descriptorCount = descriptorCount;
+			setBinding.descriptorType = type;
+			setBinding.stageFlags = flags;
+
+			VkDescriptorSetLayoutCreateInfo layoutInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+			layoutInfo.bindingCount = 1;
+			layoutInfo.pBindings = &setBinding;
 			VkDescriptorSetLayout layout{};
-
-			VK_ASSERT(vkCreateDescriptorSetLayout(device, &setInfo, nullptr, &layout));
-			layouts.push_back(layout);
+			vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &layout);
+			return layout;
 		}
-		return layouts;
 	}
-
 
 	VulkanGraphicsContext* VulkanGraphicsContext::s_GraphicsContext;
 
-	
-	
+
 
 	uint32_t GetFramesInFlightCount() {
 		return VK_CONTEXT.GetFramesInFlightCount();
@@ -158,14 +155,30 @@ namespace Kaidel {
 		m_CurrentFrameNumber = 0;
 
 		CreateImGuiDescriptorPool();
-
-		m_UniformBufferDescriptorPool = CreateScope<VulkanDescriptorPool>(std::vector<VkDescriptorPoolSize>{ VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000} }, 1000, VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT);
-		m_UniformBufferDescriptorSetLayouts = CreateDescriptorLayouts(32, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_LogicalDevice->GetDevice());
 		
-		m_Texture2DDescriptorPool = CreateScope<VulkanDescriptorPool>(std::vector<VkDescriptorPoolSize>{ VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 } }, 1000, VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT);
-		m_Texture2DDescriptorSetLayouts = CreateDescriptorLayouts(32, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_LogicalDevice->GetDevice());
+		{
+			std::vector<DescriptorPoolSize> sizes;
+			sizes.push_back({ DescriptorType::Sampler, 1000 });
+			sizes.push_back({ DescriptorType::CombinedSampler, 1000 });
+			sizes.push_back({ DescriptorType::Texture, 1000 });
+			sizes.push_back({ DescriptorType::UniformBuffer, 1000 });
+			sizes.push_back({ DescriptorType::StorageBuffer, 1000 });
 
+			m_GlobalDescriptorPool = CreateScope<VulkanDescriptorPool>(sizes, 1000, VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT);
+		}
+		
 		m_BufferStager = CreateScope<VulkanBufferStager>(10 * 1024 * 1024, 4);
+
+	}
+
+	VkDescriptorSetLayout VulkanGraphicsContext::GetSingleDescriptorSetLayout(VkDescriptorType type, VkShaderStageFlags flags)
+	{
+		auto& map = m_SingleSetLayouts[type];
+		auto it = map.find(flags);
+		if (it != map.end())
+			return it->second;
+		auto layout = Utils::CreateSingleDescriptorSetLayout(m_LogicalDevice->GetDevice(), type, 0, 1,flags);
+		return map[flags] = layout;
 	}
 
 	void VulkanGraphicsContext::SwapBuffers()
@@ -179,6 +192,12 @@ namespace Kaidel {
 		for (auto& frame : m_FramesData) {
 			frame.TaskConditionVariable->notify_one();
 			frame.TaskWorker->join();
+		}
+
+		for (auto& [type,descriptorMap] : m_SingleSetLayouts) {
+			for (auto& [flags, layout] : descriptorMap) {
+				vkDestroyDescriptorSetLayout(m_LogicalDevice->GetDevice(), layout, nullptr);
+			}
 		}
 
 		m_FramesData.clear();
@@ -232,6 +251,8 @@ namespace Kaidel {
 		m_FramesData[m_CurrentFrameNumber].TaskConditionVariable->notify_one();
 
 		m_CurrentFrameNumber = (m_CurrentFrameNumber + 1) % m_MaxFramesInFlight;
+
+
 	}
 
 	void VulkanGraphicsContext::ImGuiInit()const
@@ -297,18 +318,12 @@ namespace Kaidel {
 
 	void VulkanGraphicsContext::CreateImGuiDescriptorPool()
 	{
-		std::vector<VkDescriptorPoolSize> sizes;
-		sizes.push_back({ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 });
-		sizes.push_back({ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 });
-		sizes.push_back({ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 });
-		sizes.push_back({ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 });
-		sizes.push_back({ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 });
-		sizes.push_back({ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 });
-		sizes.push_back({ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 });
-		sizes.push_back({ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 });
-		sizes.push_back({ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 });
-		sizes.push_back({ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 });
-		sizes.push_back({ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 });
+		std::vector<DescriptorPoolSize> sizes;
+		sizes.push_back({ DescriptorType::Sampler, 1000 });
+		sizes.push_back({ DescriptorType::CombinedSampler, 1000 });
+		sizes.push_back({ DescriptorType::Texture, 1000 });
+		sizes.push_back({ DescriptorType::UniformBuffer, 1000 });
+		sizes.push_back({ DescriptorType::StorageBuffer, 1000 });
 
 		m_ImGuiDescriptorPool = CreateScope<VulkanDescriptorPool>(sizes, 1000, VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT);
 	}

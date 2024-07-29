@@ -71,12 +71,12 @@ namespace Kaidel {
 		uint32_t GetFramesInFlightCount()const { return m_MaxFramesInFlight; }
 		uint32_t GetCurrentFrameNumber()const { return m_CurrentFrameNumber; }
 
-		VulkanDescriptorPool& GetUniformBufferDescriptorPool() { return *m_UniformBufferDescriptorPool; }
-		const std::vector<VkDescriptorSetLayout>& GetUniformBufferDescriptorSetLayouts()const { return m_UniformBufferDescriptorSetLayouts; }
+		VulkanDescriptorPool& GetGlobalDescriptorPool() { return *m_GlobalDescriptorPool; }
 
 		Ref<VulkanCommandBuffer> GetActiveCommandBuffer()const { return m_FramesData[m_AcquiredImage].CommandBuffer; }
 
 
+		VkDescriptorSetLayout GetSingleDescriptorSetLayout(VkDescriptorType type, VkShaderStageFlags flags);
 
 		//ImGui callbacks
 		void ImGuiInit()const override;
@@ -111,10 +111,9 @@ namespace Kaidel {
 		Ref<VulkanCommandPool> m_CommandPool;
 
 		Scope<VulkanDescriptorPool> m_ImGuiDescriptorPool;
-		Scope<VulkanDescriptorPool> m_UniformBufferDescriptorPool;
-		Scope<VulkanDescriptorPool> m_Texture2DDescriptorPool;
-		std::vector<VkDescriptorSetLayout> m_UniformBufferDescriptorSetLayouts;
-		std::vector<VkDescriptorSetLayout> m_Texture2DDescriptorSetLayouts;
+		Scope<VulkanDescriptorPool> m_GlobalDescriptorPool;
 		Scope<VulkanBufferStager> m_BufferStager;
+
+		std::unordered_map<VkDescriptorType, std::unordered_map<VkShaderStageFlags,VkDescriptorSetLayout>> m_SingleSetLayouts;
 	};
 }

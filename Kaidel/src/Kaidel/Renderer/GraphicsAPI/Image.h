@@ -2,11 +2,18 @@
 
 #include "Core.h"
 #include "Kaidel/Renderer/RendererDefinitions.h"
+#include "Kaidel/Renderer/GraphicsAPI/DescriptorSet.h"
 namespace Kaidel {
 	struct Image {
-		RendererID ShaderBindable;
 		RendererID _InternalImageID;
 		RendererID _DeviceMemory;
+
+		//Temp.
+		RendererID ImageView;
+		RendererID Sampler;
+		//Temp.
+
+
 
 		Format ImageFormat;
 
