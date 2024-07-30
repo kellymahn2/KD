@@ -246,7 +246,14 @@ namespace Kaidel {
 		presentInfo.waitSemaphoreCount = 1;
 		presentInfo.pWaitSemaphores = signalSemaphores;
 
-		VK_ASSERT(vkQueuePresentKHR(m_PhysicalDevice->GetQueue("PresentQueue").Queue, &presentInfo));
+		VkResult presentResult = vkQueuePresentKHR(m_PhysicalDevice->GetQueue("PresentQueue").Queue, &presentInfo);
+		bool needsResize = (presentResult == VK_SUBOPTIMAL_KHR) || (presentResult == VK_ERROR_OUT_OF_DATE_KHR);
+
+		if (needsResize) {
+			vkDeviceWaitIdle(m_LogicalDevice->GetDevice());
+			m_Swapchain->Resize(m_Window->GetWidth(), m_Window->GetHeight());
+		}
+
 		m_FramesData[m_CurrentFrameNumber].TasksReady = true;
 		m_FramesData[m_CurrentFrameNumber].TaskConditionVariable->notify_one();
 

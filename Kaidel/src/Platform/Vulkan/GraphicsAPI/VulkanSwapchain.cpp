@@ -8,7 +8,7 @@ namespace Kaidel {
 	VulkanSwapchain::VulkanSwapchain(VkSurfaceKHR surface, VkSurfaceFormatKHR wantedSurfaceFormat, 
 										VkPresentModeKHR wantedPresentMode, uint32_t wantedWidth, uint32_t wantedHeight, uint32_t wantedImageCount, 
 										const std::vector<uint32_t>& queueFamilyIndices)
-		:m_Swapchain(VK_NULL_HANDLE)
+		:m_Swapchain(VK_NULL_HANDLE), m_Surface(surface), m_QueueFamilyIndices(queueFamilyIndices)
 	{
 	
 		VkSurfaceFormatKHR surfaceFormat = ChooseSurfaceFormat(surface,VK_PHYSICAL_DEVICE,wantedSurfaceFormat);
@@ -21,16 +21,17 @@ namespace Kaidel {
 
 		uint32_t imageCount = std::clamp(wantedImageCount, surfaceCapabilities.minImageCount, surfaceCapabilities.maxImageCount);
 
+		
 		VkSwapchainCreateInfoKHR swapchainInfo{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
 		swapchainInfo.imageArrayLayers = 1;
 		swapchainInfo.imageColorSpace = surfaceFormat.colorSpace;
 		swapchainInfo.imageExtent = extent;
 		swapchainInfo.imageFormat = surfaceFormat.format;
-		swapchainInfo.imageSharingMode = queueFamilyIndices.size() == 1 ? VK_SHARING_MODE_EXCLUSIVE : VK_SHARING_MODE_CONCURRENT;
+		swapchainInfo.imageSharingMode = m_QueueFamilyIndices.size() == 1 ? VK_SHARING_MODE_EXCLUSIVE : VK_SHARING_MODE_CONCURRENT;
 		swapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 		swapchainInfo.minImageCount = imageCount;
-		swapchainInfo.pQueueFamilyIndices = queueFamilyIndices.data();
-		swapchainInfo.queueFamilyIndexCount = (uint32_t)queueFamilyIndices.size();
+		swapchainInfo.pQueueFamilyIndices = m_QueueFamilyIndices.data();
+		swapchainInfo.queueFamilyIndexCount = (uint32_t)m_QueueFamilyIndices.size();
 		swapchainInfo.presentMode = presentMode;
 		swapchainInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
 		swapchainInfo.surface = surface;
@@ -91,6 +92,49 @@ namespace Kaidel {
 		VK_ASSERT(vkAcquireNextImageKHR(VK_DEVICE.GetDevice(), m_Swapchain, timeout, signalSemaphore ? signalSemaphore->GetSemaphore() : VK_NULL_HANDLE
 			, signalFence ? signalFence->GetFence() : VK_NULL_HANDLE, &imageIndex));
 		return imageIndex;
+	}
+
+	void VulkanSwapchain::Resize(uint32_t width,uint32_t height)
+	{
+
+		for (auto& frame : m_Frames) {
+			vkDestroyFramebuffer(VK_DEVICE.GetDevice(), frame.Framebuffer, nullptr);
+			vkDestroyImageView(VK_DEVICE.GetDevice(), frame.ImageView, nullptr);
+		}
+
+		vkDestroySwapchainKHR(VK_DEVICE.GetDevice(), m_Swapchain, nullptr);
+
+
+		VkSurfaceCapabilitiesKHR surfaceCapabilities{};
+		VK_ASSERT(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(VK_PHYSICAL_DEVICE.GetDevice(), m_Surface, &surfaceCapabilities));
+
+		VkExtent2D extent = ChooseExtent(surfaceCapabilities, width, height);
+
+		VkSwapchainCreateInfoKHR swapchainInfo{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
+		swapchainInfo.imageArrayLayers = 1;
+		swapchainInfo.imageColorSpace = m_Format.colorSpace;
+		swapchainInfo.imageExtent = extent;
+		swapchainInfo.imageFormat = m_Format.format;
+		swapchainInfo.imageSharingMode = m_QueueFamilyIndices.size() == 1 ? VK_SHARING_MODE_EXCLUSIVE : VK_SHARING_MODE_CONCURRENT;
+		swapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		swapchainInfo.minImageCount = m_ImageCount;
+		swapchainInfo.pQueueFamilyIndices = m_QueueFamilyIndices.data();
+		swapchainInfo.queueFamilyIndexCount = (uint32_t)m_QueueFamilyIndices.size();
+		swapchainInfo.presentMode = m_PresentMode;
+		swapchainInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+		swapchainInfo.surface = m_Surface;
+		swapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+
+		VkSwapchainKHR swapchain{};
+		VK_ASSERT(vkCreateSwapchainKHR(VK_DEVICE.GetDevice(), &swapchainInfo, nullptr, &swapchain));
+
+		
+
+		m_Swapchain = swapchain;
+
+		m_Extent = extent;
+
+		MakeFrames(VK_DEVICE);
 	}
 
 

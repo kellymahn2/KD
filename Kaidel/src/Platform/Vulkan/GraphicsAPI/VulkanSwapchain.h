@@ -28,9 +28,11 @@ namespace Kaidel {
 		uint32_t GetImageCount()const { return m_ImageCount; }
 		VkRenderPass GetRenderPass()const { return m_RenderPass; }
 	
-	
 		uint32_t AcquireImage(VulkanSemaphore* signalSemaphore, VulkanFence* signalFence, uint64_t timeout = UINT64_MAX)const;
-	
+
+		void Resize(uint32_t width,uint32_t height);
+
+
 	private:
 		VkSurfaceFormatKHR ChooseSurfaceFormat(VkSurfaceKHR surface, VulkanPhysicalDevice& physicalDevice, VkSurfaceFormatKHR wantedFormat);
 	
@@ -47,6 +49,8 @@ namespace Kaidel {
 		VkExtent2D m_Extent;
 		uint32_t m_ImageCount;
 		VkRenderPass m_RenderPass;
+		VkSurfaceKHR m_Surface;
+		std::vector<uint32_t> m_QueueFamilyIndices;
 	};
 	
 }
