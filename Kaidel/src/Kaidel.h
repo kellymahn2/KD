@@ -31,10 +31,16 @@
 #include "Kaidel/Renderer/RenderCommand.h"
 
 #include "Kaidel/Renderer/GraphicsAPI/Buffer.h"
-#include "Kaidel/Renderer/GraphicsAPI/Shader.h"
-#include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
-#include "Kaidel/Renderer/GraphicsAPI/Texture.h"
-#include "Kaidel/Renderer/GraphicsAPI/VertexArray.h"
 #include "Kaidel/Renderer/GraphicsAPI/CubeMap.h"
+#include "Kaidel/Renderer/GraphicsAPI/DescriptorSet.h"
+#include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/GraphicsPipeline.h"
+#include "Kaidel/Renderer/GraphicsAPI/Image.h"
+#include "Kaidel/Renderer/GraphicsAPI/RenderPass.h"
+#include "Kaidel/Renderer/GraphicsAPI/SamplerState.h"
+#include "Kaidel/Renderer/GraphicsAPI/Shader.h"
+#include "Kaidel/Renderer/GraphicsAPI/Texture.h"
+#include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/VertexArray.h"
 
 // -----------------------------------

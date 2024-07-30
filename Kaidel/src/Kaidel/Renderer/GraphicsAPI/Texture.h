@@ -7,21 +7,7 @@
 #include <unordered_map>
 namespace Kaidel {
 
-	struct SamplerParameters {
-		SamplerFilter MinificationFilter;
-		SamplerFilter MagnificationFilter;
-		SamplerMipMapMode MipmapMode;
-		SamplerAddressMode AddressModeU;//x Coords
-		SamplerAddressMode AddressModeV;//y Coords
-		SamplerAddressMode AddressModeW;//z Coords
-		float LODBias = 0.0f;
-		float MinLOD = 0.0f;
-		float MaxLOD = 0.0f;
-		SamplerBorderColor BorderColor;
-	};
-
 	struct Texture2DSpecification {
-		SamplerParameters Sampler;
 
 		DeviceMemoryType TextureMemoryType;
 		Format TextureFormat;

@@ -25,9 +25,6 @@ namespace Kaidel {
 			return view;
 		}
 
-		static VkSampler CreateSampler(const SamplerParameters& parameters) {
-			VkSamplerCreateInfo samplerInfo{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-		}
 	}
 	
 	
@@ -37,8 +34,6 @@ namespace Kaidel {
 		m_Image = VK_ALLOCATOR.AllocateImage(spec.Width, spec.Height, 1, spec.Layers, VK_SAMPLE_COUNT_1_BIT, spec.Levels, spec.TextureFormat, ImageLayout::None,
 												VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
 		m_VulkanImage = (VkImage)m_Image._InternalImageID;
-
-		
 	}
 	VulkanTexture2D::~VulkanTexture2D()
 	{

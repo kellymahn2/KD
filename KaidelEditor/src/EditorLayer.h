@@ -118,6 +118,7 @@ namespace Kaidel {
 		RendererSettings m_RendererSettings = RendererAPI::GetSettings();
 
 		Ref<DescriptorSet> m_OutputDescriptorSet;
+		Ref<SamplerState> m_OutputSampler;
 
 		Ref<CubeMap> cm;
 	};

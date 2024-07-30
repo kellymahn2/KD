@@ -125,11 +125,22 @@ namespace Kaidel {
 
 		m_OutputDescriptorSet = DescriptorSet::Create(DescriptorType::CombinedSampler,ShaderStage_FragmentShader);
 
+		{
+			SamplerParameters params{};
+			params.MipmapMode = SamplerMipMapMode::Linear;
+			params.MinificationFilter = SamplerFilter::Linear;
+			params.MagnificationFilter = SamplerFilter::Linear;
+			params.BorderColor = SamplerBorderColor::None;
+			params.AddressModeU = SamplerAddressMode::ClampToEdge;
+			params.AddressModeV = SamplerAddressMode::ClampToEdge;
+			params.AddressModeW = SamplerAddressMode::ClampToEdge;
+			m_OutputSampler = SamplerState::Create(params);
+		}
 	}
+
 	void EditorLayer::OnDetach()
 	{
 	}
-
 
 	void EditorLayer::OnUpdate(Timestep ts)
 	{
@@ -599,7 +610,7 @@ namespace Kaidel {
 			update.Binding = 0;
 			update.Type = DescriptorType::CombinedSampler;
 			update.ImageUpdate.ImageView = image.ImageView;
-			update.ImageUpdate.Sampler = image.Sampler;
+			update.ImageUpdate.Sampler = m_OutputSampler->GetRendererID();
 			update.ImageUpdate.Layout = ImageLayout::ShaderReadOnlyOptimal;
 			m_OutputDescriptorSet->Update(update);
 		}
