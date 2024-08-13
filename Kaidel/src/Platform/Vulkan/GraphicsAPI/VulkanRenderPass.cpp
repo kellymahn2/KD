@@ -6,6 +6,22 @@
 
 namespace Kaidel 
 {
+
+	namespace Utils {
+		static VkAttachmentDescription MakeAttachmentDescription(const AttachmentSpecification& specs) {
+			VkAttachmentDescription desc{};
+			desc.loadOp = Utils::AttachmentLoadOpToVulkanAttachmentLoadOp(specs.LoadOp);
+			desc.storeOp = Utils::AttachmentStoreOpToVulkanAttachmentStoreOp(specs.StoreOp);
+			desc.stencilLoadOp = Utils::AttachmentLoadOpToVulkanAttachmentLoadOp(specs.StencilLoadOp);
+			desc.stencilStoreOp = Utils::AttachmentStoreOpToVulkanAttachmentStoreOp(specs.StencilStoreOp);
+			desc.samples = VK_SAMPLE_COUNT_1_BIT;
+			desc.initialLayout = Utils::ImageLayoutToVulkanImageLayout(specs.InitialLayout);
+			desc.finalLayout = Utils::ImageLayoutToVulkanImageLayout(specs.FinalLayout);
+			desc.format = Utils::FormatToVulkanFormat(specs.AttachmentFormat);
+			return desc;
+		}
+	}
+
 	VulkanRenderPass::VulkanRenderPass(const RenderPassSpecification& specification)
 		:m_Specification(specification)
 	{
@@ -16,15 +32,7 @@ namespace Kaidel
 		{
 
 			{
-				VkAttachmentDescription attachment{};
-				attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-				attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-				attachment.initialLayout = Utils::ImageLayoutToVulkanImageLayout(outputColor.InitialLayout);
-				attachment.finalLayout = Utils::ImageLayoutToVulkanImageLayout(outputColor.FinalLayout);
-				attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-				attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-				attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-				attachment.format = Utils::FormatToVulkanFormat(outputColor.AttachmentFormat);
+				VkAttachmentDescription attachment = Utils::MakeAttachmentDescription(outputColor);
 				descs.push_back(attachment);
 			}
 
@@ -46,15 +54,7 @@ namespace Kaidel
 		if (Utils::IsDepthFormat(m_Specification.OutputDepth.AttachmentFormat)) 
 		{
 			{
-				VkAttachmentDescription attachment{};
-				attachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-				attachment.storeOp = VK_ATTACHMENT_STORE_OP_NONE;
-				attachment.initialLayout = Utils::ImageLayoutToVulkanImageLayout(m_Specification.OutputDepth.InitialLayout);
-				attachment.finalLayout = Utils::ImageLayoutToVulkanImageLayout(m_Specification.OutputDepth.FinalLayout);
-				attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-				attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-				attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-				attachment.format = Utils::FormatToVulkanFormat(m_Specification.OutputDepth.AttachmentFormat);
+				VkAttachmentDescription attachment = Utils::MakeAttachmentDescription(m_Specification.OutputDepth);
 				descs.push_back(attachment);
 			}
 

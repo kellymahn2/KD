@@ -75,8 +75,13 @@ namespace Kaidel {
 
 		Ref<VulkanCommandBuffer> GetActiveCommandBuffer()const { return m_FramesData[m_AcquiredImage].CommandBuffer; }
 
-
 		VkDescriptorSetLayout GetSingleDescriptorSetLayout(VkDescriptorType type, VkShaderStageFlags flags);
+
+		Ref<VulkanCommandPool> GetPrimaryCommandPool()const { return m_CommandPool; }
+
+
+
+
 
 		//ImGui callbacks
 		void ImGuiInit()const override;

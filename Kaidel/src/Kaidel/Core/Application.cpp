@@ -136,6 +136,8 @@ namespace Kaidel {
 
 			m_Window->PresentImage();
 			m_Window->PollEvents();
+
+			m_Window->WrapCursor();
 		}
 	}
 

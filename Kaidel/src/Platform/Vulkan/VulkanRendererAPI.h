@@ -47,11 +47,17 @@ namespace Kaidel {
 		void EndRenderPass() override;
 
 		void BindGraphicsPipeline(Ref<GraphicsPipeline> pipeline) override;
+		
+		void BindPushConstants(Ref<GraphicsPipeline> pipeline, ShaderType type, const void* data, uint64_t size) override;
 
 		void Submit(std::function<void()>&& func) override;
 
 		void Transition(Image& image, ImageLayout newLayout) override;
 		void BindUniformBuffer(Ref<UniformBuffer> uniformBuffer, uint32_t index) override;
+
+		void CopyBufferToTexture(Ref<TransferBuffer> src, Image& dst, const BufferToTextureCopyRegion& region) override;
+
+		void ClearColorImage(Image& image, const AttachmentColorClearValue& clearValue, const TextureSubresourceRegion& region) override;
 
 	private:
 		static inline std::vector<VkBuffer> m_CurrentBoundBuffers = { 32 , 0 };
@@ -60,7 +66,5 @@ namespace Kaidel {
 
 		Ref<GraphicsPipeline> m_CurrentBoundPipeline = {};
 
-		// Inherited via RendererAPI
-		//static inline Ref<Framebuffer> m_BoundFramebuffer{};
 	};
 }

@@ -13,6 +13,8 @@
 
 #include "Kaidel/Scripting/ScriptEngine.h"
 
+#include "Kaidel/Renderer/GraphicsAPI/TextureLibrary.h"
+
 #include "yaml-cpp/yaml.h"
 
 #include "imguizmo/ImGuizmo.h"
@@ -45,39 +47,30 @@ namespace Kaidel {
 		return res;
 	}
 	
-	uint32_t* SetupSpriteIndices() {
-		uint32_t* quadIndices = new uint32_t[6000];
-
-		uint32_t offset = 0;
-		for (uint32_t i = 0; i < 6000; i += 6)
-		{
-			quadIndices[i + 0] = offset + 0;
-			quadIndices[i + 1] = offset + 1;
-			quadIndices[i + 2] = offset + 2;
-
-			quadIndices[i + 3] = offset + 2;
-			quadIndices[i + 4] = offset + 3;
-			quadIndices[i + 5] = offset + 0;
-
-			offset += 4;
-		}
-		return quadIndices;
-	}
-	
-	
 	void EditorLayer::OnAttach()
 	{
-
-		/*m_Icons.IconPlay = Texture2D::Create("Resources/Icons/PlayButton.png");
+		{
+			SamplerParameters params{};
+			params.MipmapMode = SamplerMipMapMode::Linear;
+			params.MinificationFilter = SamplerFilter::Linear;
+			params.MagnificationFilter = SamplerFilter::Linear;
+			params.BorderColor = SamplerBorderColor::None;
+			params.AddressModeU = SamplerAddressMode::ClampToEdge;
+			params.AddressModeV = SamplerAddressMode::ClampToEdge;
+			params.AddressModeW = SamplerAddressMode::ClampToEdge;
+			m_OutputSampler = SamplerState::Create(params);
+		}
+		
+		m_Icons.IconPlay = EditorIcon("Resources/Icons/PlayButton.png",m_OutputSampler);
 		KD_INFO("Loaded Play Button");
-		m_Icons.IconPause = Texture2D::Create("Resources/Icons/PauseButton.png");
+		m_Icons.IconPause = EditorIcon("Resources/Icons/PauseButton.png", m_OutputSampler);
 		KD_INFO("Loaded Pause Button");
-		m_Icons.IconSimulateStart = Texture2D::Create("Resources/Icons/SimulateButtonStart.png");
+		m_Icons.IconSimulateStart = EditorIcon("Resources/Icons/SimulateButtonStart.png", m_OutputSampler);
 		KD_INFO("Loaded Simulation Play Button");
-		m_Icons.IconSimulateStop = Texture2D::Create("Resources/Icons/SimulateButtonStop.png");
+		m_Icons.IconSimulateStop = EditorIcon("Resources/Icons/SimulateButtonStop.png", m_OutputSampler);
 		KD_INFO("Loaded Simulation Stop Button");
-		m_Icons.IconStop = Texture2D::Create("Resources/Icons/StopButton.png");
-		KD_INFO("Loaded Stop Button");*/
+		m_Icons.IconStop = EditorIcon("Resources/Icons/StopButton.png", m_OutputSampler);
+		KD_INFO("Loaded Stop Button");
 
 		{
 			FramebufferSpecification fbSpec;
@@ -113,29 +106,19 @@ namespace Kaidel {
 		m_PanelContext->Scene = m_ActiveScene;
 
 		m_SceneHierarchyPanel.SetContext(m_PanelContext);
+		m_PropertiesPanel.SetContext(m_PanelContext);
 		//m_ConsolePanel.SetContext(::Log::GetClientLogger());
 		/*m_ContentBrowserPanel.SetCurrentPath(Project::GetProjectDirectory());
 		m_ContentBrowserPanel.SetStartPath(Project::GetProjectDirectory());
-		m_PropertiesPanel.SetContext(m_PanelContext);
 		m_ContentBrowserPanel.SetContext(m_PanelContext);*/
 
-		auto e = m_ActiveScene->CreateEntity("Square");
-		e.AddComponent<SpriteRendererComponent>();
-		e.GetComponent<TransformComponent>().Translation = { 0,0,0 };
+		{
+			auto e = m_ActiveScene->CreateEntity("Square1");
+			e.AddComponent<SpriteRendererComponent>();
+			e.GetComponent<TransformComponent>().Translation = { 0,0,0 };
+		}
 
 		m_OutputDescriptorSet = DescriptorSet::Create(DescriptorType::CombinedSampler,ShaderStage_FragmentShader);
-
-		{
-			SamplerParameters params{};
-			params.MipmapMode = SamplerMipMapMode::Linear;
-			params.MinificationFilter = SamplerFilter::Linear;
-			params.MagnificationFilter = SamplerFilter::Linear;
-			params.BorderColor = SamplerBorderColor::None;
-			params.AddressModeU = SamplerAddressMode::ClampToEdge;
-			params.AddressModeV = SamplerAddressMode::ClampToEdge;
-			params.AddressModeW = SamplerAddressMode::ClampToEdge;
-			m_OutputSampler = SamplerState::Create(params);
-		}
 	}
 
 	void EditorLayer::OnDetach()
@@ -151,14 +134,18 @@ namespace Kaidel {
 			m_EditorCamera.OnUpdate(ts);
 
 		// Render
+		{
+			RenderCommand::BeginRenderPass(m_OutputBuffer, m_OutputBuffer->GetDefaultRenderPass());
+			RenderCommand::EndRenderPass();
+		}
+		
 		// Update scene
 		switch (m_SceneState)
 		{
 		case SceneState::Edit:
 		{
-			float colors[4] = { .1,.1,.1,1 };
-			m_ActiveScene->OnUpdateEditor(ts, m_EditorCamera, m_OutputBuffer, m_OutputBuffer);
-			//TextureCopier::Copy(m_ScreenOutputbuffer, m_OutputBuffer);
+			m_ActiveScene->OnUpdateEditor(ts, m_EditorCamera, m_OutputBuffer);
+
 			// Project Auto Save
 			auto& currentProjectConfig = Project::GetActive()->GetConfig();
 			if (currentProjectConfig.ProjectAutoSave) {
@@ -182,7 +169,6 @@ namespace Kaidel {
 			break;
 		}
 		}
-
 
 	}
 
@@ -294,11 +280,11 @@ namespace Kaidel {
 			//m_ConsolePanel.OnImGuiRender();
 			//m_ContentBrowserPanel.OnImGuiRender();
 			//m_AnimationPanel.OnImGuiRender();
-			//m_PropertiesPanel.OnImGuiRender();
+			m_PropertiesPanel.OnImGuiRender();
 
 			ShowDebugWindow();
 			ShowViewport();
-			//UI_Toolbar();
+			UI_Toolbar();
 			ImGui::End();
 			//if (m_ConsoleOpen) {
 			//	ImGui::Begin("Debug Console", &m_ConsoleOpen, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoNavFocus);
@@ -523,14 +509,7 @@ namespace Kaidel {
 		ImGui::ShowStyleEditor();
 		ImGui::End();
 		ImGui::Begin("Stats");
-		if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-			KD_CORE_INFO("pressed");
-		}
-		if (ImGui::Button("Hello")) {
-			KD_CORE_INFO("Pressed");
-		}
-		static char s[450] = { 0 };
-		ImGui::InputText("has", s, 449);
+
 		ImGui::Text("Gizmo Mode : %d", m_GizmoType);
 		//auto stats = Renderer2D::GetStats();
 		ImGui::Text("Frame Rate: %.3f", ImGui::GetIO().Framerate);
@@ -646,6 +625,8 @@ namespace Kaidel {
 		}
 	}
 
+	
+
 	void EditorLayer::UI_Toolbar() {
 		constexpr auto windowFlags =
 			ImGuiWindowFlags_NoDecoration
@@ -674,10 +655,10 @@ namespace Kaidel {
 		ImGui::SetCursorPosY((ImGui::GetWindowContentRegionMax().y * .5f) - (size * .5f));
 
 		{
-			Ref<Texture2D> icon = m_Icons.IconPlay;
+			EditorIcon icon = m_Icons.IconPlay;
 			if (m_SceneState == SceneState::Play)
 				icon = m_Icons.IconStop;
-			/*if (ImGui::ImageButton((ImTextureID)icon->GetRendererID(), { size,size }, { 0,0 }, { 1,1 }, 0)) {
+			if (ImGui::ImageButton((ImTextureID)icon.GetDescriptorSet()->GetSetID(), {size,size}, {0,0}, {1,1}, 0)) {
 				if (m_SceneState == SceneState::Edit) {
 					OnScenePlay();
 				}
@@ -688,29 +669,29 @@ namespace Kaidel {
 					OnSceneSimulateStop();
 					OnScenePlay();
 				}
-			}*/
+			}
 		}
 		{
 			if (m_SceneState == SceneState::Play) {
 				ImGui::SameLine();
-				Ref<Texture2D> icon = m_Icons.IconPause;
-				/*if (ImGui::ImageButton((ImTextureID)icon->GetRendererID(), { size,size }, { 0,0 }, { 1,1 }, 0)){
+				EditorIcon icon = m_Icons.IconPause;
+				if (ImGui::ImageButton((ImTextureID)icon.GetDescriptorSet()->GetSetID(), { size,size }, { 0,0 }, { 1,1 }, 0)){
 					m_ActiveScene->ChangePauseState();
 
-				}*/
+				}
 			}
 		}
 		ImGui::SameLine();
 		{
-			Ref<Texture2D> icon = m_Icons.IconSimulateStart;
+			EditorIcon icon = m_Icons.IconSimulateStart;
 			if (m_SceneState == SceneState::Simulate)
 				icon = m_Icons.IconSimulateStop;
-			/*if (ImGui::ImageButton((ImTextureID)icon->GetRendererID(), { size,size }, { 0,0 }, { 1,1 }, 0)) {
+			if (ImGui::ImageButton((ImTextureID)icon.GetDescriptorSet()->GetSetID(), { size,size }, { 0,0 }, { 1,1 }, 0)) {
 				if (m_SceneState == SceneState::Simulate)
 					OnSceneSimulateStop();
 				else
 					OnSceneSimulateStart();
-			}*/
+			}
 		}
 
 		ImGui::End();

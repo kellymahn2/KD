@@ -76,4 +76,49 @@ namespace Kaidel {
 
 		vkUpdateDescriptorSets(VK_DEVICE.GetDevice(), 1, &write, 0, nullptr);
 	}
+	void VulkanDescriptorSet::UpdateAll(const DescriptorSetUpdate& update)
+	{
+		for (auto& set : m_Sets) {
+			VkWriteDescriptorSet write{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+
+			write.descriptorCount = 1;
+			write.descriptorType = Utils::DescriptorTypeToVulkanDescriptorType(update.Type);
+			write.dstArrayElement = update.ArrayIndex;
+			write.dstBinding = update.Binding;
+			write.dstSet = set;
+
+			VkDescriptorImageInfo imageInfo{};
+			VkDescriptorBufferInfo bufferInfo{};
+			switch (update.Type)
+			{
+			case Kaidel::DescriptorType::Sampler:
+			case Kaidel::DescriptorType::CombinedSampler:
+			case Kaidel::DescriptorType::Texture:
+			{
+
+				imageInfo.imageLayout = Utils::ImageLayoutToVulkanImageLayout(update.ImageUpdate.Layout);
+				imageInfo.imageView = (VkImageView)update.ImageUpdate.ImageView;
+				imageInfo.sampler = (VkSampler)update.ImageUpdate.Sampler;
+				write.pImageInfo = &imageInfo;
+			}
+			break;
+			case Kaidel::DescriptorType::ImageBuffer:
+			case Kaidel::DescriptorType::UniformBuffer:
+			case Kaidel::DescriptorType::StorageBuffer:
+			{
+				bufferInfo.buffer = (VkBuffer)update.BufferUpdate.Buffer;
+				bufferInfo.offset = update.BufferUpdate.Offset;
+				bufferInfo.range = update.BufferUpdate.Size;
+				write.pBufferInfo = &bufferInfo;
+			}
+			break;
+			default:
+				return;
+			}
+
+			vkUpdateDescriptorSets(VK_DEVICE.GetDevice(), 1, &write, 0, nullptr);
+		}
+		
+
+	}
 }

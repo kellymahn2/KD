@@ -31,10 +31,22 @@ namespace Kaidel {
 	};
 
 
+	struct PushConstantRangeReflection {
+		uint32_t Size;
+		ShaderType Type;
+	};
+
 	class ShaderReflection {
 	public:
 
 		const std::unordered_map<uint32_t,DescriptorSetReflection>& GetSets()const { return  m_Sets; }
+		const std::vector<PushConstantRangeReflection>& GetPushConstants()const { return m_PushConstants; }
+
+
+		void AddPushConstant(uint32_t size,ShaderType type) {
+			m_PushConstants.push_back({ size, type});
+		}
+
 		void AddDescriptor(DescriptorType type, uint32_t count, uint32_t set, uint32_t binding) {
 			m_Sets[set].Set = set;
 			DescriptorSetBindingReflection setBinding;
@@ -49,6 +61,7 @@ namespace Kaidel {
 				m_Sets[setIndex].Set = setIndex;
 				Add(m_Sets[setIndex], set);
 			}
+			m_PushConstants.insert(m_PushConstants.end(), reflection.m_PushConstants.begin(), reflection.m_PushConstants.end());
 		}
 
 	private:
@@ -60,7 +73,7 @@ namespace Kaidel {
 		}
 
 	private:
-
+		std::vector<PushConstantRangeReflection> m_PushConstants;
 		std::unordered_map<uint32_t,DescriptorSetReflection> m_Sets;
 	};
 

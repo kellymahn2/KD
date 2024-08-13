@@ -10,6 +10,8 @@
 #include "Kaidel/Renderer/GraphicsAPI/GraphicsPipeline.h"
 #include "Kaidel/Renderer/GraphicsAPI/RenderPass.h"
 #include "Kaidel/Renderer/GraphicsAPI/DescriptorSet.h"
+#include "Kaidel/Renderer/GraphicsAPI/TextureLibrary.h"
+#include "Kaidel/Renderer/GraphicsAPI/SamplerState.h"
 #include "Renderer2D.h"
 
 namespace Kaidel{
@@ -39,6 +41,9 @@ namespace Kaidel{
 		};
 		CameraUnifomData Camera;
 		Ref<DescriptorSet> CameraDescriptorSet;
+
+		Ref<DescriptorSet> TextureDescriptorSet;
+		Ref<SamplerState> TextureSampler;
     };
 
     static Renderer2DData* s_RendererData;
@@ -86,7 +91,15 @@ namespace Kaidel{
 		{
 			SCOPED_TIMER("Render pass");
 			RenderPassSpecification spec{};
-			spec.OutputColors.push_back({ Format::RGBA8UN});
+			{
+				AttachmentSpecification attach{};
+				attach.AttachmentFormat = Format::RGBA8UN;
+				attach.InitialLayout = ImageLayout::General;
+				attach.FinalLayout = ImageLayout::ShaderReadOnlyOptimal;
+				attach.LoadOp = AttachmentLoadOp::Load;
+				attach.StoreOp = AttachmentStoreOp::Store;
+				spec.OutputColors.push_back(AttachmentSpecification{ attach });
+			}
 			//spec.OutputDepth = { Format::Depth32F };
 			//spec.OutputDepth.FinalLayout = ImageLayout::DepthAttachmentOptimal;
 			s_RendererData->SpriteRenderPass = RenderPass::Create(spec);
@@ -106,7 +119,7 @@ namespace Kaidel{
 			spec.FragmentShader = fs;
 
 			VertexInpuBinding binding{};
-			binding.Elements = { {"a_Position",VertexInputType::Float3},{"a_Color",VertexInputType::Float4} };
+			binding.Elements = { {"a_Position",VertexInputType::Float3},{"a_Color",VertexInputType::Float4},{"a_UVCoords",VertexInputType::Float3} };
 			binding.InputRate = VertexInputRate::Vertex;
 			VertexInputSpecification input{};
 			input.Bindings.push_back(binding);
@@ -119,6 +132,24 @@ namespace Kaidel{
 			SCOPED_TIMER("Camera Descriptor set");
 			s_RendererData->CameraDescriptorSet = DescriptorSet::Create(s_RendererData->SpritePipeline, 0);
 			
+		}
+
+		{
+			SCOPED_TIMER("Texture Descriptor set");
+			s_RendererData->TextureDescriptorSet = DescriptorSet::Create(s_RendererData->SpritePipeline, 1);
+		}
+
+		{
+			SCOPED_TIMER("Texture Sampler");
+			SamplerParameters params{};
+			params.MipmapMode = SamplerMipMapMode::Linear;
+			params.MinificationFilter = SamplerFilter::Linear;
+			params.MagnificationFilter = SamplerFilter::Linear;
+			params.BorderColor = SamplerBorderColor::None;
+			params.AddressModeU = SamplerAddressMode::ClampToEdge;
+			params.AddressModeV = SamplerAddressMode::ClampToEdge;
+			params.AddressModeW = SamplerAddressMode::ClampToEdge;
+			s_RendererData->TextureSampler = SamplerState::Create(params);
 		}
 
 		s_RendererData->PresetSpriteVertices[0] = { glm::vec3{-.5f,-.5f,.0f} ,glm::vec4{1.0f}};
@@ -145,23 +176,55 @@ namespace Kaidel{
 			update.BufferUpdate.Size = std::numeric_limits<uint64_t>::max();
 			s_RendererData->CameraDescriptorSet->Update(update);
 		}
+
+		{
+			DescriptorSetUpdate update{};
+			update.ArrayIndex = 0;
+			update.Binding = 0;
+			update.Type = DescriptorType::CombinedSampler;
+			update.ImageUpdate.Layout = ImageLayout::ShaderReadOnlyOptimal;
+			update.ImageUpdate.Sampler = s_RendererData->TextureSampler->GetRendererID();
+			update.ImageUpdate.ImageView = TextureLibrary::GetTextureArray()->GetImage().ImageView;
+			s_RendererData->TextureDescriptorSet->Update(update);
+			
+		}
+
+		RenderCommand::Transition(TextureLibrary::GetTextureArray()->GetImage(), ImageLayout::ShaderReadOnlyOptimal);
+
 		s_RendererData->OutputBuffer = outputColorBuffer;
 		StartSpriteBatch();
+
+		
 	}
     void Renderer2D::End() {
 		FlushSprites();
 	}
-    void Renderer2D::DrawSprite(const glm::mat4& transform,const glm::vec4& materials) {
+
+	void Renderer2D::DrawSprite(const glm::mat4& transform, const glm::vec4& color, const SamplingRegion& region)
+	{
 		SpriteVertex vertices[4] = {};
+
+		glm::vec2 uvs[4] = {};
+		//Bottom-Left
+		uvs[0] = { region.UV0.x,region.UV1.y };
+		//Bottom-Right
+		uvs[1] = region.UV1;
+		//Top-Right
+		uvs[2] = { region.UV1.x,region.UV0.y };
+		//Top-Left
+		uvs[3] = region.UV0;
+
 		for (uint32_t i = 0; i < 4; ++i) {
-			vertices[i].Position = transform * glm::vec4(s_RendererData->PresetSpriteVertices[i].Position,1.0f);
-			vertices[i].Color = materials;
+			vertices[i].Position = transform * glm::vec4(s_RendererData->PresetSpriteVertices[i].Position, 1.0f);
+			vertices[i].Color = color;
+			vertices[i].UV = { uvs[i],region.Layer };
 		}
 		AddSprite(vertices);
 	}
+
+   
 	void Renderer2D::AddSprite(SpriteVertex vertices[4]) {
 		if (!s_RendererData->BakedSpriteVertices.CanReserveWithoutOverflow(4)) {
-			//TODO: this is wrong, instead flush contents of command buffer so far.
 			FlushSprites();
 		}
 		auto bvi = s_RendererData->BakedSpriteVertices.Reserve(4);
@@ -182,12 +245,17 @@ namespace Kaidel{
 			
 			RenderCommand::BindVertexBuffers({ s_RendererData->SpriteVertexBuffer });
 			RenderCommand::BindIndexBuffer(s_RendererData->SpriteIndexBuffer);
-			RenderCommand::BeginRenderPass(s_RendererData->OutputBuffer,s_RendererData->SpriteRenderPass);
+			RenderCommand::Transition(s_RendererData->OutputBuffer->GetImage(0), ImageLayout::General);
+			RenderCommand::BeginRenderPass(s_RendererData->OutputBuffer, s_RendererData->SpriteRenderPass);
 			RenderCommand::BindGraphicsPipeline(s_RendererData->SpritePipeline);
 			RenderCommand::BindDescriptorSet(s_RendererData->CameraDescriptorSet, 0);
+			RenderCommand::BindDescriptorSet(s_RendererData->TextureDescriptorSet, 1);
 			RenderCommand::DrawIndexed(s_RendererData->SpritesWaitingForRender * 6);
 			RenderCommand::EndRenderPass();
 		}
+
+		s_RendererData->SpritesRendered += s_RendererData->SpritesWaitingForRender;
+		s_RendererData->SpritesWaitingForRender = 0;
 	}
 
 }

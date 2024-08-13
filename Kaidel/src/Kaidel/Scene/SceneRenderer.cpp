@@ -11,6 +11,7 @@
 #include "Kaidel/Core/Timer.h"
 #include "Kaidel/Renderer/RenderCommand.h"
 #include "Kaidel/Renderer/GraphicsAPI/CubeMap.h"
+#include "Kaidel/Renderer/GraphicsAPI/TextureLibrary.h"
 
 #include <glm/gtx/compatibility.hpp>
 #include <chrono>
@@ -32,25 +33,34 @@ namespace Kaidel {
 	}
 
 	void SceneRenderer::Reset()
-	{
+	{ 
 	}
 
-	void SceneRenderer::Render(Ref<Framebuffer> _3DOutputFramebuffer,Ref<Framebuffer> _2DOutputFramebuffer,const glm::mat4& cameraViewProj,const glm::vec3& cameraPos)
+	void SceneRenderer::Render(Ref<Framebuffer> outputBuffer, const glm::mat4& cameraViewProj, const glm::vec3& cameraPos)
 	{
-
 		Scene* activeScene = static_cast<Scene*>(m_Context);
 
-		Renderer2D::Begin(cameraViewProj,_2DOutputFramebuffer);
+		Renderer2D::Begin(cameraViewProj, outputBuffer);
+
 		//Sprites
 		{
 			auto view = activeScene->m_Registry.view<TransformComponent, SpriteRendererComponent>();
 			for (auto e : view) {
 				auto [tc, src] = view.get<TransformComponent, SpriteRendererComponent>(e);
-				Renderer2D::DrawSprite(tc.GetTransform(), glm::vec4{1.0f,1.0f,0.0f,1.0f});
+				
+				ImageSubresource resource = TextureLibrary::GetTextureByLayer(0);
+
+				SamplingRegion region{};
+				region.Layer = resource.Layer;
+				region.UV0 = resource.TopLeft;
+				region.UV1 = resource.BottomRight;
+
+				Renderer2D::DrawSprite(tc.GetTransform(), glm::vec4{1.0f,1.0f,1.0f,1.0f}, region);
 			}
 		}
 
 		Renderer2D::End();
+
 #if 0
 
 
@@ -131,7 +141,6 @@ namespace Kaidel {
 			}
 		}
 #endif
-
 	}
 
 }

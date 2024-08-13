@@ -63,11 +63,16 @@ namespace Kaidel {
 
 		virtual void BindGraphicsPipeline(Ref<GraphicsPipeline> pipeline) = 0;
 
+		virtual void BindPushConstants(Ref<GraphicsPipeline> pipeline, ShaderType type, const void* data, uint64_t size) = 0;
+
 		virtual void Submit(std::function<void()>&& func) = 0;
 
 		virtual void Transition(Image& image, ImageLayout newLayout) = 0;
 
+		virtual void CopyBufferToTexture(Ref<TransferBuffer> src, Image& dst, const BufferToTextureCopyRegion& region) = 0;
 
+
+		virtual void ClearColorImage(Image& image, const AttachmentColorClearValue& clearValue, const TextureSubresourceRegion& region) = 0;
 
 		static RendererSettings& GetSettings() { return s_RendererSettings; }
 

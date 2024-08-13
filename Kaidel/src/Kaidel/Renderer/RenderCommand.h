@@ -6,8 +6,10 @@
 #include "Kaidel/Renderer/GraphicsAPI/Image.h"
 #include "Kaidel/Renderer/GraphicsAPI/RenderPass.h"
 #include "Kaidel/Renderer/GraphicsAPI/DescriptorSet.h"
+#include "Kaidel/Renderer/GraphicsAPI/Buffer.h"
 
 namespace Kaidel {
+
 
 	class RenderCommand
 	{
@@ -110,6 +112,10 @@ namespace Kaidel {
 			s_RendererAPI->BindGraphicsPipeline(pipeline);
 		}
 
+		static void BindPushConstants(Ref<GraphicsPipeline> pipeline, ShaderType type, const void* data, uint64_t size) {
+			s_RendererAPI->BindPushConstants(pipeline, type, data, size);
+		}
+
 		static void Draw(uint32_t vertexCount, uint32_t firstVertexID = 0) {
 			s_RendererAPI->Draw(vertexCount, firstVertexID);
 		}
@@ -130,6 +136,15 @@ namespace Kaidel {
 		static void Transition(Image& image, ImageLayout newLayout) {
 			s_RendererAPI->Transition(image, newLayout);
 		}
+
+		static void CopyBufferToTexture(Ref<TransferBuffer> src, Image& dst, const BufferToTextureCopyRegion& region) {
+			s_RendererAPI->CopyBufferToTexture(src, dst, region);
+		}
+
+		static void ClearColorImage(Image& image, const AttachmentColorClearValue& clearValue, const TextureSubresourceRegion& region) {
+			s_RendererAPI->ClearColorImage(image, clearValue, region);
+		}
+
 
 
 		static Scope<RendererAPI>& Get() { return s_RendererAPI; }

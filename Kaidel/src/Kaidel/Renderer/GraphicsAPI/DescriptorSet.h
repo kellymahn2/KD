@@ -40,6 +40,7 @@ namespace Kaidel {
 
 		virtual RendererID GetSetID()const = 0;
 		virtual void Update(const DescriptorSetUpdate& update) = 0;
+		virtual void UpdateAll(const DescriptorSetUpdate& update) = 0;
 
 		static Ref<DescriptorSet> Create(Ref<GraphicsPipeline> pipeline,uint32_t setBinding);
 		static Ref<DescriptorSet> Create(DescriptorType type, ShaderStages flags);

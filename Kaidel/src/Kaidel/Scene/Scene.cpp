@@ -348,10 +348,10 @@ namespace Kaidel {
 
 	}
 
-	void Scene::OnUpdateEditor(Timestep ts, EditorCamera& camera,Ref<Framebuffer> _3DOutputFramebuffer,Ref<Framebuffer> _2DOutputFramebuffer)
+	void Scene::OnUpdateEditor(Timestep ts, EditorCamera& camera, Ref<Framebuffer> outputBuffer)
 	{
 		static SceneRenderer sceneRenderer{ this };
-		sceneRenderer.Render(_3DOutputFramebuffer, _2DOutputFramebuffer, camera.GetViewProjection(), camera.GetPosition());
+		sceneRenderer.Render(outputBuffer, camera.GetViewProjection(), camera.GetPosition());
 
 	}
 

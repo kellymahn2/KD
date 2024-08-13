@@ -63,6 +63,7 @@ namespace Kaidel {
 		ApplicationCommandLineArgs GetCommandLineArgs() const { return m_Specification.CommandLineArgs; }
 
 		void SubmitToMainThread(const std::function<void()>& func);
+		void ExecuteMainThreadQueue();
 	private:
 		void OnUpdate();
 
@@ -72,7 +73,6 @@ namespace Kaidel {
 		bool OnRendererSettingsChanged(RendererSettingsChangedEvent& e);
 		bool OnWindowRedraw(WindowRedrawEvent& e);
 
-		void ExecuteMainThreadQueue();
 	private:
 		ApplicationSpecification m_Specification;
 		Scope<Window> m_Window;

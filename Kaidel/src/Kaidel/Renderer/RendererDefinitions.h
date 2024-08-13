@@ -2,6 +2,8 @@
 
 #include "Kaidel/Core/Base.h"
 
+#include <glm/glm.hpp>
+
 namespace Kaidel {
 	enum class VertexInputType {
 		None,
@@ -168,4 +170,92 @@ namespace Kaidel {
 
 	typedef int ShaderStages;
 
+	enum TextureUsage_ {
+		TextureUsage_None = 0,
+		TextureUsage_Sampled = BIT(0),
+		TextureUsage_CPUReadable = BIT(1),
+		TextureUsage_Updateable = BIT(2),
+		TextureUsage_CopyFrom = BIT(3),
+		TextureUsage_CopyTo = BIT(4),
+	};
+
+	typedef int TextureUsage;
+
+	enum class TextureSwizzle {
+		Identity,
+		Zero,
+		One,
+		Red,
+		Green,
+		Blue,
+		Alpha,
+	};
+
+	enum class TextureSamples {
+		x1,
+		x2,
+		x4,
+		x8,
+		x16,
+		x32
+	};
+
+	enum class AttachmentLoadOp {
+		Load = 1,
+		Clear,
+		DontCare,
+	};
+
+	enum class AttachmentStoreOp {
+		Store = 1,
+		DontCare,
+	};
+
+	union AttachmentColorClearValue {
+		glm::vec4 RGBAF;
+		glm::ivec4 RGBAI;
+		glm::uvec4 RGBAUI;
+		AttachmentColorClearValue() = default;
+		AttachmentColorClearValue(const glm::vec4& rgbaf)
+			:RGBAF(rgbaf)
+		{}
+		AttachmentColorClearValue(const glm::ivec4& rgbai)
+			:RGBAI(rgbai)
+		{}
+		AttachmentColorClearValue(const glm::uvec4& rgbaui)
+			:RGBAUI(rgbaui)
+		{}
+	};
+
+	struct AttachmentDepthStencilClearValue {
+		float Depth;
+		uint32_t Stencil;
+		AttachmentDepthStencilClearValue() = default;
+		AttachmentDepthStencilClearValue(float depth, uint32_t stencil)
+			:Depth(depth), Stencil(stencil)
+		{}
+	};
+
+	union AttachmentClearValue {
+		AttachmentColorClearValue ColorClear;
+		AttachmentDepthStencilClearValue DepthStencilClear;
+	};
+
+
+	struct TextureSubresourceRegion {
+		uint32_t StarMip = 0;
+		uint32_t MipCount = 1;
+		uint32_t StartLayer = 0;
+		uint32_t LayerCount = 1;
+	};
+
+	struct BufferToTextureCopyRegion {
+		uint64_t BufferOffset = 0;
+		uint64_t Mipmap = 0;
+		uint64_t StartLayer = 0;
+		uint64_t LayerCount = 1;
+		glm::ivec3 TextureOffset = {0,0,0};
+		glm::ivec3 TextureRegionSize = { 0,0,0 };
+	};
+	
 }

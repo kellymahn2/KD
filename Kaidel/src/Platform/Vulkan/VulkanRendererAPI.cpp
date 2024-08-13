@@ -8,6 +8,8 @@
 #include "GraphicsAPI/VulkanUniformBuffer.h"
 #include "GraphicsAPI/VulkanFramebuffer.h"
 #include "GraphicsAPI/VulkanGraphicsContext.h"
+#include "GraphicsAPI/VulkanTransferBuffer.h"
+
 
 namespace Kaidel {
     void VulkanRendererAPI::Init()
@@ -118,48 +120,7 @@ namespace Kaidel {
     }
     void VulkanRendererAPI::Transition(Image& image, ImageLayout newLayout)
     {
-		if (newLayout == image.Layout)
-			return;
-
-		VkImageMemoryBarrier barrier{};
-		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		barrier.oldLayout = Utils::ImageLayoutToVulkanImageLayout(image.Layout);
-		barrier.newLayout = Utils::ImageLayoutToVulkanImageLayout(newLayout);
-		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		barrier.image = (VkImage)image._InternalImageID;
-
-		if (Utils::IsDepthFormat(image.ImageFormat)) {
-			barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-			if (image.ImageFormat == Format::Depth24Stencil8) {
-				barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-			}
-		}
-		else {
-			barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		}
-		
-		barrier.subresourceRange.baseMipLevel = 0;
-		barrier.subresourceRange.levelCount = image.Levels;
-		barrier.subresourceRange.baseArrayLayer = 0;
-		barrier.subresourceRange.layerCount = image.Layers;
-
-		VkPipelineStageFlags sourceStage = Utils::GetPipelineStageForLayout(image.Layout);
-		VkPipelineStageFlags destinationStage = Utils::GetPipelineStageForLayout(newLayout);
-
-		VkCommandBuffer cmdBuffer = VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer();
-
-		vkCmdPipelineBarrier(
-			cmdBuffer,
-			sourceStage, destinationStage,
-			0,
-			0, nullptr,
-			0, nullptr,
-			1, &barrier
-		);
-
-		image.Layout = newLayout;
-		image.IntendedLayout = newLayout;
+		Utils::Transition(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), image, newLayout);
     }
 	void VulkanRendererAPI::BindUniformBuffer(Ref<UniformBuffer> uniformBuffer, uint32_t index)
 	{
@@ -169,5 +130,74 @@ namespace Kaidel {
 		//VulkanGraphicsPipeline* pipeline = (VulkanGraphicsPipeline*)m_CurrentBoundPipeline.Get();
 		//VkDescriptorSet set = ((VulkanUniformBuffer*)uniformBuffer.Get())->GetDescriptorSet();
 		//vkCmdBindDescriptorSets(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetLayout(), index, 1,&set , 0, nullptr);
+	}
+	void VulkanRendererAPI::CopyBufferToTexture(Ref<TransferBuffer> src, Image& dst, const BufferToTextureCopyRegion& region)
+	{
+		bool needsTransition = dst.Layout != ImageLayout::TransferDstOptimal;
+		ImageLayout oldLayout = dst.Layout;
+		oldLayout = oldLayout == ImageLayout::None ? ImageLayout::ShaderReadOnlyOptimal : oldLayout;
+		Ref<VulkanTransferBuffer> vulkanSrcBuffer = src;	
+
+		if (needsTransition)
+			Transition(dst, ImageLayout::TransferDstOptimal);
+		//Copy
+		VkBufferImageCopy copyRegion = {};
+		
+		copyRegion.bufferOffset = region.BufferOffset;
+		
+		copyRegion.imageOffset.x = region.TextureOffset.x;
+		copyRegion.imageOffset.y = region.TextureOffset.y;
+		copyRegion.imageOffset.z = region.TextureOffset.z;
+		
+		copyRegion.imageExtent.width = region.TextureRegionSize.x;
+		copyRegion.imageExtent.height = region.TextureRegionSize.y;
+		copyRegion.imageExtent.depth = region.TextureRegionSize.z;
+
+		copyRegion.imageSubresource.aspectMask = Utils::GetAspectFlags(dst.ImageFormat);
+		copyRegion.imageSubresource.mipLevel = region.Mipmap;
+		copyRegion.imageSubresource.baseArrayLayer = region.StartLayer;
+		copyRegion.imageSubresource.layerCount = region.LayerCount;
+
+		vkCmdCopyBufferToImage(
+			VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(),
+			vulkanSrcBuffer->GetBuffer().Buffer, 
+			(VkImage)dst._InternalImageID,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			1,
+			&copyRegion);
+
+		//Revert transition
+		if (needsTransition)
+			Transition(dst, oldLayout);
+	}
+	void VulkanRendererAPI::ClearColorImage(Image& image, const AttachmentColorClearValue& clearValue, const TextureSubresourceRegion& region)
+	{
+		VkClearColorValue color{};
+		memcpy(color.float32, &clearValue.RGBAF, sizeof(color.float32));
+
+		VkImageSubresourceRange subresource{};
+		subresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		subresource.baseArrayLayer = region.StartLayer;
+		subresource.layerCount = region.LayerCount;
+		subresource.baseMipLevel = region.StarMip;
+		subresource.levelCount = region.MipCount;
+
+		VkImageLayout layout = Utils::ImageLayoutToVulkanImageLayout(image.Layout);
+
+
+		vkCmdClearColorImage(
+			VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(),
+			(VkImage)image._InternalImageID,
+			layout,
+			&color,
+			1,
+			&subresource
+		);
+
+	}
+	void VulkanRendererAPI::BindPushConstants(Ref<GraphicsPipeline> pipeline, ShaderType type, const void* data, uint64_t size)
+	{
+		Ref<VulkanGraphicsPipeline> vulkanPipeline = pipeline;
+		vkCmdPushConstants(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), vulkanPipeline->GetLayout(), Utils::ShaderTypeToVulkanShaderStageFlag(type), 0, size, data);
 	}
 }

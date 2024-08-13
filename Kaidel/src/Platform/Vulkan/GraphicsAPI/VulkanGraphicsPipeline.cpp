@@ -189,6 +189,7 @@ namespace Kaidel {
 
 			pipelineInfo.subpass = 0;
 			pipelineInfo.renderPass = (VkRenderPass)spec.UsedRenderPass->GetRendererID();
+
 #undef SHADER_STAGE_INFO
 
 			std::vector<VkDescriptorSetLayout> setLayouts{};
@@ -197,7 +198,7 @@ namespace Kaidel {
 				std::vector<VkDescriptorSetLayoutBinding> bindings;
 
 				for (auto& [bindingIndex, binding] : set.Bindings) {
-					VkDescriptorSetLayoutBinding layoutBinding;
+					VkDescriptorSetLayoutBinding layoutBinding{};
 					layoutBinding.binding = bindingIndex;
 					layoutBinding.descriptorCount = binding.Count;
 					layoutBinding.descriptorType = DescriptorTypeToVulkanDescriptorType(binding.Type);
@@ -214,10 +215,24 @@ namespace Kaidel {
 			}
 
 			result.SetLayouts = setLayouts;
+
+
+			std::vector<VkPushConstantRange> ranges{};
+
+			for (auto& constant : reflection.GetPushConstants()) {
+				VkPushConstantRange range{};
+				range.size = constant.Size;
+				range.offset = 0;
+				range.stageFlags = Utils::ShaderTypeToVulkanShaderStageFlag(constant.Type);
+				ranges.push_back(range);
+			}
+
 			//Layout
 			VkPipelineLayoutCreateInfo layoutInfo{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
 			layoutInfo.pSetLayouts = setLayouts.data();
 			layoutInfo.setLayoutCount = (uint32_t)setLayouts.size();
+			layoutInfo.pPushConstantRanges = ranges.data();
+			layoutInfo.pushConstantRangeCount = (uint32_t)ranges.size();
 			VK_ASSERT(vkCreatePipelineLayout(VK_DEVICE.GetDevice(), &layoutInfo, nullptr, &result.Layout));
 			pipelineInfo.layout = result.Layout;
 

@@ -13,8 +13,6 @@ namespace Kaidel {
 		RendererID Sampler;
 		//Temp.
 
-
-
 		Format ImageFormat;
 
 		uint32_t Width;
@@ -24,7 +22,21 @@ namespace Kaidel {
 		uint32_t Levels;
 		ImageLayout Layout;
 		ImageLayout IntendedLayout;
-
 	};
+
+	struct ImageSubresource {
+		RendererID _InternalImageID;
+		RendererID _DeviceMemory;
+
+		RendererID ImageView;
+
+		uint32_t Layer;
+
+		//Normalized
+		glm::vec2 TopLeft;
+		//Normalized
+		glm::vec2 BottomRight;
+	};
+
 
 }

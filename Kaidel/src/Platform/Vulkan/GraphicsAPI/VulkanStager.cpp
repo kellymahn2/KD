@@ -34,6 +34,8 @@ namespace Kaidel {
 			if (stagingBuffer)
 				stagingBuffer->Reset();
 		}
+
+		m_Blocks->CurrentStagingBuffer = 0;
 	}
 	VulkanBufferStager::PerFrameBlock VulkanBufferStager::CreateFrameBlock(uint32_t bufferSize, uint32_t maxStagingBuffersPerFrame)
 	{

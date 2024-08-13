@@ -33,7 +33,7 @@ namespace Kaidel {
 		void DuplicateEntity(Entity& entity);
 
 		void OnUpdateRuntime(Timestep ts);
-		void OnUpdateEditor(Timestep ts, EditorCamera& camera, Ref<Framebuffer> _3DOutputFramebuffer, Ref<Framebuffer> _2DOutputFramebuffer);
+		void OnUpdateEditor(Timestep ts, EditorCamera& camera, Ref<Framebuffer> outputBuffer);
 		void OnUpdateSimulation(Timestep ts, EditorCamera& camera);
 		void OnViewportResize(uint32_t width, uint32_t height);
 

@@ -107,6 +107,8 @@ namespace Kaidel {
 			attachment.AttachmentFormat = colorSpec.AttachmentFormat;
 			attachment.InitialLayout = ImageLayout::None;
 			attachment.FinalLayout = ImageLayout::ColorAttachmentOptimal;
+			attachment.LoadOp = AttachmentLoadOp::Clear;
+			attachment.StoreOp = AttachmentStoreOp::Store;
 			spec.OutputColors.push_back(attachment);
 		}
 

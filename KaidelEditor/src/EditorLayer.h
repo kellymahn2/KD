@@ -10,6 +10,9 @@
 #include "Kaidel/Renderer/2D/Renderer2D.h"
 #include "Kaidel/Renderer/RenderCommand.h"
 #include "Kaidel/Renderer/GraphicsAPI/DescriptorSet.h"
+
+#include "EditorIcon.h"
+
 namespace Kaidel {
 
 	class EditorLayer : public Layer
@@ -65,6 +68,7 @@ namespace Kaidel {
 		void ShowViewport();
 		void HandleViewportResize();
 
+
 	private:
 		
 		Console m_DebugConsole;
@@ -100,11 +104,11 @@ namespace Kaidel {
 
 
 		struct Icons {
-			Ref<Texture2D> IconPlay;
-			Ref<Texture2D> IconPause;
-			Ref<Texture2D> IconSimulateStart;
-			Ref<Texture2D> IconSimulateStop;
-			Ref<Texture2D> IconStop;
+			EditorIcon IconPlay;
+			EditorIcon IconPause;
+			EditorIcon IconSimulateStart;
+			EditorIcon IconSimulateStop;
+			EditorIcon IconStop;
 		} m_Icons;
 
 		enum class SceneState {
@@ -119,6 +123,8 @@ namespace Kaidel {
 
 		Ref<DescriptorSet> m_OutputDescriptorSet;
 		Ref<SamplerState> m_OutputSampler;
+
+		Ref<TextureLayered2D> t;
 
 		Ref<CubeMap> cm;
 	};

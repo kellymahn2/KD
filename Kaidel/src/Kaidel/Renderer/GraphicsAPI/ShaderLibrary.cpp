@@ -90,37 +90,25 @@ namespace Kaidel {
 	{
 		return s_LibraryData.Shaders.find(path) != s_LibraryData.Shaders.end();
 	}
-	Ref<ShaderModule> ShaderLibrary::LoadShader(const Path& path, ShaderType type, bool cache)
+	Ref<ShaderModule> ShaderLibrary::LoadShader(const Path& path, ShaderType type)
 	{
-		Path cachePath = GetCachePathForShader(path.filename());
-
 		std::vector<uint32_t> data;
 
-		//File is cached.
-		if (FileSystem::exists(cachePath)) {
-			std::ifstream in(cachePath, std::ios::in | std::ios::binary);
-
-			if (!in.is_open())
-				return {};
-
-			in.seekg(0, std::ios::end);
-			auto size = in.tellg();
-			in.seekg(0, std::ios::beg);
-
-			data.resize(size / sizeof(uint32_t));
-
-			in.read((char*)data.data(), size);
+		if (IsCacheValid(path)) {
+			data = ReadSPIRVFromCache(path);
 		}
 		//Compile and cache if needed
 		else {
-
+			KD_CORE_INFO("Shader with file path {} being compiled", path);
 			std::string source = ReadFile(path);
-
 
 			shaderc::Compiler compiler;
 			shaderc::CompileOptions options;
 			options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
+#ifdef  KD_RELEASE 
 			options.SetOptimizationLevel(shaderc_optimization_level_performance);
+#endif //  KD_RELEASE 
+
 			options.SetIncluder(CreateScope<ShaderIncluder>());
 
 			shaderc::CompilationResult module = compiler.CompileGlslToSpv(source, Utils::KaidelShaderTypeToShaderCShaderKind(type), path.string().c_str(), options);
@@ -131,15 +119,9 @@ namespace Kaidel {
 			}
 
 			data = std::vector<uint32_t>(module.cbegin(), module.cend());
-
-			if (cache) {
-				std::ofstream out(cachePath, std::ios::out | std::ios::binary);
-				if (out.is_open()) {
-					out.write((char*)data.data(), data.size() * sizeof(uint32_t));
-					out.flush();
-				}
-			}
+			CreateCache(data, path);
 		}
+
 		ShaderSpecification spec{};
 		spec.EntryPoint = "main";
 		spec.SPIRV = data;
@@ -152,9 +134,9 @@ namespace Kaidel {
 
 		return shader;
 	}
-	Ref<ShaderModule> ShaderLibrary::LoadShader(const std::string& name, const Path& path, ShaderType type, bool cache)
+	Ref<ShaderModule> ShaderLibrary::LoadShader(const std::string& name, const Path& path, ShaderType type)
 	{
-		return s_LibraryData.NamedShaders[name] = LoadShader(path, type, cache);
+		return s_LibraryData.NamedShaders[name] = LoadShader(path, type);
 	}
 	Ref<ShaderModule> ShaderLibrary::GetShader(const Path& path)
 	{
@@ -196,6 +178,65 @@ namespace Kaidel {
 	}
 	Path ShaderLibrary::GetCachePathForShader(const Path& name)
 	{
-		return s_LibraryData.CachePath / (name.string() + s_LibraryData.CachedFileExtension);
+		return s_LibraryData.CachePath / (name.filename().string() + s_LibraryData.CachedFileExtension);
+	}
+	void ShaderLibrary::CreateCache(const std::vector<uint32_t>& spirv, const Path& path)
+	{
+
+		std::ofstream file(GetCachePathForShader(path),std::ios::binary| std::ios::out);
+		if (!file.is_open())
+			return;
+
+		FileSystem::file_time_type lastWrite = FileSystem::last_write_time(path);
+
+		uint64_t lastWriteTime = lastWrite.time_since_epoch().count();
+
+		//TODO: should be written and read as BE.
+
+		file.write((const char*)&lastWriteTime, sizeof(uint64_t));
+
+		file.write((char*)spirv.data(), spirv.size() * sizeof(uint32_t));
+	}
+	bool ShaderLibrary::IsCacheValid(const Path& path)
+	{
+		std::ifstream file(GetCachePathForShader(path),std::ios::binary | std::ios::in);
+		
+		if (!file.is_open())
+			return false;
+
+		uint64_t lastWriteTime = 0;
+		file.read((char*)&lastWriteTime, sizeof(uint64_t));
+
+		FileSystem::file_time_type lastWrite = FileSystem::last_write_time(path);
+
+		uint64_t actualLastWriteTime = lastWrite.time_since_epoch().count();
+
+		return actualLastWriteTime == lastWriteTime;
+	}
+	std::vector<uint32_t> ShaderLibrary::ReadSPIRVFromCache(const Path& path)
+	{
+		std::ifstream file(GetCachePathForShader(path), std::ios::binary | std::ios::in);
+
+		if (!file.is_open())
+			return {};
+
+		uint64_t binarySize = 0;
+
+		file.seekg(0, std::ios::end);
+
+		binarySize = file.tellg();
+
+		binarySize -= sizeof(uint64_t);
+
+		file.seekg(sizeof(uint64_t), std::ios::beg);
+
+		std::vector<uint32_t> spirv(binarySize / sizeof(uint32_t), 0);
+
+		file.read((char*)spirv.data(), binarySize);
+
+		uint64_t read = file.gcount();
+		if (!file.good())
+			return {};
+		return spirv;
 	}
 }

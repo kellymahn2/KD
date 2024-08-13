@@ -12,6 +12,7 @@ namespace Kaidel {
 		RendererID GetSetID() const override { return (RendererID)*m_Sets; }
 
 		void Update(const DescriptorSetUpdate& update) override;
+		void UpdateAll(const DescriptorSetUpdate& update) override;
 	private:
 		PerFrameResource<VkDescriptorSet> m_Sets;
 	};

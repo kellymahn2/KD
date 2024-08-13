@@ -6,11 +6,21 @@
 
 
 namespace Kaidel{
+
+
+	struct SamplingRegion {
+		uint32_t Layer;
+		//Top-Left
+		glm::vec2 UV0;
+		//Bottom-Right
+		glm::vec2 UV1;
+	};
+
     struct SpriteVertex{
         glm::vec3 Position;
         glm::vec4 Color;
+		glm::vec3 UV;
     };
-
 
     class Renderer2D{
     public:
@@ -20,18 +30,13 @@ namespace Kaidel{
         static void Begin(const glm::mat4& cameraVP,Ref<Framebuffer> outputColorBuffer);
         static void End();
 
-
-        static void DrawSprite(const glm::mat4& transform,const glm::vec4& materials);
+        static void DrawSprite(const glm::mat4& transform, const glm::vec4& color, const SamplingRegion& region);
         static void AddSprite(SpriteVertex vertices[4]);
-        
 
     private:
 		static void StartSpriteBatch();
 		static void FlushSprites();
 	private:
 
-
     };
-
-
 }

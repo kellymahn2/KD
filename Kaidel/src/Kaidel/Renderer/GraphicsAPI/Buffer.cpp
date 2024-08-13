@@ -6,6 +6,7 @@
 #include "Platform/OpenGL/OpenGLBuffer.h"
 #include "Platform/Vulkan/GraphicsAPI/VulkanVertexBuffer.h"
 #include "Platform/Vulkan/GraphicsAPI/VulkanIndexBuffer.h"
+#include "Platform/Vulkan/GraphicsAPI/VulkanTransferBuffer.h"
 
 
 namespace Kaidel {
@@ -62,5 +63,16 @@ namespace Kaidel {
 	}
 
 
+
+	Ref<TransferBuffer> TransferBuffer::Create(uint64_t size, const void* initData, uint64_t initDataSize)
+	{
+		switch (Renderer::GetAPI())
+		{
+		case RendererAPI::API::Vulkan: return CreateRef<VulkanTransferBuffer>(size,initData,initDataSize);
+		}
+
+		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
+		return nullptr;
+	}
 
 }

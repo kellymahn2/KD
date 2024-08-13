@@ -124,9 +124,6 @@ namespace Kaidel {
 		uint32_t m_Stride = 0;
 	};
 
-
-
-
 	// Currently Kaidel only supports 32-bit index buffers
 	class IndexBuffer : public IRCCounter<false>
 	{
@@ -140,8 +137,6 @@ namespace Kaidel {
 
 		static Ref<IndexBuffer> Create(uint32_t* indices, uint32_t count);
 	};
-
-
 
 	enum class VertexBufferMemoryType {
 		None = 0,
@@ -171,7 +166,20 @@ namespace Kaidel {
 		static Ref<VertexBuffer> Create(uint32_t size);
 		static Ref<VertexBuffer> Create(float* vertices, uint32_t size);
 	};
-
 	
+
+	class TransferBuffer : public IRCCounter<false> {
+	public:
+		virtual ~TransferBuffer() = default;
+
+		virtual void* Map() = 0;
+		virtual void Unmap() = 0;
+
+		virtual void SetDataFromAllocation(const void* allocation, uint64_t size, uint64_t offset) = 0;
+		virtual void GetData(void* out, uint64_t size, uint64_t offset) = 0;
+
+		static Ref<TransferBuffer> Create(uint64_t size,const void* initData,uint64_t initDataSize = -1);
+	};
+
 
 }

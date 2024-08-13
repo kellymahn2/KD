@@ -13,7 +13,7 @@ namespace Kaidel {
 		SceneRenderer() = default;
 		SceneRenderer(void* scene);
 		void Reset();
-		void Render(Ref<Framebuffer> _3DOutputFramebuffer, Ref<Framebuffer> _2DOutputFramebuffer, const glm::mat4& cameraViewProj, const glm::vec3& cameraPos);
+		void Render(Ref<Framebuffer> outputBuffer, const glm::mat4& cameraViewProj, const glm::vec3& cameraPos);
 		SceneRenderer& operator=(void* scene) {
 			m_Context = scene;
 			Reset();

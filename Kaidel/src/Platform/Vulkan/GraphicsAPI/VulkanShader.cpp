@@ -8,8 +8,9 @@
 namespace Kaidel {
 
 	namespace Utils {
-		static void Reflect(ShaderReflection& reflection, const spirv_cross::CompilerReflection& compilerReflection, 
-								const spirv_cross::SmallVector<spirv_cross::Resource>& resources, DescriptorType type, uint32_t stageFlags) {
+		static void ReflectDescriptor(ShaderReflection& reflection, const spirv_cross::CompilerReflection& compilerReflection, 
+										const spirv_cross::SmallVector<spirv_cross::Resource>& resources, DescriptorType type, uint32_t stageFlags) 
+		{
 			for (auto& resource : resources) {
 				uint32_t set = compilerReflection.get_decoration(resource.id, spv::DecorationDescriptorSet);
 				uint32_t binding = compilerReflection.get_decoration(resource.id, spv::DecorationBinding);
@@ -21,6 +22,17 @@ namespace Kaidel {
 				reflection.AddDescriptor(type, count, set, binding);
 			}
 		}
+
+		static void ReflectPushConstant(ShaderReflection& reflection, const spirv_cross::CompilerReflection& compilerReflection,
+											const spirv_cross::SmallVector<spirv_cross::Resource>& resources, ShaderType shaderType) 
+		{
+			for (auto& resource : resources) {
+				const auto& type = compilerReflection.get_type(resource.base_type_id);
+				uint32_t size = compilerReflection.get_declared_struct_size(type);
+				reflection.AddPushConstant(size, shaderType);
+			}
+		}
+
 	}
 
 	VulkanShader::VulkanShader(const ShaderSpecification& spec)
@@ -39,11 +51,12 @@ namespace Kaidel {
 			
 			auto shaderResources = reflection.get_shader_resources();
 
-			Utils::Reflect(m_Reflection, reflection, shaderResources.uniform_buffers, DescriptorType::UniformBuffer, 0);
-			Utils::Reflect(m_Reflection, reflection, shaderResources.storage_buffers, DescriptorType::StorageBuffer, 0);
-			Utils::Reflect(m_Reflection, reflection, shaderResources.sampled_images, DescriptorType::CombinedSampler, 0);
-			Utils::Reflect(m_Reflection, reflection, shaderResources.separate_images, DescriptorType::Texture, 0);
-			Utils::Reflect(m_Reflection, reflection, shaderResources.separate_samplers, DescriptorType::Sampler, 0);
+			Utils::ReflectDescriptor(m_Reflection, reflection, shaderResources.uniform_buffers, DescriptorType::UniformBuffer, 0);
+			Utils::ReflectDescriptor(m_Reflection, reflection, shaderResources.storage_buffers, DescriptorType::StorageBuffer, 0);
+			Utils::ReflectDescriptor(m_Reflection, reflection, shaderResources.sampled_images, DescriptorType::CombinedSampler, 0);
+			Utils::ReflectDescriptor(m_Reflection, reflection, shaderResources.separate_images, DescriptorType::Texture, 0);
+			Utils::ReflectDescriptor(m_Reflection, reflection, shaderResources.separate_samplers, DescriptorType::Sampler, 0);
+			Utils::ReflectPushConstant(m_Reflection, reflection, shaderResources.push_constant_buffers, spec.Type);
 		}
 	}
 	VulkanShader::~VulkanShader()

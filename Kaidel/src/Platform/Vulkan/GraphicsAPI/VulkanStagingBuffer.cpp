@@ -33,7 +33,7 @@ namespace Kaidel {
 		// Insert a barrier before the copy to ensure the destination buffer is not being used
 		VkBufferMemoryBarrier beforeCopyBarrier = {};
 		beforeCopyBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-		beforeCopyBarrier.srcAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT | VK_ACCESS_UNIFORM_READ_BIT; // Previous access types
+		beforeCopyBarrier.srcAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT; // Previous access types
 		beforeCopyBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT; // Next access type
 		beforeCopyBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		beforeCopyBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -43,7 +43,7 @@ namespace Kaidel {
 
 		vkCmdPipelineBarrier(
 			commandBuffer->GetCommandBuffer(),
-			VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, // Source stages
+			VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, // Source stages
 			VK_PIPELINE_STAGE_TRANSFER_BIT, // Destination stage
 			0,
 			0, nullptr,
@@ -64,7 +64,7 @@ namespace Kaidel {
 		VkBufferMemoryBarrier afterCopyBarrier = {};
 		afterCopyBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
 		afterCopyBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT; // Previous access type
-		afterCopyBarrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT | VK_ACCESS_UNIFORM_READ_BIT; // Next access types
+		afterCopyBarrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT; // Next access types
 		afterCopyBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		afterCopyBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		afterCopyBarrier.buffer = buffer.Buffer;
@@ -74,7 +74,7 @@ namespace Kaidel {
 		vkCmdPipelineBarrier(
 			commandBuffer->GetCommandBuffer(),
 			VK_PIPELINE_STAGE_TRANSFER_BIT, // Source stage
-			VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, // Destination stages
+			VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, // Destination stages
 			0,
 			0, nullptr,
 			1, &afterCopyBarrier,

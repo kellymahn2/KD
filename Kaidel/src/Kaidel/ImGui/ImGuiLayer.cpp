@@ -95,9 +95,13 @@ namespace Kaidel {
 			e.Handled |= e.IsInCategory(EventCategoryMouse) & io.WantCaptureMouse;
 			e.Handled |= e.IsInCategory(EventCategoryKeyboard) & io.WantCaptureKeyboard;
 		}
-		if (e.GetEventType() == EventType::MouseButtonPressed) {
-			int x;
-		}
+
+	}
+
+	void ImGuiLayer::OnMouseWrap(float x)
+	{
+		m_WasWrapped = true;
+		m_NewPosAfterWrap = x;
 	}
 	
 	void ImGuiLayer::Begin()
@@ -106,8 +110,19 @@ namespace Kaidel {
 		Application& app = Application::Get();
 		app.GetWindow().GetContext()->ImGuiBegin();
 
+		ImGuiIO& io = ImGui::GetIO();
+		
+		if (m_WasWrapped) {
+
+			io.MousePos.x = m_NewPosAfterWrap;
+			io.MousePosPrev.x = io.MousePos.x;
+			m_WasWrapped = false;
+		}
+		
 		ImGui::NewFrame();
 		ImGuizmo::BeginFrame();
+
+
 	}
 
 	void ImGuiLayer::End()
