@@ -28,7 +28,7 @@ namespace Kaidel {
 
 		uint32_t GetHeight() const override { return m_Specification.Height; }
 
-		Image& GetImage(uint32_t index) override { return m_Resources->Colors[index].Attachment; }
+		Ref<Image> GetImage(uint32_t index) override { return m_Resources->Colors[index].Attachment; }
 
 		Ref<RenderPass> GetDefaultRenderPass() const override { return m_RenderPass; }
 
@@ -42,14 +42,14 @@ namespace Kaidel {
 		virtual uint32_t GetColorAttachmentCount()const override{
 			return m_ColorAttachmentSpecifications.size();
 		}
-		virtual Image& GetDepthStencilAttachment() override {
+		virtual Ref<Image> GetDepthStencilAttachment() override {
 			return m_Resources->Depth.Attachment;
 		}
 
 
 	private:
 		struct FramebufferAttachmentResource {
-			Image Attachment;
+			Ref<Image> Attachment;
 			VkSampler Sampler;
 			VkImageView View;
 		};

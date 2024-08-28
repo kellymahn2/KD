@@ -66,9 +66,9 @@ namespace Kaidel {
 		allocation.VulkanFlags = 0;
 		allocation.Type = VK_IMAGE_TYPE_2D;
 
-		m_Image = VK_ALLOCATOR.AllocateImage(allocation);
+		m_Image->SetSpecification(VK_ALLOCATOR.AllocateImage(allocation));
 
-		vmaGetAllocationInfo(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image._DeviceMemory, &m_AllocationInfo);
+		vmaGetAllocationInfo(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image->GetSpecification()._DeviceMemory, &m_AllocationInfo);
 
 		if ((usageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT) && m_Specification.InitialData != nullptr) {
 			//Only for mip 0.
@@ -78,7 +78,7 @@ namespace Kaidel {
 			vmaCopyMemoryToAllocation(VK_ALLOCATOR.GetAllocator(), m_Specification.InitialData, vulkanBuffer.Allocation, 0, imageSize);
 
 			VkBuffer buffer = vulkanBuffer.Buffer;
-			VkImage image = (VkImage)m_Image._InternalImageID;
+			VkImage image = (VkImage)m_Image->GetSpecification()._InternalImageID;
 			VkCommandBuffer commandBuffer = VK_CONTEXT.GetPrimaryCommandPool()->BeginSingleTimeCommands(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 			VkBufferImageCopy copy{};
 			copy.bufferOffset = 0;
@@ -147,21 +147,21 @@ namespace Kaidel {
 			VK_ALLOCATOR.DestroyBuffer(vulkanBuffer);
 		}
 		
-		m_Image.ImageView = (RendererID)Utils::CreateImageView(format, mips, 1, (VkImage)m_Image._InternalImageID, swizzles);
+		m_Image->GetSpecification().ImageView = (RendererID)Utils::CreateImageView(format, mips, 1, (VkImage)m_Image->GetSpecification()._InternalImageID, swizzles);
 	}
 
 	VulkanTexture2D::~VulkanTexture2D()
 	{
-		vkDestroyImageView(VK_DEVICE.GetDevice(), (VkImageView)m_Image.ImageView, nullptr);
-		VK_ALLOCATOR.DestroyImage(m_Image);
+		vkDestroyImageView(VK_DEVICE.GetDevice(), (VkImageView)m_Image->GetSpecification().ImageView, nullptr);
+		VK_ALLOCATOR.DestroyImage(m_Image->GetSpecification());
 	}
 
 	void* VulkanTexture2D::Map(uint32_t mipMap) const
 	{
 		VkImageAspectFlags aspect = 0;
-		if (Utils::IsDepthFormat(m_Image.ImageFormat)) {
+		if (Utils::IsDepthFormat(m_Image->GetSpecification().ImageFormat)) {
 			aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
-			if (m_Image.ImageFormat == Format::Depth24Stencil8) {
+			if (m_Image->GetSpecification().ImageFormat == Format::Depth24Stencil8) {
 				aspect |= VK_IMAGE_ASPECT_STENCIL_BIT;
 			}
 		}
@@ -176,13 +176,13 @@ namespace Kaidel {
 		subres.mipLevel = mipMap;
 
 		VkSubresourceLayout subresLayout = {};
-		vkGetImageSubresourceLayout(VK_DEVICE.GetDevice(), (VkImage)m_Image._InternalImageID, &subres, &subresLayout);
+		vkGetImageSubresourceLayout(VK_DEVICE.GetDevice(), (VkImage)m_Image->GetSpecification()._InternalImageID, &subres, &subresLayout);
 
 		void* ptr = nullptr;
 
 		VmaAllocationInfo info{};
 
-		vmaGetAllocationInfo(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image._DeviceMemory, &info);
+		vmaGetAllocationInfo(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image->GetSpecification()._DeviceMemory, &info);
 
 
 		VkResult err = vkMapMemory(
@@ -193,7 +193,7 @@ namespace Kaidel {
 			0,
 			&ptr);
 
-		vmaMapMemory(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image._DeviceMemory, &ptr);
+		vmaMapMemory(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image->GetSpecification()._DeviceMemory, &ptr);
 		return ptr;
 	}
 
@@ -201,7 +201,7 @@ namespace Kaidel {
 	{
 		VmaAllocationInfo info{};
 
-		vmaGetAllocationInfo(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image._DeviceMemory, &info);
+		vmaGetAllocationInfo(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image->GetSpecification()._DeviceMemory, &info);
 		vkUnmapMemory(VK_DEVICE.GetDevice(), info.deviceMemory);
 	}
 	#pragma endregion
@@ -240,10 +240,10 @@ namespace Kaidel {
 		allocation.VulkanFlags = 0;
 		allocation.Type = VK_IMAGE_TYPE_2D;
 
-		m_Image = VK_ALLOCATOR.AllocateImage(allocation);
-		vmaGetAllocationInfo(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image._DeviceMemory, &m_AllocationInfo);
+		m_Image->SetSpecification(VK_ALLOCATOR.AllocateImage(allocation));
+		vmaGetAllocationInfo(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image->GetSpecification()._DeviceMemory, &m_AllocationInfo);
 
-		m_Image.ImageView = (RendererID)Utils::CreateImageView(format, mips, 2, (VkImage)m_Image._InternalImageID, swizzles);
+		m_Image->GetSpecification().ImageView = (RendererID)Utils::CreateImageView(format, mips, 2, (VkImage)m_Image->GetSpecification()._InternalImageID, swizzles);
 	}
 
 	VulkanTextureLayered2D::~VulkanTextureLayered2D()
@@ -254,9 +254,9 @@ namespace Kaidel {
 	void* VulkanTextureLayered2D::Map(uint32_t mipMap, uint32_t layer) const
 	{
 		VkImageAspectFlags aspect = 0;
-		if (Utils::IsDepthFormat(m_Image.ImageFormat)) {
+		if (Utils::IsDepthFormat(m_Image->GetSpecification().ImageFormat)) {
 			aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
-			if (m_Image.ImageFormat == Format::Depth24Stencil8) {
+			if (m_Image->GetSpecification().ImageFormat == Format::Depth24Stencil8) {
 				aspect |= VK_IMAGE_ASPECT_STENCIL_BIT;
 			}
 		}
@@ -271,13 +271,13 @@ namespace Kaidel {
 		subres.mipLevel = mipMap;
 
 		VkSubresourceLayout subresLayout = {};
-		vkGetImageSubresourceLayout(VK_DEVICE.GetDevice(), (VkImage)m_Image._InternalImageID, &subres, &subresLayout);
+		vkGetImageSubresourceLayout(VK_DEVICE.GetDevice(), (VkImage)m_Image->GetSpecification()._InternalImageID, &subres, &subresLayout);
 
 		void* ptr = nullptr;
 
 		VmaAllocationInfo info{};
 
-		vmaGetAllocationInfo(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image._DeviceMemory, &info);
+		vmaGetAllocationInfo(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image->GetSpecification()._DeviceMemory, &info);
 
 
 		VkResult err = vkMapMemory(
@@ -288,7 +288,7 @@ namespace Kaidel {
 			0,
 			&ptr);
 
-		vmaMapMemory(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image._DeviceMemory, &ptr);
+		vmaMapMemory(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image->GetSpecification()._DeviceMemory, &ptr);
 		return ptr;
 	}
 
@@ -296,13 +296,13 @@ namespace Kaidel {
 	{
 		VmaAllocationInfo info{};
 
-		vmaGetAllocationInfo(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image._DeviceMemory, &info);
+		vmaGetAllocationInfo(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image->GetSpecification()._DeviceMemory, &info);
 		vkUnmapMemory(VK_DEVICE.GetDevice(), info.deviceMemory);
 	}
 
 	void VulkanTextureLayered2D::Copy(VkCommandBuffer cmd, Ref<TransferBuffer> src, const BufferToTextureCopyRegion& region)
 	{
-		Image& dst = m_Image;
+		ImageSpecification& dst = m_Image->GetSpecification();
 
 		bool needsTransition = dst.Layout != ImageLayout::TransferDstOptimal;
 		ImageLayout oldLayout = dst.Layout;
@@ -382,16 +382,16 @@ namespace Kaidel {
 
 		TextureSwizzle swizzles[4] = { m_Specification.SwizzleR,m_Specification.SwizzleG ,m_Specification.SwizzleB ,m_Specification.SwizzleA };
 		
-		Image newImage{};
+		ImageSpecification newImage{};
 		//Create the new image.
 		{
 			
 
 			ImageAllocateSpecification allocation{};
-			allocation.Width = m_Image.Width;
-			allocation.Height = m_Image.Height;
+			allocation.Width = m_Image->GetSpecification().Width;
+			allocation.Height = m_Image->GetSpecification().Height;
 			allocation.Depth = 1;
-			allocation.ImageFormat = m_Image.ImageFormat;
+			allocation.ImageFormat = m_Image->GetSpecification().ImageFormat;
 			allocation.Samples = (VkSampleCountFlagBits)samples;
 			allocation.Levels = mips;
 			allocation.MemoryUsage = memUsage;
@@ -399,7 +399,7 @@ namespace Kaidel {
 			allocation.ImageUsage = usageFlags;
 			allocation.VmaFlags = vmaFlags;
 			allocation.InitialLayout = ImageLayout::None;
-			allocation.Layers = m_Image.Layers * 1.5 + 1;
+			allocation.Layers = m_Image->GetSpecification().Layers * 1.5 + 1;
 			allocation.VulkanFlags = 0;
 			allocation.Type = VK_IMAGE_TYPE_2D;
 			
@@ -410,10 +410,10 @@ namespace Kaidel {
 		{
 			VkCommandBuffer cmd = VK_CONTEXT.GetPrimaryCommandPool()->BeginSingleTimeCommands(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-			ImageLayout oldLayout = m_Image.Layout;
+			ImageLayout oldLayout = m_Image->GetSpecification().Layout;
 			oldLayout = oldLayout == ImageLayout::None ? ImageLayout::ShaderReadOnlyOptimal : oldLayout;
 
-			Utils::Transition(cmd, m_Image, ImageLayout::TransferSrcOptimal);
+			Utils::Transition(cmd, m_Image->GetSpecification(), ImageLayout::TransferSrcOptimal);
 
 
 			Utils::Transition(cmd, newImage, ImageLayout::TransferDstOptimal);
@@ -423,21 +423,21 @@ namespace Kaidel {
 			copy.srcOffset = { 0,0,0 };
 			copy.dstOffset = { 0,0,0 };
 
-			copy.extent = { m_Image.Width, m_Image.Height, 1 };
+			copy.extent = { m_Image->GetSpecification().Width, m_Image->GetSpecification().Height, 1 };
 
-			copy.srcSubresource.aspectMask = Utils::GetAspectFlags(m_Image.ImageFormat);
+			copy.srcSubresource.aspectMask = Utils::GetAspectFlags(m_Image->GetSpecification().ImageFormat);
 			copy.srcSubresource.baseArrayLayer = 0;
 			copy.srcSubresource.mipLevel = 0;
-			copy.srcSubresource.layerCount = m_Image.Layers;
+			copy.srcSubresource.layerCount = m_Image->GetSpecification().Layers;
 
-			copy.dstSubresource.aspectMask = Utils::GetAspectFlags(m_Image.ImageFormat);
+			copy.dstSubresource.aspectMask = Utils::GetAspectFlags(m_Image->GetSpecification().ImageFormat);
 			copy.dstSubresource.baseArrayLayer = 0;
 			copy.dstSubresource.mipLevel = 0;
-			copy.dstSubresource.layerCount = m_Image.Layers;
+			copy.dstSubresource.layerCount = m_Image->GetSpecification().Layers;
 
 			vkCmdCopyImage(
 				cmd,
-				(VkImage)m_Image._InternalImageID,
+				(VkImage)m_Image->GetSpecification()._InternalImageID,
 				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 				(VkImage)newImage._InternalImageID,
 				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -452,8 +452,8 @@ namespace Kaidel {
 		//Delete the old image.
 		DeleteImage();
 
-		m_Image = newImage;
-		m_Image.ImageView = (RendererID)Utils::CreateImageView(format, mips, 2, (VkImage)m_Image._InternalImageID, swizzles);
+		m_Image->SetSpecification(newImage);
+		m_Image->GetSpecification().ImageView = (RendererID)Utils::CreateImageView(format, mips, 2, (VkImage)m_Image->GetSpecification()._InternalImageID, swizzles);
 	}
 
 	void VulkanTextureLayered2D::ReallocateAndCopy(void* data, uint32_t width, uint32_t height, uint64_t size, uint32_t layer)
@@ -488,8 +488,8 @@ namespace Kaidel {
 
 	void VulkanTextureLayered2D::DeleteImage()
 	{
-		vkDestroyImageView(VK_DEVICE.GetDevice(), (VkImageView)m_Image.ImageView, nullptr);
-		VK_ALLOCATOR.DestroyImage(m_Image);
+		vkDestroyImageView(VK_DEVICE.GetDevice(), (VkImageView)m_Image->GetSpecification().ImageView, nullptr);
+		VK_ALLOCATOR.DestroyImage(m_Image->GetSpecification());
 	}
 
 	uint32_t VulkanTextureLayered2D::Push(const TextureLayered2DLayerSpecification& layerSpec)
@@ -500,7 +500,7 @@ namespace Kaidel {
 		uint32_t pushIndex = m_LayerSpecifications.size();
 		
 		//Array has space
-		if (pushIndex < m_Image.Layers) {
+		if (pushIndex < m_Image->GetSpecification().Layers) {
 			//Data setting requested
 			if (layerSpec.InitialData != nullptr) {
 				uint64_t size = Utils::CalculateImageSize(layerSpec.Width, layerSpec.Height, 1, 1, Utils::CalculatePixelSize(m_Specification.TextureFormat));

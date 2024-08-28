@@ -6,7 +6,7 @@
 namespace Kaidel {
 
 	namespace Utils {
-		static VkImageView CreateImageView(VkDevice device, const Image& image, VkImageAspectFlags aspectFlags) {
+		static VkImageView CreateImageView(VkDevice device, const ImageSpecification& image, VkImageAspectFlags aspectFlags) {
 
 			VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 			viewInfo.format = FormatToVulkanFormat(image.ImageFormat);
@@ -130,29 +130,37 @@ namespace Kaidel {
 		std::vector<VkImageView> views;
 
 		for (auto& colorSpec : m_ColorAttachmentSpecifications) {
-			Image image =
+			ImageSpecification imageSpec =
 				VK_ALLOCATOR.AllocateImage(m_Specification.Width, m_Specification.Height, 1, 1, m_Specification.Samples,
 					1, colorSpec.AttachmentFormat, ImageLayout::None, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 					VK_IMAGE_TYPE_2D);
 
-			VkImageView view = Utils::CreateImageView(VK_DEVICE.GetDevice(), image, VK_IMAGE_ASPECT_COLOR_BIT);
+			VkImageView view = Utils::CreateImageView(VK_DEVICE.GetDevice(), imageSpec, VK_IMAGE_ASPECT_COLOR_BIT);
 
 			VkSampler sampler = Utils::CreateSampler(VK_DEVICE.GetDevice());
-			image.Sampler = (RendererID)sampler;
-			image.ImageView = (RendererID)view;
+			imageSpec.Sampler = (RendererID)sampler;
+			imageSpec.ImageView = (RendererID)view;
+
+			Ref<Image> image = CreateRef<Image>();
+			image->SetSpecification(imageSpec);
 
 			fb.Colors.push_back({ image,sampler,view });
 			views.push_back(view);
 		}
 
 		if (Utils::IsDepthFormat(m_DepthAttachmentSpecification.AttachmentFormat)) {
-			Image image =
+			ImageSpecification imageSpec =
 				VK_ALLOCATOR.AllocateImage(m_Specification.Width, m_Specification.Height, 1, 1, m_Specification.Samples,
 					1, m_DepthAttachmentSpecification.AttachmentFormat, ImageLayout::None, VMA_MEMORY_USAGE_GPU_ONLY, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 					VK_IMAGE_TYPE_2D);
-			VkImageView view = Utils::CreateImageView(VK_DEVICE.GetDevice(), image, VK_IMAGE_ASPECT_DEPTH_BIT);
+			VkImageView view = Utils::CreateImageView(VK_DEVICE.GetDevice(), imageSpec, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 			VkSampler sampler = Utils::CreateSampler(VK_DEVICE.GetDevice());
+
+			imageSpec.ImageView = (RendererID)view;
+			
+			Ref<Image> image = CreateRef<Image>();
+			image->SetSpecification(imageSpec);
 
 			fb.Depth = { image,sampler,view };
 			views.push_back(view);
@@ -188,7 +196,7 @@ namespace Kaidel {
 	{
 		vkDestroySampler(VK_DEVICE.GetDevice(), resource.Sampler, nullptr);
 		vkDestroyImageView(VK_DEVICE.GetDevice(), resource.View, nullptr);
-		VK_ALLOCATOR.DestroyImage(resource.Attachment);
+		VK_ALLOCATOR.DestroyImage(resource.Attachment->GetSpecification());
 	}
 	void VulkanFramebuffer::Invalidate()
 	{

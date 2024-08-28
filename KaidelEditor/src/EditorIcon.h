@@ -19,7 +19,7 @@ namespace Kaidel {
 			update.Type = DescriptorType::CombinedSampler;
 			update.ImageUpdate.Layout = ImageLayout::ShaderReadOnlyOptimal;
 			update.ImageUpdate.Sampler = sampler->GetRendererID();
-			update.ImageUpdate.ImageView = m_Texture->GetImage().ImageView;
+			update.ImageUpdate.ImageView = m_Texture->GetImage()->GetSpecification().ImageView;
 			m_Descriptor->UpdateAll(update);
 		}
 

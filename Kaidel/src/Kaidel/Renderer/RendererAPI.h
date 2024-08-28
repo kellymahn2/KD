@@ -67,12 +67,12 @@ namespace Kaidel {
 
 		virtual void Submit(std::function<void()>&& func) = 0;
 
-		virtual void Transition(Image& image, ImageLayout newLayout) = 0;
+		virtual void Transition(Ref<Image> image, ImageLayout newLayout) = 0;
 
-		virtual void CopyBufferToTexture(Ref<TransferBuffer> src, Image& dst, const BufferToTextureCopyRegion& region) = 0;
+		virtual void CopyBufferToTexture(Ref<TransferBuffer> src, Ref<Image> dst, const BufferToTextureCopyRegion& region) = 0;
 
 
-		virtual void ClearColorImage(Image& image, const AttachmentColorClearValue& clearValue, const TextureSubresourceRegion& region) = 0;
+		virtual void ClearColorImage(Ref<Image> image, const AttachmentColorClearValue& clearValue, const TextureSubresourceRegion& region) = 0;
 
 		static RendererSettings& GetSettings() { return s_RendererSettings; }
 

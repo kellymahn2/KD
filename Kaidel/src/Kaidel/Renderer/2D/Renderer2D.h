@@ -7,7 +7,6 @@
 
 namespace Kaidel{
 
-
 	struct SamplingRegion {
 		uint32_t Layer;
 		//Top-Left

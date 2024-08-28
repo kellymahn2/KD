@@ -3,10 +3,8 @@
 #include "VulkanGraphicsContext.h"
 
 namespace Kaidel {
-
 	namespace Utils {
 		struct VertexInputState {
-
 			std::vector<VkVertexInputAttributeDescription> Attributes;
 			std::vector<VkVertexInputBindingDescription> Bindings;
 			VkPipelineVertexInputStateCreateInfo State;

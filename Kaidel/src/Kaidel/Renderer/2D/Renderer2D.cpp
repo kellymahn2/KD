@@ -184,9 +184,8 @@ namespace Kaidel{
 			update.Type = DescriptorType::CombinedSampler;
 			update.ImageUpdate.Layout = ImageLayout::ShaderReadOnlyOptimal;
 			update.ImageUpdate.Sampler = s_RendererData->TextureSampler->GetRendererID();
-			update.ImageUpdate.ImageView = TextureLibrary::GetTextureArray()->GetImage().ImageView;
+			update.ImageUpdate.ImageView = TextureLibrary::GetTextureArray()->GetImage()->GetSpecification().ImageView;
 			s_RendererData->TextureDescriptorSet->Update(update);
-			
 		}
 
 		RenderCommand::Transition(TextureLibrary::GetTextureArray()->GetImage(), ImageLayout::ShaderReadOnlyOptimal);

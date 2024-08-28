@@ -156,7 +156,7 @@ namespace Kaidel {
 	}
 	ImageSubresource TextureLibrary::CalculateSubresource(uint32_t layerIndex, uint32_t width, uint32_t height)
 	{
-		const Image& img = s_LibraryData->Texture->GetImage();
+		const ImageSpecification& img = s_LibraryData->Texture->GetImage()->GetSpecification();
 	
 		glm::vec2 topLeftUV = { 0,(float)height / s_LibraryData->Height };
 		glm::vec2 bottomRightUV = { (float)width / s_LibraryData->Width,0 };

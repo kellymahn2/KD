@@ -73,7 +73,7 @@ namespace Kaidel {
 		virtual uint32_t GetWidth()const = 0;
 		virtual uint32_t GetHeight()const = 0;
 
-		virtual Image& GetImage(uint32_t index) = 0;
+		virtual Ref<Image> GetImage(uint32_t index) = 0;
 
 		virtual Ref<RenderPass> GetDefaultRenderPass()const = 0;
 
@@ -81,7 +81,7 @@ namespace Kaidel {
 
 		virtual bool HasDepthStencilAttachment()const = 0;
 		virtual uint32_t GetColorAttachmentCount()const = 0;
-		virtual Image& GetDepthStencilAttachment() = 0;
+		virtual Ref<Image> GetDepthStencilAttachment() = 0;
 
 
 		//virtual Ref<RenderPass> GetRenderPass()const = 0;

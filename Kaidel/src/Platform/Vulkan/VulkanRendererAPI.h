@@ -52,12 +52,12 @@ namespace Kaidel {
 
 		void Submit(std::function<void()>&& func) override;
 
-		void Transition(Image& image, ImageLayout newLayout) override;
+		void Transition(Ref<Image> image, ImageLayout newLayout) override;
 		void BindUniformBuffer(Ref<UniformBuffer> uniformBuffer, uint32_t index) override;
 
-		void CopyBufferToTexture(Ref<TransferBuffer> src, Image& dst, const BufferToTextureCopyRegion& region) override;
+		void CopyBufferToTexture(Ref<TransferBuffer> src, Ref<Image> dst, const BufferToTextureCopyRegion& region) override;
 
-		void ClearColorImage(Image& image, const AttachmentColorClearValue& clearValue, const TextureSubresourceRegion& region) override;
+		void ClearColorImage(Ref<Image> image, const AttachmentColorClearValue& clearValue, const TextureSubresourceRegion& region) override;
 
 	private:
 		static inline std::vector<VkBuffer> m_CurrentBoundBuffers = { 32 , 0 };

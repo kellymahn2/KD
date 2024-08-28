@@ -27,15 +27,15 @@ namespace Kaidel {
 	{
 		vmaDestroyBuffer(m_Allocator, buffer.Buffer, buffer.Allocation);
 	}
-	void VulkanAllocator::DestroyImage(Image& image)
+	void VulkanAllocator::DestroyImage(ImageSpecification& image)
 	{
 		vmaDestroyImage(m_Allocator, (VkImage)image._InternalImageID, (VmaAllocation)image._DeviceMemory);
 	}
-	Image VulkanAllocator::AllocateImage(uint32_t width, uint32_t height, uint32_t depth, uint32_t layers, uint32_t samples,
+	ImageSpecification VulkanAllocator::AllocateImage(uint32_t width, uint32_t height, uint32_t depth, uint32_t layers, uint32_t samples,
 											uint32_t mipLevels, Format imageFormat, ImageLayout initialLayout, VmaMemoryUsage memoryUsage,
 											VkImageUsageFlags usageFlags, VkImageType type,uint32_t flags)
 	{
-		Image result{};
+		ImageSpecification result{};
 		result.Width = width;
 		result.Height = height;
 		result.Depth = depth;
@@ -106,7 +106,7 @@ namespace Kaidel {
 
 		return result;
 	}
-	Image VulkanAllocator::AllocateImage(const ImageAllocateSpecification& spec)
+	ImageSpecification VulkanAllocator::AllocateImage(const ImageAllocateSpecification& spec)
 	{
 		VkImageCreateInfo imageInfo{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 		imageInfo.imageType = spec.Type;
@@ -135,7 +135,7 @@ namespace Kaidel {
 		VmaAllocation allocation{};
 		VK_ASSERT(vmaCreateImage(m_Allocator, &imageInfo, &allocationInfo, &img, &allocation, nullptr));
 		
-		Image image{};
+		ImageSpecification image{};
 		image.Width = spec.Width;
 		image.Height = spec.Height;
 		image.Depth = spec.Depth;

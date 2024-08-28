@@ -101,8 +101,8 @@ namespace Kaidel {
 		vkCmdSetScissor(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), 0, 1, &renderArea);
 
 		for (int i = 0; i < frameBuffer->GetColorAttachmentCount(); ++i) {
-			Image& image = frameBuffer->GetImage(i);
-			image.Layout = renderPass->GetSpecification().OutputColors[i].FinalLayout;
+			Ref<Image> image = frameBuffer->GetImage(i);
+			image->GetSpecification().Layout = renderPass->GetSpecification().OutputColors[i].FinalLayout;
 		}
     }
     void VulkanRendererAPI::EndRenderPass()
@@ -118,9 +118,9 @@ namespace Kaidel {
     {
 		
     }
-    void VulkanRendererAPI::Transition(Image& image, ImageLayout newLayout)
+    void VulkanRendererAPI::Transition(Ref<Image> image, ImageLayout newLayout)
     {
-		Utils::Transition(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), image, newLayout);
+		Utils::Transition(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), image->GetSpecification(), newLayout);
     }
 	void VulkanRendererAPI::BindUniformBuffer(Ref<UniformBuffer> uniformBuffer, uint32_t index)
 	{
@@ -131,10 +131,10 @@ namespace Kaidel {
 		//VkDescriptorSet set = ((VulkanUniformBuffer*)uniformBuffer.Get())->GetDescriptorSet();
 		//vkCmdBindDescriptorSets(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetLayout(), index, 1,&set , 0, nullptr);
 	}
-	void VulkanRendererAPI::CopyBufferToTexture(Ref<TransferBuffer> src, Image& dst, const BufferToTextureCopyRegion& region)
+	void VulkanRendererAPI::CopyBufferToTexture(Ref<TransferBuffer> src, Ref<Image> dst, const BufferToTextureCopyRegion& region)
 	{
-		bool needsTransition = dst.Layout != ImageLayout::TransferDstOptimal;
-		ImageLayout oldLayout = dst.Layout;
+		bool needsTransition = dst->GetSpecification().Layout != ImageLayout::TransferDstOptimal;
+		ImageLayout oldLayout = dst->GetSpecification().Layout;
 		oldLayout = oldLayout == ImageLayout::None ? ImageLayout::ShaderReadOnlyOptimal : oldLayout;
 		Ref<VulkanTransferBuffer> vulkanSrcBuffer = src;	
 
@@ -153,7 +153,7 @@ namespace Kaidel {
 		copyRegion.imageExtent.height = region.TextureRegionSize.y;
 		copyRegion.imageExtent.depth = region.TextureRegionSize.z;
 
-		copyRegion.imageSubresource.aspectMask = Utils::GetAspectFlags(dst.ImageFormat);
+		copyRegion.imageSubresource.aspectMask = Utils::GetAspectFlags(dst->GetSpecification().ImageFormat);
 		copyRegion.imageSubresource.mipLevel = region.Mipmap;
 		copyRegion.imageSubresource.baseArrayLayer = region.StartLayer;
 		copyRegion.imageSubresource.layerCount = region.LayerCount;
@@ -161,7 +161,7 @@ namespace Kaidel {
 		vkCmdCopyBufferToImage(
 			VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(),
 			vulkanSrcBuffer->GetBuffer().Buffer, 
-			(VkImage)dst._InternalImageID,
+			(VkImage)dst->GetSpecification()._InternalImageID,
 			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 			1,
 			&copyRegion);
@@ -170,7 +170,7 @@ namespace Kaidel {
 		if (needsTransition)
 			Transition(dst, oldLayout);
 	}
-	void VulkanRendererAPI::ClearColorImage(Image& image, const AttachmentColorClearValue& clearValue, const TextureSubresourceRegion& region)
+	void VulkanRendererAPI::ClearColorImage(Ref<Image> image, const AttachmentColorClearValue& clearValue, const TextureSubresourceRegion& region)
 	{
 		VkClearColorValue color{};
 		memcpy(color.float32, &clearValue.RGBAF, sizeof(color.float32));
@@ -182,12 +182,12 @@ namespace Kaidel {
 		subresource.baseMipLevel = region.StarMip;
 		subresource.levelCount = region.MipCount;
 
-		VkImageLayout layout = Utils::ImageLayoutToVulkanImageLayout(image.Layout);
+		VkImageLayout layout = Utils::ImageLayoutToVulkanImageLayout(image->GetSpecification().Layout);
 
 
 		vkCmdClearColorImage(
 			VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(),
-			(VkImage)image._InternalImageID,
+			(VkImage)image->GetSpecification()._InternalImageID,
 			layout,
 			&color,
 			1,

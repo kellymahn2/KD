@@ -133,15 +133,15 @@ namespace Kaidel {
 			s_RendererAPI->Submit(std::move(func));
 		}
 
-		static void Transition(Image& image, ImageLayout newLayout) {
+		static void Transition(Ref<Image> image, ImageLayout newLayout) {
 			s_RendererAPI->Transition(image, newLayout);
 		}
 
-		static void CopyBufferToTexture(Ref<TransferBuffer> src, Image& dst, const BufferToTextureCopyRegion& region) {
+		static void CopyBufferToTexture(Ref<TransferBuffer> src, Ref<Image> dst, const BufferToTextureCopyRegion& region) {
 			s_RendererAPI->CopyBufferToTexture(src, dst, region);
 		}
 
-		static void ClearColorImage(Image& image, const AttachmentColorClearValue& clearValue, const TextureSubresourceRegion& region) {
+		static void ClearColorImage(Ref<Image> image, const AttachmentColorClearValue& clearValue, const TextureSubresourceRegion& region) {
 			s_RendererAPI->ClearColorImage(image, clearValue, region);
 		}
 

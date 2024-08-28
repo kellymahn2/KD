@@ -29,8 +29,7 @@ namespace Kaidel {
 
 		virtual ~Texture2D() = default;
 		virtual const Texture2DSpecification& GetSpecification()const = 0;
-		virtual const Image& GetImage()const = 0;
-		virtual Image& GetImage() = 0;
+		virtual Ref<Image> GetImage()const = 0;
 
 		virtual void* Map(uint32_t mipMap)const = 0;
 		virtual void Unmap()const = 0;
@@ -67,8 +66,7 @@ namespace Kaidel {
 		virtual const TextureLayered2DSpecification& GetSpecification()const = 0;
 		virtual const TextureLayered2DLayerSpecification& GetLayerSpecification(uint32_t layer)const = 0;
 
-		virtual const Image& GetImage()const = 0;
-		virtual Image& GetImage() = 0;
+		virtual Ref<Image> GetImage()const = 0;
 
 		virtual void* Map(uint32_t mipMap,uint32_t layer)const = 0;
 		virtual void Unmap()const = 0;
@@ -78,6 +76,4 @@ namespace Kaidel {
 		
 		static Ref<TextureLayered2D> Create(const TextureLayered2DSpecification& spec);
 	};
-
-
 }

@@ -241,7 +241,6 @@ namespace Kaidel {
 		AttachmentDepthStencilClearValue DepthStencilClear;
 	};
 
-
 	struct TextureSubresourceRegion {
 		uint32_t StarMip = 0;
 		uint32_t MipCount = 1;
@@ -257,5 +256,4 @@ namespace Kaidel {
 		glm::ivec3 TextureOffset = {0,0,0};
 		glm::ivec3 TextureRegionSize = { 0,0,0 };
 	};
-	
 }

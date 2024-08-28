@@ -580,7 +580,7 @@ namespace Kaidel {
 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 		m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };
 
-		Image& image = m_OutputBuffer->GetImage(0);
+		Ref<Image> image = m_OutputBuffer->GetImage(0);
 		RenderCommand::Transition(image, ImageLayout::ShaderReadOnlyOptimal);
 
 		{
@@ -588,7 +588,7 @@ namespace Kaidel {
 			update.ArrayIndex = 0;
 			update.Binding = 0;
 			update.Type = DescriptorType::CombinedSampler;
-			update.ImageUpdate.ImageView = image.ImageView;
+			update.ImageUpdate.ImageView = image->GetSpecification().ImageView;
 			update.ImageUpdate.Sampler = m_OutputSampler->GetRendererID();
 			update.ImageUpdate.Layout = ImageLayout::ShaderReadOnlyOptimal;
 			m_OutputDescriptorSet->Update(update);
@@ -624,8 +624,6 @@ namespace Kaidel {
 			m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 		}
 	}
-
-	
 
 	void EditorLayer::UI_Toolbar() {
 		constexpr auto windowFlags =

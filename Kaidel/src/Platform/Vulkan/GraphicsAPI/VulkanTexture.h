@@ -10,8 +10,7 @@ namespace Kaidel {
 		VulkanTexture2D(const Texture2DSpecification& spec);
 		~VulkanTexture2D();
 
-		const Image& GetImage() const override { return m_Image; }
-		Image& GetImage() override { return m_Image; }
+		Ref<Image> GetImage() const override { return m_Image; }
 
 		const Texture2DSpecification& GetSpecification() const override { return m_Specification; }
 
@@ -20,7 +19,7 @@ namespace Kaidel {
 
 	private:
 		Texture2DSpecification m_Specification;
-		Image m_Image;
+		Ref<Image> m_Image;
 
 		VmaAllocationInfo m_AllocationInfo;
 	};
@@ -33,8 +32,10 @@ namespace Kaidel {
 
 		const TextureLayered2DSpecification& GetSpecification() const override { return m_Specification; }
 		const TextureLayered2DLayerSpecification& GetLayerSpecification(uint32_t layer) const override { return m_LayerSpecifications[layer]; }
-		const Image& GetImage() const override { return m_Image; }
-		Image& GetImage() override { return m_Image; }
+		
+		Ref<Image> GetImage() const override { return m_Image; }
+		
+
 		void* Map(uint32_t mipMap, uint32_t layer) const override;
 		void Unmap() const override;
 		uint32_t Push(const TextureLayered2DLayerSpecification& layerSpec) override;
@@ -46,7 +47,7 @@ namespace Kaidel {
 		void DeleteImage();
 	private:
 		TextureLayered2DSpecification m_Specification;
-		Image m_Image;
+		Ref<Image> m_Image;
 		VmaAllocationInfo m_AllocationInfo;
 		std::vector<TextureLayered2DLayerSpecification> m_LayerSpecifications;
 	};

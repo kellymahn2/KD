@@ -517,7 +517,7 @@ namespace Kaidel {
 		}
 
 
-		static void Transition(VkCommandBuffer cmdBuffer, Image& image, ImageLayout newLayout) {
+		static void Transition(VkCommandBuffer cmdBuffer, ImageSpecification& image, ImageLayout newLayout) {
 			if (newLayout == image.Layout)
 				return;
 
