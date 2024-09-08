@@ -11,7 +11,6 @@
 #include "Kaidel/Renderer/Renderer.h"
 #include "Kaidel/Renderer/RendererAPI.h"
 
-#include "Platform/OpenGL/OpenGLContext.h"
 #include <imgui.h>
 
 
@@ -72,7 +71,7 @@ namespace Kaidel {
 		m_Context = GraphicsContext::Create(this);
 		m_Context->Init();
 
-		RenderCommand::GetRendererAPI() = RendererAPI::Create();
+		RenderCommand::Get() = RendererAPI::Create();
 
 		glfwSetWindowUserPointer(m_Window, &m_Data);
 
@@ -183,7 +182,7 @@ namespace Kaidel {
 
 		if (s_GLFWWindowCount == 0)
 		{
-			RenderCommand::GetRendererAPI()->Shutdown();
+			RenderCommand::Get()->Shutdown();
 			m_Context->Shutdown();
 			glfwTerminate();
 		}

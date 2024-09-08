@@ -22,6 +22,8 @@ namespace Kaidel {
 		virtual void ImGuiEnd()const = 0;
 		virtual void ImGuiShutdown()const = 0;
 
+		virtual uint32_t GetMaxFramesInFlightCount()const = 0;
+		virtual uint32_t GetCurrentFrameIndex()const = 0;
 
 		static Scope<GraphicsContext> Create(Window* window);
 	};

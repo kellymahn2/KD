@@ -1,48 +1,45 @@
 #pragma once
 #include "Kaidel/Core/Base.h"
-#include "Kaidel/Renderer/RendererDefinitions.h"
-#include "Kaidel/Renderer/GraphicsAPI/GraphicsPipeline.h"
 
-
+#include "UniformBuffer.h"
+#include "StorageBuffer.h"
+#include "Sampler.h"
+#include "GraphicsPipeline.h"
+#include "Texture.h"
 
 namespace Kaidel {
 
 
-	struct DescriptorSetUpdateBuffer {
-		RendererID Buffer;
-		uint64_t Offset;
-		uint64_t Size;
+	struct DescriptorSetBufferValues {			
+		Ref<ShaderInputBuffer> Buffer;
 	};
 
-	struct DescriptorSetUpdateImage {
-		RendererID Sampler;
-		RendererID ImageView;
+	struct DescriptorSetImageValues {
+		Ref<Sampler> ImageSampler;
+		Ref<Texture> Image;
 		ImageLayout Layout;
 	};
 
-
-	struct DescriptorSetUpdate {
+	struct DescriptorValues
+	{
 		DescriptorType Type;
-		uint32_t Binding;
-		uint32_t ArrayIndex;
-		union {
-			DescriptorSetUpdateBuffer BufferUpdate;
-			DescriptorSetUpdateImage ImageUpdate;
-		};
+		DescriptorSetBufferValues BufferValues;
+		DescriptorSetImageValues ImageValues;
 	};
 
-
+	struct DescriptorSetSpecification {
+		std::vector<DescriptorValues> Values;
+		std::vector<ShaderStages> Stages;
+		Ref<Shader> Shader;
+		uint32_t Set;
+	};
 
 	class DescriptorSet : public IRCCounter<false> {
 	public:
-
+		
+		virtual const DescriptorSetSpecification& GetSpecification()const = 0;
 		virtual ~DescriptorSet() = default;
 
-		virtual RendererID GetSetID()const = 0;
-		virtual void Update(const DescriptorSetUpdate& update) = 0;
-		virtual void UpdateAll(const DescriptorSetUpdate& update) = 0;
-
-		static Ref<DescriptorSet> Create(Ref<GraphicsPipeline> pipeline,uint32_t setBinding);
-		static Ref<DescriptorSet> Create(DescriptorType type, ShaderStages flags);
+		static Ref<DescriptorSet> Create(const DescriptorSetSpecification& specs);
 	};
 }

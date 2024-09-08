@@ -13,7 +13,6 @@
 
 #include "Kaidel/Scripting/ScriptEngine.h"
 
-#include "Kaidel/Renderer/GraphicsAPI/TextureLibrary.h"
 
 #include "yaml-cpp/yaml.h"
 
@@ -50,15 +49,15 @@ namespace Kaidel {
 	void EditorLayer::OnAttach()
 	{
 		{
-			SamplerParameters params{};
-			params.MipmapMode = SamplerMipMapMode::Linear;
-			params.MinificationFilter = SamplerFilter::Linear;
-			params.MagnificationFilter = SamplerFilter::Linear;
+			SamplerState params{};
+			params.MipFilter = SamplerMipMapMode::Linear;
+			params.MinFilter = SamplerFilter::Linear;
+			params.MagFilter = SamplerFilter::Linear;
 			params.BorderColor = SamplerBorderColor::None;
 			params.AddressModeU = SamplerAddressMode::ClampToEdge;
 			params.AddressModeV = SamplerAddressMode::ClampToEdge;
 			params.AddressModeW = SamplerAddressMode::ClampToEdge;
-			m_OutputSampler = SamplerState::Create(params);
+			m_OutputSampler = Sampler::Create(params);
 		}
 		
 		m_Icons.IconPlay = EditorIcon("Resources/Icons/PlayButton.png",m_OutputSampler);
@@ -77,6 +76,7 @@ namespace Kaidel {
 			fbSpec.Attachments = { Format::RGBA8UN/*, Format::Depth32F*/};
 			fbSpec.Width = 1280;
 			fbSpec.Height = 720;
+			fbSpec.Samples = TextureSamples::x1;
 			m_OutputBuffer = Framebuffer::Create(fbSpec);
 		}
 		
@@ -117,8 +117,17 @@ namespace Kaidel {
 			e.AddComponent<SpriteRendererComponent>();
 			e.GetComponent<TransformComponent>().Translation = { 0,0,0 };
 		}
-
-		m_OutputDescriptorSet = DescriptorSet::Create(DescriptorType::CombinedSampler,ShaderStage_FragmentShader);
+		{
+			DescriptorValues value{};
+			value.Type = DescriptorType::SamplerWithTexture;
+			value.ImageValues.Layout = ImageLayout::ShaderReadOnlyOptimal;
+			value.ImageValues.ImageSampler = m_OutputSampler;
+			value.ImageValues.Image = m_OutputBuffer->GetColorAttachment(0);
+			DescriptorSetSpecification specs{};
+			specs.Stages.push_back(ShaderStage_FragmentShader);
+			specs.Values.push_back(value);
+			m_OutputDescriptorSet = DescriptorSet::Create(specs);
+		}
 	}
 
 	void EditorLayer::OnDetach()
@@ -135,8 +144,8 @@ namespace Kaidel {
 
 		// Render
 		{
-			RenderCommand::BeginRenderPass(m_OutputBuffer, m_OutputBuffer->GetDefaultRenderPass());
-			RenderCommand::EndRenderPass();
+			//RenderCommand::BeginRenderPass(m_OutputBuffer, m_OutputBuffer->GetDefaultRenderPass());
+			//RenderCommand::EndRenderPass();
 		}
 		
 		// Update scene
@@ -580,22 +589,8 @@ namespace Kaidel {
 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 		m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };
 
-		Ref<Image> image = m_OutputBuffer->GetImage(0);
-		RenderCommand::Transition(image, ImageLayout::ShaderReadOnlyOptimal);
-
-		{
-			DescriptorSetUpdate update{};
-			update.ArrayIndex = 0;
-			update.Binding = 0;
-			update.Type = DescriptorType::CombinedSampler;
-			update.ImageUpdate.ImageView = image->GetSpecification().ImageView;
-			update.ImageUpdate.Sampler = m_OutputSampler->GetRendererID();
-			update.ImageUpdate.Layout = ImageLayout::ShaderReadOnlyOptimal;
-			m_OutputDescriptorSet->Update(update);
-		}
-
 		glm::vec4 uvs = _GetUVs();
-		ImGui::Image(reinterpret_cast<ImTextureID>(m_OutputDescriptorSet->GetSetID()), ImVec2{m_ViewportSize.x, m_ViewportSize.y}, {uvs.x,uvs.y}, {uvs.z,uvs.w});
+		//ImGui::Image(reinterpret_cast<ImTextureID>(m_OutputDescriptorSet->()), ImVec2{m_ViewportSize.x, m_ViewportSize.y}, {uvs.x,uvs.y}, {uvs.z,uvs.w});
 		
 		//ImGui::Text("Hello");
 		
@@ -615,13 +610,17 @@ namespace Kaidel {
 
 	void EditorLayer::HandleViewportResize() {
 		if (m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f && // zero sized framebuffer is invalid
-			(m_OutputBuffer->GetWidth() != m_ViewportSize.x || m_OutputBuffer->GetHeight() != m_ViewportSize.y))
+			(m_OutputBuffer->GetSpecification().Width != m_ViewportSize.x || m_OutputBuffer->GetSpecification().Height != m_ViewportSize.y))
 		{
-			m_OutputBuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
-			//m_ScreenOutputbuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+			Application::Get().SubmitToMainThread([this]() {
+				KD_CORE_INFO("Resized");
+				RenderCommand::DeviceWaitIdle();
+				m_OutputBuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+				//m_ScreenOutputbuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 
-			m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);
-			m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+				m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);
+				m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+			});
 		}
 	}
 
@@ -656,7 +655,7 @@ namespace Kaidel {
 			EditorIcon icon = m_Icons.IconPlay;
 			if (m_SceneState == SceneState::Play)
 				icon = m_Icons.IconStop;
-			if (ImGui::ImageButton((ImTextureID)icon.GetDescriptorSet()->GetSetID(), {size,size}, {0,0}, {1,1}, 0)) {
+			/*if (ImGui::ImageButton((ImTextureID)icon.GetDescriptorSet()->GetSetID(), {size,size}, {0,0}, {1,1}, 0)) {
 				if (m_SceneState == SceneState::Edit) {
 					OnScenePlay();
 				}
@@ -667,16 +666,16 @@ namespace Kaidel {
 					OnSceneSimulateStop();
 					OnScenePlay();
 				}
-			}
+			}*/
 		}
 		{
 			if (m_SceneState == SceneState::Play) {
 				ImGui::SameLine();
 				EditorIcon icon = m_Icons.IconPause;
-				if (ImGui::ImageButton((ImTextureID)icon.GetDescriptorSet()->GetSetID(), { size,size }, { 0,0 }, { 1,1 }, 0)){
+				/*if (ImGui::ImageButton((ImTextureID)icon.GetDescriptorSet()->GetSetID(), { size,size }, { 0,0 }, { 1,1 }, 0)){
 					m_ActiveScene->ChangePauseState();
 
-				}
+				}*/
 			}
 		}
 		ImGui::SameLine();
@@ -684,12 +683,12 @@ namespace Kaidel {
 			EditorIcon icon = m_Icons.IconSimulateStart;
 			if (m_SceneState == SceneState::Simulate)
 				icon = m_Icons.IconSimulateStop;
-			if (ImGui::ImageButton((ImTextureID)icon.GetDescriptorSet()->GetSetID(), { size,size }, { 0,0 }, { 1,1 }, 0)) {
-				if (m_SceneState == SceneState::Simulate)
-					OnSceneSimulateStop();
-				else
-					OnSceneSimulateStart();
-			}
+			//if (ImGui::ImageButton((ImTextureID)icon.GetDescriptorSet()->GetSetID(), { size,size }, { 0,0 }, { 1,1 }, 0)) {
+			//	if (m_SceneState == SceneState::Simulate)
+			//		OnSceneSimulateStop();
+			//	else
+			//		OnSceneSimulateStart();
+			//}
 		}
 
 		ImGui::End();
@@ -811,11 +810,11 @@ namespace Kaidel {
 			uint32_t oldVal = m_RendererSettings.MSAASampleCount;
 			uint32_t newVal = settings.MSAASampleCount;
 
-			if (oldVal != newVal) {
+			/*if (oldVal != newVal) {
 				KD_CORE_ASSERT(oldVal == m_OutputBuffer->GetSpecification().Samples);
 				m_OutputBuffer->Resample(newVal);
 				m_RendererSettings.MSAASampleCount = newVal;
-			}
+			}*/
 
 		}
 

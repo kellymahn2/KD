@@ -2,7 +2,6 @@
 #include "Kaidel/Renderer/GraphicsAPI/GraphicsContext.h"
 
 #include "Kaidel/Renderer/Renderer.h"
-#include "Platform/OpenGL/OpenGLContext.h"
 #include "Platform/Vulkan/GraphicsAPI/VulkanGraphicsContext.h"
 namespace Kaidel {
 

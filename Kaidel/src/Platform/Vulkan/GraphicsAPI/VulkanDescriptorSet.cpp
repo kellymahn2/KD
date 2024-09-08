@@ -1,124 +1,84 @@
 #include "KDpch.h"
 #include "VulkanDescriptorSet.h"
-#include "VulkanGraphicsPipeline.h"
 #include "VulkanGraphicsContext.h"
-
+#include "VulkanShader.h"
+#include "VulkanSampler.h"
 namespace Kaidel {
-	VulkanDescriptorSet::VulkanDescriptorSet(Ref<GraphicsPipeline> pipeline, uint32_t setBinding)
-	{
-		Ref<VulkanGraphicsPipeline> vulkanPipeline = pipeline;
-		VkDescriptorSetLayout layout = vulkanPipeline->GetSetLayout(setBinding);
 
-		std::vector<VkDescriptorSetLayout> layouts{ m_Sets.GetResources().size(),layout };
+	namespace Utils {
+		static void ValuesToWrites(
+			const std::vector<DescriptorValues>& values,
+			std::vector<VkWriteDescriptorSet>& writes, 
+			std::vector< VkDescriptorImageInfo>& images, std::vector<VkDescriptorBufferInfo>& buffers) 
+		{
+			writes = {};
+			images = {};
+			buffers = {};
 
-		VkDescriptorSetAllocateInfo allocateInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-		allocateInfo.descriptorSetCount = m_Sets.GetResources().size();
-		allocateInfo.pSetLayouts = layouts.data();
-		allocateInfo.descriptorPool = VK_CONTEXT.GetGlobalDescriptorPool().GetDescriptorPool();
-
-		vkAllocateDescriptorSets(VK_DEVICE.GetDevice(), &allocateInfo, m_Sets.GetResources().data());
+			for (uint32_t i = 0; i < values.size(); ++i) {
+				const auto& value = values[i];
+				VkWriteDescriptorSet write{};
+				write.descriptorCount = 1;
+				write.descriptorType = DescriptorTypeToVulkanDescriptorType(value.Type);
+				write.dstArrayElement = 0;
+				write.dstBinding = (uint32_t)i;
+				switch (value.Type)
+				{
+				case DescriptorType::Sampler:
+				case DescriptorType::SamplerWithTexture:
+				case DescriptorType::Texture:
+				{
+					VkDescriptorImageInfo info = {};
+					info.imageLayout = Utils::ImageLayoutToVulkanImageLayout(value.ImageValues.Layout);
+					info.imageView = ((const VulkanBackend::TextureInfo*)value.ImageValues.Image->GetBackendInfo())->View;
+					info.sampler = ((const VulkanSampler*)value.ImageValues.ImageSampler.Get())->GetSampler();
+					images.push_back(info);
+					write.pImageInfo = &images.back();
+				}
+				break;
+				case DescriptorType::UniformBuffer:
+				case DescriptorType::StorageBuffer:
+				{
+					VkDescriptorBufferInfo info = {};
+					info.buffer = (VkBuffer)value.BufferValues.Buffer->GetRendererID();
+					info.offset = 0;
+					info.range = VK_WHOLE_SIZE;
+					buffers.push_back(info);
+					write.pBufferInfo = &buffers.back();
+				}
+				break;
+				}
+			}
+		}
 	}
-	VulkanDescriptorSet::VulkanDescriptorSet(DescriptorType type,ShaderStages flags)
+
+	VulkanDescriptorSet::VulkanDescriptorSet(const DescriptorSetSpecification& specs)
+		:m_Specification(specs)
 	{
-		VkDescriptorSetLayout layout = VK_CONTEXT.GetSingleDescriptorSetLayout(Utils::DescriptorTypeToVulkanDescriptorType(type),
-																				Utils::ShaderStagesToVulkanShaderStageFlags(flags));
 
-		std::vector<VkDescriptorSetLayout> layouts{ m_Sets.GetResources().size(),layout };
-		VkDescriptorSetAllocateInfo allocateInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-		allocateInfo.descriptorSetCount = m_Sets.GetResources().size();
-		allocateInfo.pSetLayouts = layouts.data();
-		allocateInfo.descriptorPool = VK_CONTEXT.GetGlobalDescriptorPool().GetDescriptorPool();
+		std::vector<VkWriteDescriptorSet> writes;
+		std::vector<VkDescriptorImageInfo> images;
+		std::vector<VkDescriptorBufferInfo> buffers;
 
-		vkAllocateDescriptorSets(VK_DEVICE.GetDevice(), &allocateInfo, m_Sets.GetResources().data());
+		Utils::ValuesToWrites(specs.Values, writes, images, buffers);
+
+		if (specs.Shader) {
+			const auto& shader = ((VulkanShader*)specs.Shader.Get())->GetShaderInfo();
+			
+			KD_CORE_ASSERT(specs.Set < shader.DescriptorSetLayouts.size());
+
+			m_Info = VK_CONTEXT.GetBackend()->CreateDescriptorSet(writes, shader, specs.Set);
+		}
+		else {
+			std::vector<VkShaderStageFlags> flags;
+			for (auto& flag : specs.Stages) {
+				flags.push_back(Utils::ShaderStagesToVulkanShaderStageFlags(flag));
+			}
+			m_Info = VK_CONTEXT.GetBackend()->CreateDescriptorSet(writes, flags);
+		}
 	}
 	VulkanDescriptorSet::~VulkanDescriptorSet()
 	{
-		vkFreeDescriptorSets(VK_DEVICE.GetDevice(), VK_CONTEXT.GetGlobalDescriptorPool().GetDescriptorPool(), m_Sets.GetResources().size(), m_Sets.GetResources().data());
-	}
-	void VulkanDescriptorSet::Update(const DescriptorSetUpdate& update)
-	{
-		VkWriteDescriptorSet write{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-
-		write.descriptorCount = 1;
-		write.descriptorType = Utils::DescriptorTypeToVulkanDescriptorType(update.Type);
-		write.dstArrayElement = update.ArrayIndex;
-		write.dstBinding = update.Binding;
-		write.dstSet = *m_Sets;
-
-		VkDescriptorImageInfo imageInfo{};
-		VkDescriptorBufferInfo bufferInfo{}; 
-		switch (update.Type)
-		{
-		case Kaidel::DescriptorType::Sampler:
-		case Kaidel::DescriptorType::CombinedSampler:
-		case Kaidel::DescriptorType::Texture:
-		{
-			
-			imageInfo.imageLayout = Utils::ImageLayoutToVulkanImageLayout(update.ImageUpdate.Layout);
-			imageInfo.imageView = (VkImageView)update.ImageUpdate.ImageView;
-			imageInfo.sampler = (VkSampler)update.ImageUpdate.Sampler;
-			write.pImageInfo = &imageInfo;
-		}
-		break;
-		case Kaidel::DescriptorType::ImageBuffer:
-		case Kaidel::DescriptorType::UniformBuffer:
-		case Kaidel::DescriptorType::StorageBuffer: 
-		{
-			bufferInfo.buffer = (VkBuffer)update.BufferUpdate.Buffer;
-			bufferInfo.offset = update.BufferUpdate.Offset;
-			bufferInfo.range = update.BufferUpdate.Size;
-			write.pBufferInfo = &bufferInfo;
-		}
-		break;
-		default:
-			return;
-		}
-
-		vkUpdateDescriptorSets(VK_DEVICE.GetDevice(), 1, &write, 0, nullptr);
-	}
-	void VulkanDescriptorSet::UpdateAll(const DescriptorSetUpdate& update)
-	{
-		for (auto& set : m_Sets) {
-			VkWriteDescriptorSet write{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-
-			write.descriptorCount = 1;
-			write.descriptorType = Utils::DescriptorTypeToVulkanDescriptorType(update.Type);
-			write.dstArrayElement = update.ArrayIndex;
-			write.dstBinding = update.Binding;
-			write.dstSet = set;
-
-			VkDescriptorImageInfo imageInfo{};
-			VkDescriptorBufferInfo bufferInfo{};
-			switch (update.Type)
-			{
-			case Kaidel::DescriptorType::Sampler:
-			case Kaidel::DescriptorType::CombinedSampler:
-			case Kaidel::DescriptorType::Texture:
-			{
-
-				imageInfo.imageLayout = Utils::ImageLayoutToVulkanImageLayout(update.ImageUpdate.Layout);
-				imageInfo.imageView = (VkImageView)update.ImageUpdate.ImageView;
-				imageInfo.sampler = (VkSampler)update.ImageUpdate.Sampler;
-				write.pImageInfo = &imageInfo;
-			}
-			break;
-			case Kaidel::DescriptorType::ImageBuffer:
-			case Kaidel::DescriptorType::UniformBuffer:
-			case Kaidel::DescriptorType::StorageBuffer:
-			{
-				bufferInfo.buffer = (VkBuffer)update.BufferUpdate.Buffer;
-				bufferInfo.offset = update.BufferUpdate.Offset;
-				bufferInfo.range = update.BufferUpdate.Size;
-				write.pBufferInfo = &bufferInfo;
-			}
-			break;
-			default:
-				return;
-			}
-
-			vkUpdateDescriptorSets(VK_DEVICE.GetDevice(), 1, &write, 0, nullptr);
-		}
-		
-
+		VK_CONTEXT.GetBackend()->DestroyDescriptorSet(m_Info);
 	}
 }

@@ -17,7 +17,7 @@ namespace Kaidel {
 	bool VulkanStagingBuffer::HasUnusedSpace(uint64_t dataSize) {
 		return m_MappedBufferCurrent + dataSize < m_MappedBufferEnd;
 	}
-	void VulkanStagingBuffer::AddCopyOperation(VulkanCommandBuffer* commandBuffer, const VulkanBuffer& buffer, const void* data, uint64_t dataSize)
+	void VulkanStagingBuffer::AddCopyOperation(VkCommandBuffer commandBuffer, VkBuffer buffer, const void* data, uint64_t dataSize)
 	{
 		KD_CORE_ASSERT(HasUnusedSpace(dataSize));
 
@@ -37,12 +37,12 @@ namespace Kaidel {
 		beforeCopyBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT; // Next access type
 		beforeCopyBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		beforeCopyBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		beforeCopyBarrier.buffer = buffer.Buffer;
+		beforeCopyBarrier.buffer = buffer;
 		beforeCopyBarrier.offset = 0;
 		beforeCopyBarrier.size = dataSize;
 
 		vkCmdPipelineBarrier(
-			commandBuffer->GetCommandBuffer(),
+			commandBuffer,
 			VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, // Source stages
 			VK_PIPELINE_STAGE_TRANSFER_BIT, // Destination stage
 			0,
@@ -53,9 +53,9 @@ namespace Kaidel {
 
 		// Record the buffer copy command
 		vkCmdCopyBuffer(
-			commandBuffer->GetCommandBuffer(),
+			commandBuffer,
 			m_StagingBuffer.Buffer,
-			buffer.Buffer,
+			buffer,
 			1,
 			&copyRegion
 		);
@@ -67,12 +67,12 @@ namespace Kaidel {
 		afterCopyBarrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT; // Next access types
 		afterCopyBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		afterCopyBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		afterCopyBarrier.buffer = buffer.Buffer;
+		afterCopyBarrier.buffer = buffer;
 		afterCopyBarrier.offset = 0;
 		afterCopyBarrier.size = dataSize;
 
 		vkCmdPipelineBarrier(
-			commandBuffer->GetCommandBuffer(),
+			commandBuffer,
 			VK_PIPELINE_STAGE_TRANSFER_BIT, // Source stage
 			VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, // Destination stages
 			0,

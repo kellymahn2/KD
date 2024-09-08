@@ -8,7 +8,8 @@
 #include "GraphicsAPI/VulkanUniformBuffer.h"
 #include "GraphicsAPI/VulkanFramebuffer.h"
 #include "GraphicsAPI/VulkanGraphicsContext.h"
-#include "GraphicsAPI/VulkanTransferBuffer.h"
+#include "GraphicsAPI/VulkanShader.h"
+#include "GraphicsAPI/VulkanDescriptorSet.h"
 
 
 namespace Kaidel {
@@ -18,186 +19,264 @@ namespace Kaidel {
     void VulkanRendererAPI::SetViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
     {
     }
-    void VulkanRendererAPI::GetViewport(uint32_t& x, uint32_t& y, uint32_t& width, uint32_t& height)
-    {
-    }
-    void VulkanRendererAPI::SetClearColor(const glm::vec4& color)
-    {
-    }
-    void VulkanRendererAPI::Clear()
-    {
-    }
+	void VulkanRendererAPI::DeviceWaitIdle()
+	{
+		vkDeviceWaitIdle(VK_DEVICE.GetDevice());
+	}
     void VulkanRendererAPI::Shutdown()
     {
 		m_CurrentBoundPipeline = {};
     }
-    void VulkanRendererAPI::Draw(uint32_t vertexCount, uint32_t firstVertexID)
-    {
-		vkCmdDraw(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), vertexCount, 1, firstVertexID, 0);
-    }
-    void VulkanRendererAPI::DrawInstanced(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertexID)
-    {
-		vkCmdDraw(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), vertexCount, instanceCount, firstVertexID, 0);
-    }
-    void VulkanRendererAPI::DrawIndexed(uint32_t indexCount, uint32_t firstIndex, uint32_t vertexOffset)
-    {
-		vkCmdDrawIndexed(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(),indexCount, 1, firstIndex, vertexOffset,0);
-    }
-    void VulkanRendererAPI::DrawIndexedInstanced(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, uint32_t vertexOffset)
-    {
-		vkCmdDrawIndexed(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), indexCount, instanceCount, firstIndex, vertexOffset, 0);
-	}
-    void VulkanRendererAPI::RenderFullScreenQuad(Ref<ShaderModule> shader, uint32_t width, uint32_t height) const
-    {
-	}
-    void VulkanRendererAPI::BindVertexBuffers(std::initializer_list<Ref<VertexBuffer>> vertexBuffers)
-    {
-		uint32_t i = 0;
-		for (auto& vb : vertexBuffers) {
-			VulkanVertexBuffer* vvb = static_cast<VulkanVertexBuffer*>(vb.Get());
-			m_CurrentBoundBuffers[i] = vvb->GetBuffer().Buffer;
-			++i;
-		}
-		vkCmdBindVertexBuffers(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), 0, vertexBuffers.size(), m_CurrentBoundBuffers.data(), m_CurrentBoundBufferOffsets.data());
-    }
-    void VulkanRendererAPI::BindIndexBuffer(Ref<IndexBuffer> indexBuffer)
-    {
-		VulkanIndexBuffer* vib = static_cast<VulkanIndexBuffer*>(indexBuffer.Get());
-		vkCmdBindIndexBuffer(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), vib->GetBuffer().Buffer, 0, VK_INDEX_TYPE_UINT32);
-    }
-	void VulkanRendererAPI::BindDescriptorSet(Ref<DescriptorSet> descriptorSet, uint32_t setIndex)
+	void VulkanRendererAPI::BeginRenderPass(
+		Ref<RenderPass> renderPass, Ref<Framebuffer> framebuffer,
+		std::initializer_list<AttachmentClearValue> clearValues)
 	{
-
-		if (!m_CurrentBoundPipeline)
-			return;
-
-		VulkanGraphicsPipeline* pipeline = (VulkanGraphicsPipeline*)m_CurrentBoundPipeline.Get();
-		VkDescriptorSet set = (VkDescriptorSet)descriptorSet->GetSetID();
-
-		vkCmdBindDescriptorSets(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetLayout(), setIndex, 1, &set, 0, nullptr);
-	}
-    void VulkanRendererAPI::BeginRenderPass(Ref<Framebuffer> frameBuffer, Ref<RenderPass> renderPass)
-    {
 		Ref<VulkanRenderPass> rp = renderPass;
-		Ref<VulkanFramebuffer> fb = frameBuffer;
-		VkRenderPassBeginInfo info{ VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-		info.clearValueCount = (uint32_t)rp->GetClearValues().size();
-		info.pClearValues = rp->GetClearValues().data();
-		info.framebuffer = (VkFramebuffer)frameBuffer->GetRendererID();
-		info.renderPass = (VkRenderPass)rp->GetRendererID();
+		Ref<VulkanFramebuffer> fb = framebuffer;
+
 		VkRect2D renderArea{};
 		renderArea.offset = { 0,0 };
-		renderArea.extent = { fb->GetWidth(),fb->GetHeight() };
-		info.renderArea = renderArea;
-		vkCmdBeginRenderPass(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), &info, VK_SUBPASS_CONTENTS_INLINE);
-		VkViewport vp;
-		vp.x = 0;
-		vp.y = 0;
-		vp.width = renderArea.extent.width;
-		vp.height = renderArea.extent.height;
-		vp.minDepth = 0.0f;
-		vp.maxDepth = 1.0f;
-		vkCmdSetViewport(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), 0, 1, &vp);
-		vkCmdSetScissor(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), 0, 1, &renderArea);
+		renderArea.extent = { fb->GetSpecification().Width,fb->GetSpecification().Height };
 
-		for (int i = 0; i < frameBuffer->GetColorAttachmentCount(); ++i) {
-			Ref<Image> image = frameBuffer->GetImage(i);
-			image->GetSpecification().Layout = renderPass->GetSpecification().OutputColors[i].FinalLayout;
-		}
-    }
-    void VulkanRendererAPI::EndRenderPass()
+		const VkClearValue* clearBegin = (const VkClearValue*)clearValues.begin();
+		const VkClearValue* clearEnd = clearBegin + clearValues.size();
+
+		VK_BACKEND->CommandBeginRenderPass(
+			VK_CURRENT_COMMAND_BUFFER,
+			rp->GetRenderPass(), fb->GetFramebuffer(),
+			VK_SUBPASS_CONTENTS_INLINE,
+			renderArea,
+			std::initializer_list<VkClearValue>(clearBegin,clearEnd));
+	}
+	void VulkanRendererAPI::EndRenderPass()
     {
-		vkCmdEndRenderPass(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer());
+		VK_BACKEND->CommandEndRenderPass(VK_CURRENT_COMMAND_BUFFER);
     }
+	void VulkanRendererAPI::NextSubpass()
+	{
+		VK_BACKEND->CommandNextSubpass(VK_CURRENT_COMMAND_BUFFER, VK_SUBPASS_CONTENTS_INLINE);
+	}
+	void VulkanRendererAPI::BindVertexBuffers(std::initializer_list<Ref<VertexBuffer>> buffers, std::initializer_list<uint64_t> offsets)
+	{
+		VulkanBackend::BufferInfo const** vkBuffers = ALLOCA_ARRAY(VulkanBackend::BufferInfo const*, buffers.size());
+		for (uint32_t i = 0; i < buffers.size(); ++i) {
+			const Ref<VertexBuffer>* buffer = buffers.begin() + i;
+			Ref<VulkanVertexBuffer> vkBuffer = *buffer;
+			vkBuffers[i] = &vkBuffer->GetBufferInfo();
+		}
+		
+		VK_BACKEND->CommandBindVertexBuffers(
+			VK_CURRENT_COMMAND_BUFFER,
+			std::initializer_list<const VulkanBackend::BufferInfo*>(vkBuffers, vkBuffers + buffers.size()),
+			offsets
+		);
+	}
+	void VulkanRendererAPI::BindIndexBuffer(Ref<IndexBuffer> buffer, uint64_t offset)
+	{
+		Ref<VulkanIndexBuffer> vkBuffer = buffer;
+		VK_BACKEND->CommandBindIndexBuffer(
+			VK_CURRENT_COMMAND_BUFFER,
+			vkBuffer->GetBufferInfo(),
+			Utils::IndexTypeToVulkanIndexType(vkBuffer->GetIndexType()),
+			offset);
+	}
     void VulkanRendererAPI::BindGraphicsPipeline(Ref<GraphicsPipeline> pipeline)
     {
-		vkCmdBindPipeline(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, (VkPipeline)pipeline->GetRendererID());
-		m_CurrentBoundPipeline = pipeline;
+		Ref<VulkanGraphicsPipeline> vkPipeline = pipeline;
+		VK_BACKEND->CommandBindGraphicsPipeline(
+			VK_CURRENT_COMMAND_BUFFER,
+			vkPipeline->GetPipeline()
+		);
     }
+	void VulkanRendererAPI::BindPushConstants(Ref<Shader> shader, uint32_t firstIndex, const uint8_t* values, uint64_t size)
+	{
+		Ref<VulkanShader> vkShader = shader;
+		VK_BACKEND->CommandBindPushConstants(
+			VK_CURRENT_COMMAND_BUFFER,
+			vkShader->GetShaderInfo(),
+			firstIndex, values, size
+		);
+	}
+	void VulkanRendererAPI::BindDescriptorSet(Ref<Shader> shader, Ref<DescriptorSet> set, uint32_t setIndex)
+	{
+		Ref<VulkanShader> vkShader = shader;
+		Ref<VulkanDescriptorSet> vkSet = set;
+		VK_BACKEND->CommandBindDescriptorSet(
+			VK_CURRENT_COMMAND_BUFFER,
+			vkShader->GetShaderInfo(),
+			vkSet->GetSetInfo(),
+			setIndex
+		);
+	}
+	void VulkanRendererAPI::SetViewport(uint32_t width, uint32_t height, int32_t offsetX, int32_t offsetY)
+	{
+		VkRect2D viewport{};
+		viewport.extent = { width,height };
+		viewport.offset = { offsetX,offsetY };
+
+		VK_BACKEND->CommandSetViewport(
+			VK_CURRENT_COMMAND_BUFFER,
+			{ viewport }
+		);
+	}
+	void VulkanRendererAPI::SetScissor(uint32_t width, uint32_t height, int32_t offsetX, int32_t offsetY)
+	{
+		VkRect2D scissor{};
+		scissor.extent = { width,height };
+		scissor.offset = { offsetX,offsetY };
+		
+		VK_BACKEND->CommandSetScissor(
+			VK_CURRENT_COMMAND_BUFFER,
+			{ scissor }
+		);
+	}
+	void VulkanRendererAPI::SetBlendConstants(const float color[4])
+	{
+		VK_BACKEND->CommandSetBlendConstants(
+			VK_CURRENT_COMMAND_BUFFER,
+			color
+		);
+	}
+	void VulkanRendererAPI::SetLineWidth(float width)
+	{
+		VK_BACKEND->CommandSetLineWidth(
+			VK_CURRENT_COMMAND_BUFFER, 
+			width
+		);
+	}
+	void VulkanRendererAPI::ClearAttachments(std::initializer_list<AttachmentClear> clearValues, std::initializer_list<ClearRect> rects)
+	{
+		VkClearAttachment* vkClears = ALLOCA_ARRAY(VkClearAttachment, clearValues.size());
+		for (uint32_t i = 0; i < clearValues.size(); ++i) {
+			const AttachmentClear* clear = clearValues.begin() + i;
+			vkClears[i].aspectMask = clear->Aspect;
+			vkClears[i].colorAttachment = clear->ColorAttachment;
+			memcpy(&vkClears[i].clearValue, &clear->Value, sizeof(VkClearValue));
+		}
+
+		VkClearRect* vkRects = ALLOCA_ARRAY(VkClearRect, rects.size());
+		for (uint32_t i = 0; i < rects.size(); ++i) {
+			const ClearRect* rect = rects.begin() + i;
+			vkRects->baseArrayLayer = rect->StartLayer;
+			vkRects->layerCount = rect->LayerCount;
+			vkRects->rect.extent = { rect->Rect.Size.x, rect->Rect.Size.y };
+			vkRects->rect.offset = { rect->Rect.Offset.x, rect->Rect.Offset.y };
+		}
+		
+		VK_BACKEND->CommandClearAttachments(
+			VK_CURRENT_COMMAND_BUFFER,
+			std::initializer_list<VkClearAttachment>(vkClears, vkClears + clearValues.size()),
+			std::initializer_list<VkClearRect>(vkRects, vkRects + clearValues.size())
+		);
+	}
+	void VulkanRendererAPI::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t vertexOffset, uint32_t instanceOffset)
+	{
+		VK_BACKEND->CommandDraw(
+			VK_CURRENT_COMMAND_BUFFER,
+			vertexCount, instanceCount, vertexOffset, instanceOffset
+		);
+	}
+	void VulkanRendererAPI::DrawIndexed(uint32_t indexCount, uint32_t vertexCount, uint32_t instanceCount, uint32_t indexOffset, uint32_t vertexOffset, uint32_t instanceOffset)
+	{
+		VK_BACKEND->CommandDrawIndexed(
+			VK_CURRENT_COMMAND_BUFFER,
+			indexCount,vertexCount,instanceCount,indexOffset,vertexOffset,instanceOffset
+		);
+	}
+	void VulkanRendererAPI::Dispatch(uint32_t x, uint32_t y, uint32_t z)
+	{
+		VK_BACKEND->CommandDispatch(
+			VK_CURRENT_COMMAND_BUFFER,
+			x, y, z
+		);
+	}
+	void VulkanRendererAPI::ClearColorTexture(Ref<Texture> texture, const AttachmentColorClearValue& clear)
+	{
+		const auto& info =  *(const VulkanBackend::TextureInfo*)texture->GetBackendInfo();
+		VkImageSubresourceRange range{};
+		range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		range.baseArrayLayer = 0;
+		range.baseMipLevel = 0;
+		range.layerCount = texture->GetTextureSpecification().Layers;
+		range.levelCount = texture->GetTextureSpecification().Mips;
+		VK_BACKEND->CommandClearColorTexture(
+			VK_CURRENT_COMMAND_BUFFER,
+			info,
+			Utils::ImageLayoutToVulkanImageLayout(texture->GetTextureSpecification().Layout),
+			(const VkClearColorValue&)clear,
+			range
+		);
+	}
+	void VulkanRendererAPI::PipelineBarrier(
+		PipelineStages srcStages, 
+		PipelineStages dstStages, 
+		std::initializer_list<MemoryBarrier> memoryBarriers, 
+		std::initializer_list<BufferMemoryBarrier> bufferBarriers, 
+		std::initializer_list<ImageMemoryBarrier> textureBarriers)
+	{
+		VkPipelineStageFlags vkSrcStages = Utils::PipelineStagesToVulkanPipelineStageFlags(srcStages);
+		VkPipelineStageFlags vkDstStages = Utils::PipelineStagesToVulkanPipelineStageFlags(dstStages);
+
+		VkMemoryBarrier* vkMemoryBarriers = ALLOCA_ARRAY(VkMemoryBarrier, memoryBarriers.size());
+		for (uint32_t i = 0; i < memoryBarriers.size(); ++i) {
+			vkMemoryBarriers[i] = {};
+
+			const MemoryBarrier* barrier = memoryBarriers.begin() + i;
+			vkMemoryBarriers[i].sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+			vkMemoryBarriers[i].srcAccessMask = Utils::AccessFlagsToVulkanAccessFlags(barrier->Src);
+			vkMemoryBarriers[i].dstAccessMask = Utils::AccessFlagsToVulkanAccessFlags(barrier->Dst);
+		}
+
+		VkBufferMemoryBarrier* vkBufferBarriers = ALLOCA_ARRAY(VkBufferMemoryBarrier, bufferBarriers.size());
+		for (uint32_t i = 0; i < bufferBarriers.size(); ++i) {
+			vkBufferBarriers[i] = {};
+
+			const BufferMemoryBarrier* barrier = bufferBarriers.begin() + i;
+			Ref<VulkanVertexBuffer> vkBuffer = barrier->Buffer;
+
+			vkBufferBarriers[i].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+			vkBufferBarriers[i].srcAccessMask = Utils::AccessFlagsToVulkanAccessFlags(barrier->Src);
+			vkBufferBarriers[i].dstAccessMask = Utils::AccessFlagsToVulkanAccessFlags(barrier->Dst);
+			vkBufferBarriers[i].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			vkBufferBarriers[i].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			vkBufferBarriers[i].buffer = vkBuffer->GetBufferInfo().Buffer;
+			vkBufferBarriers[i].offset = barrier->Offset;
+			vkBufferBarriers[i].size = barrier->Size;
+		}
+
+		VkImageMemoryBarrier* vkImageBarriers = ALLOCA_ARRAY(VkImageMemoryBarrier, textureBarriers.size());
+		for (uint32_t i = 0; i < textureBarriers.size(); ++i) {
+			vkImageBarriers[i] = {};
+
+			const ImageMemoryBarrier* barrier = textureBarriers.begin() + i;
+			const auto& info = *(VulkanBackend::TextureInfo*)barrier->Image->GetBackendInfo();
+
+			vkImageBarriers[i].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+			vkImageBarriers[i].srcAccessMask = Utils::AccessFlagsToVulkanAccessFlags(barrier->Src);
+			vkImageBarriers[i].dstAccessMask = Utils::AccessFlagsToVulkanAccessFlags(barrier->Dst);
+			vkImageBarriers[i].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			vkImageBarriers[i].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			vkImageBarriers[i].image = info.ViewInfo.image;
+			vkImageBarriers[i].oldLayout = Utils::ImageLayoutToVulkanImageLayout(barrier->OldLayout);
+			vkImageBarriers[i].newLayout = Utils::ImageLayoutToVulkanImageLayout(barrier->NewLayout);
+		
+			vkImageBarriers[i].subresourceRange.aspectMask = info.ViewInfo.subresourceRange.aspectMask;
+			vkImageBarriers[i].subresourceRange.baseArrayLayer = barrier->Subresource.StartLayer;
+			vkImageBarriers[i].subresourceRange.baseMipLevel = barrier->Subresource.StarMip;
+			vkImageBarriers[i].subresourceRange.layerCount = barrier->Subresource.LayerCount;
+			vkImageBarriers[i].subresourceRange.levelCount = barrier->Subresource.MipCount;
+		}
+
+		VK_BACKEND->CommandPipelineBarrier(
+			VK_CURRENT_COMMAND_BUFFER,
+			vkSrcStages,
+			vkDstStages,
+			std::initializer_list<VkMemoryBarrier>(vkMemoryBarriers, vkMemoryBarriers + memoryBarriers.size()),
+			std::initializer_list<VkBufferMemoryBarrier>(vkBufferBarriers, vkBufferBarriers + bufferBarriers.size()),
+			std::initializer_list<VkImageMemoryBarrier>(vkImageBarriers, vkImageBarriers + textureBarriers.size())
+		);
+	}
     void VulkanRendererAPI::Submit(std::function<void()>&& func)
     {
-		
     }
-    void VulkanRendererAPI::Transition(Ref<Image> image, ImageLayout newLayout)
-    {
-		Utils::Transition(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), image->GetSpecification(), newLayout);
-    }
-	void VulkanRendererAPI::BindUniformBuffer(Ref<UniformBuffer> uniformBuffer, uint32_t index)
-	{
-		//if (!m_CurrentBoundPipeline)
-		//	return;
-		//
-		//VulkanGraphicsPipeline* pipeline = (VulkanGraphicsPipeline*)m_CurrentBoundPipeline.Get();
-		//VkDescriptorSet set = ((VulkanUniformBuffer*)uniformBuffer.Get())->GetDescriptorSet();
-		//vkCmdBindDescriptorSets(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->GetLayout(), index, 1,&set , 0, nullptr);
-	}
-	void VulkanRendererAPI::CopyBufferToTexture(Ref<TransferBuffer> src, Ref<Image> dst, const BufferToTextureCopyRegion& region)
-	{
-		bool needsTransition = dst->GetSpecification().Layout != ImageLayout::TransferDstOptimal;
-		ImageLayout oldLayout = dst->GetSpecification().Layout;
-		oldLayout = oldLayout == ImageLayout::None ? ImageLayout::ShaderReadOnlyOptimal : oldLayout;
-		Ref<VulkanTransferBuffer> vulkanSrcBuffer = src;	
-
-		if (needsTransition)
-			Transition(dst, ImageLayout::TransferDstOptimal);
-		//Copy
-		VkBufferImageCopy copyRegion = {};
-		
-		copyRegion.bufferOffset = region.BufferOffset;
-		
-		copyRegion.imageOffset.x = region.TextureOffset.x;
-		copyRegion.imageOffset.y = region.TextureOffset.y;
-		copyRegion.imageOffset.z = region.TextureOffset.z;
-		
-		copyRegion.imageExtent.width = region.TextureRegionSize.x;
-		copyRegion.imageExtent.height = region.TextureRegionSize.y;
-		copyRegion.imageExtent.depth = region.TextureRegionSize.z;
-
-		copyRegion.imageSubresource.aspectMask = Utils::GetAspectFlags(dst->GetSpecification().ImageFormat);
-		copyRegion.imageSubresource.mipLevel = region.Mipmap;
-		copyRegion.imageSubresource.baseArrayLayer = region.StartLayer;
-		copyRegion.imageSubresource.layerCount = region.LayerCount;
-
-		vkCmdCopyBufferToImage(
-			VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(),
-			vulkanSrcBuffer->GetBuffer().Buffer, 
-			(VkImage)dst->GetSpecification()._InternalImageID,
-			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			1,
-			&copyRegion);
-
-		//Revert transition
-		if (needsTransition)
-			Transition(dst, oldLayout);
-	}
-	void VulkanRendererAPI::ClearColorImage(Ref<Image> image, const AttachmentColorClearValue& clearValue, const TextureSubresourceRegion& region)
-	{
-		VkClearColorValue color{};
-		memcpy(color.float32, &clearValue.RGBAF, sizeof(color.float32));
-
-		VkImageSubresourceRange subresource{};
-		subresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		subresource.baseArrayLayer = region.StartLayer;
-		subresource.layerCount = region.LayerCount;
-		subresource.baseMipLevel = region.StarMip;
-		subresource.levelCount = region.MipCount;
-
-		VkImageLayout layout = Utils::ImageLayoutToVulkanImageLayout(image->GetSpecification().Layout);
-
-
-		vkCmdClearColorImage(
-			VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(),
-			(VkImage)image->GetSpecification()._InternalImageID,
-			layout,
-			&color,
-			1,
-			&subresource
-		);
-
-	}
-	void VulkanRendererAPI::BindPushConstants(Ref<GraphicsPipeline> pipeline, ShaderType type, const void* data, uint64_t size)
-	{
-		Ref<VulkanGraphicsPipeline> vulkanPipeline = pipeline;
-		vkCmdPushConstants(VK_CONTEXT.GetActiveCommandBuffer()->GetCommandBuffer(), vulkanPipeline->GetLayout(), Utils::ShaderTypeToVulkanShaderStageFlag(type), 0, size, data);
-	}
 }

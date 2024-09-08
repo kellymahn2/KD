@@ -1,24 +1,42 @@
 #include "KDpch.h"
 #include "VulkanIndexBuffer.h"
 #include "VulkanGraphicsContext.h"
-namespace Kaidel {
-	VulkanIndexBuffer::VulkanIndexBuffer(uint32_t* indices, uint32_t count)
-	{
-		m_IndexBuffer = Utils::CreateBuffer(VK_ALLOCATOR.GetAllocator(), count * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-		void* mappedData = nullptr;
-		vmaMapMemory(VK_ALLOCATOR.GetAllocator(), m_IndexBuffer.Allocation, &mappedData);
-		std::memcpy((char*)mappedData, indices, count * sizeof(uint32_t));
-		vmaUnmapMemory(VK_ALLOCATOR.GetAllocator(), m_IndexBuffer.Allocation);
-		vmaFlushAllocation(VK_ALLOCATOR.GetAllocator(), m_IndexBuffer.Allocation, 0, VK_WHOLE_SIZE);
-	}
-	VulkanIndexBuffer::~VulkanIndexBuffer()
-	{
-		vmaDestroyBuffer(VK_ALLOCATOR.GetAllocator(), m_IndexBuffer.Buffer, m_IndexBuffer.Allocation);
-	}
-	void VulkanIndexBuffer::Bind() const
-	{
-	}
-	void VulkanIndexBuffer::Unbind() const
-	{
-	}
+
+namespace Kaidel{
+    VulkanIndexBuffer::VulkanIndexBuffer(const void *indices, uint64_t size, IndexType type)
+        :m_IndexType(type)
+    {
+
+        const auto& backend = VK_CONTEXT.GetBackend();
+
+        m_Buffer = backend->CreateBuffer(size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+
+        VulkanBackend::BufferInfo stagingBuffer = backend->CreateBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, false);
+        uint8_t* mapped = backend->BufferMap(stagingBuffer);
+        std::memcpy(mapped, indices, size);
+        backend->BufferUnmap(stagingBuffer);
+
+        {
+            VkCommandBuffer commandBuffer = backend->CreateCommandBuffer(VK_CONTEXT.GetPrimaryCommandPool());
+            backend->CommandBufferBegin(commandBuffer);
+
+            VkBufferCopy region{};
+            region.srcOffset = 0;
+            region.dstOffset = 0;
+            region.size = VK_WHOLE_SIZE;
+            backend->CommandCopyBuffer(commandBuffer,stagingBuffer,m_Buffer,{region});
+            
+            backend->CommandBufferEnd(commandBuffer);
+
+            backend->SubmitCommandBuffers(VK_CONTEXT.GetGraphicsQueue(),{commandBuffer});
+            vkQueueWaitIdle(VK_CONTEXT.GetGraphicsQueue());
+            backend->DestroyCommandBuffer(commandBuffer,VK_CONTEXT.GetPrimaryCommandPool());
+        }
+
+        backend->DestroyBuffer(stagingBuffer);
+    }
+    VulkanIndexBuffer::~VulkanIndexBuffer()
+    {
+        VK_CONTEXT.GetBackend()->DestroyBuffer(m_Buffer);
+    }
 }

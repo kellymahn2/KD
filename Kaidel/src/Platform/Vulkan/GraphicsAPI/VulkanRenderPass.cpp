@@ -1,122 +1,96 @@
 #include "KDpch.h"
-
 #include "VulkanRenderPass.h"
 #include "VulkanGraphicsContext.h"
 
-
-namespace Kaidel 
-{
-
+namespace Kaidel {
 	namespace Utils {
-		static VkAttachmentDescription MakeAttachmentDescription(const AttachmentSpecification& specs) {
-			VkAttachmentDescription desc{};
-			desc.loadOp = Utils::AttachmentLoadOpToVulkanAttachmentLoadOp(specs.LoadOp);
-			desc.storeOp = Utils::AttachmentStoreOpToVulkanAttachmentStoreOp(specs.StoreOp);
-			desc.stencilLoadOp = Utils::AttachmentLoadOpToVulkanAttachmentLoadOp(specs.StencilLoadOp);
-			desc.stencilStoreOp = Utils::AttachmentStoreOpToVulkanAttachmentStoreOp(specs.StencilStoreOp);
-			desc.samples = VK_SAMPLE_COUNT_1_BIT;
-			desc.initialLayout = Utils::ImageLayoutToVulkanImageLayout(specs.InitialLayout);
-			desc.finalLayout = Utils::ImageLayoutToVulkanImageLayout(specs.FinalLayout);
-			desc.format = Utils::FormatToVulkanFormat(specs.AttachmentFormat);
-			return desc;
+		static VulkanBackend::RenderPassAttachment ToAttachment(const RenderPassAttachment& attachment) {
+			VulkanBackend::RenderPassAttachment ret{};
+			ret.InitialLayout = ImageLayoutToVulkanImageLayout(attachment.InitialLayout);
+			ret.FinalLayout = ImageLayoutToVulkanImageLayout(attachment.FinalLayout);
+			ret.Format = FormatToVulkanFormat(attachment.Format);
+			ret.LoadOp = AttachmentLoadOpToVulkanAttachmentLoadOp(attachment.LoadOp);
+			ret.StoreOp = AttachmentStoreOpToVulkanAttachmentStoreOp(attachment.StoreOp);
+			ret.StencilLoadOp = AttachmentLoadOpToVulkanAttachmentLoadOp(attachment.StencilLoadOp);
+			ret.StencilStoreOp = AttachmentStoreOpToVulkanAttachmentStoreOp(attachment.StencilStoreOp);
+			ret.Samples = (VkSampleCountFlagBits)attachment.Samples;
+
+			return ret;
+		}
+
+		static VulkanBackend::AttachmentReference ToReference(const AttachmentReference& ref) {
+			VulkanBackend::AttachmentReference ret{};
+			ret.Aspects = ref.Aspects;
+			ret.Attachment = ref.Attachment;
+			ret.Layout = ImageLayoutToVulkanImageLayout(ref.Layout);
+			
+			return ret;
+		}
+
+		static std::vector<VulkanBackend::AttachmentReference> ToReferences(const std::vector<AttachmentReference> refs) {
+			std::vector<VulkanBackend::AttachmentReference> ret;
+			ret.resize(refs.size());
+
+			for (uint32_t i = 0; i < refs.size(); ++i) {
+				ret[i] = ToReference(refs[i]);
+			}
+
+			return ret;
+		}
+
+		static VulkanBackend::Subpass ToSubpass(const Subpass& subpass) {
+			VulkanBackend::Subpass ret{};
+
+			ret.Colors = ToReferences(subpass.Colors);
+			ret.DepthStencil = ToReference(subpass.DepthStencil);
+			ret.Inputs = ToReferences(subpass.Inputs);
+			ret.Preserves = subpass.Preserves;
+			ret.Resolves = ToReferences(subpass.Resolves);
+			ret.VRS = ToReference(subpass.VRS);
+
+			return ret;
+		}
+
+		static VulkanBackend::SubpassDependency ToDependency(const SubpassDependency& dependency) {
+			VulkanBackend::SubpassDependency ret{};
+			ret.Src = dependency.Src;
+			ret.Dst = dependency.Dst;
+			ret.SrcAccesses = AccessFlagsToVulkanAccessFlags(dependency.SrcAccesses);
+			ret.DstAccesses = AccessFlagsToVulkanAccessFlags(dependency.DstAccesses);
+			ret.SrcStages = PipelineStagesToVulkanPipelineStageFlags(dependency.SrcStages);
+			ret.DstStages = PipelineStagesToVulkanPipelineStageFlags(dependency.DstStages);
+
+			return ret;
 		}
 	}
-
-	VulkanRenderPass::VulkanRenderPass(const RenderPassSpecification& specification)
-		:m_Specification(specification)
+	VulkanRenderPass::VulkanRenderPass(const RenderPassSpecification& specs)
+		:m_Specification(specs)
 	{
-
-		std::vector<VkAttachmentDescription> descs;
-		std::vector<VkAttachmentReference> references;
-		for (auto& outputColor : m_Specification.OutputColors) 
-		{
-
-			{
-				VkAttachmentDescription attachment = Utils::MakeAttachmentDescription(outputColor);
-				descs.push_back(attachment);
-			}
-
-			{
-				VkAttachmentReference ref{};
-				ref.attachment = descs.size() - 1;
-				ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-				references.push_back(ref);
-			}
-		}
-		
-
-		VkAttachmentReference depthRef{};
-
-		VkSubpassDescription subpassDesc{};
-		subpassDesc.colorAttachmentCount = (uint32_t)references.size();
-		subpassDesc.pColorAttachments = references.data();
-
-		if (Utils::IsDepthFormat(m_Specification.OutputDepth.AttachmentFormat)) 
-		{
-			{
-				VkAttachmentDescription attachment = Utils::MakeAttachmentDescription(m_Specification.OutputDepth);
-				descs.push_back(attachment);
-			}
-
-			{
-				depthRef.attachment = descs.size() - 1;
-				depthRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-				subpassDesc.pDepthStencilAttachment = &depthRef;
-			}
+		std::vector<VulkanBackend::RenderPassAttachment> attachments;
+		attachments.resize(specs.Attachments.size());
+		for (uint32_t i = 0; i < specs.Attachments.size(); ++i) {
+			attachments[i] = Utils::ToAttachment(specs.Attachments[i]);
 		}
 
-		subpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		std::vector<VulkanBackend::Subpass> subpasses;
+		subpasses.resize(specs.Subpasses.size());
+		for (uint32_t i = 0; i < specs.Subpasses.size(); ++i) {
+			subpasses[i] = Utils::ToSubpass(specs.Subpasses[i]);
+		}
 
-		VkRenderPassCreateInfo passInfo{ VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
-		passInfo.attachmentCount = (uint32_t)descs.size();
-		passInfo.pAttachments = descs.data();
-		passInfo.subpassCount = 1;
-		passInfo.pSubpasses = &subpassDesc;
+		std::vector<VulkanBackend::SubpassDependency> dependencies;
+		dependencies.resize(specs.Dependencies.size());
+		for (uint32_t i = 0; i < dependencies.size(); ++i) {
+			dependencies[i] = Utils::ToDependency(specs.Dependencies[i]);
+		}
 
-		VK_ASSERT(vkCreateRenderPass(VK_DEVICE.GetDevice(), &passInfo, nullptr, &m_RenderPass));
-
-		m_ClearValues.resize(specification.OutputColors.size() + (uint64_t)Utils::IsDepthFormat(specification.OutputDepth.AttachmentFormat));
+		m_RenderPass = VK_CONTEXT.GetBackend()->CreateRenderPass(
+			std::initializer_list(attachments.data(), attachments.data() + attachments.size()),
+			std::initializer_list(subpasses.data(), subpasses.data() + subpasses.size()),
+			std::initializer_list(dependencies.data(), dependencies.data() + dependencies.size()));
 	}
 	VulkanRenderPass::~VulkanRenderPass()
 	{
-		vkDestroyRenderPass(VK_DEVICE.GetDevice(), m_RenderPass, nullptr);
-	}
-
-	void VulkanRenderPass::SetClearValue(uint32_t attachmentIndex, const AttachmentClearValue& clearValue)
-	{
-
-		auto& attachment = m_Specification.OutputColors[attachmentIndex];
-
-		auto& value = m_ClearValues[attachmentIndex];
-
-		if (Utils::IsDepthFormat(attachment.AttachmentFormat)) 
-		{
-			value.depthStencil.depth = clearValue.DepthStencilClear.Depth;
-			value.depthStencil.stencil = clearValue.DepthStencilClear.Stencil;
-		}
-		else 
-		{
-			value.color.float32[0] = clearValue.ColorClear.RGBAF.r;
-			value.color.float32[1] = clearValue.ColorClear.RGBAF.g;
-			value.color.float32[2] = clearValue.ColorClear.RGBAF.b;
-			value.color.float32[3] = clearValue.ColorClear.RGBAF.a;
-		}
-	}
-	AttachmentClearValue VulkanRenderPass::GetClearValue(uint32_t attachmentIndex) const
-	{
-		AttachmentClearValue value{};
-		auto& attachment = m_Specification.OutputColors[attachmentIndex];
-
-		if (Utils::IsDepthFormat(attachment.AttachmentFormat)) 
-		{
-			value.DepthStencilClear.Depth = m_ClearValues[attachmentIndex].depthStencil.depth;
-			value.DepthStencilClear.Stencil = m_ClearValues[attachmentIndex].depthStencil.stencil;
-		}
-		else 
-		{
-			auto clearValue = m_ClearValues[attachmentIndex].color.float32;
-			value.ColorClear.RGBAF = { clearValue[0],clearValue[1] ,clearValue[2] ,clearValue[3] };
-		}
-		return value;
+		VK_CONTEXT.GetBackend()->DestroyRenderPass(m_RenderPass);
 	}
 }

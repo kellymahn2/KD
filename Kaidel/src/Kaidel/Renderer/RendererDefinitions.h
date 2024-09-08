@@ -4,6 +4,9 @@
 
 #include <glm/glm.hpp>
 
+//Fucking windows.h
+#undef MemoryBarrier
+
 namespace Kaidel {
 	enum class VertexInputType {
 		None,
@@ -73,12 +76,71 @@ namespace Kaidel {
 		Depth32F,
 	};
 
+	enum class IndexType {
+		None,
+		Uint16,
+		Uint32,
+	};
+
 	enum class PipelineCullMode {
 		None,
 		Front,
 		Back,
 		FrontAndBack
 	};
+
+	enum AccessFlags_{
+		AccessFlags_None = 0,
+		AccessFlags_IndexRead = BIT(0),
+		AccessFlags_VertexAttribureRead = BIT(1),
+		AccessFlags_UniformRead = BIT(2),
+		AccessFlags_InputAttachmentRead = BIT(3),
+		AccessFlags_ShaderRead = BIT(4),
+		AccessFlags_ShaderWrite = BIT(5),
+		AccessFlags_ColorAttachmentRead = BIT(6),
+		AccessFlags_ColorAttachmentWrite = BIT(7),
+		AccessFlags_DepthStencilRead = BIT(8),
+		AccessFlags_DepthStencilWrite = BIT(9),
+		AccessFlags_TransferRead = BIT(10),
+		AccessFlags_TransferWrite = BIT(11),
+		AccessFlags_HostRead = BIT(12),
+		AccessFlags_HostWrite = BIT(13),
+		AccessFlags_MemoryRead = BIT(14),
+		AccessFlags_MemoryWrite = BIT(15),
+	};
+
+	typedef int AccessFlags;
+
+	enum PipelineStages_ {
+		PipelineStages_None = 0,
+		PipelineStages_TopOfPipe = BIT(0),
+		PipelineStages_DrawIndirect = BIT(1),
+		PipelineStages_VertexInput = BIT(2),
+		PipelineStages_VertexShader = BIT(3),
+		PipelineStages_TesselationControlShader = BIT(4),
+		PipelineStages_TesselationEvaluationShader = BIT(5),
+		PipelineStages_GeometryShader = BIT(6),
+		PipelineStages_FragmentShader = BIT(7),
+		PipelineStages_EarlyFragmentTests = BIT(8),
+		PipelineStages_LateFragmentTests = BIT(9),
+		PipelineStages_ColorAttachmentOutput = BIT(10),
+		PipelineStages_ComputeShader = BIT(11),
+		PipelineStages_Transfer = BIT(12),
+		PipelineStages_BottomOfPipe = BIT(13),
+		PipelineStages_Host = BIT(14),
+		PipelineStages_AllGraphics = BIT(15),
+		PipelineStages_AllCommandsBit = BIT(16),
+	};
+
+	typedef int PipelineStages;
+
+	enum AspectMask_ {
+		AspectMask_None = 0,
+		AspectMask_Color = BIT(0),
+		AspectMask_Depth = BIT(1)
+	};
+
+	typedef int AspectMask;
 
 	enum class ImageLayout {
 		None = 0,
@@ -101,6 +163,91 @@ namespace Kaidel {
 	};
 
 
+	enum class PrimitiveTopology {
+		PointList,
+		LineList,
+		LineStrip,
+		TriangleList,
+		TrinagleStrip,
+		TriangleFan,
+		LineListAdj,
+		LineStripAdj,
+		TriangleListAd,
+		TriangleStripAdj,
+		PatchList,
+	};
+
+	enum class BlendFactor {
+		Zero = 0,
+		One,
+		SrcColor,
+		OneMinusSrcColor,
+		DstColor,
+		OneMinusDstColor,
+		SrcAlpha,
+		OneMinusSrcAlpha,
+		DstAlpha,
+		OneMinusDstAlpha,
+		ConstantColor,
+		OneMinusConstantColor,
+		ConstantAlpha,
+		OneMinusConstantAlpha,
+		SrcAlphaSaturate,
+		Src1_Color,
+		OneMinusSrc1Color,
+		Src1Alpha,
+		OneMinusSrc1Alpha,
+	};
+
+	enum class BlendOp {
+		Add = 0,
+		Subtract,
+		ReverseSubtract,
+		Min,
+		Max,
+	};
+
+	enum class StencilOp {
+		Keep = 0,
+		Zero,
+		Replace,
+		IncrementAndClamp,
+		DecrementAndClamp,
+		Invert,
+		IncrementAndWrap,
+		DecrementAndWrap,
+	};
+
+	enum class LogicOp {
+		None = 0,
+		Clear,
+		And,
+		AndReverse,
+		Copy,
+		AndInverted,
+		Xor,
+		Or,
+		Nor,
+		Equivalent,
+		Invert,
+		OrReverse,
+		CopyInverted,
+		OrInverted,
+		Nand,
+		Set,
+	};
+
+	enum CompareOp {
+		Never = 0,
+		Less,
+		Equal,
+		LessOrEqual,
+		Greater,
+		NotEqual,
+		GreaterOrEqual,
+		Always,
+	};
+
 	enum class SamplerFilter {
 		Nearest,
 		Linear
@@ -118,7 +265,6 @@ namespace Kaidel {
 		ClampToBorder,
 		MirrorClampToEdge
 	};
-
 
 	enum class SamplerBorderColor {
 		None = 0,
@@ -141,13 +287,27 @@ namespace Kaidel {
 	};
 
 	enum class DescriptorType {
-		None,
-		Sampler,
-		CombinedSampler,
-		Texture,
-		ImageBuffer,
-		UniformBuffer,
-		StorageBuffer,
+		Sampler, // sampler
+		SamplerWithTexture, // samplerXX
+		Texture, // textureXX
+		Image, // imageXX
+		TextureBuffer, // textureBuffer
+		SamplerBuffer, // samplerBuffer
+		ImageBuffer, // imageBuffer
+		UniformBuffer, // uniform
+		StorageBuffer, // buffer
+		Count
+	};
+
+	enum class ImageType {
+		None = 0,
+		_1D,
+		_2D,
+		_3D,
+		_1D_Array,
+		_2D_Array,
+		Cube,
+		CubeArray,
 	};
 
 	enum class ShaderType {
@@ -192,12 +352,12 @@ namespace Kaidel {
 	};
 
 	enum class TextureSamples {
-		x1,
-		x2,
-		x4,
-		x8,
-		x16,
-		x32
+		x1 = 1,
+		x2 = 2,
+		x4 = 4,
+		x8 = 8,
+		x16 = 16,
+		x32 = 32
 	};
 
 	enum class AttachmentLoadOp {
@@ -241,6 +401,12 @@ namespace Kaidel {
 		AttachmentDepthStencilClearValue DepthStencilClear;
 	};
 
+	struct AttachmentClear {
+		AttachmentClearValue Value;
+		uint32_t ColorAttachment;
+		AspectMask Aspect;
+	};
+
 	struct TextureSubresourceRegion {
 		uint32_t StarMip = 0;
 		uint32_t MipCount = 1;
@@ -256,4 +422,19 @@ namespace Kaidel {
 		glm::ivec3 TextureOffset = {0,0,0};
 		glm::ivec3 TextureRegionSize = { 0,0,0 };
 	};
+
+	struct Rect2D {
+		glm::ivec2 Offset;
+		glm::uvec2 Size;
+		Rect2D(uint32_t width,uint32_t height, int32_t x = 0,int32_t y = 0)
+			:Offset(x,y),Size(width,height)
+		{}
+	};
+
+	struct ClearRect {
+		Rect2D Rect;
+		uint32_t StartLayer = 0;
+		uint32_t LayerCount = 1;
+	};
+
 }

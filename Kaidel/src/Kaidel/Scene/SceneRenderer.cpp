@@ -10,8 +10,6 @@
 #include "Kaidel/Core/JobSystem.h"
 #include "Kaidel/Core/Timer.h"
 #include "Kaidel/Renderer/RenderCommand.h"
-#include "Kaidel/Renderer/GraphicsAPI/CubeMap.h"
-#include "Kaidel/Renderer/GraphicsAPI/TextureLibrary.h"
 
 #include <glm/gtx/compatibility.hpp>
 #include <chrono>
@@ -22,10 +20,6 @@ namespace Kaidel {
 	static std::mutex s_MeshRenderingMutex;
 	static std::mutex s_MeshPushingMutex;
 
-
-	static void FlushShadowPass(Ref<VertexArray> vertexArray) {
-
-	}
 
 	SceneRenderer::SceneRenderer(void* scene)
 		:m_Context(scene)
@@ -43,21 +37,21 @@ namespace Kaidel {
 		Renderer2D::Begin(cameraViewProj, outputBuffer);
 
 		//Sprites
-		{
-			auto view = activeScene->m_Registry.view<TransformComponent, SpriteRendererComponent>();
-			for (auto e : view) {
-				auto [tc, src] = view.get<TransformComponent, SpriteRendererComponent>(e);
-				
-				ImageSubresource resource = TextureLibrary::GetTextureByLayer(0);
-
-				SamplingRegion region{};
-				region.Layer = resource.Layer;
-				region.UV0 = resource.TopLeft;
-				region.UV1 = resource.BottomRight;
-
-				Renderer2D::DrawSprite(tc.GetTransform(), glm::vec4{1.0f,1.0f,1.0f,1.0f}, region);
-			}
-		}
+		//{
+		//	auto view = activeScene->m_Registry.view<TransformComponent, SpriteRendererComponent>();
+		//	for (auto e : view) {
+		//		auto [tc, src] = view.get<TransformComponent, SpriteRendererComponent>(e);
+		//		
+		//		ImageSubresource resource = TextureLibrary::GetTextureByLayer(0);
+		//
+		//		SamplingRegion region{};
+		//		region.Layer = resource.Layer;
+		//		region.UV0 = resource.TopLeft;
+		//		region.UV1 = resource.BottomRight;
+		//
+		//		Renderer2D::DrawSprite(tc.GetTransform(), glm::vec4{1.0f,1.0f,1.0f,1.0f}, region);
+		//	}
+		//}
 
 		Renderer2D::End();
 

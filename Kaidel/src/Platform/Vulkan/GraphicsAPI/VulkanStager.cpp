@@ -12,7 +12,7 @@ namespace Kaidel {
 		}
 	}
 
-	void VulkanBufferStager::Stage(VulkanCommandBuffer* commandBuffer, const VulkanBuffer& buffer, const void* data, uint64_t size)
+	void VulkanBufferStager::Stage(VkCommandBuffer commandBuffer, VkBuffer buffer, const void* data, uint64_t size)
 	{
 		VulkanStagingBuffer* stagingBuffer = m_Blocks->StagingBuffers[m_Blocks->CurrentStagingBuffer].get();
 

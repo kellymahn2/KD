@@ -1,38 +1,43 @@
 #include "KDpch.h"
+
 #include "ShaderLibrary.h"
-
-
 #include <shaderc/shaderc.hpp>
 #include <spirv_cross/spirv_cross.hpp>
 #include <spirv_cross/spirv_glsl.hpp>
-
+#include <sstream>
 
 namespace Kaidel {
-	
+
 	namespace Utils {
 		static shaderc_shader_kind KaidelShaderTypeToShaderCShaderKind(ShaderType type) {
 			switch (type)
 			{
-			case Kaidel::ShaderType::VertexShader:return shaderc_vertex_shader;
-			case Kaidel::ShaderType::FragmentShader:return shaderc_fragment_shader;
-			case Kaidel::ShaderType::GeometryShader:return shaderc_geometry_shader;
-			case Kaidel::ShaderType::TessellationControlShader:return shaderc_tess_control_shader;
-			case Kaidel::ShaderType::TessellationEvaluationShader:return shaderc_tess_evaluation_shader;
+			case ShaderType::VertexShader:return shaderc_vertex_shader;
+			case ShaderType::FragmentShader:return shaderc_fragment_shader;
+			case ShaderType::GeometryShader:return shaderc_geometry_shader;
+			case ShaderType::TessellationControlShader:return shaderc_tess_control_shader;
+			case ShaderType::TessellationEvaluationShader:return shaderc_tess_evaluation_shader;
 			}
-			KD_CORE_ASSERT(false,"Unknown shader type");
+			KD_CORE_ASSERT(false, "Unknown shader type");
 
 			return shaderc_anyhit_shader;
 		}
+
+		static ShaderType ShaderTypeFromString(const std::string_view& view) {
+			if (view == "vertex") {
+				return ShaderType::VertexShader;
+			}
+		}
+
 	}
 
 	struct ShaderLibraryData {
-		std::unordered_map<Path, Ref<ShaderModule>> Shaders;
-		std::unordered_map<std::string, Ref<ShaderModule>> NamedShaders;
+		std::unordered_map<Path, Ref<Shader>> Shaders;
+		std::unordered_map<std::string, Ref<Shader>> NamedShaders;
 		Path CachePath;
 		std::string CachedFileExtension;
+		std::unordered_map<std::string, ShaderType> TypeStringsToTypes;
 	};
-
-	static ShaderLibraryData s_LibraryData;
 
 	class ShaderIncluder : public shaderc::CompileOptions::IncluderInterface {
 	public:
@@ -74,84 +79,93 @@ namespace Kaidel {
 		}
 	};
 
+	static ShaderLibraryData* s_LibraryData;
 
-	void ShaderLibrary::Init(const std::string& cacheFolder,const std::string& cacheFileExtension)
+	void ShaderLibrary::Init(const std::string& cacheFolder, const std::string& cacheFileExtension)
 	{
-		s_LibraryData.CachePath = cacheFolder;
-		s_LibraryData.CachedFileExtension = cacheFileExtension;
+		s_LibraryData = new ShaderLibraryData;
+		s_LibraryData->CachePath = cacheFolder;
+		s_LibraryData->CachedFileExtension = cacheFileExtension;
 		CreateCacheDirectoryIfNeeded();
+		s_LibraryData->TypeStringsToTypes = {
+			{"vert",ShaderType::VertexShader},
+			{"tcs",ShaderType::TessellationControlShader},
+			{"tes",ShaderType::TessellationEvaluationShader},
+			{"geo",ShaderType::GeometryShader},
+			{"frag",ShaderType::FragmentShader},
+		};
 	}
+	
 	void ShaderLibrary::Shutdown()
 	{
-		s_LibraryData.Shaders.clear();
-		s_LibraryData.NamedShaders.clear();
+		delete s_LibraryData;
 	}
+	
 	bool ShaderLibrary::ShaderLoaded(const Path& path)
 	{
-		return s_LibraryData.Shaders.find(path) != s_LibraryData.Shaders.end();
+		return s_LibraryData->Shaders.find(path) != s_LibraryData->Shaders.end();
 	}
-	Ref<ShaderModule> ShaderLibrary::LoadShader(const Path& path, ShaderType type)
+	
+	Ref<Shader> ShaderLibrary::LoadShader(const Path& path)
 	{
-		std::vector<uint32_t> data;
-
+		std::unordered_map<ShaderType, Spirv> spirvs;
 		if (IsCacheValid(path)) {
-			data = ReadSPIRVFromCache(path);
+			spirvs = ReadSPIRVsFromCache(path);
 		}
-		//Compile and cache if needed
 		else {
-			KD_CORE_INFO("Shader with file path {} being compiled", path);
-			std::string source = ReadFile(path);
-
-			shaderc::Compiler compiler;
-			shaderc::CompileOptions options;
-			options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
-#ifdef  KD_RELEASE 
-			options.SetOptimizationLevel(shaderc_optimization_level_performance);
-#endif //  KD_RELEASE 
-
-			options.SetIncluder(CreateScope<ShaderIncluder>());
-
-			shaderc::CompilationResult module = compiler.CompileGlslToSpv(source, Utils::KaidelShaderTypeToShaderCShaderKind(type), path.string().c_str(), options);
-
-			if (module.GetCompilationStatus() != shaderc_compilation_status_success) {
-				KD_CORE_ERROR(module.GetErrorMessage());
-				KD_ASSERT(false);
-			}
-
-			data = std::vector<uint32_t>(module.cbegin(), module.cend());
-			CreateCache(data, path);
+			spirvs = ReadSPIRVsFromFile(path);
+			CreateCache(spirvs, path);
 		}
 
-		ShaderSpecification spec{};
-		spec.EntryPoint = "main";
-		spec.SPIRV = data;
-		spec.Type = type;
-		Ref<ShaderModule> shader = ShaderModule::Create(spec);
+		Ref<Shader> shader = Shader::Create(spirvs);
 
-		s_LibraryData.Shaders[path] = shader;
-
-		//Reflect(shader, type, data);
+		s_LibraryData->Shaders[path] = shader;
 
 		return shader;
 	}
-	Ref<ShaderModule> ShaderLibrary::LoadShader(const std::string& name, const Path& path, ShaderType type)
+	
+	Ref<Shader> ShaderLibrary::LoadShader(const std::string& name, const Path& path)
 	{
-		return s_LibraryData.NamedShaders[name] = LoadShader(path, type);
-	}
-	Ref<ShaderModule> ShaderLibrary::GetShader(const Path& path)
-	{
-		return s_LibraryData.Shaders.at(path);
-	}
-	Ref<ShaderModule> ShaderLibrary::GetNamedShader(const std::string& name)
-	{
-		return s_LibraryData.NamedShaders.at(name);
-	}
-	Ref<ShaderModule> ShaderLibrary::UnloadShader(const std::string& name)
-	{
-		Ref<ShaderModule> shader = s_LibraryData.NamedShaders.at(name);
-		s_LibraryData.NamedShaders.erase(name);
+		std::unordered_map<ShaderType, Spirv> spirvs;
+		if (IsCacheValid(path)) {
+			spirvs = ReadSPIRVsFromCache(path);
+		}
+		else {
+			spirvs = ReadSPIRVsFromFile(path);
+			CreateCache(spirvs, path);
+		}
+
+		Ref<Shader> shader = Shader::Create(spirvs);
+
+		s_LibraryData->NamedShaders[name] = shader;
+
 		return shader;
 	}
+	
+	Ref<Shader> ShaderLibrary::GetShader(const Path& path)
+	{
+		return s_LibraryData->Shaders.at(path);
+	}
+	
+	Ref<Shader> ShaderLibrary::GetNamedShader(const std::string& name)
+	{
+		return s_LibraryData->NamedShaders.at(name);
+	}
+	
+	Ref<Shader> ShaderLibrary::UnloadShader(const Path& path)
+	{
+		Ref<Shader> shader = s_LibraryData->Shaders.at(path);
+		s_LibraryData->Shaders.erase(path);
+		return shader;
+	}
+	
+	Ref<Shader> ShaderLibrary::UnloadNamedShader(const std::string& name)
+	{
+		Ref<Shader> shader = s_LibraryData->NamedShaders.at(name);
+		s_LibraryData->NamedShaders.erase(name);
+		return shader;
+	}
+	
 	std::string ShaderLibrary::ReadFile(const Path& filepath)
 	{
 		std::string result;
@@ -168,39 +182,47 @@ namespace Kaidel {
 			}
 		}
 
-
 		return result;
 	}
+	
 	void ShaderLibrary::CreateCacheDirectoryIfNeeded()
 	{
-		if (!std::filesystem::exists(s_LibraryData.CachePath))
-			std::filesystem::create_directories(s_LibraryData.CachePath);
+		if (!std::filesystem::exists(s_LibraryData->CachePath))
+			std::filesystem::create_directories(s_LibraryData->CachePath);
 	}
+	
 	Path ShaderLibrary::GetCachePathForShader(const Path& name)
 	{
-		return s_LibraryData.CachePath / (name.filename().string() + s_LibraryData.CachedFileExtension);
+		return s_LibraryData->CachePath / (name.filename().string() + s_LibraryData->CachedFileExtension);
 	}
-	void ShaderLibrary::CreateCache(const std::vector<uint32_t>& spirv, const Path& path)
-	{
 
-		std::ofstream file(GetCachePathForShader(path),std::ios::binary| std::ios::out);
+	void ShaderLibrary::CreateCache(const std::unordered_map<ShaderType, Spirv>& spirvs, const Path& path)
+	{
+		std::ofstream file(GetCachePathForShader(path), std::ios::binary | std::ios::out);
 		if (!file.is_open())
 			return;
 
 		FileSystem::file_time_type lastWrite = FileSystem::last_write_time(path);
 
 		uint64_t lastWriteTime = lastWrite.time_since_epoch().count();
-
-		//TODO: should be written and read as BE.
-
 		file.write((const char*)&lastWriteTime, sizeof(uint64_t));
 
-		file.write((char*)spirv.data(), spirv.size() * sizeof(uint32_t));
+		for (auto& [type, spirv] : spirvs) {
+			char cType = (char)type;
+			file.write(&cType, sizeof(char));
+			
+			uint64_t byteCount = spirv.size() * sizeof(uint32_t);
+			
+			file.write((const char*)&byteCount, sizeof(uint64_t));
+
+			file.write((char*)spirv.data(), spirv.size() * sizeof(uint32_t));
+		}
 	}
+	
 	bool ShaderLibrary::IsCacheValid(const Path& path)
 	{
-		std::ifstream file(GetCachePathForShader(path),std::ios::binary | std::ios::in);
-		
+		std::ifstream file(GetCachePathForShader(path), std::ios::binary | std::ios::in);
+
 		if (!file.is_open())
 			return false;
 
@@ -213,30 +235,93 @@ namespace Kaidel {
 
 		return actualLastWriteTime == lastWriteTime;
 	}
-	std::vector<uint32_t> ShaderLibrary::ReadSPIRVFromCache(const Path& path)
+	
+	std::unordered_map<ShaderType, Spirv> ShaderLibrary::ReadSPIRVsFromCache(const Path& path)
 	{
 		std::ifstream file(GetCachePathForShader(path), std::ios::binary | std::ios::in);
 
 		if (!file.is_open())
 			return {};
 
-		uint64_t binarySize = 0;
-
-		file.seekg(0, std::ios::end);
-
-		binarySize = file.tellg();
-
-		binarySize -= sizeof(uint64_t);
-
 		file.seekg(sizeof(uint64_t), std::ios::beg);
 
-		std::vector<uint32_t> spirv(binarySize / sizeof(uint32_t), 0);
+		std::unordered_map<ShaderType, Spirv> result;
 
-		file.read((char*)spirv.data(), binarySize);
+		while (!file.eof()) {
+			
+			char cType = 0;
+			file.read(&cType, sizeof(char));
+			ShaderType type = (ShaderType)cType;
 
-		uint64_t read = file.gcount();
-		if (!file.good())
-			return {};
-		return spirv;
+			uint64_t byteCount = 0;
+			file.read((char*)&byteCount, sizeof(uint64_t));
+
+			KD_CORE_ASSERT(byteCount % 4 == 0);
+
+			std::vector<uint32_t> spirv;
+			spirv.resize(byteCount / 4);
+
+			file.read((char*)spirv.data(), byteCount);
+			result[type] = std::move(spirv);
+		}
+
+		return result;
+	}
+	
+	std::unordered_map<ShaderType, Spirv> ShaderLibrary::ReadSPIRVsFromFile(const Path& path)
+	{
+		std::string content = ReadFile(path);
+		shaderc::Compiler comp;
+
+		//Preprocess
+		std::unordered_map<ShaderType, std::string_view> shaderSources;
+
+		const char* typeToken = "#type";
+		size_t typeTokenLength = strlen(typeToken);
+		size_t pos = content.find(typeToken, 0);
+		while (pos != std::string::npos) {
+			size_t eol = content.find_first_of("\r\n", pos);
+			KD_CORE_ASSERT(eol != std::string::npos);
+
+			size_t begin = pos + typeTokenLength + 1;
+			
+			std::string type = content.substr(begin, eol - begin);
+
+			size_t nextLinePos = content.find_first_not_of("\r\n", eol);
+			KD_CORE_ASSERT(nextLinePos != std::string::npos);
+			
+			pos = content.find(typeToken, nextLinePos);
+
+			shaderSources[s_LibraryData->TypeStringsToTypes.at(type)] = 
+				(pos == std::string::npos) ? content.substr(nextLinePos) : content.substr(nextLinePos, pos - nextLinePos);
+		}
+
+		std::unordered_map<ShaderType, Spirv> spirvs;
+
+		shaderc::Compiler compiler;
+		shaderc::CompileOptions opt;
+
+		opt.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
+#ifdef  KD_RELEASE 
+		opt.SetOptimizationLevel(shaderc_optimization_level_performance);
+#endif //  KD_RELEASE 
+
+		opt.SetIncluder(CreateScope<ShaderIncluder>());
+		
+		std::string pathStr = path.string();
+
+		for (auto& [type, src] : shaderSources) {
+			shaderc::CompilationResult res = 
+				compiler.CompileGlslToSpv(src.data(), src.size(), Utils::KaidelShaderTypeToShaderCShaderKind(type), pathStr.c_str(), "main", opt);
+			
+			if (res.GetCompilationStatus() != shaderc_compilation_status_success) {
+				KD_CORE_ERROR(res.GetErrorMessage());
+				KD_CORE_ASSERT(false);
+			}
+			
+			spirvs[type] = std::vector<uint32_t>(res.cbegin(), res.cend());
+		}
+
+		return spirvs;
 	}
 }

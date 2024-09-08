@@ -7,13 +7,10 @@
 #include "VulkanInstance.h"
 #include "VulkanPhysicalDevice.h"
 #include "VulkanLogicalDevice.h"
-#include "VulkanSwapchain.h"
 #include "VulkanSurface.h"
-#include "VulkanCommandBuffer.h"
-#include "VulkanCommandPool.h"
 #include "VulkanAllocator.h"
-#include "VulkanDescriptorPool.h"
 #include "VulkanStager.h"
+#include "Backend.h"
 
 
 #define VK_CONTEXT ::Kaidel::VulkanGraphicsContext::Get()
@@ -21,11 +18,13 @@
 #define VK_PHYSICAL_DEVICE VK_CONTEXT.GetPhysicalDevice()
 #define VK_DEVICE VK_CONTEXT.GetLogicalDevice()
 #define VK_ALLOCATOR VK_CONTEXT.GetAllocator()
+#define VK_BACKEND VK_CONTEXT.GetBackend()
+#define VK_CURRENT_COMMAND_BUFFER VK_CONTEXT.GetCurrentCommandBuffer()
 
 namespace Kaidel {
 
 
-	struct PerSwapchainFrameData {
+	/*struct PerSwapchainFrameData {
 		Ref<VulkanCommandBuffer> CommandBuffer;
 
 		Ref<VulkanSemaphore> RenderFinished;
@@ -44,7 +43,7 @@ namespace Kaidel {
 			TaskSyncMutex = {};
 
 		}
-	};
+	};*/
 
 	class VulkanGraphicsContext : public GraphicsContext{
 	public:
@@ -59,10 +58,13 @@ namespace Kaidel {
 		VulkanInstance& GetInstance() { return *m_Instance; }
 		VulkanPhysicalDevice& GetPhysicalDevice() { return *m_PhysicalDevice; }  
 		VulkanLogicalDevice& GetLogicalDevice() { return *m_LogicalDevice; }  
-		VulkanSwapchain& GetSwapchain() { return *m_Swapchain; }
 		VulkanAllocator& GetAllocator() { return *m_Allocator; }
 
-		VulkanBufferStager& GetBufferStager() { return *m_BufferStager; }
+		const Scope<VulkanBackend::Backend>& GetBackend()const { return m_Backend; }
+
+		VulkanBufferStager& GetBufferStager() { return *(VulkanBufferStager*)nullptr;  }
+
+		VkCommandBuffer GetCurrentCommandBuffer()const { return m_Swapchain.Frames[m_Swapchain.ImageIndex].MainCommandBuffer; }
 
 
 		void AcquireImage() override;
@@ -71,17 +73,19 @@ namespace Kaidel {
 		uint32_t GetFramesInFlightCount()const { return m_MaxFramesInFlight; }
 		uint32_t GetCurrentFrameNumber()const { return m_CurrentFrameNumber; }
 
-		VulkanDescriptorPool& GetGlobalDescriptorPool() { return *m_GlobalDescriptorPool; }
-
-		Ref<VulkanCommandBuffer> GetActiveCommandBuffer()const { return m_FramesData[m_AcquiredImage].CommandBuffer; }
 
 		VkDescriptorSetLayout GetSingleDescriptorSetLayout(VkDescriptorType type, VkShaderStageFlags flags);
 
-		Ref<VulkanCommandPool> GetPrimaryCommandPool()const { return m_CommandPool; }
+		const VulkanBackend::CommandPoolInfo& GetPrimaryCommandPool()const { return m_GlobalCommandPool; }
+		VkFence GetSingleSubmitFence() { return m_SingleSubmitFence; }
 
 
+		auto& GetQueue(const std::string& name)const { return m_PhysicalDevice->GetQueue(name); }
+		auto& GetGraphicsQueue()const { return GetQueue("GraphicsQueue"); }
+		auto& GetPresentQueue()const { return GetQueue("PresentQueue"); }
 
-
+		virtual uint32_t GetMaxFramesInFlightCount()const override { return m_MaxFramesInFlight;}
+		virtual uint32_t GetCurrentFrameIndex()const override { return m_CurrentFrameNumber; }
 
 		//ImGui callbacks
 		void ImGuiInit()const override;
@@ -100,24 +104,26 @@ namespace Kaidel {
 		Scope<VulkanSurface> m_Surface;
 		Scope<VulkanPhysicalDevice> m_PhysicalDevice;
 		Scope<VulkanLogicalDevice> m_LogicalDevice;
-		Scope<VulkanSwapchain> m_Swapchain;
 		Scope<VulkanAllocator> m_Allocator;
+
+		VulkanBackend::SwapchainInfo m_Swapchain;
 
 		Window* m_Window;
 
-		std::vector<PerSwapchainFrameData> m_FramesData;
+		//std::vector<PerSwapchainFrameData> m_FramesData;
 
 		uint32_t m_MaxFramesInFlight = 0;
 		uint32_t m_CurrentFrameNumber = 0;
-		uint32_t m_AcquiredImage = 0;
 
 		bool m_ThreadsRunning = true;
 
-		Ref<VulkanCommandPool> m_CommandPool;
+		VulkanBackend::CommandPoolInfo m_GlobalCommandPool;
 
-		Scope<VulkanDescriptorPool> m_ImGuiDescriptorPool;
-		Scope<VulkanDescriptorPool> m_GlobalDescriptorPool;
-		Scope<VulkanBufferStager> m_BufferStager;
+		VkDescriptorPool m_ImGuiDescriptorPool;
+
+		Scope<VulkanBackend::Backend> m_Backend;
+
+		VkFence m_SingleSubmitFence;
 
 		std::unordered_map<VkDescriptorType, std::unordered_map<VkShaderStageFlags,VkDescriptorSetLayout>> m_SingleSetLayouts;
 	};

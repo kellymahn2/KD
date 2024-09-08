@@ -1,57 +1,48 @@
 #pragma once
-#include "Platform/Vulkan/VulkanDefinitions.h"
 #include "Kaidel/Renderer/GraphicsAPI/Texture.h"
-
+#include "Backend.h"
 
 namespace Kaidel {
-
 	class VulkanTexture2D : public Texture2D {
 	public:
-		VulkanTexture2D(const Texture2DSpecification& spec);
+		VulkanTexture2D(const Texture2DSpecification& specs);
 		~VulkanTexture2D();
-
-		Ref<Image> GetImage() const override { return m_Image; }
-
-		const Texture2DSpecification& GetSpecification() const override { return m_Specification; }
-
-		void* Map(uint32_t mipMap) const override;
-		void Unmap() const override;
-
+		virtual RendererID GetBackendInfo()const override { return (RendererID)&m_Info; }
+		virtual const TextureSpecification& GetTextureSpecification()const override { 
+			return static_cast<const TextureSpecification&>(m_Specification); 
+		}
+		virtual void SetImageLayout(ImageLayout layout) override { m_Specification.Layout = layout; }
 	private:
 		Texture2DSpecification m_Specification;
-		Ref<Image> m_Image;
-
-		VmaAllocationInfo m_AllocationInfo;
+		VulkanBackend::TextureInfo m_Info;
 	};
 
-
-	class VulkanTextureLayered2D : public TextureLayered2D {
+	class VulkanTextureLayered : public TextureLayered {
 	public:
-		VulkanTextureLayered2D(const TextureLayered2DSpecification& spec);
-		~VulkanTextureLayered2D();
-
-		const TextureLayered2DSpecification& GetSpecification() const override { return m_Specification; }
-		const TextureLayered2DLayerSpecification& GetLayerSpecification(uint32_t layer) const override { return m_LayerSpecifications[layer]; }
-		
-		Ref<Image> GetImage() const override { return m_Image; }
-		
-
-		void* Map(uint32_t mipMap, uint32_t layer) const override;
-		void Unmap() const override;
-		uint32_t Push(const TextureLayered2DLayerSpecification& layerSpec) override;
+		VulkanTextureLayered(const TextureLayeredSpecification& specs);
+		~VulkanTextureLayered();
+		virtual RendererID GetBackendInfo()const override { return (RendererID)&m_Info; }
+		virtual const TextureSpecification& GetTextureSpecification()const override {
+			return static_cast<const TextureSpecification&>(m_Specification);
+		}
+		virtual void SetImageLayout(ImageLayout layout) override { m_Specification.Layout = layout; }
 	private:
-		void CopyData(void* data, uint32_t width, uint32_t height, uint64_t size, uint32_t layer);
-		void Copy(VkCommandBuffer cmd, Ref<TransferBuffer> src, const BufferToTextureCopyRegion& region);
-		void Reallocate();
-		void ReallocateAndCopy(void* data, uint32_t width, uint32_t height, uint64_t size, uint32_t layer);
-		void DeleteImage();
-	private:
-		TextureLayered2DSpecification m_Specification;
-		Ref<Image> m_Image;
-		VmaAllocationInfo m_AllocationInfo;
-		std::vector<TextureLayered2DLayerSpecification> m_LayerSpecifications;
+		TextureLayeredSpecification m_Specification;
+		VulkanBackend::TextureInfo m_Info;
 	};
 
+	class VulkanFramebufferTexture : public FramebufferTexture {
+	public:
+		VulkanFramebufferTexture(uint32_t width, uint32_t height, Format format, TextureSamples samples, bool isDepth);
+		~VulkanFramebufferTexture();
 
-
+		virtual RendererID GetBackendInfo()const override { return (RendererID)&m_Info; }
+		virtual const TextureSpecification& GetTextureSpecification()const override {
+			return static_cast<const TextureSpecification&>(m_Specification);
+		}
+		virtual void SetImageLayout(ImageLayout layout) override { m_Specification.Layout = layout; }
+	private:
+		TextureSpecification m_Specification;
+		VulkanBackend::TextureInfo m_Info;
+	};
 }

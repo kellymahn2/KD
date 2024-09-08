@@ -1,7 +1,6 @@
 #include "KDpch.h"
 #include "Kaidel/Renderer/RendererAPI.h"
 
-#include "Platform/OpenGL/OpenGLRendererAPI.h"
 #include "Platform/Vulkan/VulkanRendererAPI.h"
 
 

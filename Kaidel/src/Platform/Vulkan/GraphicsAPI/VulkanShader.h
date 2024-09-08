@@ -1,33 +1,17 @@
 #pragma once
-
 #include "Kaidel/Renderer/GraphicsAPI/Shader.h"
-
-#include "Platform/Vulkan/VulkanDefinitions.h"
-
+#include "Backend.h"
 
 namespace Kaidel {
-	class VulkanShader : public ShaderModule {
+	class VulkanShader : public Shader {
 	public:
-		VulkanShader(const ShaderSpecification& spec);
+		VulkanShader(const std::unordered_map<ShaderType, Spirv>& spirvs);
 		~VulkanShader();
 
-		void Bind() const override;
-
-		void Unbind() const override;
-
-		RendererID GetRendererID() const override { return (RendererID)m_Module; }
-
-		const ShaderSpecification& GetSpecification() const override { return m_Specification; }
-
-
-		ShaderReflection& Reflect()override;
-
+		auto& GetShaderInfo()const { return m_Shader; }
 
 	private:
-		VkShaderModule m_Module;
-		ShaderSpecification m_Specification;
-
-		ShaderReflection m_Reflection;
-
+		VulkanBackend::ShaderInfo m_Shader;
+		friend class VulkanRendererAPI;
 	};
 }

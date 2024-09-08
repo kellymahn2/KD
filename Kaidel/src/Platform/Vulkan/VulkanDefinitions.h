@@ -3,7 +3,6 @@
 
 
 #include "Kaidel/Renderer/RendererDefinitions.h"
-#include "Kaidel/Renderer/GraphicsAPI/Image.h"
 
 #include <glad/vulkan.h>
 #include <VMA.h>
@@ -97,6 +96,15 @@ namespace Kaidel {
 			case Format::Depth32F:		return VK_FORMAT_D32_SFLOAT;
 			}
 			return VK_FORMAT_UNDEFINED;
+		}
+
+		static VkIndexType IndexTypeToVulkanIndexType(IndexType type) {
+			switch (type)
+			{
+			case Kaidel::IndexType::Uint16:return VK_INDEX_TYPE_UINT16;
+			case Kaidel::IndexType::Uint32:return VK_INDEX_TYPE_UINT32;
+			}
+			return VK_INDEX_TYPE_MAX_ENUM;
 		}
 
 		static uint32_t CalculateChannelSize(Format format) {
@@ -371,12 +379,15 @@ namespace Kaidel {
 		static VkDescriptorType DescriptorTypeToVulkanDescriptorType(DescriptorType type) {
 			switch (type)
 			{
-			case Kaidel::DescriptorType::Sampler:return VK_DESCRIPTOR_TYPE_SAMPLER;
-			case Kaidel::DescriptorType::CombinedSampler:return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			case Kaidel::DescriptorType::Texture:return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-			case Kaidel::DescriptorType::ImageBuffer:return VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
-			case Kaidel::DescriptorType::UniformBuffer:return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			case Kaidel::DescriptorType::StorageBuffer:return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			case DescriptorType::Sampler: return VK_DESCRIPTOR_TYPE_SAMPLER;
+			case DescriptorType::SamplerWithTexture: return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			case DescriptorType::Texture: return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+			case DescriptorType::Image: return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+			case DescriptorType::TextureBuffer: return VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+			case DescriptorType::SamplerBuffer: return VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+			case DescriptorType::ImageBuffer: return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+			case DescriptorType::UniformBuffer: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			case DescriptorType::StorageBuffer: return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 			}
 			return VK_DESCRIPTOR_TYPE_MAX_ENUM;
 		}
@@ -476,6 +487,87 @@ namespace Kaidel {
 			return VK_ATTACHMENT_STORE_OP_MAX_ENUM;
 		}
 
+		static VkPipelineStageFlags PipelineStagesToVulkanPipelineStageFlags(PipelineStages stages) {
+			VkPipelineStageFlags ret = 0;
+
+			if(stages & PipelineStages_TopOfPipe)
+				ret |= VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			if(stages & PipelineStages_DrawIndirect)
+				ret |= VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
+			if(stages & PipelineStages_VertexInput)
+				ret |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+			if(stages & PipelineStages_VertexShader)
+				ret |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+			if(stages & PipelineStages_TesselationControlShader)
+				ret |= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT;
+			if(stages & PipelineStages_TesselationEvaluationShader)
+				ret |= VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
+			if(stages & PipelineStages_GeometryShader)
+				ret |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+			if(stages & PipelineStages_FragmentShader)
+				ret |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			if(stages & PipelineStages_EarlyFragmentTests)
+				ret |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+			if(stages & PipelineStages_LateFragmentTests)
+				ret |= VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+			if(stages & PipelineStages_ColorAttachmentOutput)
+				ret |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			if(stages & PipelineStages_ComputeShader)
+				ret |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+			if(stages & PipelineStages_Transfer)
+				ret |= VK_PIPELINE_STAGE_TRANSFER_BIT;
+			if(stages & PipelineStages_BottomOfPipe)
+				ret |= VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+			if(stages & PipelineStages_Host)
+				ret |= VK_PIPELINE_STAGE_HOST_BIT;
+			if(stages & PipelineStages_AllGraphics)
+				ret |= VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+			if (stages & PipelineStages_AllCommandsBit)
+				ret |= VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+			
+			return ret;
+		}
+
+		static VkAccessFlags AccessFlagsToVulkanAccessFlags(AccessFlags flags) {
+			VkAccessFlags ret = 0;
+
+			if(AccessFlags_IndexRead)
+				ret |= VK_ACCESS_INDEX_READ_BIT;
+			if(AccessFlags_VertexAttribureRead)
+				ret |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+			if(AccessFlags_UniformRead)
+				ret |= VK_ACCESS_UNIFORM_READ_BIT;
+			if(AccessFlags_InputAttachmentRead)
+				ret |= VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+			if(AccessFlags_ShaderRead)
+				ret |= VK_ACCESS_SHADER_READ_BIT;
+			if(AccessFlags_ShaderWrite)
+				ret |= VK_ACCESS_SHADER_WRITE_BIT;
+			if(AccessFlags_ColorAttachmentRead)
+				ret |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+			if(AccessFlags_ColorAttachmentWrite)
+				ret |= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			if(AccessFlags_DepthStencilRead)
+				ret |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+			if(AccessFlags_DepthStencilWrite)
+				ret |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+			if(AccessFlags_TransferRead)
+				ret |= VK_ACCESS_TRANSFER_READ_BIT;
+			if(AccessFlags_TransferWrite)
+				ret |= VK_ACCESS_TRANSFER_WRITE_BIT;
+			if(AccessFlags_HostRead)
+				ret |= VK_ACCESS_HOST_READ_BIT;
+			if(AccessFlags_HostWrite)
+				ret |= VK_ACCESS_HOST_WRITE_BIT;
+			if(AccessFlags_MemoryRead)
+				ret |= VK_ACCESS_MEMORY_READ_BIT;
+			if(AccessFlags_MemoryWrite)
+				ret |= VK_ACCESS_MEMORY_WRITE_BIT;
+
+
+			return ret;
+		}
+
 		static VkDeviceSize CalculateImageSize(uint32_t width, uint32_t height, uint32_t depth, uint32_t layerCount, uint32_t pixelSize) {
 			VkDeviceSize imageSize = (VkDeviceSize)width
 				* (VkDeviceSize)height
@@ -485,6 +577,118 @@ namespace Kaidel {
 			return imageSize;
 		}
 
+
+		static VkPrimitiveTopology PrimitiveTopologyToVulkanPrimitiveTopology(PrimitiveTopology toplogy) {
+			switch (toplogy)
+			{
+			case PrimitiveTopology::PointList:  return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+			case PrimitiveTopology::LineList: return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+			case PrimitiveTopology::LineStrip: return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+			case PrimitiveTopology::TriangleList: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+			case PrimitiveTopology::TrinagleStrip: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+			case PrimitiveTopology::TriangleFan: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
+			case PrimitiveTopology::LineListAdj: return VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY;
+			case PrimitiveTopology::LineStripAdj: return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY;
+			case PrimitiveTopology::TriangleListAd: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY;
+			case PrimitiveTopology::TriangleStripAdj: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY;
+			case PrimitiveTopology::PatchList: return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
+			}
+			
+			return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
+		}
+
+		static VkBlendFactor BlendFactorToVulkanBlendFactor(BlendFactor factor) {
+			switch (factor)
+			{
+			case BlendFactor::Zero: return VK_BLEND_FACTOR_ZERO;
+			case BlendFactor::One: return VK_BLEND_FACTOR_ONE;
+			case BlendFactor::SrcColor: return VK_BLEND_FACTOR_SRC_COLOR;
+			case BlendFactor::OneMinusSrcColor: return VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+			case BlendFactor::DstColor: return VK_BLEND_FACTOR_DST_COLOR;
+			case BlendFactor::OneMinusDstColor: return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+			case BlendFactor::SrcAlpha: return VK_BLEND_FACTOR_SRC_ALPHA;
+			case BlendFactor::OneMinusSrcAlpha: return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+			case BlendFactor::DstAlpha: return VK_BLEND_FACTOR_DST_ALPHA;
+			case BlendFactor::OneMinusDstAlpha: return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+			case BlendFactor::ConstantColor: return VK_BLEND_FACTOR_CONSTANT_COLOR;
+			case BlendFactor::OneMinusConstantColor: return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR;
+			case BlendFactor::ConstantAlpha: return VK_BLEND_FACTOR_CONSTANT_ALPHA;
+			case BlendFactor::OneMinusConstantAlpha: return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA;
+			case BlendFactor::SrcAlphaSaturate: return VK_BLEND_FACTOR_SRC_ALPHA_SATURATE;
+			case BlendFactor::Src1_Color: return VK_BLEND_FACTOR_SRC1_COLOR;
+			case BlendFactor::OneMinusSrc1Color: return VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR;
+			case BlendFactor::Src1Alpha: return VK_BLEND_FACTOR_SRC1_ALPHA;
+			case BlendFactor::OneMinusSrc1Alpha: return VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;
+			}
+
+			return VK_BLEND_FACTOR_MAX_ENUM;
+		}
+
+		static VkBlendOp BlendOpToVulkanBlendOp(BlendOp op) {
+			switch (op)
+			{
+			case BlendOp::Add: return VK_BLEND_OP_ADD;
+			case BlendOp::Subtract: return VK_BLEND_OP_SUBTRACT;
+			case BlendOp::ReverseSubtract: return VK_BLEND_OP_REVERSE_SUBTRACT;
+			case BlendOp::Min: return VK_BLEND_OP_MIN;
+			case BlendOp::Max: return VK_BLEND_OP_MAX;
+			}
+			return VK_BLEND_OP_MAX_ENUM;
+		}
+
+		static VkStencilOp StencilOpToVulkanStencilOp(StencilOp op) {
+			switch(op)
+			{
+			case StencilOp::Keep: return VK_STENCIL_OP_KEEP;
+			case StencilOp::Zero: return VK_STENCIL_OP_ZERO;
+			case StencilOp::Replace: return VK_STENCIL_OP_REPLACE;
+			case StencilOp::IncrementAndClamp: return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+			case StencilOp::DecrementAndClamp: return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+			case StencilOp::Invert: return VK_STENCIL_OP_INVERT;
+			case StencilOp::IncrementAndWrap: return VK_STENCIL_OP_INCREMENT_AND_WRAP;
+			case StencilOp::DecrementAndWrap: return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+			}
+			return VK_STENCIL_OP_MAX_ENUM;
+		}
+
+		static VkLogicOp LogicOpToVulkanLogicOp(LogicOp op) {
+			switch(op)
+			{
+			case LogicOp::None: return VK_LOGIC_OP_NOR;
+			case LogicOp::Clear: return VK_LOGIC_OP_CLEAR;
+			case LogicOp::And: return VK_LOGIC_OP_AND;
+			case LogicOp::AndReverse: return VK_LOGIC_OP_AND_REVERSE;
+			case LogicOp::Copy: return VK_LOGIC_OP_COPY;
+			case LogicOp::AndInverted: return VK_LOGIC_OP_AND_INVERTED;
+			case LogicOp::Xor: return VK_LOGIC_OP_XOR;
+			case LogicOp::Or: return VK_LOGIC_OP_OR;
+			case LogicOp::Nor: return VK_LOGIC_OP_NOR;
+			case LogicOp::Equivalent: return VK_LOGIC_OP_EQUIVALENT;
+			case LogicOp::Invert: return VK_LOGIC_OP_INVERT;
+			case LogicOp::OrReverse: return VK_LOGIC_OP_OR_REVERSE;
+			case LogicOp::CopyInverted: return VK_LOGIC_OP_COPY_INVERTED;
+			case LogicOp::OrInverted: return VK_LOGIC_OP_OR_INVERTED;
+			case LogicOp::Nand: return VK_LOGIC_OP_NAND;
+			case LogicOp::Set: return VK_LOGIC_OP_SET;
+			}
+
+			return VK_LOGIC_OP_MAX_ENUM;
+		}
+
+		static VkCompareOp CompareOpToVulkanCompareOp(CompareOp op) {
+			switch (op)
+			{
+			case CompareOp::Never:return VK_COMPARE_OP_NEVER;
+			case CompareOp::Less:return VK_COMPARE_OP_LESS;
+			case CompareOp::Equal:return VK_COMPARE_OP_EQUAL;
+			case CompareOp::LessOrEqual:return VK_COMPARE_OP_LESS_OR_EQUAL;
+			case CompareOp::Greater:return VK_COMPARE_OP_GREATER;
+			case CompareOp::NotEqual:return VK_COMPARE_OP_NOT_EQUAL;
+			case CompareOp::GreaterOrEqual:return VK_COMPARE_OP_GREATER_OR_EQUAL;
+			case CompareOp::Always:return VK_COMPARE_OP_ALWAYS;
+			}
+			return VK_COMPARE_OP_MAX_ENUM;
+		}
 
 		static VulkanBuffer CreateBuffer(
 			VmaAllocator allocator,
@@ -516,8 +720,7 @@ namespace Kaidel {
 			return result;
 		}
 
-
-		static void Transition(VkCommandBuffer cmdBuffer, ImageSpecification& image, ImageLayout newLayout) {
+		/*static void Transition(VkCommandBuffer cmdBuffer, ImageSpecification& image, ImageLayout newLayout) {
 			if (newLayout == image.Layout)
 				return;
 
@@ -558,7 +761,7 @@ namespace Kaidel {
 
 			image.Layout = newLayout;
 			image.IntendedLayout = newLayout;
-		}
+		}*/
 
 	}
 

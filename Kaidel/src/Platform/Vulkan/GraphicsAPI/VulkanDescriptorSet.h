@@ -1,19 +1,19 @@
 #pragma once
-#include "PerFrameResource.h"
 #include "Kaidel/Renderer/GraphicsAPI/DescriptorSet.h"
-#include <glad/vulkan.h>
+#include "Backend.h"
+
 
 namespace Kaidel {
 	class VulkanDescriptorSet : public DescriptorSet {
 	public:
-		VulkanDescriptorSet(Ref<GraphicsPipeline> pipeline, uint32_t setBinding);
-		VulkanDescriptorSet(DescriptorType type, ShaderStages flags);
+		VulkanDescriptorSet(const DescriptorSetSpecification& specs);
 		~VulkanDescriptorSet();
-		RendererID GetSetID() const override { return (RendererID)*m_Sets; }
 
-		void Update(const DescriptorSetUpdate& update) override;
-		void UpdateAll(const DescriptorSetUpdate& update) override;
+		virtual const DescriptorSetSpecification& GetSpecification()const override { return m_Specification; }
+
+		const VulkanBackend::DescriptorSetInfo& GetSetInfo()const { return m_Info; }
 	private:
-		PerFrameResource<VkDescriptorSet> m_Sets;
+		VulkanBackend::DescriptorSetInfo m_Info;
+		DescriptorSetSpecification m_Specification;
 	};
 }

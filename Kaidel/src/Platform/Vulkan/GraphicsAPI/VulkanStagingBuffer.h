@@ -1,10 +1,6 @@
 #pragma once
 
-#include "Platform/Vulkan/VulkanDefinitions.h"
 #include "VulkanAllocator.h"
-#include "VulkanCommandBuffer.h"
-#include "VulkanSemaphore.h"
-#include "VulkanFence.h"
 
 namespace Kaidel {
 	struct StagingBufferSyncObjects {
@@ -27,7 +23,7 @@ namespace Kaidel {
 		~VulkanStagingBuffer();
 		bool HasUnusedSpace(uint64_t dataSize);
 
-		void AddCopyOperation(VulkanCommandBuffer* commandBuffer, const VulkanBuffer& buffer, const void* data, uint64_t dataSize);
+		void AddCopyOperation(VkCommandBuffer commandBuffer, VkBuffer buffer, const void* data, uint64_t dataSize);
 
 		void Reset();
 

@@ -33,6 +33,10 @@
 
 #define KD_BIND_EVENT_FN(fn) [this](auto&&... args) -> decltype(auto) { return this->fn(std::forward<decltype(args)>(args)...); }
 
+#define ALLOCA(size) ((size != 0) ? alloca(size) : nullptr)
+#define ALLOCA_ARRAY(type, count) ((type*)ALLOCA(sizeof(type) * (count)))
+#define ALLOCA_SINGLE(type) ALLOCA_ARRAY(type, 1)
+
 namespace Kaidel {
 
 	template<typename T>

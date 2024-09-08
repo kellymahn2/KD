@@ -1,521 +1,309 @@
 #include "KDpch.h"
-#include "Kaidel/Core/Application.h"
 #include "VulkanTexture.h"
 #include "VulkanGraphicsContext.h"
-#include "VulkanTransferBuffer.h"
-#include "Kaidel/Renderer/RenderCommand.h"
 
 namespace Kaidel {
-	
-	namespace Utils {
-		static VkImageView CreateImageView(Format textureFormat, uint32_t levels, uint32_t layers, VkImage image,/*R,G,B,A*/ TextureSwizzle swizzles[4]) {
-			VkImageView view{};
-			VkImageViewCreateInfo viewInfo{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-			viewInfo.viewType = layers > 1 ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
-			viewInfo.subresourceRange.aspectMask = Utils::IsDepthFormat(textureFormat) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
-			viewInfo.subresourceRange.baseArrayLayer = 0;
-			viewInfo.subresourceRange.baseMipLevel = 0;
-			viewInfo.subresourceRange.layerCount = layers;
-			viewInfo.subresourceRange.levelCount = levels;
-			viewInfo.image = image;
-			viewInfo.format = Utils::FormatToVulkanFormat(textureFormat);
-			viewInfo.components.r = Utils::TextureSwizzleToVulkanComponentSwizzle(swizzles[0]);
-			viewInfo.components.g = Utils::TextureSwizzleToVulkanComponentSwizzle(swizzles[1]);
-			viewInfo.components.b = Utils::TextureSwizzleToVulkanComponentSwizzle(swizzles[2]);
-			viewInfo.components.a = Utils::TextureSwizzleToVulkanComponentSwizzle(swizzles[3]);
-
-			VK_ASSERT(vkCreateImageView(VK_DEVICE.GetDevice(), &viewInfo, nullptr, &view));
-			return view;
-		}
-
-
-	}
-	
-	#pragma region Texture2D
-
-	VulkanTexture2D::VulkanTexture2D(const Texture2DSpecification& spec)
-		:m_Specification(spec)
+	VulkanTexture2D::VulkanTexture2D(const Texture2DSpecification& specs)
+		:m_Specification(specs)
 	{
+		KD_CORE_ASSERT(specs.Type == ImageType::_2D);
+		KD_CORE_ASSERT(specs.Layout != ImageLayout::None);
+		KD_CORE_ASSERT(specs.Depth == 1);
+		KD_CORE_ASSERT(specs.Layers == 1);
+		KD_CORE_ASSERT(!specs.IsCube);
 
-		uint32_t width = m_Specification.Width;
-		uint32_t height = m_Specification.Height;
-		VkSampleCountFlags samples = Utils::TextureSamplesToVulkanSampleCountFlags(m_Specification.Samples);
-		uint32_t mips = m_Specification.MipMaps;
-		Format format = m_Specification.TextureFormat;
-		VmaMemoryUsage memUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-		VkImageTiling tiling = (spec.Usage & TextureUsage_CPUReadable) ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL;
+		auto& backend = VK_CONTEXT.GetBackend();
 
-		VkImageUsageFlags usageFlags = Utils::TextureUsageToVulkanImageUsageFlags(m_Specification.Usage);
-		uint32_t vmaFlags = (spec.Usage & TextureUsage_CPUReadable) ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT : 0;
+		VulkanBackend::TextureInputInfo info{};
+		info.Format = Utils::FormatToVulkanFormat(specs.Format);
+		info.Aspects = Utils::IsDepthFormat(specs.Format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+		info.Width = specs.Width;
+		info.Height = specs.Height;
+		info.Depth = 1;
+		info.Layers = 1;
+		info.Mips = specs.Mips;
+		info.Type = VK_IMAGE_TYPE_2D;
+		info.Samples = (VkSampleCountFlagBits)specs.Samples;
+		info.Usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		info.ViewFormat = info.Format;
+		info.ViewType = VK_IMAGE_VIEW_TYPE_2D;
+		info.Swizzles[0] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
+		info.Swizzles[1] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
+		info.Swizzles[2] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
+		info.Swizzles[3] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
+		info.IsCube = false;
+		info.IsCpuReadable = specs.IsCpuReadable;
 
-		TextureSwizzle swizzles[4] = { m_Specification.SwizzleR,m_Specification.SwizzleG ,m_Specification.SwizzleB ,m_Specification.SwizzleA };
+		m_Info = backend->CreateTexture(info);
 
-		ImageAllocateSpecification allocation{};
-		allocation.Width = width;
-		allocation.Height = height;
-		allocation.Depth = 1;
-		allocation.ImageFormat = format;
-		allocation.Samples = (VkSampleCountFlagBits)samples;
-		allocation.Levels = mips;
-		allocation.MemoryUsage = memUsage;
-		allocation.Tiling = tiling;
-		allocation.ImageUsage = usageFlags;
-		allocation.VmaFlags = vmaFlags;
-		allocation.InitialLayout = ImageLayout::None;
-		allocation.Layers = 1;
-		allocation.VulkanFlags = 0;
-		allocation.Type = VK_IMAGE_TYPE_2D;
+		VkCommandBuffer cb = backend->CreateCommandBuffer(VK_CONTEXT.GetPrimaryCommandPool());
+		backend->CommandBufferBegin(cb);
 
-		m_Image->SetSpecification(VK_ALLOCATOR.AllocateImage(allocation));
+		VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-		vmaGetAllocationInfo(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image->GetSpecification()._DeviceMemory, &m_AllocationInfo);
-
-		if ((usageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT) && m_Specification.InitialData != nullptr) {
-			//Only for mip 0.
-			uint32_t imageSize = Utils::CalculateImageSize(width, height, 1, 1, Utils::CalculatePixelSize(format));
-			VulkanBuffer vulkanBuffer = VK_ALLOCATOR.AllocateBuffer(imageSize, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-
-			vmaCopyMemoryToAllocation(VK_ALLOCATOR.GetAllocator(), m_Specification.InitialData, vulkanBuffer.Allocation, 0, imageSize);
-
-			VkBuffer buffer = vulkanBuffer.Buffer;
-			VkImage image = (VkImage)m_Image->GetSpecification()._InternalImageID;
-			VkCommandBuffer commandBuffer = VK_CONTEXT.GetPrimaryCommandPool()->BeginSingleTimeCommands(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-			VkBufferImageCopy copy{};
-			copy.bufferOffset = 0;
-			copy.imageOffset = { 0,0,0 };
-			copy.imageExtent = { width,height,1 };
-			copy.imageSubresource.aspectMask = Utils::IsDepthFormat(format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
-			copy.imageSubresource.baseArrayLayer = 0;
-			copy.imageSubresource.layerCount = 1;
-			copy.imageSubresource.mipLevel = 0;
-			copy.bufferRowLength = 0;
-			copy.bufferImageHeight = 0;
-
-
-			 // 1. Transition image layout to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL  
-			VkImageMemoryBarrier imageMemoryBarrier = {};
-			imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-			imageMemoryBarrier.srcAccessMask = 0;
-			imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-			imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED; // Assuming it's undefined initially  
-			imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-			imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			imageMemoryBarrier.image = image;
-			imageMemoryBarrier.subresourceRange.aspectMask = Utils::IsDepthFormat(format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
-			imageMemoryBarrier.subresourceRange.baseMipLevel = 0;
-			imageMemoryBarrier.subresourceRange.levelCount = 1;
-			imageMemoryBarrier.subresourceRange.baseArrayLayer = 0;
-			imageMemoryBarrier.subresourceRange.layerCount = 1;
-
-			vkCmdPipelineBarrier(
-				commandBuffer,
-				VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-				VK_PIPELINE_STAGE_TRANSFER_BIT,
-				0,
-				0, nullptr,
-				0, nullptr,
-				1, &imageMemoryBarrier
-			);
-
-			vkCmdCopyBufferToImage(
-				commandBuffer,
-				buffer,
-				image,
-				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				1,
-				&copy
-			);
-
-			imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-			imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-			imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-			imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-			vkCmdPipelineBarrier(
-				commandBuffer,
-				VK_PIPELINE_STAGE_TRANSFER_BIT,
-				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-				0,
-				0, nullptr,
-				0, nullptr,
-				1, &imageMemoryBarrier
-			);
-
-			VK_CONTEXT.GetPrimaryCommandPool()->EndSingleTimeCommands(commandBuffer, VK_PHYSICAL_DEVICE.GetQueue("GraphicsQueue").Queue);
-
-			VK_ALLOCATOR.DestroyBuffer(vulkanBuffer);
-		}
+		std::vector<VulkanBackend::BufferInfo> stagingBuffers;
 		
-		m_Image->GetSpecification().ImageView = (RendererID)Utils::CreateImageView(format, mips, 1, (VkImage)m_Image->GetSpecification()._InternalImageID, swizzles);
-	}
+		if (specs.InitialDatas.size()) {
+			layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 
+			VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+			barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.srcAccessMask = 0;
+			barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+			barrier.image = m_Info.ViewInfo.image;
+
+			backend->CommandPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, {}, { barrier });
+
+
+			for (auto& initData : specs.InitialDatas) {
+				
+				VulkanBackend::BufferInfo stagingBuffer = backend->CreateBuffer(initData.Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, false);
+				
+				uint8_t* ptr = backend->BufferMap(stagingBuffer);
+				std::memcpy(ptr, initData.Data, initData.Size);
+				backend->BufferUnmap(stagingBuffer);
+				
+				VkBufferImageCopy copy{};
+				copy.bufferImageHeight = 0;
+				copy.bufferOffset = 0;
+				copy.bufferRowLength = 0;
+				copy.imageExtent = { specs.Width - initData.Width, specs.Height - initData.Height, specs.Depth - initData.Depth };
+				copy.imageOffset = { (int)initData.Width, (int)initData.Height, (int)initData.Depth };
+				copy.imageSubresource.aspectMask = info.Aspects;
+				copy.imageSubresource.baseArrayLayer = 0;
+				copy.imageSubresource.layerCount = 1;
+				copy.imageSubresource.mipLevel = 0;
+
+				backend->CommandCopyBufferToTexture(cb, stagingBuffer, m_Info, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { copy });
+
+				stagingBuffers.push_back(stagingBuffer);
+			}
+		}
+
+		VkImageLayout finalLayout = Utils::ImageLayoutToVulkanImageLayout(specs.Layout);
+		if(finalLayout != layout){
+			VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+			barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.srcAccessMask = 0;
+			barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			barrier.oldLayout = layout;
+			barrier.newLayout = finalLayout;
+			barrier.image = m_Info.ViewInfo.image;
+			barrier.subresourceRange.aspectMask = info.Aspects;
+			barrier.subresourceRange.baseArrayLayer = 0;
+			barrier.subresourceRange.baseMipLevel = 0;
+			barrier.subresourceRange.layerCount = 1;
+			barrier.subresourceRange.levelCount = specs.Mips;
+
+			backend->CommandPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, {}, { barrier });
+		}
+
+		backend->CommandBufferEnd(cb);
+
+		backend->SubmitCommandBuffers(VK_CONTEXT.GetGraphicsQueue(), { cb }, VK_CONTEXT.GetSingleSubmitFence());
+		backend->FenceWait(VK_CONTEXT.GetSingleSubmitFence());
+
+		backend->DestroyCommandBuffer(cb, VK_CONTEXT.GetPrimaryCommandPool());
+
+		for (auto& stagingBuffer : stagingBuffers) {
+			backend->DestroyBuffer(stagingBuffer);
+		}
+	}
 	VulkanTexture2D::~VulkanTexture2D()
 	{
-		vkDestroyImageView(VK_DEVICE.GetDevice(), (VkImageView)m_Image->GetSpecification().ImageView, nullptr);
-		VK_ALLOCATOR.DestroyImage(m_Image->GetSpecification());
+		VK_CONTEXT.GetBackend()->DestroyTexture(m_Info);
 	}
-
-	void* VulkanTexture2D::Map(uint32_t mipMap) const
+	VulkanTextureLayered::VulkanTextureLayered(const TextureLayeredSpecification& specs)
+		:m_Specification(specs)
 	{
-		VkImageAspectFlags aspect = 0;
-		if (Utils::IsDepthFormat(m_Image->GetSpecification().ImageFormat)) {
-			aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
-			if (m_Image->GetSpecification().ImageFormat == Format::Depth24Stencil8) {
-				aspect |= VK_IMAGE_ASPECT_STENCIL_BIT;
+		KD_CORE_ASSERT(specs.Type == ImageType::_1D_Array || specs.Type == ImageType::_2D_Array);
+		KD_CORE_ASSERT(specs.Layout != ImageLayout::None);
+		KD_CORE_ASSERT(specs.Depth == 1);
+		KD_CORE_ASSERT(!specs.IsCube);
+
+		auto& backend = VK_CONTEXT.GetBackend();
+
+		VulkanBackend::TextureInputInfo info{};
+		info.Format = Utils::FormatToVulkanFormat(specs.Format);
+		info.Aspects = Utils::IsDepthFormat(specs.Format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+		info.Width = specs.Width;
+		info.Height = specs.Height;
+		info.Depth = 1;
+		info.Layers = specs.Layers;
+		info.Mips = specs.Mips;
+		info.Type = specs.Type == ImageType::_1D_Array ? VK_IMAGE_TYPE_1D : VK_IMAGE_TYPE_2D;
+		info.Samples = (VkSampleCountFlagBits)specs.Samples;
+		info.Usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		info.ViewFormat = info.Format;
+		info.ViewType = specs.Type == ImageType::_1D_Array ? VK_IMAGE_VIEW_TYPE_1D_ARRAY : VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+		info.Swizzles[0] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
+		info.Swizzles[1] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
+		info.Swizzles[2] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
+		info.Swizzles[3] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
+		info.IsCube = false;
+		info.IsCpuReadable = specs.IsCpuReadable;
+
+		m_Info = backend->CreateTexture(info);
+
+		VkCommandBuffer cb = backend->CreateCommandBuffer(VK_CONTEXT.GetPrimaryCommandPool());
+		backend->CommandBufferBegin(cb);
+
+		VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+		std::vector<VulkanBackend::BufferInfo> stagingBuffers;
+
+		if (specs.InitialDatas.size()) {
+			layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+
+			VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+			barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.srcAccessMask = 0;
+			barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+			barrier.image = m_Info.ViewInfo.image;
+
+			backend->CommandPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, {}, { barrier });
+
+
+			for (auto& initData : specs.InitialDatas) {
+
+				VulkanBackend::BufferInfo stagingBuffer = backend->CreateBuffer(initData.Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, false);
+
+				uint8_t* ptr = backend->BufferMap(stagingBuffer);
+				std::memcpy(ptr, initData.Data, initData.Size);
+				backend->BufferUnmap(stagingBuffer);
+
+				VkBufferImageCopy copy{};
+				copy.bufferImageHeight = 0;
+				copy.bufferOffset = 0;
+				copy.bufferRowLength = 0;
+				copy.imageExtent = { specs.Width - initData.Width, specs.Height - initData.Height, specs.Depth - initData.Depth };
+				copy.imageOffset = { (int)initData.Width, (int)initData.Height, (int)initData.Depth };
+				copy.imageSubresource.aspectMask = info.Aspects;
+				copy.imageSubresource.baseArrayLayer = initData.Layer;
+				copy.imageSubresource.layerCount = 1;
+				copy.imageSubresource.mipLevel = 0;
+
+				backend->CommandCopyBufferToTexture(cb, stagingBuffer, m_Info, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { copy });
+
+				stagingBuffers.push_back(stagingBuffer);
 			}
 		}
-		else {
-			aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+
+		VkImageLayout finalLayout = Utils::ImageLayoutToVulkanImageLayout(specs.Layout);
+		if (finalLayout != layout) {
+			VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+			barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.srcAccessMask = 0;
+			barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			barrier.oldLayout = layout;
+			barrier.newLayout = finalLayout;
+			barrier.image = m_Info.ViewInfo.image;
+			barrier.subresourceRange.aspectMask = info.Aspects;
+			barrier.subresourceRange.baseArrayLayer = 0;
+			barrier.subresourceRange.baseMipLevel = 0;
+			barrier.subresourceRange.layerCount = specs.Layers;
+			barrier.subresourceRange.levelCount = specs.Mips;
+			backend->CommandPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, {}, { barrier });
 		}
-
-
-		VkImageSubresource subres = {};
-		subres.aspectMask = aspect;
-		subres.arrayLayer = 0;
-		subres.mipLevel = mipMap;
-
-		VkSubresourceLayout subresLayout = {};
-		vkGetImageSubresourceLayout(VK_DEVICE.GetDevice(), (VkImage)m_Image->GetSpecification()._InternalImageID, &subres, &subresLayout);
-
-		void* ptr = nullptr;
-
-		VmaAllocationInfo info{};
-
-		vmaGetAllocationInfo(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image->GetSpecification()._DeviceMemory, &info);
-
-
-		VkResult err = vkMapMemory(
-			VK_DEVICE.GetDevice(),
-			info.deviceMemory,
-			info.offset + subresLayout.offset,
-			subresLayout.size,
-			0,
-			&ptr);
-
-		vmaMapMemory(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image->GetSpecification()._DeviceMemory, &ptr);
-		return ptr;
-	}
-
-	void VulkanTexture2D::Unmap() const
-	{
-		VmaAllocationInfo info{};
-
-		vmaGetAllocationInfo(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image->GetSpecification()._DeviceMemory, &info);
-		vkUnmapMemory(VK_DEVICE.GetDevice(), info.deviceMemory);
-	}
-	#pragma endregion
-
-	#pragma region TextureLayered2D
-
-	VulkanTextureLayered2D::VulkanTextureLayered2D(const TextureLayered2DSpecification& spec)
-		:m_Specification(spec)
-	{
-		uint32_t width = m_Specification.InitialWidth;
-		uint32_t height = m_Specification.InitialHeight;
-		VkSampleCountFlags samples = Utils::TextureSamplesToVulkanSampleCountFlags(m_Specification.Samples);
-		uint32_t mips = 1;
-		Format format = m_Specification.TextureFormat;
-		VmaMemoryUsage memUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-		VkImageTiling tiling = (m_Specification.Usage & TextureUsage_CPUReadable) ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL;
-
-		VkImageUsageFlags usageFlags = Utils::TextureUsageToVulkanImageUsageFlags(m_Specification.Usage);
-		uint32_t vmaFlags = (m_Specification.Usage & TextureUsage_CPUReadable) ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT : 0;
-
-		TextureSwizzle swizzles[4] = { m_Specification.SwizzleR,m_Specification.SwizzleG ,m_Specification.SwizzleB ,m_Specification.SwizzleA };
-
-		ImageAllocateSpecification allocation{};
-		allocation.Width = width;
-		allocation.Height = height;
-		allocation.Depth = 1;
-		allocation.ImageFormat = format;
-		allocation.Samples = (VkSampleCountFlagBits)samples;
-		allocation.Levels = mips;
-		allocation.MemoryUsage = memUsage;
-		allocation.Tiling = tiling;
-		allocation.ImageUsage = usageFlags;
-		allocation.VmaFlags = vmaFlags;
-		allocation.InitialLayout = ImageLayout::None;
-		allocation.Layers = 2;
-		allocation.VulkanFlags = 0;
-		allocation.Type = VK_IMAGE_TYPE_2D;
-
-		m_Image->SetSpecification(VK_ALLOCATOR.AllocateImage(allocation));
-		vmaGetAllocationInfo(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image->GetSpecification()._DeviceMemory, &m_AllocationInfo);
-
-		m_Image->GetSpecification().ImageView = (RendererID)Utils::CreateImageView(format, mips, 2, (VkImage)m_Image->GetSpecification()._InternalImageID, swizzles);
-	}
-
-	VulkanTextureLayered2D::~VulkanTextureLayered2D()
-	{
-		DeleteImage();
-	}
-
-	void* VulkanTextureLayered2D::Map(uint32_t mipMap, uint32_t layer) const
-	{
-		VkImageAspectFlags aspect = 0;
-		if (Utils::IsDepthFormat(m_Image->GetSpecification().ImageFormat)) {
-			aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
-			if (m_Image->GetSpecification().ImageFormat == Format::Depth24Stencil8) {
-				aspect |= VK_IMAGE_ASPECT_STENCIL_BIT;
-			}
-		}
-		else {
-			aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-		}
-
-
-		VkImageSubresource subres = {};
-		subres.aspectMask = aspect;
-		subres.arrayLayer = layer;
-		subres.mipLevel = mipMap;
-
-		VkSubresourceLayout subresLayout = {};
-		vkGetImageSubresourceLayout(VK_DEVICE.GetDevice(), (VkImage)m_Image->GetSpecification()._InternalImageID, &subres, &subresLayout);
-
-		void* ptr = nullptr;
-
-		VmaAllocationInfo info{};
-
-		vmaGetAllocationInfo(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image->GetSpecification()._DeviceMemory, &info);
-
-
-		VkResult err = vkMapMemory(
-			VK_DEVICE.GetDevice(),
-			info.deviceMemory,
-			info.offset + subresLayout.offset,
-			subresLayout.size,
-			0,
-			&ptr);
-
-		vmaMapMemory(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image->GetSpecification()._DeviceMemory, &ptr);
-		return ptr;
-	}
-
-	void VulkanTextureLayered2D::Unmap() const
-	{
-		VmaAllocationInfo info{};
-
-		vmaGetAllocationInfo(VK_ALLOCATOR.GetAllocator(), (VmaAllocation)m_Image->GetSpecification()._DeviceMemory, &info);
-		vkUnmapMemory(VK_DEVICE.GetDevice(), info.deviceMemory);
-	}
-
-	void VulkanTextureLayered2D::Copy(VkCommandBuffer cmd, Ref<TransferBuffer> src, const BufferToTextureCopyRegion& region)
-	{
-		ImageSpecification& dst = m_Image->GetSpecification();
-
-		bool needsTransition = dst.Layout != ImageLayout::TransferDstOptimal;
-		ImageLayout oldLayout = dst.Layout;
-		oldLayout = oldLayout == ImageLayout::None ? ImageLayout::ShaderReadOnlyOptimal : oldLayout;
-		Ref<VulkanTransferBuffer> vulkanSrcBuffer = src;
-
-		if (needsTransition)
-			Utils::Transition(cmd, dst, ImageLayout::TransferDstOptimal);
-		//Copy
-		VkBufferImageCopy copyRegion = {};
-
-		copyRegion.bufferOffset = region.BufferOffset;
-
-		copyRegion.imageOffset.x = region.TextureOffset.x;
-		copyRegion.imageOffset.y = region.TextureOffset.y;
-		copyRegion.imageOffset.z = region.TextureOffset.z;
-
-		copyRegion.imageExtent.width = region.TextureRegionSize.x;
-		copyRegion.imageExtent.height = region.TextureRegionSize.y;
-		copyRegion.imageExtent.depth = region.TextureRegionSize.z;
-
-		copyRegion.imageSubresource.aspectMask = Utils::GetAspectFlags(dst.ImageFormat);
-		copyRegion.imageSubresource.mipLevel = region.Mipmap;
-		copyRegion.imageSubresource.baseArrayLayer = region.StartLayer;
-		copyRegion.imageSubresource.layerCount = region.LayerCount;
-
-		vkCmdCopyBufferToImage(
-			cmd,
-			vulkanSrcBuffer->GetBuffer().Buffer,
-			(VkImage)dst._InternalImageID,
-			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			1,
-			&copyRegion);
-
-		//Revert transition
-		if (needsTransition)
-			Utils::Transition(cmd, dst, oldLayout);
-	}
-
-	void VulkanTextureLayered2D::CopyData(void* data,uint32_t width, uint32_t height, uint64_t size, uint32_t layer)
-	{
-		Ref<TransferBuffer> src = TransferBuffer::Create(size, data, size);
-		Application::Get().SubmitToMainThread([src,width,height,layer,this]() {
-			vkDeviceWaitIdle(VK_DEVICE.GetDevice());
-
-			SCOPED_TIMER(fmt::format("Push to layer {} without reallocation", layer));
-			BufferToTextureCopyRegion region{};
-			region.BufferOffset = 0;
-			region.LayerCount = 1;
-			region.Mipmap = 0;
-			region.StartLayer = layer;
-			region.TextureOffset = { 0,0,0 };
-			region.TextureRegionSize = { width,height,1 };
-
-
-			VkCommandBuffer cmd = VK_CONTEXT.GetPrimaryCommandPool()->BeginSingleTimeCommands(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-			Copy(cmd, src, region);
-
-			VK_CONTEXT.GetPrimaryCommandPool()->EndSingleTimeCommands(cmd, VK_PHYSICAL_DEVICE.GetQueue("GraphicsQueue"));
-		});
-	}
-
-
-	void VulkanTextureLayered2D::Reallocate()
-	{
-		uint32_t width = m_Specification.InitialWidth;
-		uint32_t height = m_Specification.InitialHeight;
-		VkSampleCountFlags samples = Utils::TextureSamplesToVulkanSampleCountFlags(m_Specification.Samples);
-		uint32_t mips = 1;
-		Format format = m_Specification.TextureFormat;
-		VmaMemoryUsage memUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-		VkImageTiling tiling = (m_Specification.Usage & TextureUsage_CPUReadable) ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL;
-
-		VkImageUsageFlags usageFlags = Utils::TextureUsageToVulkanImageUsageFlags(m_Specification.Usage);
-		uint32_t vmaFlags = (m_Specification.Usage & TextureUsage_CPUReadable) ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT : 0;
-
-		TextureSwizzle swizzles[4] = { m_Specification.SwizzleR,m_Specification.SwizzleG ,m_Specification.SwizzleB ,m_Specification.SwizzleA };
+		backend->CommandBufferEnd(cb);
 		
-		ImageSpecification newImage{};
-		//Create the new image.
-		{
-			
+		backend->SubmitCommandBuffers(VK_CONTEXT.GetGraphicsQueue(), { cb }, VK_CONTEXT.GetSingleSubmitFence());
+		backend->FenceWait(VK_CONTEXT.GetSingleSubmitFence());
 
-			ImageAllocateSpecification allocation{};
-			allocation.Width = m_Image->GetSpecification().Width;
-			allocation.Height = m_Image->GetSpecification().Height;
-			allocation.Depth = 1;
-			allocation.ImageFormat = m_Image->GetSpecification().ImageFormat;
-			allocation.Samples = (VkSampleCountFlagBits)samples;
-			allocation.Levels = mips;
-			allocation.MemoryUsage = memUsage;
-			allocation.Tiling = tiling;
-			allocation.ImageUsage = usageFlags;
-			allocation.VmaFlags = vmaFlags;
-			allocation.InitialLayout = ImageLayout::None;
-			allocation.Layers = m_Image->GetSpecification().Layers * 1.5 + 1;
-			allocation.VulkanFlags = 0;
-			allocation.Type = VK_IMAGE_TYPE_2D;
-			
-			newImage = VK_ALLOCATOR.AllocateImage(allocation);
+		backend->DestroyCommandBuffer(cb, VK_CONTEXT.GetPrimaryCommandPool());
+
+		for (auto& stagingBuffer : stagingBuffers) {
+			backend->DestroyBuffer(stagingBuffer);
 		}
 
-		//Copy the old image to the new image.
-		{
-			VkCommandBuffer cmd = VK_CONTEXT.GetPrimaryCommandPool()->BeginSingleTimeCommands(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-			ImageLayout oldLayout = m_Image->GetSpecification().Layout;
-			oldLayout = oldLayout == ImageLayout::None ? ImageLayout::ShaderReadOnlyOptimal : oldLayout;
-
-			Utils::Transition(cmd, m_Image->GetSpecification(), ImageLayout::TransferSrcOptimal);
-
-
-			Utils::Transition(cmd, newImage, ImageLayout::TransferDstOptimal);
-
-			VkImageCopy copy{};
-
-			copy.srcOffset = { 0,0,0 };
-			copy.dstOffset = { 0,0,0 };
-
-			copy.extent = { m_Image->GetSpecification().Width, m_Image->GetSpecification().Height, 1 };
-
-			copy.srcSubresource.aspectMask = Utils::GetAspectFlags(m_Image->GetSpecification().ImageFormat);
-			copy.srcSubresource.baseArrayLayer = 0;
-			copy.srcSubresource.mipLevel = 0;
-			copy.srcSubresource.layerCount = m_Image->GetSpecification().Layers;
-
-			copy.dstSubresource.aspectMask = Utils::GetAspectFlags(m_Image->GetSpecification().ImageFormat);
-			copy.dstSubresource.baseArrayLayer = 0;
-			copy.dstSubresource.mipLevel = 0;
-			copy.dstSubresource.layerCount = m_Image->GetSpecification().Layers;
-
-			vkCmdCopyImage(
-				cmd,
-				(VkImage)m_Image->GetSpecification()._InternalImageID,
-				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-				(VkImage)newImage._InternalImageID,
-				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				1,
-				&copy);
-
-			Utils::Transition(cmd, newImage, oldLayout);
-			
-			VK_CONTEXT.GetPrimaryCommandPool()->EndSingleTimeCommands(cmd, VK_PHYSICAL_DEVICE.GetQueue("GraphicsQueue"));
-		}
-
-		//Delete the old image.
-		DeleteImage();
-
-		m_Image->SetSpecification(newImage);
-		m_Image->GetSpecification().ImageView = (RendererID)Utils::CreateImageView(format, mips, 2, (VkImage)m_Image->GetSpecification()._InternalImageID, swizzles);
 	}
-
-	void VulkanTextureLayered2D::ReallocateAndCopy(void* data, uint32_t width, uint32_t height, uint64_t size, uint32_t layer)
+	VulkanTextureLayered::~VulkanTextureLayered()
 	{
-		Ref<TransferBuffer> src = TransferBuffer::Create(size, data, size);
-		Application::Get().SubmitToMainThread([=]() {
-			vkDeviceWaitIdle(VK_DEVICE.GetDevice());
-			
-			{
-				SCOPED_TIMER("Reallocation");
-
-				Reallocate();
-			}
-
-			SCOPED_TIMER(fmt::format("Push to layer {} with reallocation", layer));
-
-			BufferToTextureCopyRegion region{};
-			region.BufferOffset = 0;
-			region.LayerCount = 1;
-			region.Mipmap = 0;
-			region.StartLayer = layer;
-			region.TextureOffset = { 0,0,0 };
-			region.TextureRegionSize = { width,height,1 };
-
-			VkCommandBuffer cmd = VK_CONTEXT.GetPrimaryCommandPool()->BeginSingleTimeCommands(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-			Copy(cmd, src, region);
-
-			VK_CONTEXT.GetPrimaryCommandPool()->EndSingleTimeCommands(cmd, VK_PHYSICAL_DEVICE.GetQueue("GraphicsQueue"));
-		});
+		VK_CONTEXT.GetBackend()->DestroyTexture(m_Info);
 	}
-
-	void VulkanTextureLayered2D::DeleteImage()
+	VulkanFramebufferTexture::VulkanFramebufferTexture(uint32_t width, uint32_t height, Format format, TextureSamples samples, bool isDepth)
+		:m_Specification(ImageType::_2D)
 	{
-		vkDestroyImageView(VK_DEVICE.GetDevice(), (VkImageView)m_Image->GetSpecification().ImageView, nullptr);
-		VK_ALLOCATOR.DestroyImage(m_Image->GetSpecification());
-	}
+		m_Specification.Format = format;
+		m_Specification.Width = width;
+		m_Specification.Height = height;
+		m_Specification.Depth = 1;
+		m_Specification.Layers = 1;
+		m_Specification.Mips = 1;
+		m_Specification.Layout = isDepth ? ImageLayout::DepthAttachmentOptimal : ImageLayout::ColorAttachmentOptimal;
+		m_Specification.IsCube = false;
+		m_Specification.IsCpuReadable = false;
+		m_Specification.Samples = samples;
+		m_Specification.Swizzles[0] = TextureSwizzle::Red;
+		m_Specification.Swizzles[1] = TextureSwizzle::Green;
+		m_Specification.Swizzles[2] = TextureSwizzle::Blue;
+		m_Specification.Swizzles[3] = TextureSwizzle::Alpha;
 
-	uint32_t VulkanTextureLayered2D::Push(const TextureLayered2DLayerSpecification& layerSpec)
-	{
-		KD_CORE_ASSERT(layerSpec.Width <= m_Specification.InitialHeight && layerSpec.Height <= m_Specification.InitialHeight);
-		KD_CORE_ASSERT((m_Specification.Usage & TextureUsage_Updateable) || (m_Specification.Usage & TextureUsage_CopyTo));
+		auto& backend = VK_CONTEXT.GetBackend();
+
+		VulkanBackend::TextureInputInfo info{};
+		info.Format = Utils::FormatToVulkanFormat(format);
+		info.Aspects = isDepth ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+		info.Width = width;
+		info.Height = height;
+		info.Depth = 1;
+		info.Layers = 1;
+		info.Mips = 1;
+		info.Type = VK_IMAGE_TYPE_2D;
+		info.Samples = (VkSampleCountFlagBits)samples;
+		info.Usage = 
+			VK_IMAGE_USAGE_TRANSFER_SRC_BIT | 
+			VK_IMAGE_USAGE_TRANSFER_DST_BIT | 
+			VK_IMAGE_USAGE_SAMPLED_BIT		|
+			(isDepth ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+		info.ViewFormat = info.Format;
+		info.ViewType = VK_IMAGE_VIEW_TYPE_2D;
+		info.Swizzles[0] = VK_COMPONENT_SWIZZLE_R;
+		info.Swizzles[1] = VK_COMPONENT_SWIZZLE_G;
+		info.Swizzles[2] = VK_COMPONENT_SWIZZLE_B;
+		info.Swizzles[3] = VK_COMPONENT_SWIZZLE_A;
+		info.IsCube = false;
+		info.IsCpuReadable = false;
+
+		m_Info = backend->CreateTexture(info);
+
+		VkCommandBuffer cb = backend->CreateCommandBuffer(VK_CONTEXT.GetPrimaryCommandPool());
+
+		backend->CommandBufferBegin(cb);
+
+		VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.srcAccessMask = 0;
+		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		barrier.newLayout = isDepth ? VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		barrier.image = m_Info.ViewInfo.image;
+		barrier.subresourceRange.aspectMask = info.Aspects;
+		barrier.subresourceRange.baseArrayLayer = 0;
+		barrier.subresourceRange.baseMipLevel = 0;
+		barrier.subresourceRange.layerCount = 1;
+		barrier.subresourceRange.levelCount = 1;
+
+		backend->CommandPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, {}, { barrier });
 		
-		uint32_t pushIndex = m_LayerSpecifications.size();
+		backend->CommandBufferEnd(cb);
 		
-		//Array has space
-		if (pushIndex < m_Image->GetSpecification().Layers) {
-			//Data setting requested
-			if (layerSpec.InitialData != nullptr) {
-				uint64_t size = Utils::CalculateImageSize(layerSpec.Width, layerSpec.Height, 1, 1, Utils::CalculatePixelSize(m_Specification.TextureFormat));
-				CopyData(layerSpec.InitialData, layerSpec.Width, layerSpec.Height, size, pushIndex);
-			}
-		}
-		//Array has no space
-		else {
-			uint64_t size = Utils::CalculateImageSize(layerSpec.Width, layerSpec.Height, 1, 1, Utils::CalculatePixelSize(m_Specification.TextureFormat));
-			ReallocateAndCopy(layerSpec.InitialData, layerSpec.Width, layerSpec.Height, size, pushIndex);
-		}
+		backend->SubmitCommandBuffers(VK_CONTEXT.GetGraphicsQueue(), { cb }, VK_CONTEXT.GetSingleSubmitFence());
+		backend->FenceWait(VK_CONTEXT.GetSingleSubmitFence());
 
-		m_LayerSpecifications.push_back(layerSpec);
-		return pushIndex;
+		backend->DestroyCommandBuffer(cb, VK_CONTEXT.GetPrimaryCommandPool());
 	}
-
-	#pragma endregion
+	VulkanFramebufferTexture::~VulkanFramebufferTexture()
+	{
+		VK_BACKEND->DestroyTexture(m_Info);
+	}
 }

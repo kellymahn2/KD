@@ -1,79 +1,73 @@
 #pragma once
-
-#include "Constants.h"
 #include "Kaidel/Core/Base.h"
-#include "Image.h"
-#include <string>
-#include <unordered_map>
+#include "Kaidel/Renderer/RendererDefinitions.h"
+
 namespace Kaidel {
-
-	struct Texture2DSpecification {
-		Format TextureFormat;
-		uint32_t Width = 1;
-		uint32_t Height = 1;
-		uint32_t MipMaps = 1;
-		TextureSamples Samples = TextureSamples::x1;
-		TextureUsage Usage = 0;
-
-		TextureSwizzle SwizzleR = TextureSwizzle::Red;
-		TextureSwizzle SwizzleG = TextureSwizzle::Green;
-		TextureSwizzle SwizzleB = TextureSwizzle::Blue;
-		TextureSwizzle SwizzleA = TextureSwizzle::Alpha;
-
-		void* InitialData = nullptr;
+	struct TextureData {
+		uint32_t Layer = -1;
+		uint32_t Width = -1, Height = -1, Depth = -1;
+		const void* Data = nullptr;
+		uint64_t Size = 0;
 	};
 
+	struct TextureSpecification {
+		std::vector<TextureData> InitialDatas;
+		ImageLayout Layout = ImageLayout::None;
+		Format Format = Format::RGBA8UN;
+		uint32_t Width = 1;
+		uint32_t Height = 1;
+		uint32_t Depth = 1;
+		uint32_t Layers = 1;
+		uint32_t Mips = 1;
+		const ImageType Type = ImageType::_2D;
+		TextureSamples Samples = TextureSamples::x1;
+		TextureSwizzle Swizzles[4] = { TextureSwizzle::Red,TextureSwizzle::Green,TextureSwizzle::Blue,TextureSwizzle::Alpha };
+		bool IsCube = false;
+		bool IsCpuReadable = false;
 
-	class Texture2D : public IRCCounter<false> {
+		TextureSpecification(ImageType type)
+			:Type(type) 
+		{}
+
+		TextureSpecification() = delete;
+	};
+
+	class Texture : public IRCCounter<false> {
 	public:
+		virtual ~Texture() = default;
+		virtual RendererID GetBackendInfo()const = 0;
+		virtual const TextureSpecification& GetTextureSpecification()const = 0;
+		virtual void SetImageLayout(ImageLayout layout) = 0;
+	};
 
+	struct Texture2DSpecification : TextureSpecification {
+		Texture2DSpecification()
+			: TextureSpecification(ImageType::_2D)
+		{}
+	};
+
+	class Texture2D : public Texture {
+	public:
 		virtual ~Texture2D() = default;
-		virtual const Texture2DSpecification& GetSpecification()const = 0;
-		virtual Ref<Image> GetImage()const = 0;
 
-		virtual void* Map(uint32_t mipMap)const = 0;
-		virtual void Unmap()const = 0;
-
-		static Ref<Texture2D> Create(const Texture2DSpecification& spec);
-
+		static Ref<Texture2D> Create(const Texture2DSpecification& specs);
 	};
 
-	struct TextureLayered2DSpecification {
-		Format TextureFormat;
-		uint32_t InitialWidth = 1;
-		uint32_t InitialHeight = 1;
-
-		TextureSamples Samples = TextureSamples::x1;
-		TextureUsage Usage = 0;
-
-		TextureSwizzle SwizzleR = TextureSwizzle::Red;
-		TextureSwizzle SwizzleG = TextureSwizzle::Green;
-		TextureSwizzle SwizzleB = TextureSwizzle::Blue;
-		TextureSwizzle SwizzleA = TextureSwizzle::Alpha;
+	struct TextureLayeredSpecification : TextureSpecification {
+		TextureLayeredSpecification(ImageType type = ImageType::_2D_Array)
+			: TextureSpecification(type)
+		{}
 	};
 
-	struct TextureLayered2DLayerSpecification {
-		uint32_t Width = 1;
-		uint32_t Height = 1;
-
-		void* InitialData;
-	};
-
-	class TextureLayered2D : public IRCCounter<false> {
+	class TextureLayered : public Texture {
 	public:
-		virtual ~TextureLayered2D() = default;
+		virtual ~TextureLayered() = default;
 		
-		virtual const TextureLayered2DSpecification& GetSpecification()const = 0;
-		virtual const TextureLayered2DLayerSpecification& GetLayerSpecification(uint32_t layer)const = 0;
+		static Ref<TextureLayered> Create(const TextureLayeredSpecification& specs);
+	};
 
-		virtual Ref<Image> GetImage()const = 0;
-
-		virtual void* Map(uint32_t mipMap,uint32_t layer)const = 0;
-		virtual void Unmap()const = 0;
-
-		virtual uint32_t Push(const TextureLayered2DLayerSpecification& layerSpec) = 0;
-
-		
-		static Ref<TextureLayered2D> Create(const TextureLayered2DSpecification& spec);
+	class FramebufferTexture : public Texture {
+	public:
+		virtual ~FramebufferTexture() = default;
 	};
 }

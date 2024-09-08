@@ -1,22 +1,11 @@
 #include "KDpch.h"
-#include "Kaidel/Renderer/GraphicsAPI/Shader.h"
+#include "Shader.h"
+
+#include "temp.h"
 
 #include "Kaidel/Renderer/Renderer.h"
-#include "Platform/OpenGL/OpenGLShader.h"
 #include "Platform/Vulkan/GraphicsAPI/VulkanShader.h"
 
-
 namespace Kaidel {
-
-
-	Ref<ShaderModule> ShaderModule::Create(const ShaderSpecification& specification) {
-		switch (Renderer::GetAPI())
-		{
-		//case RendererAPI::API::OpenGL:  return CreateRef<OpenGLShader>(specification);
-		case RendererAPI::API::Vulkan: return CreateRef<VulkanShader>(specification);
-		//case RendererAPI::API::DirectX: return CreateRef<D3DShader>(specification);
-		}
-		KD_CORE_ASSERT(false, "Unknown RendererAPI!");
-		return nullptr;
-	}
+	TMAKE(Ref<Shader>, Shader::Create, TPACK(const std::unordered_map<ShaderType, Spirv>& spirvs), CreateRef<VulkanShader>, TPACK(spirvs));
 }

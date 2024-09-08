@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Platform/Vulkan/VulkanDefinitions.h"
-#include "Kaidel/Renderer/GraphicsAPI/Image.h"
 #include <VMA.h>
 
 
@@ -35,12 +34,12 @@ namespace Kaidel {
 		VulkanBuffer AllocateBuffer(uint64_t size, VmaMemoryUsage memoryUsage, VkBufferUsageFlags usageFlags);
 
 		void DestroyBuffer(VulkanBuffer& buffer);
-		void DestroyImage(ImageSpecification& image);
+		/*void DestroyImage(ImageSpecification& image);
 		ImageSpecification AllocateImage(uint32_t width, uint32_t height, uint32_t depth, uint32_t layers, uint32_t samples,
 								uint32_t mipLevels, Format imageFormat, ImageLayout initialLayout, VmaMemoryUsage memoryUsage,
 								VkImageUsageFlags usageFlags, VkImageType type, uint32_t flags = 0);
 
-		ImageSpecification AllocateImage(const ImageAllocateSpecification& spec);
+		ImageSpecification AllocateImage(const ImageAllocateSpecification& spec);*/
 
 		VmaAllocator GetAllocator()const { return m_Allocator; }
 
