@@ -531,37 +531,37 @@ namespace Kaidel {
 		static VkAccessFlags AccessFlagsToVulkanAccessFlags(AccessFlags flags) {
 			VkAccessFlags ret = 0;
 
-			if(AccessFlags_IndexRead)
+			if(flags & AccessFlags_IndexRead)
 				ret |= VK_ACCESS_INDEX_READ_BIT;
-			if(AccessFlags_VertexAttribureRead)
+			if(flags & AccessFlags_VertexAttribureRead)
 				ret |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-			if(AccessFlags_UniformRead)
+			if(flags & AccessFlags_UniformRead)
 				ret |= VK_ACCESS_UNIFORM_READ_BIT;
-			if(AccessFlags_InputAttachmentRead)
+			if(flags & AccessFlags_InputAttachmentRead)
 				ret |= VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
-			if(AccessFlags_ShaderRead)
+			if(flags & AccessFlags_ShaderRead)
 				ret |= VK_ACCESS_SHADER_READ_BIT;
-			if(AccessFlags_ShaderWrite)
+			if(flags & AccessFlags_ShaderWrite)
 				ret |= VK_ACCESS_SHADER_WRITE_BIT;
-			if(AccessFlags_ColorAttachmentRead)
+			if(flags & AccessFlags_ColorAttachmentRead)
 				ret |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
-			if(AccessFlags_ColorAttachmentWrite)
+			if(flags & AccessFlags_ColorAttachmentWrite)
 				ret |= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-			if(AccessFlags_DepthStencilRead)
+			if(flags & AccessFlags_DepthStencilRead)
 				ret |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-			if(AccessFlags_DepthStencilWrite)
+			if(flags & AccessFlags_DepthStencilWrite)
 				ret |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-			if(AccessFlags_TransferRead)
+			if(flags & AccessFlags_TransferRead)
 				ret |= VK_ACCESS_TRANSFER_READ_BIT;
-			if(AccessFlags_TransferWrite)
+			if(flags & AccessFlags_TransferWrite)
 				ret |= VK_ACCESS_TRANSFER_WRITE_BIT;
-			if(AccessFlags_HostRead)
+			if(flags & AccessFlags_HostRead)
 				ret |= VK_ACCESS_HOST_READ_BIT;
-			if(AccessFlags_HostWrite)
+			if(flags & AccessFlags_HostWrite)
 				ret |= VK_ACCESS_HOST_WRITE_BIT;
-			if(AccessFlags_MemoryRead)
+			if(flags & AccessFlags_MemoryRead)
 				ret |= VK_ACCESS_MEMORY_READ_BIT;
-			if(AccessFlags_MemoryWrite)
+			if(flags & AccessFlags_MemoryWrite)
 				ret |= VK_ACCESS_MEMORY_WRITE_BIT;
 
 

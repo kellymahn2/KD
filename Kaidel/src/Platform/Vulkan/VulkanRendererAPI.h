@@ -6,13 +6,17 @@
 
 #include "Kaidel/Renderer/GraphicsAPI/RenderPass.h"
 #include "Kaidel/Renderer/GraphicsAPI/GraphicsPipeline.h"
+#include "GraphicsAPI/VulkanRenderPass.h"
+#include "GraphicsAPI/VulkanFramebuffer.h"
 
 namespace Kaidel {
 
 	class VulkanRendererAPI :public RendererAPI {
+		struct RenderPassInstance {
+			Ref<VulkanRenderPass> RenderPass;
+			Ref<VulkanFramebuffer> Framebuffer;
+		};
 	public:
-
-	private:
 		// Inherited via RendererAPI
 		void Init() override;
 
@@ -52,6 +56,8 @@ namespace Kaidel {
 			Ref<Texture> dstTexture, std::initializer_list<VkImageCopy> regions)override;
 		virtual void ResolveTexture(Ref<Texture> srcTexture, uint32_t srcLayer, uint32_t srcMip,
 			Ref<Texture> dstTexture, uint32_t dstLayer, uint32_t dstMip)override;*/
+		virtual void ResolveTexture(Ref<Texture> srcTexture, uint32_t srcLayer, uint32_t srcMip,
+			Ref<Texture> dstTexture, uint32_t dstLayer, uint32_t dstMip)override;
 		virtual void ClearColorTexture(Ref<Texture> texture,
 			const AttachmentColorClearValue& clear)override;
 		//void CopyBufferToTexture(In<BufferInfo> srcBuffer, In<TextureInfo> dstTexture, VkImageLayout dstLayout,
@@ -65,12 +71,13 @@ namespace Kaidel {
 			std::initializer_list<MemoryBarrier> memoryBarriers,
 			std::initializer_list<BufferMemoryBarrier> bufferBarriers,
 			std::initializer_list<ImageMemoryBarrier> textureBarriers)override;
+
 	private:
 		static inline std::vector<VkBuffer> m_CurrentBoundBuffers = { 32 , 0 };
 		static inline std::vector<VkDeviceSize> m_CurrentBoundBufferOffsets = std::vector<VkDeviceSize>(32, VkDeviceSize(0));
 		static inline std::vector<VkDescriptorSet> m_DescriptorSets = { 32,VK_NULL_HANDLE };
 
 		Ref<GraphicsPipeline> m_CurrentBoundPipeline = {};
-
+		RenderPassInstance m_RenderPassInstance{};
 	};
 }

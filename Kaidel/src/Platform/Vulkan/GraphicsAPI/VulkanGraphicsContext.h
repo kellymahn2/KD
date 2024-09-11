@@ -62,7 +62,7 @@ namespace Kaidel {
 
 		const Scope<VulkanBackend::Backend>& GetBackend()const { return m_Backend; }
 
-		VulkanBufferStager& GetBufferStager() { return *(VulkanBufferStager*)nullptr;  }
+		VulkanBufferStager& GetBufferStager() { return *m_Stager;  }
 
 		VkCommandBuffer GetCurrentCommandBuffer()const { return m_Swapchain.Frames[m_Swapchain.ImageIndex].MainCommandBuffer; }
 
@@ -124,6 +124,8 @@ namespace Kaidel {
 		Scope<VulkanBackend::Backend> m_Backend;
 
 		VkFence m_SingleSubmitFence;
+
+		Scope<VulkanBufferStager> m_Stager;
 
 		std::unordered_map<VkDescriptorType, std::unordered_map<VkShaderStageFlags,VkDescriptorSetLayout>> m_SingleSetLayouts;
 	};

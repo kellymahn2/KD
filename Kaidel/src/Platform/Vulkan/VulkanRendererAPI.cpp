@@ -47,10 +47,31 @@ namespace Kaidel {
 			VK_SUBPASS_CONTENTS_INLINE,
 			renderArea,
 			std::initializer_list<VkClearValue>(clearBegin,clearEnd));
+
+		for (auto& val : fb->GetResources().Textures) {
+			ImageLayout layout = 
+				Utils::IsDepthFormat(val->GetTextureSpecification().Format) ? 
+				ImageLayout::DepthAttachmentOptimal : ImageLayout::ColorAttachmentOptimal;
+			val->SetImageLayout(layout);
+		}
+		m_RenderPassInstance.RenderPass = rp;
+		m_RenderPassInstance.Framebuffer = fb;
 	}
 	void VulkanRendererAPI::EndRenderPass()
     {
 		VK_BACKEND->CommandEndRenderPass(VK_CURRENT_COMMAND_BUFFER);
+
+		uint32_t colorIndex = 0;
+		for (auto& val : m_RenderPassInstance.Framebuffer->GetResources().Textures) {
+			if (Utils::IsDepthFormat(val->GetTextureSpecification().Format)) {
+				val->SetImageLayout(m_RenderPassInstance.RenderPass->GetSpecification().DepthStencil.FinalLayout);
+			}
+			else {
+				val->SetImageLayout(m_RenderPassInstance.RenderPass->GetSpecification().Colors[colorIndex].FinalLayout);
+				++colorIndex;
+			}
+		}
+		m_RenderPassInstance = {};
     }
 	void VulkanRendererAPI::NextSubpass()
 	{
@@ -190,6 +211,33 @@ namespace Kaidel {
 			x, y, z
 		);
 	}
+	void VulkanRendererAPI::ResolveTexture(Ref<Texture> srcTexture, uint32_t srcLayer, uint32_t srcMip, Ref<Texture> dstTexture, uint32_t dstLayer, uint32_t dstMip)
+	{
+		const VulkanBackend::TextureInfo* srcInfo = (const VulkanBackend::TextureInfo*)srcTexture->GetBackendInfo();
+		const VulkanBackend::TextureInfo* dstInfo = (const VulkanBackend::TextureInfo*)dstTexture->GetBackendInfo();
+
+		VkImageResolve region{};
+		region.srcOffset = { 0,0,0 };
+		region.dstOffset = { 0,0,0 };
+		region.extent = { srcTexture->GetTextureSpecification().Width,srcTexture->GetTextureSpecification().Height, srcTexture->GetTextureSpecification().Depth };
+		region.srcSubresource.aspectMask = srcInfo->ViewInfo.subresourceRange.aspectMask;
+		region.srcSubresource.baseArrayLayer = srcLayer;
+		region.srcSubresource.layerCount = 1;
+		region.srcSubresource.mipLevel = srcMip;
+		region.dstSubresource.aspectMask = dstInfo->ViewInfo.subresourceRange.aspectMask;
+		region.dstSubresource.baseArrayLayer = dstLayer;
+		region.dstSubresource.layerCount = 1;
+		region.dstSubresource.mipLevel = dstMip;
+		
+		vkCmdResolveImage(
+			VK_CURRENT_COMMAND_BUFFER,
+			srcInfo->ViewInfo.image,
+			Utils::ImageLayoutToVulkanImageLayout(srcTexture->GetTextureSpecification().Layout),
+			dstInfo->ViewInfo.image,
+			Utils::ImageLayoutToVulkanImageLayout(dstTexture->GetTextureSpecification().Layout),
+			1, &region
+			);
+	}
 	void VulkanRendererAPI::ClearColorTexture(Ref<Texture> texture, const AttachmentColorClearValue& clear)
 	{
 		const auto& info =  *(const VulkanBackend::TextureInfo*)texture->GetBackendInfo();
@@ -275,6 +323,11 @@ namespace Kaidel {
 			std::initializer_list<VkBufferMemoryBarrier>(vkBufferBarriers, vkBufferBarriers + bufferBarriers.size()),
 			std::initializer_list<VkImageMemoryBarrier>(vkImageBarriers, vkImageBarriers + textureBarriers.size())
 		);
+
+		for (uint32_t i = 0; i < textureBarriers.size(); ++i) {
+			const ImageMemoryBarrier* barrier = textureBarriers.begin() + i;
+			barrier->Image->SetImageLayout(barrier->NewLayout);
+		}
 	}
     void VulkanRendererAPI::Submit(std::function<void()>&& func)
     {

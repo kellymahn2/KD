@@ -8,7 +8,7 @@ namespace Kaidel {
 			VulkanBackend::RenderPassAttachment ret{};
 			ret.InitialLayout = ImageLayoutToVulkanImageLayout(attachment.InitialLayout);
 			ret.FinalLayout = ImageLayoutToVulkanImageLayout(attachment.FinalLayout);
-			ret.Format = FormatToVulkanFormat(attachment.Format);
+			ret.Format = FormatToVulkanFormat(attachment.AttachmentFormat);
 			ret.LoadOp = AttachmentLoadOpToVulkanAttachmentLoadOp(attachment.LoadOp);
 			ret.StoreOp = AttachmentStoreOpToVulkanAttachmentStoreOp(attachment.StoreOp);
 			ret.StencilLoadOp = AttachmentLoadOpToVulkanAttachmentLoadOp(attachment.StencilLoadOp);
@@ -17,7 +17,7 @@ namespace Kaidel {
 
 			return ret;
 		}
-
+#if 0
 		static VulkanBackend::AttachmentReference ToReference(const AttachmentReference& ref) {
 			VulkanBackend::AttachmentReference ret{};
 			ret.Aspects = ref.Aspects;
@@ -26,28 +26,28 @@ namespace Kaidel {
 			
 			return ret;
 		}
-
+		
 		static std::vector<VulkanBackend::AttachmentReference> ToReferences(const std::vector<AttachmentReference> refs) {
 			std::vector<VulkanBackend::AttachmentReference> ret;
 			ret.resize(refs.size());
-
+		
 			for (uint32_t i = 0; i < refs.size(); ++i) {
 				ret[i] = ToReference(refs[i]);
 			}
-
+		
 			return ret;
 		}
 
 		static VulkanBackend::Subpass ToSubpass(const Subpass& subpass) {
 			VulkanBackend::Subpass ret{};
-
+		
 			ret.Colors = ToReferences(subpass.Colors);
 			ret.DepthStencil = ToReference(subpass.DepthStencil);
 			ret.Inputs = ToReferences(subpass.Inputs);
 			ret.Preserves = subpass.Preserves;
 			ret.Resolves = ToReferences(subpass.Resolves);
 			ret.VRS = ToReference(subpass.VRS);
-
+		
 			return ret;
 		}
 
@@ -59,13 +59,15 @@ namespace Kaidel {
 			ret.DstAccesses = AccessFlagsToVulkanAccessFlags(dependency.DstAccesses);
 			ret.SrcStages = PipelineStagesToVulkanPipelineStageFlags(dependency.SrcStages);
 			ret.DstStages = PipelineStagesToVulkanPipelineStageFlags(dependency.DstStages);
-
+		
 			return ret;
 		}
+#endif
 	}
 	VulkanRenderPass::VulkanRenderPass(const RenderPassSpecification& specs)
 		:m_Specification(specs)
 	{
+#if 0 
 		std::vector<VulkanBackend::RenderPassAttachment> attachments;
 		attachments.resize(specs.Attachments.size());
 		for (uint32_t i = 0; i < specs.Attachments.size(); ++i) {
@@ -88,9 +90,44 @@ namespace Kaidel {
 			std::initializer_list(attachments.data(), attachments.data() + attachments.size()),
 			std::initializer_list(subpasses.data(), subpasses.data() + subpasses.size()),
 			std::initializer_list(dependencies.data(), dependencies.data() + dependencies.size()));
+#else
+		std::vector<VulkanBackend::RenderPassAttachment> attachments;
+		VulkanBackend::Subpass subpass{};
+		
+		for (auto& attachment : specs.Colors) {
+			VulkanBackend::AttachmentReference ref{};
+			ref.Aspects = VK_IMAGE_ASPECT_COLOR_BIT;
+			ref.Attachment = attachments.size();
+			ref.Layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+			attachments.push_back(Utils::ToAttachment(attachment));
+		
+			subpass.Colors.push_back(ref);
+		}
+		
+		if (Utils::IsDepthFormat(specs.DepthStencil.AttachmentFormat)) {
+			VulkanBackend::AttachmentReference ref{};
+			ref.Aspects = VK_IMAGE_ASPECT_DEPTH_BIT;
+			ref.Attachment = attachments.size();
+			ref.Layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+
+			attachments.push_back(Utils::ToAttachment(specs.DepthStencil));
+			
+			subpass.DepthStencil = ref;
+		}
+
+		m_RenderPass = VK_CONTEXT.GetBackend()->CreateRenderPass(
+			std::initializer_list<VulkanBackend::RenderPassAttachment>(attachments.data(), attachments.data() + attachments.size()),
+			{ subpass },
+			{}
+		);
+#endif
 	}
 	VulkanRenderPass::~VulkanRenderPass()
 	{
-		VK_CONTEXT.GetBackend()->DestroyRenderPass(m_RenderPass);
+		auto rp = m_RenderPass;
+		Application::Get().SubmitToMainThread([rp]() {
+			VK_CONTEXT.GetBackend()->DestroyRenderPass(rp);
+		});
 	}
 }

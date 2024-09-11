@@ -5,7 +5,7 @@
 namespace Kaidel {
 
 	struct RenderPassAttachment {
-		Format Format = Format::None;
+		Format AttachmentFormat = Format::None;
 		TextureSamples Samples = TextureSamples::x1;
 		AttachmentLoadOp LoadOp = AttachmentLoadOp::DontCare;
 		AttachmentStoreOp StoreOp = AttachmentStoreOp::DontCare;
@@ -13,36 +13,25 @@ namespace Kaidel {
 		AttachmentStoreOp StencilStoreOp = AttachmentStoreOp::DontCare;
 		ImageLayout InitialLayout = ImageLayout::None;
 		ImageLayout FinalLayout = ImageLayout::None;
-	};
 
-	struct AttachmentReference {
-		uint32_t Attachment = -1;
-		ImageLayout Layout = ImageLayout::None;
-		AspectMask Aspects;
-	};
+		RenderPassAttachment() = default;
 
-	struct Subpass {
-		std::vector<AttachmentReference> Inputs;
-		std::vector<AttachmentReference> Colors;
-		AttachmentReference DepthStencil;
-		std::vector<AttachmentReference> Resolves;
-		std::vector<uint32_t> Preserves;
-		AttachmentReference VRS;
-	};
-
-	struct SubpassDependency {
-		uint32_t Src = -1;
-		uint32_t Dst = -1;
-		PipelineStages SrcStages;
-		PipelineStages DstStages;
-		AccessFlags SrcAccesses;
-		AccessFlags DstAccesses;
+		RenderPassAttachment(Format format,ImageLayout initLayout,ImageLayout finalLayout, TextureSamples samples)
+			:AttachmentFormat(format), 
+			Samples(samples),
+			LoadOp(AttachmentLoadOp::Load), 
+			StoreOp(AttachmentStoreOp::Store),
+			InitialLayout(initLayout),
+			FinalLayout(finalLayout)
+		{}
 	};
 
 	struct RenderPassSpecification {
-		std::vector<RenderPassAttachment> Attachments;
-		std::vector<Subpass> Subpasses;
-		std::vector<SubpassDependency> Dependencies;
+		std::vector<RenderPassAttachment> Inputs;
+		std::vector<RenderPassAttachment> Colors;
+		std::vector<RenderPassAttachment> Resolves;
+		RenderPassAttachment DepthStencil;
+		RenderPassAttachment VRS;
 	};
 
 	class RenderPass : public IRCCounter<false> {

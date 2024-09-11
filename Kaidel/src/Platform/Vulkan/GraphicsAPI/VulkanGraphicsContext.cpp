@@ -100,9 +100,11 @@ namespace Kaidel {
 		#pragma endregion
 		#pragma region LogicalDevice
 		VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures feature{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES,nullptr,VK_TRUE };
-
+		VkPhysicalDeviceFeatures features{};
+		features.geometryShader = true;
+		features.tessellationShader = true;
 		m_LogicalDevice = CreateScope<VulkanLogicalDevice>(*m_PhysicalDevice, std::vector<const char*>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME },
-																layers, VkPhysicalDeviceFeatures{}, &feature);
+																layers, features, &feature);
 
 		gladLoaderLoadVulkan(m_Instance->GetInstance(), m_PhysicalDevice->GetDevice(), m_LogicalDevice->GetDevice());
 		#pragma endregion
@@ -176,8 +178,8 @@ namespace Kaidel {
 			m_GlobalDescriptorPool = CreateScope<VulkanDescriptorPool>(sizes, 1000, VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT);
 		}
 		
-		m_BufferStager = CreateScope<VulkanBufferStager>(10 * 1024 * 1024, 4);*/
-
+		*/
+		m_Stager = CreateScope<VulkanBufferStager>(10 * 1024 * 1024, 4);
 	}
 
 	VkDescriptorSetLayout VulkanGraphicsContext::GetSingleDescriptorSetLayout(VkDescriptorType type, VkShaderStageFlags flags)
@@ -222,7 +224,7 @@ namespace Kaidel {
 			, VK_NULL_HANDLE, &m_Swapchain.ImageIndex));
 
 		m_Backend->CommandBufferBegin(m_Swapchain.Frames[m_Swapchain.ImageIndex].MainCommandBuffer);
-		//m_BufferStager->Reset();
+		m_Stager->Reset();
 	}
 
 	void VulkanGraphicsContext::PresentImage()

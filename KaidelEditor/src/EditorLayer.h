@@ -10,7 +10,6 @@
 #include "Kaidel/Renderer/2D/Renderer2D.h"
 #include "Kaidel/Renderer/RenderCommand.h"
 #include "Kaidel/Renderer/GraphicsAPI/DescriptorSet.h"
-
 #include "EditorIcon.h"
 
 namespace Kaidel {
@@ -72,7 +71,10 @@ namespace Kaidel {
 	private:
 		
 		Console m_DebugConsole;
-		Ref<Framebuffer> m_OutputBuffer,m_ScreenOutputbuffer;
+		PerFrameResource<Ref<Texture2D>> m_OutputTextures;
+		PerFrameResource<Ref<DescriptorSet>> m_OutputDescriptorSet;
+		Ref<RenderPass> m_OutputRenderPass;
+		Ref<Framebuffer> m_ScreenOutputbuffer;
 		Ref<Scene> m_ActiveScene;
 		Ref<Scene> m_EditorScene, m_RuntimeScene,m_SimulationScene;
 
@@ -121,7 +123,6 @@ namespace Kaidel {
 
 		RendererSettings m_RendererSettings = RendererAPI::GetSettings();
 
-		Ref<DescriptorSet> m_OutputDescriptorSet;
 		Ref<Sampler> m_OutputSampler;
 
 	};

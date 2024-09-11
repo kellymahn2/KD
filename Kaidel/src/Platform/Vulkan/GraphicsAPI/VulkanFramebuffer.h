@@ -23,26 +23,20 @@ namespace Kaidel {
 		virtual Ref<Texture2D> GetColorAttachment(uint32_t index)const override{ return m_Framebuffer.Textures[index]; }
 		
 		VkFramebuffer GetFramebuffer()const { return m_Framebuffer.Framebuffer; }
-
-
+		auto& GetResources() { return m_Framebuffer; }
 	private:
 		void Invalidate();
-		Ref<RenderPass> CreateRenderPass();
 		void ClearData();
 		void RegisterAttachments();
 		void Destroy();
 	private:
 		VulkanFramebufferResources m_Framebuffer;
 		
-		std::vector<FramebufferAttachment> m_ColorAttachments;
-		FramebufferAttachment m_DepthAttachment = Format::None;
-		
 		std::vector<Texture2DSpecification> m_ColorInfos;
-		Texture2DSpecification m_DepthInfo;
+		Texture2DSpecification* m_DepthInfo;
 
 		bool m_HasDepth = false;
 		
 		FramebufferSpecification m_Specification;
-		bool m_OptRenderPass = false;
 	};
 }

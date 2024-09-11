@@ -23,7 +23,7 @@ namespace Kaidel{
             VkBufferCopy region{};
             region.srcOffset = 0;
             region.dstOffset = 0;
-            region.size = VK_WHOLE_SIZE;
+            region.size = size;
             backend->CommandCopyBuffer(commandBuffer,stagingBuffer,m_Buffer,{region});
             
             backend->CommandBufferEnd(commandBuffer);

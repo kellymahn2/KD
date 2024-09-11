@@ -93,6 +93,9 @@ namespace Kaidel {
 			{"tes",ShaderType::TessellationEvaluationShader},
 			{"geo",ShaderType::GeometryShader},
 			{"frag",ShaderType::FragmentShader},
+			{"vertex",ShaderType::VertexShader},
+			{"geometry",ShaderType::GeometryShader},
+			{"fragment",ShaderType::FragmentShader},
 		};
 	}
 	
@@ -246,11 +249,12 @@ namespace Kaidel {
 		file.seekg(sizeof(uint64_t), std::ios::beg);
 
 		std::unordered_map<ShaderType, Spirv> result;
-
-		while (!file.eof()) {
-			
+		while (true) {
+				
 			char cType = 0;
 			file.read(&cType, sizeof(char));
+			if (file.eof())
+				return result;
 			ShaderType type = (ShaderType)cType;
 
 			uint64_t byteCount = 0;
@@ -273,6 +277,8 @@ namespace Kaidel {
 		std::string content = ReadFile(path);
 		shaderc::Compiler comp;
 
+		std::string_view contentView = content;
+
 		//Preprocess
 		std::unordered_map<ShaderType, std::string_view> shaderSources;
 
@@ -293,7 +299,7 @@ namespace Kaidel {
 			pos = content.find(typeToken, nextLinePos);
 
 			shaderSources[s_LibraryData->TypeStringsToTypes.at(type)] = 
-				(pos == std::string::npos) ? content.substr(nextLinePos) : content.substr(nextLinePos, pos - nextLinePos);
+				(pos == std::string::npos) ? contentView.substr(nextLinePos) : contentView.substr(nextLinePos, pos - nextLinePos);
 		}
 
 		std::unordered_map<ShaderType, Spirv> spirvs;

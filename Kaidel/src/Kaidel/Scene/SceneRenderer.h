@@ -5,7 +5,7 @@
 #include <glm/glm.hpp>
 #include <queue>
 namespace Kaidel {
-
+	extern TextureSamples samples;
 	class Entity;
 
 	class SceneRenderer {
@@ -13,7 +13,7 @@ namespace Kaidel {
 		SceneRenderer() = default;
 		SceneRenderer(void* scene);
 		void Reset();
-		void Render(Ref<Framebuffer> outputBuffer, const glm::mat4& cameraViewProj, const glm::vec3& cameraPos);
+		void Render(Ref<Texture2D> outputBuffer, const glm::mat4& cameraViewProj, const glm::vec3& cameraPos);
 		SceneRenderer& operator=(void* scene) {
 			m_Context = scene;
 			Reset();

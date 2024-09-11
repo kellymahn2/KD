@@ -13,10 +13,10 @@
 
 #include "Kaidel/Scripting/ScriptEngine.h"
 
-
 #include "yaml-cpp/yaml.h"
 
 #include "imguizmo/ImGuizmo.h"
+#include "Kaidel/Scene/SceneRenderer.h"
 
 
 #include <forward_list>
@@ -72,13 +72,31 @@ namespace Kaidel {
 		KD_INFO("Loaded Stop Button");
 
 		{
-			FramebufferSpecification fbSpec;
-			fbSpec.Attachments = { Format::RGBA8UN/*, Format::Depth32F*/};
-			fbSpec.Width = 1280;
-			fbSpec.Height = 720;
-			fbSpec.Samples = TextureSamples::x1;
-			m_OutputBuffer = Framebuffer::Create(fbSpec);
+			RenderPassSpecification specs{};
+			RenderPassAttachment attach = RenderPassAttachment(Format::RGBA8UN, ImageLayout::None, ImageLayout::General, TextureSamples::x1);
+			attach.LoadOp = AttachmentLoadOp::Clear;
+			specs.Colors.push_back(attach);
+			m_OutputRenderPass = RenderPass::Create(specs);
 		}
+
+		for(auto& texture : m_OutputTextures) {
+			Texture2DSpecification specs{};
+			specs.Width = 1280;
+			specs.Height = 720;
+			specs.Depth = 1;
+			specs.Layers = 1;
+			specs.Mips = 1;
+			specs.Layout = ImageLayout::General;
+			specs.Samples = TextureSamples::x1;
+			specs.Format = Format::RGBA8UN;
+			specs.Swizzles[0] = TextureSwizzle::Red;
+			specs.Swizzles[1] = TextureSwizzle::Green;
+			specs.Swizzles[2] = TextureSwizzle::Blue;
+			specs.Swizzles[3] = TextureSwizzle::Alpha;
+
+			texture = Texture2D::Create(specs);
+		}
+		
 		
 		/*
 		{
@@ -113,21 +131,20 @@ namespace Kaidel {
 		m_ContentBrowserPanel.SetContext(m_PanelContext);*/
 
 		{
-			auto e = m_ActiveScene->CreateEntity("Square1");
-			e.AddComponent<SpriteRendererComponent>();
-			e.GetComponent<TransformComponent>().Translation = { 0,0,0 };
+			uint32_t i = 0;
+			for (; i < m_OutputTextures.GetResources().size(); ++i) {
+				DescriptorSetSpecification specs{};
+				specs.Stages.push_back(ShaderStage_FragmentShader);
+				DescriptorValues val{};
+				val.Type = DescriptorType::SamplerWithTexture;
+				val.ImageValues.Layout = ImageLayout::ShaderReadOnlyOptimal;
+				val.ImageValues.ImageSampler = m_OutputSampler;
+				val.ImageValues.Image = m_OutputTextures.GetResources()[i];
+				specs.Values.push_back(val);
+				m_OutputDescriptorSet.GetResources()[i] = DescriptorSet::Create(specs);
+			}
 		}
-		{
-			DescriptorValues value{};
-			value.Type = DescriptorType::SamplerWithTexture;
-			value.ImageValues.Layout = ImageLayout::ShaderReadOnlyOptimal;
-			value.ImageValues.ImageSampler = m_OutputSampler;
-			value.ImageValues.Image = m_OutputBuffer->GetColorAttachment(0);
-			DescriptorSetSpecification specs{};
-			specs.Stages.push_back(ShaderStage_FragmentShader);
-			specs.Values.push_back(value);
-			m_OutputDescriptorSet = DescriptorSet::Create(specs);
-		}
+
 	}
 
 	void EditorLayer::OnDetach()
@@ -153,7 +170,7 @@ namespace Kaidel {
 		{
 		case SceneState::Edit:
 		{
-			m_ActiveScene->OnUpdateEditor(ts, m_EditorCamera, m_OutputBuffer);
+			m_ActiveScene->OnUpdateEditor(ts, m_EditorCamera, *m_OutputTextures);
 
 			// Project Auto Save
 			auto& currentProjectConfig = Project::GetActive()->GetConfig();
@@ -177,6 +194,17 @@ namespace Kaidel {
 			m_ActiveScene->OnUpdateSimulation(ts, m_EditorCamera);
 			break;
 		}
+		}
+
+		{
+			ImageMemoryBarrier barrier(*m_OutputTextures, ImageLayout::ShaderReadOnlyOptimal, AccessFlags_TransferWrite, AccessFlags_ShaderRead);
+			RenderCommand::PipelineBarrier(
+				PipelineStages_Transfer,
+				PipelineStages_FragmentShader,
+				{},
+				{},
+				{ barrier }
+			);
 		}
 
 	}
@@ -529,13 +557,20 @@ namespace Kaidel {
 			ImGui::TextWrapped("%s Took :(%.3f ns,%.3f ms,%.3f s)", name.c_str(), ns, ms, s);
 		}
 
-		bool b = m_RendererSettings.MSAASampleCount == 8;
-		if (ImGui::Checkbox("8", &b)) {
-			auto& settings = RendererAPI::GetSettings();
-			settings.MSAASampleCount = b ? 8 : 4;
-
-			Application::Get().PublishEvent<RendererSettingsChangedEvent>();
+		if (ImGui::Button("x2")) {
+			samples = TextureSamples::x2;
 		}
+		if (ImGui::Button("x4")) {
+			samples = TextureSamples::x4;
+		}
+		if (ImGui::Button("x8")) {
+			samples = TextureSamples::x8;
+		}
+		if (ImGui::Button("x16")) {
+			samples = TextureSamples::x16;
+		}
+
+		ImGui::Text("Current samples: %d", (int)samples);
 
 
 		ImGui::Text("UI Vertex Count: %d", ImGui::GetIO().MetricsRenderVertices);
@@ -579,6 +614,9 @@ namespace Kaidel {
 	void EditorLayer::ShowViewport()
 	{
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0, 0 });
+		
+		ImGui::SetNextWindowSize({ 1280,720 });
+		
 		ImGui::Begin("Viewport", nullptr, 0 | ImGuiWindowFlags_NoTitleBar);
 
 		UpdateBounds(m_ViewportBounds);
@@ -590,7 +628,8 @@ namespace Kaidel {
 		m_ViewportSize = { viewportPanelSize.x, viewportPanelSize.y };
 
 		glm::vec4 uvs = _GetUVs();
-		//ImGui::Image(reinterpret_cast<ImTextureID>(m_OutputDescriptorSet->()), ImVec2{m_ViewportSize.x, m_ViewportSize.y}, {uvs.x,uvs.y}, {uvs.z,uvs.w});
+		Ref<DescriptorSet> ds = *m_OutputDescriptorSet;
+		ImGui::Image(reinterpret_cast<ImTextureID>(ds->GetSetID()), ImVec2{1280,720}, {uvs.x,uvs.y}, {uvs.z,uvs.w});
 		
 		//ImGui::Text("Hello");
 		
@@ -609,18 +648,46 @@ namespace Kaidel {
 	}
 
 	void EditorLayer::HandleViewportResize() {
+		const TextureSpecification& outputSpec = m_OutputTextures->Get()->GetTextureSpecification();
 		if (m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f && // zero sized framebuffer is invalid
-			(m_OutputBuffer->GetSpecification().Width != m_ViewportSize.x || m_OutputBuffer->GetSpecification().Height != m_ViewportSize.y))
+			(outputSpec.Width != m_ViewportSize.x || outputSpec.Height != m_ViewportSize.y))
 		{
-			Application::Get().SubmitToMainThread([this]() {
-				KD_CORE_INFO("Resized");
-				RenderCommand::DeviceWaitIdle();
-				m_OutputBuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
-				//m_ScreenOutputbuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+			KD_CORE_INFO("Resized");
+	
+			{
+				Texture2DSpecification specs{};
+				specs.Width = m_ViewportSize.x;
+				specs.Height = m_ViewportSize.y;
+				specs.Depth = outputSpec.Depth;
+				specs.Layers = outputSpec.Layers;
+				specs.Mips = outputSpec.Mips;
+				specs.Layout = ImageLayout::General;
+				specs.Samples = outputSpec.Samples;
+				specs.Format = outputSpec.Format;
+				specs.Swizzles[0] = outputSpec.Swizzles[0];
+				specs.Swizzles[1] = outputSpec.Swizzles[1];
+				specs.Swizzles[3] = outputSpec.Swizzles[2];
+				specs.Swizzles[2] = outputSpec.Swizzles[3];
 
-				m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);
-				m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
-			});
+				*m_OutputTextures = Texture2D::Create(specs);
+			}
+
+			{
+				DescriptorSetSpecification specs{};
+				specs.Stages.push_back(ShaderStage_FragmentShader);
+				DescriptorValues val{};
+				val.Type = DescriptorType::SamplerWithTexture;
+				val.ImageValues.Layout = ImageLayout::ShaderReadOnlyOptimal;
+				val.ImageValues.ImageSampler = m_OutputSampler;
+				val.ImageValues.Image = *m_OutputTextures;
+				specs.Values.push_back(val);
+				*m_OutputDescriptorSet = DescriptorSet::Create(specs);
+			}
+			
+			//m_ScreenOutputbuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+
+			m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);
+			m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 		}
 	}
 

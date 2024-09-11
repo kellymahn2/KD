@@ -2,7 +2,7 @@
 #include "Backend.h"
 
 bool operator==(const VkDescriptorPoolSize& lhs, const VkDescriptorPoolSize& rhs) {
-	return lhs == rhs;
+	return lhs.descriptorCount == rhs.descriptorCount && lhs.type == rhs.type;
 }
 
 namespace VulkanBackend {
@@ -732,6 +732,7 @@ namespace VulkanBackend {
 		pipelineInfo.pRasterizationState = &rasterizationState;
 		pipelineInfo.pTessellationState = &tessellationState;
 		pipelineInfo.pVertexInputState = &input;
+		pipelineInfo.pViewportState = &viewportState;
 		pipelineInfo.pStages = shaderStages.data();
 		pipelineInfo.stageCount = (uint32_t)shaderStages.size();
 		pipelineInfo.renderPass = renderPass;
@@ -814,6 +815,11 @@ namespace VulkanBackend {
 	void Backend::BufferUnmap(In<BufferInfo> buffer)
 	{
 		vmaUnmapMemory(m_Allocator, buffer.Allocation);
+	}
+
+	void Backend::BufferFlush(In<BufferInfo> buffer, uint64_t offset, uint64_t size)
+	{
+		vmaFlushAllocation(m_Allocator, buffer.Allocation, offset, size);
 	}
 
 	VkRenderPass Backend::CreateRenderPass(std::initializer_list<RenderPassAttachment> attachments,

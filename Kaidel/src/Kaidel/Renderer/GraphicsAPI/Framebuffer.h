@@ -6,20 +6,9 @@
 
 namespace Kaidel {
 	
-	struct FramebufferAttachment {
-		Format AttachmentFormat;
-		FramebufferAttachment(Format format)
-			:AttachmentFormat(format)
-		{}
-	};
-
 	struct FramebufferSpecification {
 		uint32_t Width = 1, Height = 1;
-		TextureSamples Samples = TextureSamples::x1;
-		std::vector<FramebufferAttachment> Attachments;
-
-		//Optional
-		Ref<RenderPass> OptRenderPass;
+		Ref<RenderPass> RenderPass;
 	};
 
 

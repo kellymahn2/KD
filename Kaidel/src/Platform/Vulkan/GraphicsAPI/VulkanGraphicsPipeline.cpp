@@ -121,14 +121,16 @@ namespace Kaidel {
 		
 		{
 			const auto& rpSpec = rp->GetSpecification();
-			const auto& subpass = rpSpec.Subpasses[specs.Subpass];
-			const auto& subpassColors = subpass.Colors;
+			const auto& subpassColors = rpSpec.Colors;
 
 			for (uint32_t i = 0; i < subpassColors.size(); ++i)
 			{
 				VkPipelineColorBlendAttachmentState blendAttachment{};
-				if (subpassColors[i].Attachment != -1)
-				{
+				if (std::find_if(specs.Blend.Attachments.begin(), specs.Blend.Attachments.end(),
+					[i](const PipelineColorBlend::Attachment& attachment) {
+						return attachment.AttachmentIndex == i;
+					}
+				) != specs.Blend.Attachments.end()) {
 					blendAttachment.blendEnable = specs.Blend.Attachments[i].Blend;
 
 					blendAttachment.srcColorBlendFactor = Utils::BlendFactorToVulkanBlendFactor(specs.Blend.Attachments[i].SrcColorBlend);
@@ -152,7 +154,23 @@ namespace Kaidel {
 						blendAttachment.colorWriteMask |= VK_COLOR_COMPONENT_A_BIT;
 					}
 				}
+				else {
+					blendAttachment.blendEnable = VK_FALSE;
 
+					blendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+					blendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+					blendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
+
+					blendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+					blendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+					blendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+					blendAttachment.colorWriteMask |= VK_COLOR_COMPONENT_R_BIT;
+					blendAttachment.colorWriteMask |= VK_COLOR_COMPONENT_G_BIT;
+					blendAttachment.colorWriteMask |= VK_COLOR_COMPONENT_B_BIT;
+					blendAttachment.colorWriteMask |= VK_COLOR_COMPONENT_A_BIT;
+				}
+				
 				attachmentStates.push_back(blendAttachment);
 			}
 		}
@@ -229,6 +247,9 @@ namespace Kaidel {
 	}
 	VulkanGraphicsPipeline::~VulkanGraphicsPipeline()
 	{
-		VK_CONTEXT.GetBackend()->DestroyGraphicsPipeline(m_Pipeline);
+		auto pipeline = m_Pipeline;
+		Application::Get().SubmitToMainThread([pipeline]() {
+			VK_CONTEXT.GetBackend()->DestroyGraphicsPipeline(pipeline);
+		});
 	}
 }

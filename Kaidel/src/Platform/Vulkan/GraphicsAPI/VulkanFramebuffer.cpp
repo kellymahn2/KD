@@ -29,35 +29,38 @@ namespace Kaidel {
 		}
 
 		static VulkanFramebufferResources CreateFramebuffer(
-			const FramebufferSpecification& specs,
-			const std::vector<Texture2DSpecification>& colorSpecs,
-			const Texture2DSpecification& depth,bool usesDepth, VkRenderPass renderPass)
+			const FramebufferSpecification& specs,bool usesDepth)
 		{
 			const auto& backend = VK_CONTEXT.GetBackend();
 
+			auto& rpSpec = specs.RenderPass->GetSpecification();
+
 			VulkanFramebufferResources ret{};
-			ret.Textures.resize(colorSpecs.size() + (uint32_t)usesDepth);
+			ret.Textures.resize(rpSpec.Colors.size() + (uint32_t)usesDepth);
 
 			std::vector<const VulkanBackend::TextureInfo*> infos;
 			
-			for (uint32_t i = 0; i < colorSpecs.size(); ++i) {
-				const auto& color = colorSpecs[i];
+			for (uint32_t i = 0; i < rpSpec.Colors.size(); ++i) {
+				const auto& color = rpSpec.Colors[i];
 
 				ret.Textures[i] = 
-					CreateRef<VulkanFramebufferTexture>(specs.Width,specs.Height,color.Format,specs.Samples,false);
+					CreateRef<VulkanFramebufferTexture>(specs.Width,specs.Height,color.AttachmentFormat,color.Samples,false);
 
 				infos.push_back(((const VulkanBackend::TextureInfo*)ret.Textures[i]->GetBackendInfo()));
 			}
 
 			if (usesDepth) {
 
-				ret.Textures[colorSpecs.size()] =
-					CreateRef<VulkanFramebufferTexture>(specs.Width, specs.Height, depth.Format, specs.Samples, true);
+				auto& depth = rpSpec.DepthStencil;
 
-				infos.push_back(((const VulkanBackend::TextureInfo*)ret.Textures[colorSpecs.size()]->GetBackendInfo()));
+				ret.Textures[rpSpec.Colors.size()] =
+					CreateRef<VulkanFramebufferTexture>(specs.Width, specs.Height, depth.AttachmentFormat, depth.Samples, true);
+
+				infos.push_back(((const VulkanBackend::TextureInfo*)ret.Textures[rpSpec.Colors.size()]->GetBackendInfo()));
 			}
 
-			ret.Framebuffer = backend->CreateFramebuffer(renderPass, infos, specs.Width, specs.Height);
+			ret.Framebuffer = 
+				backend->CreateFramebuffer(((VulkanRenderPass*)specs.RenderPass.Get())->GetRenderPass(), infos, specs.Width, specs.Height);
 
 			return ret;
 		}
@@ -65,7 +68,7 @@ namespace Kaidel {
 		static void DestroyFramebuffer(VulkanFramebufferResources& resources) {
 			const auto& backend = VK_CONTEXT.GetBackend();
 			backend->DestroyFramebuffer(resources.Framebuffer);
-			resources.Textures = {};
+			resources.Textures.clear();
 		}
 	}
 
@@ -75,20 +78,15 @@ namespace Kaidel {
 	{
 		RegisterAttachments();
 
-		//doesnt have render pass.
-		if (!m_Specification.OptRenderPass) {
-			m_OptRenderPass = false;
-			m_Specification.OptRenderPass = CreateRenderPass();
-		}
-		else {
-			m_OptRenderPass = true;
-		}
-	
 		Invalidate();
 	}
 	VulkanFramebuffer::~VulkanFramebuffer()
 	{
-		Destroy();
+		const auto& backend = VK_CONTEXT.GetBackend();
+		backend->DestroyFramebuffer(m_Framebuffer.Framebuffer);
+		m_Framebuffer.Textures.clear();
+		m_ColorInfos.clear();
+		delete m_DepthInfo;
 	}
 	void VulkanFramebuffer::Recreate(const FramebufferSpecification& newSpecs)
 	{
@@ -98,14 +96,6 @@ namespace Kaidel {
 		m_Specification = newSpecs;
 		RegisterAttachments();
 
-		//doesnt have render pass.
-		if (!m_Specification.OptRenderPass) {
-			m_OptRenderPass = false;
-			m_Specification.OptRenderPass = CreateRenderPass();
-		}
-		else {
-			m_OptRenderPass = true;
-		}
 
 		Invalidate();
 	}
@@ -130,105 +120,32 @@ namespace Kaidel {
 	
 	void VulkanFramebuffer::Invalidate()
 	{
-		m_Framebuffer = Utils::CreateFramebuffer(m_Specification, m_ColorInfos, m_DepthInfo, m_HasDepth,
-			((VulkanRenderPass*)m_Specification.OptRenderPass.Get())->GetRenderPass());
-	}
-	
-	Ref<RenderPass> VulkanFramebuffer::CreateRenderPass()
-	{
-		RenderPassSpecification rpSpec{};
-		
-		uint64_t colorCount = 0;
-		for (auto& color : m_ColorAttachments) {
-			RenderPassAttachment attachment = {};
-			attachment.Format = color.AttachmentFormat;
-
-			attachment.InitialLayout = ImageLayout::None;
-			attachment.FinalLayout = ImageLayout::General;
-
-			attachment.Samples = TextureSamples::x1;
-			
-			attachment.LoadOp = AttachmentLoadOp::Clear;
-			attachment.StoreOp = AttachmentStoreOp::Store;
-			
-			attachment.StencilLoadOp = AttachmentLoadOp::DontCare;
-			attachment.StencilStoreOp = AttachmentStoreOp::DontCare;
-			
-			rpSpec.Attachments.push_back(attachment);
-		}
-
-		colorCount = rpSpec.Attachments.size();
-
-		if (m_HasDepth) {
-			RenderPassAttachment attachment = {};
-			attachment.Format = m_DepthAttachment.AttachmentFormat;
-
-			attachment.InitialLayout = ImageLayout::None;
-			attachment.FinalLayout = ImageLayout::General;
-
-			attachment.Samples = TextureSamples::x1;
-
-			attachment.LoadOp = AttachmentLoadOp::Clear;
-			attachment.StoreOp = AttachmentStoreOp::Store;
-
-			attachment.StencilLoadOp = AttachmentLoadOp::DontCare;
-			attachment.StencilStoreOp = AttachmentStoreOp::DontCare;
-
-			rpSpec.Attachments.push_back(attachment);
-		}
-
-		Subpass subpass{};
-
-		for (uint64_t i = 0; i < colorCount; ++i) {
-			AttachmentReference ref{};
-			ref.Aspects = AspectMask_Color;
-			ref.Attachment = i;
-			ref.Layout = ImageLayout::ColorAttachmentOptimal;
-			subpass.Colors.push_back(ref);
-		}
-
-		if (m_HasDepth) {
-			AttachmentReference ref{};
-			ref.Aspects = AspectMask_Color;
-			ref.Attachment = colorCount;
-			ref.Layout = ImageLayout::ColorAttachmentOptimal;
-			subpass.DepthStencil = ref;
-		}
-
-		rpSpec.Subpasses.push_back(subpass);
-
-		return RenderPass::Create(rpSpec);
+		m_Framebuffer = Utils::CreateFramebuffer(m_Specification,m_HasDepth);
 	}
 	
 	void VulkanFramebuffer::ClearData()
 	{
-		m_ColorAttachments.clear();
-		m_DepthAttachment.AttachmentFormat = Format::None;
 		m_ColorInfos.clear();
 		m_HasDepth = false;
-		m_OptRenderPass = false;
+		delete m_DepthInfo;
 	}
 	
 	void VulkanFramebuffer::RegisterAttachments()
 	{
-		for (uint32_t i = 0; i < m_Specification.Attachments.size(); ++i) {
-			const auto& attachment = m_Specification.Attachments[i];
-			if (Utils::IsDepthFormat(attachment.AttachmentFormat)) {
-				m_HasDepth = true;
-				auto spec = Utils::GetTextureSpecification(
-					attachment.AttachmentFormat,
-					true, m_Specification.Width, m_Specification.Height, m_Specification.Samples);
-				memcpy(&m_DepthInfo, &spec, sizeof(spec));
-				m_DepthAttachment = attachment;
-			}
-			else {
-				m_ColorInfos.push_back(Utils::GetTextureSpecification(
-					attachment.AttachmentFormat,
-					false, m_Specification.Width, m_Specification.Height, m_Specification.Samples
-				));
+		KD_CORE_ASSERT(m_Specification.RenderPass);
+		for (auto& attachment : m_Specification.RenderPass->GetSpecification().Colors) {
+			m_ColorInfos.push_back(Utils::GetTextureSpecification(
+				attachment.AttachmentFormat,
+				false, m_Specification.Width, m_Specification.Height, attachment.Samples
+			));
+		}
 
-				m_ColorAttachments.push_back(attachment);
-			}
+		if (Utils::IsDepthFormat(m_Specification.RenderPass->GetSpecification().DepthStencil.AttachmentFormat)) {
+			auto& attachment = m_Specification.RenderPass->GetSpecification().DepthStencil;
+			m_HasDepth = true;
+			m_DepthInfo = new Texture2DSpecification(Utils::GetTextureSpecification(
+				attachment.AttachmentFormat,
+				true, m_Specification.Width, m_Specification.Height, attachment.Samples));
 		}
 	}
 	

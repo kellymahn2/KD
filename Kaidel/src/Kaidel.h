@@ -36,5 +36,6 @@
 #include "Kaidel/Renderer/GraphicsAPI/RenderPass.h"
 #include "Kaidel/Renderer/GraphicsAPI/Shader.h"
 #include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/PerFrameResource.h"
 
 // -----------------------------------

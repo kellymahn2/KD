@@ -21,6 +21,11 @@ namespace Kaidel {
 	{
 		std::vector<VertexInputElement> Elements;
 		VertexInputRate InputRate;
+
+		VertexInputBinding() = default;
+		VertexInputBinding(std::initializer_list<VertexInputElement> elements,VertexInputRate inputRate = VertexInputRate::Vertex)
+			:Elements(elements),InputRate(inputRate)
+		{}
 	};
 
 	struct VertexInputSpecification
@@ -84,6 +89,7 @@ namespace Kaidel {
 
 		struct Attachment
 		{
+			uint32_t AttachmentIndex = -1;
 			bool Blend = false;
 			BlendFactor SrcColorBlend = BlendFactor::Zero;
 			BlendFactor DstColorBlend = BlendFactor::Zero;

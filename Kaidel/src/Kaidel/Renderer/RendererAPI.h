@@ -26,6 +26,19 @@ namespace Kaidel {
 		ImageLayout OldLayout = ImageLayout::None;
 		ImageLayout NewLayout = ImageLayout::None;
 		TextureSubresourceRegion Subresource;
+
+		ImageMemoryBarrier() = default;
+		
+		//Used for layout transitions for all layers and all mips.
+		ImageMemoryBarrier(Ref<Texture> image, ImageLayout newLayout, AccessFlags src, AccessFlags dst)
+			:Image(image), Src(src), Dst(dst), NewLayout(newLayout)
+		{
+			OldLayout = image->GetTextureSpecification().Layout;
+			Subresource.LayerCount = image->GetTextureSpecification().Layers;
+			Subresource.MipCount = image->GetTextureSpecification().Mips;
+			Subresource.StartLayer = 0;
+			Subresource.StarMip = 0;
+		}
 	};
 
 	struct BufferMemoryBarrier {
@@ -81,8 +94,9 @@ namespace Kaidel {
 		//void CopyBuffer(In<BufferInfo> srcBuffer, In<BufferInfo> dstBuffer, std::initializer_list<VkBufferCopy> regions);
 		/*virtual void CopyTexture(Ref<Texture> srcTexture,
 			Ref<Texture> dstTexture, std::initializer_list<VkImageCopy> regions) = 0;
+		*/
 		virtual void ResolveTexture(Ref<Texture> srcTexture, uint32_t srcLayer, uint32_t srcMip,
-			Ref<Texture> dstTexture, uint32_t dstLayer, uint32_t dstMip) = 0;*/
+			Ref<Texture> dstTexture, uint32_t dstLayer, uint32_t dstMip) = 0;
 		virtual void ClearColorTexture(Ref<Texture> texture,
 			const AttachmentColorClearValue& clear) = 0;
 		//void CopyBufferToTexture(In<BufferInfo> srcBuffer, In<TextureInfo> dstTexture, VkImageLayout dstLayout,
@@ -96,6 +110,7 @@ namespace Kaidel {
 			std::initializer_list<MemoryBarrier> memoryBarriers,
 			std::initializer_list<BufferMemoryBarrier> bufferBarriers,
 			std::initializer_list<ImageMemoryBarrier> textureBarriers) = 0;
+
 
 		static RendererSettings& GetSettings() { return s_RendererSettings; }
 

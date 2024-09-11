@@ -399,6 +399,12 @@ namespace Kaidel {
 	union AttachmentClearValue {
 		AttachmentColorClearValue ColorClear;
 		AttachmentDepthStencilClearValue DepthStencilClear;
+		AttachmentClearValue(const AttachmentColorClearValue& color)
+			:ColorClear(color)
+		{}
+		AttachmentClearValue(const AttachmentDepthStencilClearValue& depth)
+			:DepthStencilClear(depth)
+		{}
 	};
 
 	struct AttachmentClear {

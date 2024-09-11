@@ -11,6 +11,7 @@ namespace Kaidel {
 	};
 
 	struct TextureSpecification {
+		virtual ~TextureSpecification() = default;
 		std::vector<TextureData> InitialDatas;
 		ImageLayout Layout = ImageLayout::None;
 		Format Format = Format::RGBA8UN;
@@ -41,6 +42,7 @@ namespace Kaidel {
 	};
 
 	struct Texture2DSpecification : TextureSpecification {
+		virtual ~Texture2DSpecification() = default;
 		Texture2DSpecification()
 			: TextureSpecification(ImageType::_2D)
 		{}

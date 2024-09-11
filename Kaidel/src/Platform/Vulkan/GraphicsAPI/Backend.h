@@ -372,6 +372,7 @@ namespace VulkanBackend
 		BufferInfo CreateBuffer(uint64_t size, VkBufferUsageFlags usage, bool isGpu = true);
 		uint8_t* BufferMap(In<BufferInfo> buffer);
 		void BufferUnmap(In<BufferInfo> buffer); 
+		void BufferFlush(In<BufferInfo> buffer,uint64_t offset,uint64_t size);
 		void DestroyBuffer(InOut<BufferInfo> buffer);
 		
 		//Framebuffer

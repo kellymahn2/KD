@@ -4,25 +4,29 @@
 namespace Kaidel {
 	VulkanStagingBuffer::VulkanStagingBuffer(uint64_t size)
 	{
-		m_StagingBuffer = VK_ALLOCATOR.AllocateBuffer(size, VMA_MEMORY_USAGE_CPU_ONLY, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-		vmaMapMemory(VK_ALLOCATOR.GetAllocator(), m_StagingBuffer.Allocation, (void**)&m_MappedBufferBegin);
+		m_StagingBuffer = VK_BACKEND->CreateBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, false);
+		m_MappedBufferBegin = VK_BACKEND->BufferMap(m_StagingBuffer);
 		m_MappedBufferCurrent = m_MappedBufferBegin;
 		m_MappedBufferEnd = m_MappedBufferBegin + size;
 	}
 	VulkanStagingBuffer::~VulkanStagingBuffer()
 	{
-		vmaUnmapMemory(VK_ALLOCATOR.GetAllocator(), m_StagingBuffer.Allocation);
-		VK_ALLOCATOR.DestroyBuffer(m_StagingBuffer);
+		VK_BACKEND->BufferUnmap(m_StagingBuffer);
+		VK_BACKEND->DestroyBuffer(m_StagingBuffer);
 	}
 	bool VulkanStagingBuffer::HasUnusedSpace(uint64_t dataSize) {
 		return m_MappedBufferCurrent + dataSize < m_MappedBufferEnd;
 	}
-	void VulkanStagingBuffer::AddCopyOperation(VkCommandBuffer commandBuffer, VkBuffer buffer, const void* data, uint64_t dataSize)
+	void VulkanStagingBuffer::AddCopyOperation(
+		VkCommandBuffer commandBuffer, VkBuffer buffer, const void* data, uint64_t dataSize, 
+		VkAccessFlags access, VkPipelineStageFlags stageFlags)
 	{
 		KD_CORE_ASSERT(HasUnusedSpace(dataSize));
 
 		// Copy data to the mapped staging buffer
 		memcpy(m_MappedBufferCurrent, data, dataSize);
+
+		VK_BACKEND->BufferFlush(m_StagingBuffer, m_MappedBufferCurrent - m_MappedBufferBegin, dataSize);
 
 		// Prepare the buffer copy region
 		VkBufferCopy copyRegion = {};
@@ -33,7 +37,7 @@ namespace Kaidel {
 		// Insert a barrier before the copy to ensure the destination buffer is not being used
 		VkBufferMemoryBarrier beforeCopyBarrier = {};
 		beforeCopyBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-		beforeCopyBarrier.srcAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT; // Previous access types
+		beforeCopyBarrier.srcAccessMask = access; // Previous access types
 		beforeCopyBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT; // Next access type
 		beforeCopyBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		beforeCopyBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -43,7 +47,7 @@ namespace Kaidel {
 
 		vkCmdPipelineBarrier(
 			commandBuffer,
-			VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, // Source stages
+			stageFlags, // Source stages
 			VK_PIPELINE_STAGE_TRANSFER_BIT, // Destination stage
 			0,
 			0, nullptr,
@@ -64,7 +68,7 @@ namespace Kaidel {
 		VkBufferMemoryBarrier afterCopyBarrier = {};
 		afterCopyBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
 		afterCopyBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT; // Previous access type
-		afterCopyBarrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT; // Next access types
+		afterCopyBarrier.dstAccessMask = access; // Next access types
 		afterCopyBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		afterCopyBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		afterCopyBarrier.buffer = buffer;
@@ -74,7 +78,7 @@ namespace Kaidel {
 		vkCmdPipelineBarrier(
 			commandBuffer,
 			VK_PIPELINE_STAGE_TRANSFER_BIT, // Source stage
-			VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, // Destination stages
+			stageFlags, // Destination stages
 			0,
 			0, nullptr,
 			1, &afterCopyBarrier,

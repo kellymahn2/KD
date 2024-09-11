@@ -8,7 +8,9 @@ namespace Kaidel {
 	class VulkanBufferStager {
 	public:
 		VulkanBufferStager(uint64_t eachBufferSize, uint32_t maximumStagingBuffersPerFrame);
-		void Stage(VkCommandBuffer commandBuffer, VkBuffer buffer, const void* data, uint64_t size);
+		void StageVertexBuffer(VkCommandBuffer commandBuffer, VkBuffer buffer, const void* data, uint64_t size);
+		void StageUniformBuffer(VkCommandBuffer commandBuffer, VkBuffer buffer, const void* data, uint64_t size);
+		void StageStorageBuffer(VkCommandBuffer commandBuffer, VkBuffer buffer, const void* data, uint64_t size);
 
 		void Reset();
 
@@ -21,7 +23,7 @@ namespace Kaidel {
 	private:
 		PerFrameBlock CreateFrameBlock(uint32_t bufferSize, uint32_t maxStagingBuffersPerFrame);
 	private:
-		PerFrameResource<PerFrameBlock> m_Blocks;
+		std::vector<PerFrameBlock> m_Blocks;
 		uint64_t m_EachBufferSize;
 	};
 

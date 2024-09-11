@@ -17,7 +17,7 @@ namespace Kaidel {
 
 			for (uint32_t i = 0; i < values.size(); ++i) {
 				const auto& value = values[i];
-				VkWriteDescriptorSet write{};
+				VkWriteDescriptorSet write{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 				write.descriptorCount = 1;
 				write.descriptorType = DescriptorTypeToVulkanDescriptorType(value.Type);
 				write.dstArrayElement = 0;
@@ -40,7 +40,7 @@ namespace Kaidel {
 				case DescriptorType::StorageBuffer:
 				{
 					VkDescriptorBufferInfo info = {};
-					info.buffer = (VkBuffer)value.BufferValues.Buffer->GetRendererID();
+					info.buffer = ((const VulkanBackend::BufferInfo*)value.BufferValues.Buffer->GetRendererID())->Buffer;
 					info.offset = 0;
 					info.range = VK_WHOLE_SIZE;
 					buffers.push_back(info);
@@ -48,6 +48,7 @@ namespace Kaidel {
 				}
 				break;
 				}
+				writes.push_back(write);
 			}
 		}
 	}

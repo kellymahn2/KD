@@ -10,6 +10,7 @@ namespace Kaidel {
 		~VulkanDescriptorSet();
 
 		virtual const DescriptorSetSpecification& GetSpecification()const override { return m_Specification; }
+		virtual RendererID GetSetID()const override { return (RendererID)m_Info.Set; }
 
 		const VulkanBackend::DescriptorSetInfo& GetSetInfo()const { return m_Info; }
 	private:

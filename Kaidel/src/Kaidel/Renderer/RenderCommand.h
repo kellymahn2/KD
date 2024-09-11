@@ -87,11 +87,12 @@ namespace Kaidel {
 		/*static void CopyTexture(Ref<Texture> srcTexture,
 			Ref<Texture> dstTexture, std::initializer_list<VkImageCopy> regions){
 
-		}
-		static void ResolveTexture(Ref<Texture> srcTexture, uint32_t srcLayer, uint32_t srcMip,
-			Ref<Texture> dstTexture, uint32_t dstLayer, uint32_t dstMip){
-
 		}*/
+
+		static void ResolveTexture(Ref<Texture> srcTexture, uint32_t srcLayer, uint32_t srcMip,
+			Ref<Texture> dstTexture, uint32_t dstLayer, uint32_t dstMip) {
+			s_RendererAPI->ResolveTexture(srcTexture, srcLayer, srcMip, dstTexture, dstLayer, dstMip);
+		}
 		static void ClearColorTexture(Ref<Texture> texture,
 			const AttachmentColorClearValue& clear) {
 			s_RendererAPI->ClearColorTexture(texture, clear);
@@ -109,7 +110,6 @@ namespace Kaidel {
 			std::initializer_list<ImageMemoryBarrier> textureBarriers) {
 			s_RendererAPI->PipelineBarrier(srcStages, dstStages, memoryBarriers, bufferBarriers, textureBarriers);
 		}
-
 		
 		static Scope<RendererAPI>& Get() { return s_RendererAPI; }
 
