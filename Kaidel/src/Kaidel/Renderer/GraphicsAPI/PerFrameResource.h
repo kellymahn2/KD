@@ -12,6 +12,13 @@ namespace Kaidel {
 		PerFrameResource() {
 			m_Resources.resize(Application::Get().GetWindow().GetContext()->GetMaxFramesInFlightCount());
 		}
+
+		void Construct(std::function<T(uint32_t)>&& func) {
+			for (uint32_t i = 0; i < m_Resources.size(); ++i) {
+				m_Resources[i] = func(i);
+			}
+		}
+
 		T* operator->() { return &m_Resources[Application::Get().GetWindow().GetContext()->GetCurrentFrameIndex()]; }
 		T& operator*() { return m_Resources[Application::Get().GetWindow().GetContext()->GetCurrentFrameIndex()]; }
 
@@ -24,6 +31,10 @@ namespace Kaidel {
 		auto end()const { return m_Resources.end(); }
 		auto& GetResources() { return m_Resources; }
 		const auto& GetResources()const { return m_Resources; }
+
+		T& operator[](uint32_t i) { return m_Resources[i]; }
+		const T& operator[](uint32_t i)const { return m_Resources[i]; }
+
 	private:
 		std::vector<T> m_Resources;
 	};

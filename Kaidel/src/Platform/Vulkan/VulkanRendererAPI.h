@@ -8,6 +8,7 @@
 #include "Kaidel/Renderer/GraphicsAPI/GraphicsPipeline.h"
 #include "GraphicsAPI/VulkanRenderPass.h"
 #include "GraphicsAPI/VulkanFramebuffer.h"
+#include "GraphicsAPI/VulkanComputePipeline.h"
 
 namespace Kaidel {
 
@@ -35,6 +36,7 @@ namespace Kaidel {
 		virtual void BindIndexBuffer(Ref<IndexBuffer> buffer, uint64_t offset)override;
 
 		virtual void BindGraphicsPipeline(Ref<GraphicsPipeline> pipeline)override;
+		virtual void BindComputePipeline(Ref<ComputePipeline> pipeline)override;
 		virtual void BindPushConstants(Ref<Shader> shader, uint32_t firstIndex, const uint8_t* values, uint64_t size)override;
 		virtual void BindDescriptorSet(Ref<Shader> shader, Ref<DescriptorSet> set, uint32_t setIndex)override;
 
@@ -56,6 +58,8 @@ namespace Kaidel {
 			Ref<Texture> dstTexture, std::initializer_list<VkImageCopy> regions)override;
 		virtual void ResolveTexture(Ref<Texture> srcTexture, uint32_t srcLayer, uint32_t srcMip,
 			Ref<Texture> dstTexture, uint32_t dstLayer, uint32_t dstMip)override;*/
+		virtual void CopyTexture(Ref<Texture> srcTexture, uint32_t srcLayer, uint32_t srcMip,
+			Ref<Texture> dstTexture, uint32_t dstLayer, uint32_t dstMip)override;
 		virtual void ResolveTexture(Ref<Texture> srcTexture, uint32_t srcLayer, uint32_t srcMip,
 			Ref<Texture> dstTexture, uint32_t dstLayer, uint32_t dstMip)override;
 		virtual void ClearColorTexture(Ref<Texture> texture,

@@ -625,11 +625,13 @@ namespace VulkanBackend {
 		}
 
 		std::vector<VkDescriptorSetLayout> setLayouts;
+		setLayouts.resize(shaderReflection.Sets.size());
 
 		for (auto& [setIndex, set] : shaderReflection.Sets)
 		{
 			std::vector<VkDescriptorSetLayoutBinding> setBindings;
-			
+			setBindings.resize(set.Bindings.size());
+
 			for (auto& [bindingIndex, binding] : set.Bindings)
 			{
 				VkDescriptorSetLayoutBinding setBinding{};
@@ -637,7 +639,7 @@ namespace VulkanBackend {
 				setBinding.descriptorCount = binding.Count;
 				setBinding.descriptorType = binding.Type;
 				setBinding.stageFlags = binding.ShaderStages;
-				setBindings.push_back(setBinding);
+				setBindings[bindingIndex] = setBinding;
 			}
 
 			VkDescriptorSetLayoutCreateInfo layoutInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
@@ -646,8 +648,7 @@ namespace VulkanBackend {
 
 			VkDescriptorSetLayout layout{};
 			vkCreateDescriptorSetLayout(m_Device, &layoutInfo, nullptr, &layout);
-
-			setLayouts.push_back(layout);
+			setLayouts[setIndex] = layout;
 		}
 
 		VkPushConstantRange range{};
@@ -671,6 +672,7 @@ namespace VulkanBackend {
 		info.Layout = layout;
 		info.PushConstantStages = pushConstantStages;
 		info.VkStageInfos = stages;
+		info.Reflection = shaderReflection;
 		return info;
 	}
 
@@ -746,6 +748,21 @@ namespace VulkanBackend {
 
 	void Backend::DestroyGraphicsPipeline(VkPipeline pipeline)
 	{
+		vkDestroyPipeline(m_Device, pipeline, nullptr);
+	}
+
+	VkPipeline Backend::CreateComputePipeline(In<ShaderInfo> shader) {
+		VkComputePipelineCreateInfo pipelineInfo{ VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
+		pipelineInfo.layout = shader.Layout;
+		pipelineInfo.stage = shader.VkStageInfos.at(VK_SHADER_STAGE_COMPUTE_BIT);
+	
+		VkPipeline pipeline{};
+		vkCreateComputePipelines(m_Device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline);
+
+		return pipeline;
+	}
+	
+	void Backend::DestroyComputePipeline(VkPipeline pipeline) {
 		vkDestroyPipeline(m_Device, pipeline, nullptr);
 	}
 
@@ -1097,6 +1114,81 @@ namespace VulkanBackend {
 		info.Layout = layout;
 		return info;
 	}
+
+	DescriptorSetInfo Backend::CreateDescriptorSet(std::initializer_list<std::pair<VkDescriptorType,VkShaderStageFlags>> types)
+	{
+		std::unordered_map<VkDescriptorType, VkDescriptorPoolSize> sizes;
+
+		std::vector<VkDescriptorSetLayoutBinding> bindings;
+
+		for (auto& [type, flags] : types) {
+			sizes[type].type = type;
+			++sizes[type].descriptorCount;
+
+			VkDescriptorSetLayoutBinding binding{};
+			binding.binding = bindings.size();
+			binding.descriptorCount = 1;
+			binding.descriptorType = type;
+			binding.stageFlags = flags;
+			bindings.push_back(binding);
+		}
+
+		auto& pool = FindOrCreatePool(sizes);
+
+		VkDescriptorSetLayoutCreateInfo layoutInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+		layoutInfo.bindingCount = (uint32_t)bindings.size();
+		layoutInfo.pBindings = bindings.data();
+
+		VkDescriptorSetLayout layout{};
+		vkCreateDescriptorSetLayout(m_Device, &layoutInfo, nullptr, &layout);
+
+		VkDescriptorSetAllocateInfo setInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+		setInfo.descriptorPool = pool.Pool;
+		setInfo.descriptorSetCount = 1;
+		setInfo.pSetLayouts = &layout;
+
+		VkDescriptorSet set{};
+		vkAllocateDescriptorSets(m_Device, &setInfo, &set);
+
+		DescriptorSetInfo info{};
+		info.Layout = layout;
+		info.Set = set;
+		info.Pool = pool.Pool;
+		return info;
+	}
+
+	DescriptorSetInfo Backend::CreateDescriptorSet(In<ShaderInfo> shader, uint32_t setIndex)
+	{
+		VkDescriptorSetLayout layout = shader.DescriptorSetLayouts[setIndex];
+
+		std::unordered_map<VkDescriptorType, VkDescriptorPoolSize> sizes;
+
+		for (auto& [index, binding] : shader.Reflection.Sets.at(setIndex).Bindings) {
+			sizes[binding.Type].type = binding.Type;
+			++sizes[binding.Type].descriptorCount;
+		}
+
+		VkDescriptorPool pool = FindOrCreatePool(sizes).Pool;
+
+		VkDescriptorSetAllocateInfo setInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+		setInfo.descriptorPool = pool;
+		setInfo.descriptorSetCount = 1;
+		setInfo.pSetLayouts = &layout;
+
+		VkDescriptorSet set{};
+		vkAllocateDescriptorSets(m_Device, &setInfo, &set);
+
+		DescriptorSetInfo info{};
+		info.Set = set;
+		info.Pool = pool;
+		return info;
+	}
+
+	void Backend::UpdateDescriptorSet(In<DescriptorSetInfo> info, const std::vector<VkWriteDescriptorSet>& writes)
+	{
+		vkUpdateDescriptorSets(m_Device, (uint32_t)writes.size(), writes.data(), 0, nullptr);
+	}
+
 	
 	void Backend::DestroyDescriptorSet(InOut<DescriptorSetInfo> set)
 	{
@@ -1108,6 +1200,7 @@ namespace VulkanBackend {
 		}
 	}
 
+	
 	void Backend::CommandBeginRenderPass(VkCommandBuffer commandBuffer, VkRenderPass renderPass, VkFramebuffer framebuffer, VkSubpassContents contents,
 		In<VkRect2D> renderArea, std::initializer_list<VkClearValue> clearValues)
 	{
@@ -1150,13 +1243,22 @@ namespace VulkanBackend {
 	{
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 	}
+	void Backend::CommandBindComputePipeline(VkCommandBuffer commandBuffer, VkPipeline pipeline)
+	{
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+	}
 	void Backend::CommandBindPushConstants(VkCommandBuffer commandBuffer, In<ShaderInfo> shader, uint32_t firstIndex, const uint8_t* values, uint64_t size)
 	{
 		vkCmdPushConstants(commandBuffer, shader.Layout, shader.PushConstantStages, firstIndex, (uint32_t)size, values);
 	}
 	void Backend::CommandBindDescriptorSet(VkCommandBuffer commandBuffer, In<ShaderInfo> shader, In<DescriptorSetInfo> set, uint32_t setIndex)
 	{
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shader.Layout, setIndex, 1, &set.Set, 0, nullptr);
+		VkPipelineBindPoint point{};
+		if (shader.VkStageInfos.find(VK_SHADER_STAGE_COMPUTE_BIT) != shader.VkStageInfos.end())
+			point = VK_PIPELINE_BIND_POINT_COMPUTE;
+		else
+			point = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		vkCmdBindDescriptorSets(commandBuffer, point, shader.Layout, setIndex, 1, &set.Set, 0, nullptr);
 	}
 
 	void Backend::CommandSetViewport(VkCommandBuffer commandBuffer, std::initializer_list<VkRect2D> viewports)
@@ -1200,7 +1302,7 @@ namespace VulkanBackend {
 	}
 	void Backend::CommandDrawIndexed(VkCommandBuffer commandBuffer, uint32_t indexCount, uint32_t vertexCount, uint32_t instanceCount, uint32_t indexOffset, uint32_t vertexOffset, uint32_t instanceOffset)
 	{
-		vkCmdDrawIndexed(commandBuffer, indexCount, instanceCount, indexOffset, vertexOffset, instanceCount);
+		vkCmdDrawIndexed(commandBuffer, indexCount, instanceCount, indexOffset, vertexOffset, instanceOffset);
 	}
 
 	void Backend::CommandDispatch(VkCommandBuffer commandBuffer, uint32_t x, uint32_t y, uint32_t z)

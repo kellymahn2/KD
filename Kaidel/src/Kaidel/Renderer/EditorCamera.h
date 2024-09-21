@@ -40,6 +40,7 @@ namespace Kaidel {
 
 		bool OnMouseScroll(MouseScrolledEvent& e);
 
+		void KeyMove(const glm::vec3& delta);
 		void MousePan(const glm::vec2& delta);
 		void MouseRotate(const glm::vec2& delta);
 		void MouseZoom(float delta);

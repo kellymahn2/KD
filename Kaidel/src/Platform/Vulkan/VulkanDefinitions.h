@@ -107,142 +107,7 @@ namespace Kaidel {
 			return VK_INDEX_TYPE_MAX_ENUM;
 		}
 
-		static uint32_t CalculateChannelSize(Format format) {
-			switch (format)
-			{
-			case Format::R8UN:
-			case Format::R8N:
-			case Format::R8UI:
-			case Format::R8I:
-				return 1;
-			case Format::RG8UN:
-			case Format::RG8N:
-			case Format::RG8UI:
-			case Format::RG8I:
-				return 1;
-			case Format::RGB8UN:
-			case Format::RGB8N:
-			case Format::RGB8UI:
-			case Format::RGB8I:
-				return 1;
-			case Format::RGBA8UN:
-			case Format::RGBA8N:
-			case Format::RGBA8UI:
-			case Format::RGBA8I:
-				return 1;
-			case Format::R16UN:
-			case Format::R16N:
-			case Format::R16UI:
-			case Format::R16I:
-			case Format::R16F:
-				return 2;
-			case Format::RG16UN:
-			case Format::RG16N:
-			case Format::RG16UI:
-			case Format::RG16I:
-			case Format::RG16F:
-				return 2;
-			case Format::RGB16UN:
-			case Format::RGB16N:
-			case Format::RGB16UI:
-			case Format::RGB16I:
-			case Format::RGB16F:
-				return 2;
-			case Format::RGBA16UN:
-			case Format::RGBA16N:
-			case Format::RGBA16UI:
-			case Format::RGBA16I:
-			case Format::RGBA16F:
-				return 2;
-			case Format::R32UI:
-			case Format::R32I:
-			case Format::R32F:
-				return 4;
-			case Format::RG32UI:
-			case Format::RG32I:
-			case Format::RG32F:
-				return 4;
-			case Format::RGB32UI:
-			case Format::RGB32I:
-			case Format::RGB32F:
-				return 4;
-			case Format::RGBA32UI:
-			case Format::RGBA32I:
-			case Format::RGBA32F:
-				return 4;
-			case Format::Depth24Stencil8:
-				return 4;
-			case Format::Depth32F:
-				return 4;
-			}
-			return 0;
-		}
-
-		static uint32_t CalculateChannelCount(Format format) {
-			switch (format) {
-			case Format::R8UN:
-			case Format::R8N:
-			case Format::R8UI:
-			case Format::R8I:
-			case Format::R16UN:
-			case Format::R16N:
-			case Format::R16UI:
-			case Format::R16I:
-			case Format::R16F:
-			case Format::R32UI:
-			case Format::R32I:
-			case Format::R32F:
-				return 1;
-			case Format::RG8UN:
-			case Format::RG8N:
-			case Format::RG8UI:
-			case Format::RG8I:
-			case Format::RG16UN:
-			case Format::RG16N:
-			case Format::RG16UI:
-			case Format::RG16I:
-			case Format::RG16F:
-			case Format::RG32UI:
-			case Format::RG32I:
-			case Format::RG32F:
-				return 2;
-			case Format::RGB8UN:
-			case Format::RGB8N:
-			case Format::RGB8UI:
-			case Format::RGB8I:
-			case Format::RGB16UN:
-			case Format::RGB16N:
-			case Format::RGB16UI:
-			case Format::RGB16I:
-			case Format::RGB16F:
-			case Format::RGB32UI:
-			case Format::RGB32I:
-			case Format::RGB32F:
-				return 3; 
-
-			case Format::RGBA8UN:
-			case Format::RGBA8N:
-			case Format::RGBA8UI:
-			case Format::RGBA8I:
-			case Format::RGBA16UN:
-			case Format::RGBA16N:
-			case Format::RGBA16UI:
-			case Format::RGBA16I:
-			case Format::RGBA16F:
-			case Format::RGBA32UI:
-			case Format::RGBA32I:
-			case Format::RGBA32F:
-				return 4; 
-			case Format::Depth24Stencil8:
-			case Format::Depth32F:
-				return 1;
-			}
-			return 0;
-		}
-
-		static uint32_t CalculatePixelSize(Format format) {
-			return CalculateChannelSize(format) * CalculateChannelCount(format);
-		}
+		
 
 		static uint32_t VertexInputTypeSize(VertexInputType type) {
 			switch (type)
@@ -410,6 +275,9 @@ namespace Kaidel {
 			if (stages & ShaderStage_FragmentShader) {
 				flags |= VK_SHADER_STAGE_FRAGMENT_BIT;
 			}
+			if (stages & ShaderStage_ComputeShader) {
+				flags |= VK_SHADER_STAGE_COMPUTE_BIT;
+			}
 			return flags;
 		}
 
@@ -421,6 +289,7 @@ namespace Kaidel {
 			case Kaidel::ShaderType::GeometryShader:return VK_SHADER_STAGE_GEOMETRY_BIT;
 			case Kaidel::ShaderType::TessellationControlShader:return VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
 			case Kaidel::ShaderType::TessellationEvaluationShader:return VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+			case Kaidel::ShaderType::ComputeShader:return VK_SHADER_STAGE_COMPUTE_BIT;
 			}
 			return VK_SHADER_STAGE_ALL;
 		}

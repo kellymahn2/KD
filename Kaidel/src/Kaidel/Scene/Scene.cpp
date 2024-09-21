@@ -351,7 +351,11 @@ namespace Kaidel {
 	void Scene::OnUpdateEditor(Timestep ts, EditorCamera& camera, Ref<Texture2D> outputBuffer)
 	{
 		static SceneRenderer sceneRenderer{ this };
-		sceneRenderer.Render(outputBuffer, camera.GetViewProjection(), camera.GetPosition());
+		SceneData data{};
+		data.Proj = camera.GetProjection();
+		data.View = camera.GetViewMatrix();
+		data.ViewProj = camera.GetViewProjection();
+		sceneRenderer.Render(outputBuffer, data);
 	}
 
 	void Scene::OnUpdateSimulation(Timestep ts, EditorCamera& camera)

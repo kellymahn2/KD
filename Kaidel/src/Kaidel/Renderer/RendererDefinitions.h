@@ -1,5 +1,4 @@
 #pragma once
-
 #include "Kaidel/Core/Base.h"
 
 #include <glm/glm.hpp>
@@ -316,7 +315,8 @@ namespace Kaidel {
 		FragmentShader,
 		GeometryShader,
 		TessellationControlShader,
-		TessellationEvaluationShader
+		TessellationEvaluationShader,
+		ComputeShader,
 	};
 
 	enum ShaderStage_ {
@@ -326,6 +326,7 @@ namespace Kaidel {
 		ShaderStage_GeometryShader = BIT(2),
 		ShaderStage_TessellationControlShader = BIT(3),
 		ShaderStage_TessellationEvaluationShader = BIT(4),
+		ShaderStage_ComputeShader = BIT(5)
 	};
 
 	typedef int ShaderStages;
@@ -442,5 +443,146 @@ namespace Kaidel {
 		uint32_t StartLayer = 0;
 		uint32_t LayerCount = 1;
 	};
+
+	namespace Utils {
+
+		static uint32_t CalculateChannelSize(Format format) {
+			switch (format)
+			{
+			case Format::R8UN:
+			case Format::R8N:
+			case Format::R8UI:
+			case Format::R8I:
+				return 1;
+			case Format::RG8UN:
+			case Format::RG8N:
+			case Format::RG8UI:
+			case Format::RG8I:
+				return 1;
+			case Format::RGB8UN:
+			case Format::RGB8N:
+			case Format::RGB8UI:
+			case Format::RGB8I:
+				return 1;
+			case Format::RGBA8UN:
+			case Format::RGBA8N:
+			case Format::RGBA8UI:
+			case Format::RGBA8I:
+				return 1;
+			case Format::R16UN:
+			case Format::R16N:
+			case Format::R16UI:
+			case Format::R16I:
+			case Format::R16F:
+				return 2;
+			case Format::RG16UN:
+			case Format::RG16N:
+			case Format::RG16UI:
+			case Format::RG16I:
+			case Format::RG16F:
+				return 2;
+			case Format::RGB16UN:
+			case Format::RGB16N:
+			case Format::RGB16UI:
+			case Format::RGB16I:
+			case Format::RGB16F:
+				return 2;
+			case Format::RGBA16UN:
+			case Format::RGBA16N:
+			case Format::RGBA16UI:
+			case Format::RGBA16I:
+			case Format::RGBA16F:
+				return 2;
+			case Format::R32UI:
+			case Format::R32I:
+			case Format::R32F:
+				return 4;
+			case Format::RG32UI:
+			case Format::RG32I:
+			case Format::RG32F:
+				return 4;
+			case Format::RGB32UI:
+			case Format::RGB32I:
+			case Format::RGB32F:
+				return 4;
+			case Format::RGBA32UI:
+			case Format::RGBA32I:
+			case Format::RGBA32F:
+				return 4;
+			case Format::Depth24Stencil8:
+				return 4;
+			case Format::Depth32F:
+				return 4;
+			}
+			return 0;
+		}
+
+		static uint32_t CalculateChannelCount(Format format) {
+			switch (format) {
+			case Format::R8UN:
+			case Format::R8N:
+			case Format::R8UI:
+			case Format::R8I:
+			case Format::R16UN:
+			case Format::R16N:
+			case Format::R16UI:
+			case Format::R16I:
+			case Format::R16F:
+			case Format::R32UI:
+			case Format::R32I:
+			case Format::R32F:
+				return 1;
+			case Format::RG8UN:
+			case Format::RG8N:
+			case Format::RG8UI:
+			case Format::RG8I:
+			case Format::RG16UN:
+			case Format::RG16N:
+			case Format::RG16UI:
+			case Format::RG16I:
+			case Format::RG16F:
+			case Format::RG32UI:
+			case Format::RG32I:
+			case Format::RG32F:
+				return 2;
+			case Format::RGB8UN:
+			case Format::RGB8N:
+			case Format::RGB8UI:
+			case Format::RGB8I:
+			case Format::RGB16UN:
+			case Format::RGB16N:
+			case Format::RGB16UI:
+			case Format::RGB16I:
+			case Format::RGB16F:
+			case Format::RGB32UI:
+			case Format::RGB32I:
+			case Format::RGB32F:
+				return 3;
+
+			case Format::RGBA8UN:
+			case Format::RGBA8N:
+			case Format::RGBA8UI:
+			case Format::RGBA8I:
+			case Format::RGBA16UN:
+			case Format::RGBA16N:
+			case Format::RGBA16UI:
+			case Format::RGBA16I:
+			case Format::RGBA16F:
+			case Format::RGBA32UI:
+			case Format::RGBA32I:
+			case Format::RGBA32F:
+				return 4;
+			case Format::Depth24Stencil8:
+			case Format::Depth32F:
+				return 1;
+			}
+			return 0;
+		}
+
+		static uint32_t CalculatePixelSize(Format format) {
+			return CalculateChannelSize(format) * CalculateChannelCount(format);
+		}
+
+	}
 
 }

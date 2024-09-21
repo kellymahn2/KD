@@ -87,6 +87,7 @@ namespace Kaidel {
 		m_Framebuffer.Textures.clear();
 		m_ColorInfos.clear();
 		delete m_DepthInfo;
+		m_DepthInfo = nullptr;
 	}
 	void VulkanFramebuffer::Recreate(const FramebufferSpecification& newSpecs)
 	{
@@ -128,6 +129,7 @@ namespace Kaidel {
 		m_ColorInfos.clear();
 		m_HasDepth = false;
 		delete m_DepthInfo;
+		m_DepthInfo = nullptr;
 	}
 	
 	void VulkanFramebuffer::RegisterAttachments()

@@ -12,6 +12,7 @@ namespace Kaidel {
 
 		virtual ~Shader() = default;
 		static Ref<Shader> Create(const std::unordered_map<ShaderType, Spirv>& spirvs);
+		virtual uint32_t GetSetCount()const = 0;
 	};
 }
 

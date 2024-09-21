@@ -4,10 +4,9 @@
 
 namespace Kaidel {
 	struct TextureData {
-		uint32_t Layer = -1;
-		uint32_t Width = -1, Height = -1, Depth = -1;
+		uint32_t Layer = 0;
+		uint32_t OffsetX = 0, OffsetY = 0, OffsetZ = 0;
 		const void* Data = nullptr;
-		uint64_t Size = 0;
 	};
 
 	struct TextureSpecification {

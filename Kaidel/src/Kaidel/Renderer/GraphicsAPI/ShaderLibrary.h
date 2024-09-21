@@ -26,6 +26,10 @@ namespace Kaidel {
 		static Ref<Shader> GetShader(const Path& path);
 		static Ref<Shader> GetNamedShader(const std::string& name);
 
+		static Ref<Shader> LoadOrGetShader(const Path& path);
+		static Ref<Shader> LoadOrGetNamedShader(const std::string& name, const Path& path);
+
+
 		[[maybe_unused]] static Ref<Shader> UnloadShader(const Path& path);
 		[[maybe_unused]] static Ref<Shader> UnloadNamedShader(const std::string& name);
 	private:

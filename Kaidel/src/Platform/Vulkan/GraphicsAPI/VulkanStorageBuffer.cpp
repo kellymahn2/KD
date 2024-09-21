@@ -19,7 +19,6 @@ namespace Kaidel{
 			VK_CONTEXT.GetBackend()->DestroyBuffer(buffer);
 			buffer = VK_CONTEXT.GetBackend()->CreateBuffer(size + offset, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 		}
-
-		VK_CONTEXT.GetBufferStager().StageVertexBuffer(VK_CONTEXT.GetCurrentCommandBuffer(), buffer.Buffer, data, size);
+		VK_CONTEXT.GetBufferStager().StageStorageBuffer(VK_CONTEXT.GetCurrentCommandBuffer(), buffer.Buffer, data, size);
     }
 }

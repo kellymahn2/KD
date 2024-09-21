@@ -6,6 +6,6 @@
 #include "Platform/Vulkan/GraphicsAPI/VulkanVertexBuffer.h"
 
 namespace Kaidel {
-	TMAKE(Ref<VertexBuffer>, VertexBuffer::Create, TPACK(uint64_t size), CreateRef<VulkanVertexBuffer>, TPACK(size))
+	TMAKE(Ref<VertexBuffer>, VertexBuffer::Create, TPACK(const void* initData, uint64_t size), CreateRef<VulkanVertexBuffer>, TPACK(initData, size))
 }
 

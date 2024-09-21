@@ -11,6 +11,7 @@
 #include "GraphicsAPI/VulkanShader.h"
 #include "GraphicsAPI/VulkanDescriptorSet.h"
 
+#include "GraphicsAPI/VulkanStorageBuffer.h"
 
 namespace Kaidel {
     void VulkanRendererAPI::Init()
@@ -109,6 +110,14 @@ namespace Kaidel {
 			vkPipeline->GetPipeline()
 		);
     }
+	void VulkanRendererAPI::BindComputePipeline(Ref<ComputePipeline> pipeline)
+	{
+		Ref<VulkanComputePipeline> vkPipeline = pipeline;
+		VK_BACKEND->CommandBindComputePipeline(
+			VK_CURRENT_COMMAND_BUFFER,
+			vkPipeline->GetPipeline()
+		);
+	}
 	void VulkanRendererAPI::BindPushConstants(Ref<Shader> shader, uint32_t firstIndex, const uint8_t* values, uint64_t size)
 	{
 		Ref<VulkanShader> vkShader = shader;
@@ -211,15 +220,14 @@ namespace Kaidel {
 			x, y, z
 		);
 	}
-	void VulkanRendererAPI::ResolveTexture(Ref<Texture> srcTexture, uint32_t srcLayer, uint32_t srcMip, Ref<Texture> dstTexture, uint32_t dstLayer, uint32_t dstMip)
+	void VulkanRendererAPI::CopyTexture(Ref<Texture> srcTexture, uint32_t srcLayer, uint32_t srcMip, Ref<Texture> dstTexture, uint32_t dstLayer, uint32_t dstMip)
 	{
 		const VulkanBackend::TextureInfo* srcInfo = (const VulkanBackend::TextureInfo*)srcTexture->GetBackendInfo();
 		const VulkanBackend::TextureInfo* dstInfo = (const VulkanBackend::TextureInfo*)dstTexture->GetBackendInfo();
-
-		VkImageResolve region{};
+		VkImageCopy region{};
+		region.extent = { srcTexture->GetTextureSpecification().Width,srcTexture->GetTextureSpecification().Height,srcTexture->GetTextureSpecification().Depth };
 		region.srcOffset = { 0,0,0 };
 		region.dstOffset = { 0,0,0 };
-		region.extent = { srcTexture->GetTextureSpecification().Width,srcTexture->GetTextureSpecification().Height, srcTexture->GetTextureSpecification().Depth };
 		region.srcSubresource.aspectMask = srcInfo->ViewInfo.subresourceRange.aspectMask;
 		region.srcSubresource.baseArrayLayer = srcLayer;
 		region.srcSubresource.layerCount = 1;
@@ -228,15 +236,29 @@ namespace Kaidel {
 		region.dstSubresource.baseArrayLayer = dstLayer;
 		region.dstSubresource.layerCount = 1;
 		region.dstSubresource.mipLevel = dstMip;
-		
-		vkCmdResolveImage(
+
+		VK_BACKEND->CommandCopyTexture(
 			VK_CURRENT_COMMAND_BUFFER,
-			srcInfo->ViewInfo.image,
+			*srcInfo,
 			Utils::ImageLayoutToVulkanImageLayout(srcTexture->GetTextureSpecification().Layout),
-			dstInfo->ViewInfo.image,
+			*dstInfo,
 			Utils::ImageLayoutToVulkanImageLayout(dstTexture->GetTextureSpecification().Layout),
-			1, &region
-			);
+			{ region }
+		);
+	}
+	void VulkanRendererAPI::ResolveTexture(Ref<Texture> srcTexture, uint32_t srcLayer, uint32_t srcMip, Ref<Texture> dstTexture, uint32_t dstLayer, uint32_t dstMip)
+	{
+		const VulkanBackend::TextureInfo* srcInfo = (const VulkanBackend::TextureInfo*)srcTexture->GetBackendInfo();
+		const VulkanBackend::TextureInfo* dstInfo = (const VulkanBackend::TextureInfo*)dstTexture->GetBackendInfo();
+
+		VK_BACKEND->CommandResolveTexture(
+			VK_CURRENT_COMMAND_BUFFER,
+			*srcInfo,
+			Utils::ImageLayoutToVulkanImageLayout(srcTexture->GetTextureSpecification().Layout),
+			srcLayer, srcMip,
+			*dstInfo,
+			Utils::ImageLayoutToVulkanImageLayout(dstTexture->GetTextureSpecification().Layout),
+			dstLayer, dstMip);
 	}
 	void VulkanRendererAPI::ClearColorTexture(Ref<Texture> texture, const AttachmentColorClearValue& clear)
 	{
@@ -280,16 +302,19 @@ namespace Kaidel {
 			vkBufferBarriers[i] = {};
 
 			const BufferMemoryBarrier* barrier = bufferBarriers.begin() + i;
-			Ref<VulkanVertexBuffer> vkBuffer = barrier->Buffer;
+			
+			const VulkanBackend::BufferInfo* info = (const VulkanBackend::BufferInfo*)barrier->Buffer->GetBackendID();
+			
+			uint64_t allowedSize = info->BufferSize - barrier->Offset;
 
 			vkBufferBarriers[i].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
 			vkBufferBarriers[i].srcAccessMask = Utils::AccessFlagsToVulkanAccessFlags(barrier->Src);
 			vkBufferBarriers[i].dstAccessMask = Utils::AccessFlagsToVulkanAccessFlags(barrier->Dst);
 			vkBufferBarriers[i].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 			vkBufferBarriers[i].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			vkBufferBarriers[i].buffer = vkBuffer->GetBufferInfo().Buffer;
+			vkBufferBarriers[i].buffer = info->Buffer;
 			vkBufferBarriers[i].offset = barrier->Offset;
-			vkBufferBarriers[i].size = barrier->Size;
+			vkBufferBarriers[i].size = std::min(allowedSize,barrier->Size);
 		}
 
 		VkImageMemoryBarrier* vkImageBarriers = ALLOCA_ARRAY(VkImageMemoryBarrier, textureBarriers.size());

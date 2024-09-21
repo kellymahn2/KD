@@ -7,6 +7,7 @@
 #include "Kaidel/Renderer/GraphicsAPI/IndexBuffer.h"
 #include "Kaidel/Renderer/GraphicsAPI/RenderPass.h"
 #include "Kaidel/Renderer/GraphicsAPI/GraphicsPipeline.h"
+#include "Kaidel/Renderer/GraphicsAPI/ComputePipeline.h"
 #include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
 #include "Kaidel/Renderer/GraphicsAPI/Texture.h"
 #include "Kaidel/Renderer/GraphicsAPI/DescriptorSet.h"
@@ -42,7 +43,7 @@ namespace Kaidel {
 	};
 
 	struct BufferMemoryBarrier {
-		Ref<VertexBuffer> Buffer;
+		Ref<Buffer> Buffer;
 		AccessFlags Src = 0;
 		AccessFlags Dst = 0;
 		uint64_t Offset = 0;
@@ -75,6 +76,7 @@ namespace Kaidel {
 		virtual void BindIndexBuffer(Ref<IndexBuffer> buffer, uint64_t offset) = 0;
 
 		virtual void BindGraphicsPipeline(Ref<GraphicsPipeline> pipeline) = 0;
+		virtual void BindComputePipeline(Ref<ComputePipeline> pipeline) = 0;
 		virtual void BindPushConstants(Ref<Shader> shader, uint32_t firstIndex, const uint8_t* values, uint64_t size) = 0;
 		virtual void BindDescriptorSet(Ref<Shader> shader, Ref<DescriptorSet> set, uint32_t setIndex) = 0;
 
@@ -92,9 +94,10 @@ namespace Kaidel {
 
 		//void ClearBuffer(Ref<VertexBuffer> buffer, uint64_t offset, uint64_t size);
 		//void CopyBuffer(In<BufferInfo> srcBuffer, In<BufferInfo> dstBuffer, std::initializer_list<VkBufferCopy> regions);
-		/*virtual void CopyTexture(Ref<Texture> srcTexture,
-			Ref<Texture> dstTexture, std::initializer_list<VkImageCopy> regions) = 0;
+		/*
 		*/
+		virtual void CopyTexture(Ref<Texture> srcTexture, uint32_t srcLayer, uint32_t srcMip,
+			Ref<Texture> dstTexture, uint32_t dstLayer, uint32_t dstMip) = 0;
 		virtual void ResolveTexture(Ref<Texture> srcTexture, uint32_t srcLayer, uint32_t srcMip,
 			Ref<Texture> dstTexture, uint32_t dstLayer, uint32_t dstMip) = 0;
 		virtual void ClearColorTexture(Ref<Texture> texture,

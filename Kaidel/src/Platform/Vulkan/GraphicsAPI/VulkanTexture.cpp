@@ -3,6 +3,43 @@
 #include "VulkanGraphicsContext.h"
 
 namespace Kaidel {
+
+	namespace Utils {
+		static VulkanBackend::BufferInfo AddCopyOperation(
+			const TextureData& data, const VulkanBackend::TextureInfo& info,
+			VkCommandBuffer cb, Format format) {
+			
+			auto& backend = VK_BACKEND;
+			
+			uint32_t areaWidth = info.ImageInfo.extent.width - data.OffsetX;
+			uint32_t areaHeight = info.ImageInfo.extent.height - data.OffsetY;
+			uint32_t areaDepth = info.ImageInfo.extent.depth - data.OffsetZ;
+			uint64_t areaSize = Utils::CalculateImageSize(areaWidth, areaHeight, areaDepth, 1, Utils::CalculatePixelSize(format));
+
+			VulkanBackend::BufferInfo stagingBuffer = backend->CreateBuffer(areaSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, false);
+
+			uint8_t* ptr = backend->BufferMap(stagingBuffer);
+			std::memcpy(ptr, data.Data, areaSize);
+			backend->BufferUnmap(stagingBuffer);
+
+			VkBufferImageCopy copy{};
+			copy.bufferImageHeight = 0;
+			copy.bufferOffset = 0;
+			copy.bufferRowLength = 0;
+			copy.imageExtent = { areaWidth,areaHeight,areaDepth };
+			copy.imageOffset = { (int)data.OffsetX,(int)data.OffsetY,(int)data.OffsetZ };
+			copy.imageSubresource.aspectMask = info.ViewInfo.subresourceRange.aspectMask;
+			copy.imageSubresource.baseArrayLayer = data.Layer;
+			copy.imageSubresource.layerCount = 1;
+			copy.imageSubresource.mipLevel = 0;
+
+			backend->CommandCopyBufferToTexture(cb, stagingBuffer, info, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { copy });
+
+			return stagingBuffer;
+		}
+	}
+
+
 	VulkanTexture2D::VulkanTexture2D(const Texture2DSpecification& specs)
 		:m_Specification(specs)
 	{
@@ -28,9 +65,9 @@ namespace Kaidel {
 		info.ViewFormat = info.Format;
 		info.ViewType = VK_IMAGE_VIEW_TYPE_2D;
 		info.Swizzles[0] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
-		info.Swizzles[1] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
-		info.Swizzles[2] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
-		info.Swizzles[3] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
+		info.Swizzles[1] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[1]);
+		info.Swizzles[2] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[2]);
+		info.Swizzles[3] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[3]);
 		info.IsCube = false;
 		info.IsCpuReadable = specs.IsCpuReadable;
 
@@ -54,31 +91,13 @@ namespace Kaidel {
 			barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 			barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 			barrier.image = m_Info.ViewInfo.image;
+			barrier.subresourceRange = m_Info.ViewInfo.subresourceRange;
 
 			backend->CommandPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, {}, { barrier });
 
 
 			for (auto& initData : specs.InitialDatas) {
-				
-				VulkanBackend::BufferInfo stagingBuffer = backend->CreateBuffer(initData.Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, false);
-				
-				uint8_t* ptr = backend->BufferMap(stagingBuffer);
-				std::memcpy(ptr, initData.Data, initData.Size);
-				backend->BufferUnmap(stagingBuffer);
-				
-				VkBufferImageCopy copy{};
-				copy.bufferImageHeight = 0;
-				copy.bufferOffset = 0;
-				copy.bufferRowLength = 0;
-				copy.imageExtent = { specs.Width - initData.Width, specs.Height - initData.Height, specs.Depth - initData.Depth };
-				copy.imageOffset = { (int)initData.Width, (int)initData.Height, (int)initData.Depth };
-				copy.imageSubresource.aspectMask = info.Aspects;
-				copy.imageSubresource.baseArrayLayer = 0;
-				copy.imageSubresource.layerCount = 1;
-				copy.imageSubresource.mipLevel = 0;
-
-				backend->CommandCopyBufferToTexture(cb, stagingBuffer, m_Info, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { copy });
-
+				auto stagingBuffer = Utils::AddCopyOperation(initData, m_Info, cb, specs.Format);
 				stagingBuffers.push_back(stagingBuffer);
 			}
 		}
@@ -141,9 +160,9 @@ namespace Kaidel {
 		info.ViewFormat = info.Format;
 		info.ViewType = specs.Type == ImageType::_1D_Array ? VK_IMAGE_VIEW_TYPE_1D_ARRAY : VK_IMAGE_VIEW_TYPE_2D_ARRAY;
 		info.Swizzles[0] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
-		info.Swizzles[1] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
-		info.Swizzles[2] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
-		info.Swizzles[3] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
+		info.Swizzles[1] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[1]);
+		info.Swizzles[2] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[2]);
+		info.Swizzles[3] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[3]);
 		info.IsCube = false;
 		info.IsCpuReadable = specs.IsCpuReadable;
 
@@ -167,31 +186,12 @@ namespace Kaidel {
 			barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 			barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 			barrier.image = m_Info.ViewInfo.image;
+			barrier.subresourceRange = m_Info.ViewInfo.subresourceRange;
 
 			backend->CommandPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, {}, { barrier });
 
-
 			for (auto& initData : specs.InitialDatas) {
-
-				VulkanBackend::BufferInfo stagingBuffer = backend->CreateBuffer(initData.Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, false);
-
-				uint8_t* ptr = backend->BufferMap(stagingBuffer);
-				std::memcpy(ptr, initData.Data, initData.Size);
-				backend->BufferUnmap(stagingBuffer);
-
-				VkBufferImageCopy copy{};
-				copy.bufferImageHeight = 0;
-				copy.bufferOffset = 0;
-				copy.bufferRowLength = 0;
-				copy.imageExtent = { specs.Width - initData.Width, specs.Height - initData.Height, specs.Depth - initData.Depth };
-				copy.imageOffset = { (int)initData.Width, (int)initData.Height, (int)initData.Depth };
-				copy.imageSubresource.aspectMask = info.Aspects;
-				copy.imageSubresource.baseArrayLayer = initData.Layer;
-				copy.imageSubresource.layerCount = 1;
-				copy.imageSubresource.mipLevel = 0;
-
-				backend->CommandCopyBufferToTexture(cb, stagingBuffer, m_Info, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, { copy });
-
+				auto stagingBuffer = Utils::AddCopyOperation(initData, m_Info, cb, specs.Format);
 				stagingBuffers.push_back(stagingBuffer);
 			}
 		}

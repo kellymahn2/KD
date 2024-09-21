@@ -3,7 +3,6 @@
 #include "Kaidel/Scene/Entity.h"
 #include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
 #include "Kaidel/Renderer/RenderCommand.h"
-#include "Kaidel/Renderer/GraphicsAPI/SamplerState.h"
 
 #include <glm/glm.hpp>
 

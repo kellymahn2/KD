@@ -24,6 +24,22 @@ namespace Kaidel {
 			InitialLayout(initLayout),
 			FinalLayout(finalLayout)
 		{}
+
+		RenderPassAttachment(
+			Format format,
+			ImageLayout initLayout,
+			ImageLayout finalLayout,
+			TextureSamples samples,
+			AttachmentLoadOp loadOp,
+			AttachmentStoreOp storeOp)
+			: AttachmentFormat(format),
+			Samples(samples),
+			LoadOp(loadOp),
+			StoreOp(storeOp),
+			InitialLayout(initLayout),
+			FinalLayout(finalLayout)
+		{}
+
 	};
 
 	struct RenderPassSpecification {

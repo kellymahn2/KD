@@ -9,6 +9,8 @@ namespace Kaidel{
         VulkanIndexBuffer(const void* indices, uint64_t size, IndexType type);
         ~VulkanIndexBuffer();
 
+		virtual RendererID GetBackendID()const override { return (RendererID)&m_Buffer; }
+
 		const VulkanBackend::BufferInfo& GetBufferInfo()const { return m_Buffer; }
 		IndexType GetIndexType()const { return m_IndexType; }
     private:

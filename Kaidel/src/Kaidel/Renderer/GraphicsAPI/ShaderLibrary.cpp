@@ -17,6 +17,7 @@ namespace Kaidel {
 			case ShaderType::GeometryShader:return shaderc_geometry_shader;
 			case ShaderType::TessellationControlShader:return shaderc_tess_control_shader;
 			case ShaderType::TessellationEvaluationShader:return shaderc_tess_evaluation_shader;
+			case ShaderType::ComputeShader:return shaderc_compute_shader;
 			}
 			KD_CORE_ASSERT(false, "Unknown shader type");
 
@@ -93,9 +94,11 @@ namespace Kaidel {
 			{"tes",ShaderType::TessellationEvaluationShader},
 			{"geo",ShaderType::GeometryShader},
 			{"frag",ShaderType::FragmentShader},
+			{"comp",ShaderType::ComputeShader},
 			{"vertex",ShaderType::VertexShader},
 			{"geometry",ShaderType::GeometryShader},
 			{"fragment",ShaderType::FragmentShader},
+			{"compute",ShaderType::ComputeShader}
 		};
 	}
 	
@@ -154,6 +157,24 @@ namespace Kaidel {
 	{
 		return s_LibraryData->NamedShaders.at(name);
 	}
+
+	Ref<Shader> ShaderLibrary::LoadOrGetShader(const Path& path)
+	{
+		auto it = s_LibraryData->Shaders.find(path);
+		if (it != s_LibraryData->Shaders.end()) {
+			return it->second;
+		}
+		return LoadShader(path);
+	}
+
+	Ref<Shader> ShaderLibrary::LoadOrGetNamedShader(const std::string& name, const Path& path)
+	{
+		auto it = s_LibraryData->NamedShaders.find(name);
+		if (it != s_LibraryData->NamedShaders.end()) {
+			return it->second;
+		}
+		return LoadShader(name, path);
+	}
 	
 	Ref<Shader> ShaderLibrary::UnloadShader(const Path& path)
 	{
@@ -196,7 +217,12 @@ namespace Kaidel {
 	
 	Path ShaderLibrary::GetCachePathForShader(const Path& name)
 	{
+#ifdef KD_DEBUG
+		return s_LibraryData->CachePath / (name.filename().string() + s_LibraryData->CachedFileExtension + "d");
+#elif KD_RELEASE
 		return s_LibraryData->CachePath / (name.filename().string() + s_LibraryData->CachedFileExtension);
+#endif 
+
 	}
 
 	void ShaderLibrary::CreateCache(const std::unordered_map<ShaderType, Spirv>& spirvs, const Path& path)

@@ -98,19 +98,9 @@ namespace Kaidel {
 		}
 		
 		
-		/*
-		{
-			FramebufferSpecification fbSpec;
-			fbSpec.Attachments = { TextureFormat::RGBA8 };
-			fbSpec.Width = 1280;
-			fbSpec.Height = 720;
-			fbSpec.Samples = 1;
-			m_ScreenOutputbuffer = Framebuffer::Create(fbSpec);
-		}*/
-
 		m_ActiveScene = CreateRef<Scene>();
 		m_EditorScene = m_ActiveScene;
-		m_EditorCamera = EditorCamera(30.0f, 1.778f, 0.1f, 1000.0f);
+		m_EditorCamera = EditorCamera(60.0f, 1.778f, 1.0f, 300.0f);
 		m_PanelContext = CreateRef<PanelContext>();
 		auto& commandLineArgs = Application::Get().GetCommandLineArgs();
 		if (commandLineArgs.Count > 1) {
@@ -133,15 +123,10 @@ namespace Kaidel {
 		{
 			uint32_t i = 0;
 			for (; i < m_OutputTextures.GetResources().size(); ++i) {
-				DescriptorSetSpecification specs{};
-				specs.Stages.push_back(ShaderStage_FragmentShader);
-				DescriptorValues val{};
-				val.Type = DescriptorType::SamplerWithTexture;
-				val.ImageValues.Layout = ImageLayout::ShaderReadOnlyOptimal;
-				val.ImageValues.ImageSampler = m_OutputSampler;
-				val.ImageValues.Image = m_OutputTextures.GetResources()[i];
-				specs.Values.push_back(val);
+				DescriptorSetLayoutSpecification specs{};
+				specs.Types = { {DescriptorType::SamplerWithTexture, ShaderStage_FragmentShader} };
 				m_OutputDescriptorSet.GetResources()[i] = DescriptorSet::Create(specs);
+				m_OutputDescriptorSet.GetResources()[i]->Update(m_OutputTextures[i], m_OutputSampler, ImageLayout::ShaderReadOnlyOptimal, 0);
 			}
 		}
 
@@ -170,8 +155,17 @@ namespace Kaidel {
 		{
 		case SceneState::Edit:
 		{
-			m_ActiveScene->OnUpdateEditor(ts, m_EditorCamera, *m_OutputTextures);
-
+			//m_ActiveScene->OnUpdateEditor(ts, m_EditorCamera, *m_OutputTextures);
+			SceneRenderer renderer(m_ActiveScene.Get());
+			SceneData data{};
+			data.Proj = m_EditorCamera.GetProjection();
+			data.View = m_EditorCamera.GetViewMatrix();
+			data.ViewProj = m_EditorCamera.GetViewProjection();
+			data.zNear = 0.1f;
+			data.zFar = 1000.0f;
+			data.ScreenSize = { m_ViewportSize.x,m_ViewportSize.y };
+			data.CameraPos = m_EditorCamera.GetPosition();
+			renderer.Render(*m_OutputTextures,data);
 			// Project Auto Save
 			auto& currentProjectConfig = Project::GetActive()->GetConfig();
 			if (currentProjectConfig.ProjectAutoSave) {
@@ -195,18 +189,6 @@ namespace Kaidel {
 			break;
 		}
 		}
-
-		{
-			ImageMemoryBarrier barrier(*m_OutputTextures, ImageLayout::ShaderReadOnlyOptimal, AccessFlags_TransferWrite, AccessFlags_ShaderRead);
-			RenderCommand::PipelineBarrier(
-				PipelineStages_Transfer,
-				PipelineStages_FragmentShader,
-				{},
-				{},
-				{ barrier }
-			);
-		}
-
 	}
 
 	void EditorLayer::OnImGuiRender()
@@ -579,12 +561,15 @@ namespace Kaidel {
 
 
 		static bool isOpen = false;
-
+		ImGui::DragFloat3("Pos", &pos.x, 0.1);
+		glm::vec3 degRot = glm::degrees(rot);
+		ImGui::DragFloat3("Rot", &degRot.x, 0.1);
+		rot = glm::radians(degRot);
+		ImGui::DragFloat3("Scale", &scale.x, 0.1);
 
 		ImGui::Checkbox("Open", &isOpen);
 
 		ImGui::End();
-
 
 		{
 			bool shouldBeOpen = isOpen;
@@ -601,8 +586,7 @@ namespace Kaidel {
 			isOpen = shouldBeOpen;
 
 		}
-
-
+		
 	}
 	static void UpdateBounds(glm::vec2 bounds[2]) {
 		auto viewportMinRegion = ImGui::GetWindowContentRegionMin();
@@ -614,8 +598,6 @@ namespace Kaidel {
 	void EditorLayer::ShowViewport()
 	{
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0, 0 });
-		
-		ImGui::SetNextWindowSize({ 1280,720 });
 		
 		ImGui::Begin("Viewport", nullptr, 0 | ImGuiWindowFlags_NoTitleBar);
 
@@ -629,7 +611,7 @@ namespace Kaidel {
 
 		glm::vec4 uvs = _GetUVs();
 		Ref<DescriptorSet> ds = *m_OutputDescriptorSet;
-		ImGui::Image(reinterpret_cast<ImTextureID>(ds->GetSetID()), ImVec2{1280,720}, {uvs.x,uvs.y}, {uvs.z,uvs.w});
+		ImGui::Image(reinterpret_cast<ImTextureID>(ds->GetSetID()), ImVec2{m_ViewportSize.x,m_ViewportSize.y}, {uvs.x,uvs.y}, {uvs.z,uvs.w});
 		
 		//ImGui::Text("Hello");
 		
@@ -652,8 +634,7 @@ namespace Kaidel {
 		if (m_ViewportSize.x > 0.0f && m_ViewportSize.y > 0.0f && // zero sized framebuffer is invalid
 			(outputSpec.Width != m_ViewportSize.x || outputSpec.Height != m_ViewportSize.y))
 		{
-			KD_CORE_INFO("Resized");
-	
+			RenderCommand::DeviceWaitIdle();
 			{
 				Texture2DSpecification specs{};
 				specs.Width = m_ViewportSize.x;
@@ -664,28 +645,26 @@ namespace Kaidel {
 				specs.Layout = ImageLayout::General;
 				specs.Samples = outputSpec.Samples;
 				specs.Format = outputSpec.Format;
-				specs.Swizzles[0] = outputSpec.Swizzles[0];
-				specs.Swizzles[1] = outputSpec.Swizzles[1];
-				specs.Swizzles[3] = outputSpec.Swizzles[2];
-				specs.Swizzles[2] = outputSpec.Swizzles[3];
+				specs.Swizzles[0] = TextureSwizzle::Red;
+				specs.Swizzles[1] = TextureSwizzle::Green;
+				specs.Swizzles[2] = TextureSwizzle::Blue;
+				specs.Swizzles[3] = TextureSwizzle::Alpha;
 
-				*m_OutputTextures = Texture2D::Create(specs);
+				for (auto& output : m_OutputTextures) {
+					output = Texture2D::Create(specs);
+				}
 			}
 
 			{
-				DescriptorSetSpecification specs{};
-				specs.Stages.push_back(ShaderStage_FragmentShader);
-				DescriptorValues val{};
-				val.Type = DescriptorType::SamplerWithTexture;
-				val.ImageValues.Layout = ImageLayout::ShaderReadOnlyOptimal;
-				val.ImageValues.ImageSampler = m_OutputSampler;
-				val.ImageValues.Image = *m_OutputTextures;
-				specs.Values.push_back(val);
-				*m_OutputDescriptorSet = DescriptorSet::Create(specs);
+				uint32_t i = 0;
+				for (; i < m_OutputTextures.GetResources().size(); ++i) {
+					DescriptorSetLayoutSpecification specs{};
+					specs.Types = { {DescriptorType::SamplerWithTexture, ShaderStage_FragmentShader} };
+					m_OutputDescriptorSet.GetResources()[i] = DescriptorSet::Create(specs);
+					m_OutputDescriptorSet.GetResources()[i]->Update(m_OutputTextures[i], m_OutputSampler, ImageLayout::ShaderReadOnlyOptimal, 0);
+				}
 			}
 			
-			//m_ScreenOutputbuffer->Resize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
-
 			m_EditorCamera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);
 			m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
 		}

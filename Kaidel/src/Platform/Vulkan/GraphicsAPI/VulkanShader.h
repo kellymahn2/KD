@@ -9,6 +9,7 @@ namespace Kaidel {
 		~VulkanShader();
 
 		auto& GetShaderInfo()const { return m_Shader; }
+		virtual uint32_t GetSetCount()const override { return m_Shader.DescriptorSetLayouts.size(); }
 
 	private:
 		VulkanBackend::ShaderInfo m_Shader;

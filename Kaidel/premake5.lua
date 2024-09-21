@@ -59,7 +59,7 @@ project "Kaidel"
 		"GLFW",
 		"Glad",
 		"ImGui",
-		"vendor/Assimp/lib/Debug/assimp-vc143-mt.lib",
+		"vendor/Assimp/lib/assimp-vc140-mt.lib",
 		"yaml-cpp",
 		"opengl32.lib",
 		"D3D11.lib",

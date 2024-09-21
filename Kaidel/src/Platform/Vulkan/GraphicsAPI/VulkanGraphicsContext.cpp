@@ -179,7 +179,7 @@ namespace Kaidel {
 		}
 		
 		*/
-		m_Stager = CreateScope<VulkanBufferStager>(10 * 1024 * 1024, 4);
+		m_Stager = CreateScope<VulkanBufferStager>(500 * 1024 * 1024, 4);
 	}
 
 	VkDescriptorSetLayout VulkanGraphicsContext::GetSingleDescriptorSetLayout(VkDescriptorType type, VkShaderStageFlags flags)

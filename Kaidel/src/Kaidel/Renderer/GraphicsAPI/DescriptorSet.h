@@ -11,9 +11,9 @@ namespace Kaidel {
 
 
 	struct DescriptorSetBufferValues {			
-		Ref<ShaderInputBuffer> Buffer;
+		Ref<Kaidel::Buffer> Buffer;
 
-		DescriptorSetBufferValues(Ref<ShaderInputBuffer> buffer = {})
+		DescriptorSetBufferValues(Ref<Kaidel::Buffer> buffer = {})
 			:Buffer(buffer)
 		{}
 	};
@@ -35,10 +35,18 @@ namespace Kaidel {
 		DescriptorSetImageValues ImageValues;
 
 		DescriptorValues() = default;
-		DescriptorValues(Ref<ShaderInputBuffer> buffer)
+		DescriptorValues(Ref<Buffer> buffer)
 		//TODO: should actually be taken from the input buffer.
-			:Type(DescriptorType::UniformBuffer),BufferValues(buffer)
-		{}
+			:BufferValues(buffer)
+		{
+			switch (buffer->GetBufferType())
+			{
+			case BufferType::UniformBuffer: Type = DescriptorType::UniformBuffer; break;
+			case BufferType::StorageBuffer: Type = DescriptorType::StorageBuffer; break;
+			default:
+				KD_CORE_ASSERT(false);
+			}
+		}
 
 		DescriptorValues(Ref<Texture> texture, ImageLayout layout, Ref<Sampler> sampler)
 			: Type(texture && sampler ? 
@@ -56,14 +64,30 @@ namespace Kaidel {
 		uint32_t Set;
 	};
 
+	struct DescriptorSetLayoutSpecification {
+		std::vector<std::pair<DescriptorType,ShaderStages>> Types;
+
+		DescriptorSetLayoutSpecification(std::initializer_list<std::pair<DescriptorType,ShaderStages>> types)
+			:Types(types)
+		{}
+	};
+
 	class DescriptorSet : public IRCCounter<false> {
 	public:
 		
-		virtual const DescriptorSetSpecification& GetSpecification()const = 0;
 		virtual ~DescriptorSet() = default;
 
+		virtual const DescriptorSetSpecification& GetSpecification()const = 0;
+		virtual Ref<StorageBuffer> GetStorageBufferAtBinding(uint32_t i)const = 0;
+		virtual Ref<UniformBuffer> GetUniformBufferAtBinding(uint32_t i)const = 0;
+		virtual Ref<Texture> GetTextureAtBinding(uint32_t i)const = 0;
+		virtual Ref<Sampler> GetSamplerAtBinding(uint32_t i)const = 0;
 		virtual RendererID GetSetID()const = 0;
 
-		static Ref<DescriptorSet> Create(const DescriptorSetSpecification& specs);
+		virtual DescriptorSet& Update(Ref<Buffer> buffer, uint32_t binding) = 0;
+		virtual DescriptorSet& Update(Ref<Texture> image, Ref<Sampler> sampler, ImageLayout layout, uint32_t binding) = 0;
+
+		static Ref<DescriptorSet> Create(Ref<Shader> shader, uint32_t setIndex);
+		static Ref<DescriptorSet> Create(const DescriptorSetLayoutSpecification& specs);
 	};
 }

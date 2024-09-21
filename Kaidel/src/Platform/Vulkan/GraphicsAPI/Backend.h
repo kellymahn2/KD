@@ -162,9 +162,10 @@ namespace VulkanBackend
 
 	struct ShaderInfo
 	{
-		VkShaderStageFlags PushConstantStages;
 		std::unordered_map<VkShaderStageFlagBits,VkPipelineShaderStageCreateInfo> VkStageInfos;
 		std::vector<VkDescriptorSetLayout> DescriptorSetLayouts{};
+		ShaderReflection Reflection;
+		VkShaderStageFlags PushConstantStages;
 		VkPipelineLayout Layout{};
 	};
 	
@@ -397,6 +398,9 @@ namespace VulkanBackend
 			uint32_t subpass
 		);
 		void DestroyGraphicsPipeline(VkPipeline pipeline);
+		VkPipeline CreateComputePipeline(In<ShaderInfo> shader);
+		void DestroyComputePipeline(VkPipeline pipeline);
+
 
 		//Render Pass
 		VkRenderPass CreateRenderPass(std::initializer_list<RenderPassAttachment> attachments, std::initializer_list<Subpass> subpasses, std::initializer_list<SubpassDependency> dependencies);
@@ -409,6 +413,9 @@ namespace VulkanBackend
 		//Descriptor Set
 		DescriptorSetInfo CreateDescriptorSet(std::vector<VkWriteDescriptorSet>& values, In<ShaderInfo> shader, uint32_t setIndex);
 		DescriptorSetInfo CreateDescriptorSet(std::vector<VkWriteDescriptorSet>& values, const std::vector<VkShaderStageFlags>& flags);
+		DescriptorSetInfo CreateDescriptorSet(std::initializer_list<std::pair<VkDescriptorType, VkShaderStageFlags>> types);
+		DescriptorSetInfo CreateDescriptorSet(In<ShaderInfo> shader, uint32_t setIndex);
+		void UpdateDescriptorSet(In<DescriptorSetInfo> info, const std::vector<VkWriteDescriptorSet>& writes);
 		void DestroyDescriptorSet(InOut<DescriptorSetInfo> set);
 
 		//Command Recording
@@ -421,6 +428,7 @@ namespace VulkanBackend
 		void CommandBindIndexBuffer(VkCommandBuffer commandBuffer, In<BufferInfo> buffer, VkIndexType indexType, uint64_t offset);
 
 		void CommandBindGraphicsPipeline(VkCommandBuffer commandBuffer, VkPipeline pipeline);
+		void CommandBindComputePipeline(VkCommandBuffer commandBuffer, VkPipeline pipeline);
 		void CommandBindPushConstants(VkCommandBuffer commandBuffer, In<ShaderInfo> shader, uint32_t firstIndex, const uint8_t* values, uint64_t size);
 		void CommandBindDescriptorSet(VkCommandBuffer commandBuffer, In<ShaderInfo> shader, In<DescriptorSetInfo> set, uint32_t setIndex);
 

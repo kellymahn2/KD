@@ -21,7 +21,8 @@ namespace Kaidel {
 		virtual void Recreate(const FramebufferSpecification& newSpecs) override;
 		virtual void Resize(uint32_t width, uint32_t height) override;
 		virtual Ref<Texture2D> GetColorAttachment(uint32_t index)const override{ return m_Framebuffer.Textures[index]; }
-		
+		virtual Ref<Texture2D> GetDepthAttachment()const override { return m_HasDepth ? m_Framebuffer.Textures.back() : nullptr; }
+
 		VkFramebuffer GetFramebuffer()const { return m_Framebuffer.Framebuffer; }
 		auto& GetResources() { return m_Framebuffer; }
 	private:
@@ -33,7 +34,7 @@ namespace Kaidel {
 		VulkanFramebufferResources m_Framebuffer;
 		
 		std::vector<Texture2DSpecification> m_ColorInfos;
-		Texture2DSpecification* m_DepthInfo;
+		Texture2DSpecification* m_DepthInfo = nullptr;
 
 		bool m_HasDepth = false;
 		
