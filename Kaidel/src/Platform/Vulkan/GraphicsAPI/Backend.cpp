@@ -642,9 +642,11 @@ namespace VulkanBackend {
 				setBindings[bindingIndex] = setBinding;
 			}
 
-			VkDescriptorSetLayoutCreateInfo layoutInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+			VkDescriptorSetLayoutCreateInfo layoutInfo{};
+			layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 			layoutInfo.pBindings = setBindings.data();
 			layoutInfo.bindingCount = (uint32_t)setBindings.size();
+
 
 			VkDescriptorSetLayout layout{};
 			vkCreateDescriptorSetLayout(m_Device, &layoutInfo, nullptr, &layout);
@@ -659,8 +661,8 @@ namespace VulkanBackend {
 		VkPipelineLayoutCreateInfo layoutInfo{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
 		layoutInfo.pSetLayouts = setLayouts.data();
 		layoutInfo.setLayoutCount = (uint32_t)setLayouts.size();
-		layoutInfo.pPushConstantRanges = &range;
-		layoutInfo.pushConstantRangeCount = 1;
+		layoutInfo.pPushConstantRanges = pushConstantStages != 0 ? &range : nullptr;
+		layoutInfo.pushConstantRangeCount = pushConstantStages != 0;
 
 
 		VkPipelineLayout layout{};

@@ -561,13 +561,19 @@ namespace Kaidel {
 
 
 		static bool isOpen = false;
-		ImGui::DragFloat3("Pos", &pos.x, 0.1);
-		glm::vec3 degRot = glm::degrees(rot);
-		ImGui::DragFloat3("Rot", &degRot.x, 0.1);
-		rot = glm::radians(degRot);
-		ImGui::DragFloat3("Scale", &scale.x, 0.1);
+		ImGui::DragFloat3("Dir", &dir.x, 0.1);
+		ImGui::DragFloat3("Col", &col.x, 0.1);
 
 		ImGui::Checkbox("Open", &isOpen);
+
+		ImGui::Text("%.3f,%.3f,%.3f", 
+			m_EditorCamera.GetForwardDirection().x, 
+			m_EditorCamera.GetForwardDirection().y, 
+			m_EditorCamera.GetForwardDirection().z);
+		ImGui::Text("%.3f,%.3f,%.3f",
+			m_EditorCamera.GetPosition().x,
+			m_EditorCamera.GetPosition().y,
+			m_EditorCamera.GetPosition().z);
 
 		ImGui::End();
 

@@ -27,7 +27,6 @@
 #include <cmath>
 #include <iostream>
 
-
 #define MAX_LIGHT_COUNT 100
 
 namespace Kaidel {
@@ -51,208 +50,37 @@ namespace Kaidel {
 		DescriptorSetPack GBufferPipelinePack;
 		Ref<StorageBuffer> GBufferInstances;
 
+		Ref<DescriptorSet> TransformsSet;
+
 		//Screen pass
 		Ref<VertexBuffer> ScreenNDC;
 		Ref<RenderPass> ScreenRenderPass;
-		PerFrameResource<Ref<Framebuffer>> Outputs;
+		PerFrameResource<Ref<Framebuffer>> HDROutputs;
 		Ref<GraphicsPipeline> ScreenPipeline;
 		PerFrameResource<DescriptorSetPack> ScreenPipelinePack;
 
+		//tonemap pass
+		Ref<RenderPass> TonemapRenderPass;
+		PerFrameResource<Ref<Framebuffer>> Outputs;
+		Ref<GraphicsPipeline> TonemapPipeline;
+		PerFrameResource<DescriptorSetPack> TonemapPipelinePack;
 
 		//Material
 		Ref<Texture2D> Albedo;
 		Ref<Texture2D> Spec;
 		Ref<Sampler> GBufferSampler;
 		Ref<DescriptorSet> MaterialSet;
-		
 
 		Ref<Texture2D> DefaultWhite;
+
+		PerFrameResource<Ref<UniformBuffer>> DirectionalLight;
+		PerFrameResource<Ref<DescriptorSet>> DirectionalLightSet;
 
 		Ref<Sampler> GlobalSampler;
 		uint32_t Width = 1280, Height = 720;
 	}*s_Data;
 
-	struct MeshVertex
-	{
-		glm::vec3 Position;
-		glm::vec2 TexCoords;
-		glm::vec3 ModelNormal;
-		glm::vec3 ModelTangent;
-		glm::vec3 ModelBitangent;
-	};
-
-
-	enum class MaterialTextureType {
-		Albedo = 0,
-		Specular,
-		Max
-	};
-
-	class Material : public IRCCounter<false> {
-	public:
-		Material() {
-			m_Pipeline = s_Data->GBufferPipeline;
-			m_TextureSet = DescriptorSet::Create(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), 1);
-			
-			for (uint32_t i = 0; i < (uint32_t)MaterialTextureType::Max; ++i) {
-				m_TextureSet->Update(s_Data->DefaultWhite, {}, ImageLayout::ShaderReadOnlyOptimal, i);
-			}
-
-			m_TextureSet->Update({}, s_Data->GBufferSampler, {}, (uint32_t)MaterialTextureType::Max);
-		}
-		
-		~Material() = default;
-
-		void BindPipeline()const {
-		}
-
-		void BindDescriptorSets()const {
-		
-		}
-
-		Ref<DescriptorSet> GetTextureSet()const { return m_TextureSet; }
-
-		const glm::vec3& GetAlbedoColor()const { return m_Values.AlbedoColor; }
-		void SetAlbedoColor(const glm::vec3& color) { m_Values.AlbedoColor = color; }
-
-		const glm::vec3& GetSpecular()const { return m_Values.Specular; }
-		void SetSpecular(const glm::vec3& value) { m_Values.Specular = value; }
-
-		const glm::vec3& GetMetallic()const { return m_Values.Metallic; }
-		void SetMetallic(const glm::vec3& value) { m_Values.Metallic = value; }
-
-		const glm::vec3& GetRoughness()const { return m_Values.Roughness; }
-		void SetRoughness(const glm::vec3& value) { m_Values.Roughness = value; }
-
-		void SetTexture(MaterialTextureType type, Ref<Texture2D> image) {
-			m_Textures[(uint32_t)type] = image;
-			if(image)
-				m_TextureSet->Update(image, {}, ImageLayout::ShaderReadOnlyOptimal, (uint32_t)type);
-		}
-	private:
-		struct MaterialValues {
-			glm::vec3 AlbedoColor = {};
-			glm::vec3 Specular = {};
-			glm::vec3 Metallic = {};
-			glm::vec3 Roughness = {};
-		};
-	private:
-
-		MaterialValues m_Values;
-
-		Ref<UniformBuffer> m_MaterialData;
-		Ref<DescriptorSet> m_DataSet;
-		
-		Ref<GraphicsPipeline> m_Pipeline;
-
-		Ref<Texture2D> m_Textures[(uint32_t)MaterialTextureType::Max] = {};
-		Ref<DescriptorSet> m_TextureSet;
-	};
-
-
-	class Mesh : public IRCCounter<false> {
-	public:
-		Mesh(const std::vector<MeshVertex>& vertices,const std::vector<uint16_t>& indices)
-			:m_VertexCount(vertices.size()), m_IndexCount(indices.size())
-		{
-			m_VertexBuffer = VertexBuffer::Create(vertices.data(), vertices.size() * sizeof(MeshVertex));
-			m_IndexBuffer = IndexBuffer::Create(indices.data(), indices.size() * sizeof(uint16_t), IndexType::Uint16);
-		}
-
-		Ref<VertexBuffer> GetVertexBuffer()const {return m_VertexBuffer; }
-		Ref<IndexBuffer> GetIndexBuffer()const { return m_IndexBuffer; }
-		Ref<Material> GetDefaultMaterial()const { return m_DefaultMaterial; }
-		void SetDefaultMaterial(Ref<Material> mat) { m_DefaultMaterial = mat; }
-
-		uint64_t GetVertexCount()const { return m_VertexCount; }
-		uint64_t GetIndexCount()const { return m_IndexCount; }
-
-	private:
-		Ref<VertexBuffer> m_VertexBuffer;
-		Ref<IndexBuffer> m_IndexBuffer;
-		Ref<Material> m_DefaultMaterial;
-		uint64_t m_VertexCount, m_IndexCount;
-	};
-
-	struct MeshInstance {
-		Ref<Kaidel::Mesh> Mesh;
-		Ref<Material> OverrideMaterial;
-	};
-
 	TextureSamples samples = TextureSamples::x1;
-
-	glm::vec3 pos, rot, scale = glm::vec3(1, 1, 1);
-
-	
-
-	struct Vertex {
-		glm::vec3 position;
-		glm::vec2 texCoords;
-		glm::vec3 normal;
-		glm::vec3 tangent;
-		glm::vec3 bitangent;
-	};
-
-	std::vector<Vertex> vertices = {
-		// Front face  
-		{glm::vec3(-0.5f, -0.5f,  0.5f),{0.0f,0.0f}, glm::vec3(0.0f, 0.0f, 1.0f),{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}, // v0  
-		{glm::vec3(0.5f, -0.5f,  0.5f), {1.0f,0.0f},glm::vec3(0.0f, 0.0f, 1.0f), {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}, // v1  
-		{glm::vec3(0.5f,  0.5f,  0.5f), {1.0f,1.0f},glm::vec3(0.0f, 0.0f, 1.0f), {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}, // v2  
-		{glm::vec3(-0.5f,  0.5f,  0.5f),{0.0f,1.0f}, glm::vec3(0.0f, 0.0f, 1.0f),{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}, // v3  
-
-		// Back face  
-		{glm::vec3(-0.5f, -0.5f, -0.5f),{1,0}, glm::vec3(0.0f, 0.0f, -1.0f), {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}, // v4  
-		{glm::vec3(0.5f, -0.5f, -0.5f), {0,0},glm::vec3(0.0f, 0.0f, -1.0f), {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}, // v5  
-		{glm::vec3(0.5f,  0.5f, -0.5f), {0,1},glm::vec3(0.0f, 0.0f, -1.0f), {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}, // v6  
-		{glm::vec3(-0.5f,  0.5f, -0.5f),{1,1}, glm::vec3(0.0f, 0.0f, -1.0f), {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}, // v7  
-
-		// Left face  
-		{glm::vec3(-0.5f, -0.5f,  0.5f), {1,0}, glm::vec3(-1.0f, 0.0f, 0.0f), {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}}, // v8  
-		{glm::vec3(-0.5f, -0.5f, -0.5f), {0,0}, glm::vec3(-1.0f, 0.0f, 0.0f), {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}}, // v9  
-		{glm::vec3(-0.5f,  0.5f, -0.5f), {0,1}, glm::vec3(-1.0f, 0.0f, 0.0f), {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}}, // v10  
-		{glm::vec3(-0.5f,  0.5f,  0.5f), {1,1}, glm::vec3(-1.0f, 0.0f, 0.0f), {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}}, // v11  
-
-		// Right face  
-		{glm::vec3(0.5f, -0.5f,  0.5f), {0,0},glm::vec3(1.0f, 0.0f, 0.0f), {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}}, // v12  
-		{glm::vec3(0.5f, -0.5f, -0.5f), {1,0},glm::vec3(1.0f, 0.0f, 0.0f), {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}}, // v13  
-		{glm::vec3(0.5f,  0.5f, -0.5f), {1,1},glm::vec3(1.0f, 0.0f, 0.0f), {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}}, // v14  
-		{glm::vec3(0.5f,  0.5f,  0.5f), {0,1},glm::vec3(1.0f, 0.0f, 0.0f), {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}}, // v15  
-		
-		// Top face  
-		{glm::vec3(-0.5f,  0.5f,  0.5f),{0,0}, glm::vec3(0.0f, 1.0f, 0.0f), {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}}, // v20  
-		{glm::vec3(0.5f,  0.5f,  0.5f), {1,0},glm::vec3(0.0f, 1.0f, 0.0f), {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}}, // v21  
-		{glm::vec3(0.5f,  0.5f, -0.5f), {1,1},glm::vec3(0.0f, 1.0f, 0.0f), {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}}, // v22  
-		{glm::vec3(-0.5f,  0.5f, -0.5f),{0,1}, glm::vec3(0.0f, 1.0f, 0.0f), {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},  // v23  
-
-		// Bottom face  
-		{glm::vec3(-0.5f, -0.5f,  0.5f),{0,1}, glm::vec3(0.0f, -1.0f, 0.0f), {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}, // v16  
-		{glm::vec3(0.5f, -0.5f,  0.5f), {1,1},glm::vec3(0.0f, -1.0f, 0.0f), {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}, // v17  
-		{glm::vec3(0.5f, -0.5f, -0.5f), {1,0},glm::vec3(0.0f, -1.0f, 0.0f), {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}, // v18  
-		{glm::vec3(-0.5f, -0.5f, -0.5f),{0,0}, glm::vec3(0.0f, -1.0f, 0.0f), {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}, // v19  
-
-	};
-
-	// Indices for the cube (using the new vertex count)  
-	std::vector<unsigned short> indices = {
-		// Front face
-		0, 1, 2,
-		2, 3, 0,
-		// Back face
-		5, 4, 7,
-		7, 6, 5,
-		// Left face
-		9, 8, 11,
-		11, 10, 9,
-		// Right face
-		12, 13, 14,
-		14, 15, 12,
-		// Top face
-		16, 17, 18,
-		18, 19, 16,
-		// Bottom face
-		23, 22, 21,
-		21, 20, 23,
-	};
 
 	struct Light {
 		glm::vec4 Position;
@@ -261,6 +89,11 @@ namespace Kaidel {
 	};
 
 	std::vector<Light> lights;
+
+	struct DirectionalLight {
+		alignas(16) glm::vec3 Direction;
+		alignas(16) glm::vec3 Color;
+	} DLight;
 
 	struct Cluster {
 		glm::vec4 Min;
@@ -276,150 +109,15 @@ namespace Kaidel {
 	static glm::uvec3 s_ClusterDimensions = { 16,9,24 };
 	static uint64_t s_ClusterGridLength = s_ClusterDimensions.x * s_ClusterDimensions.y * s_ClusterDimensions.z;
 
-	struct Cube {
-		glm::vec3 position, rotation, scale = { 1,1,1 };
-	};
-
 	std::vector<glm::mat4> cubes;
 
-	class Model {
-	public:
-		Model(const std::string& path)
-			:m_ModelPath(path), m_ModelDir(m_ModelPath.parent_path())
-		{
-			LoadModel(path);
-		}
-		const auto& GetMeshes()const { return m_Meshes; }
-
-
-	private:
-		void LoadModel(const std::string& path) {
-			Assimp::Importer importer;
-			const aiScene* scene =
-				importer.ReadFile("assets/models/Sponza/Sponza.gltf",
-					aiProcess_Triangulate | aiProcess_OptimizeMeshes | aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
-			if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
-			{
-				KD_CORE_ASSERT(importer.GetErrorString());
-			}
-
-			ProcessNode(scene->mRootNode, scene);
-		}
-		void ProcessNode(const aiNode* node, const aiScene* scene) {
-			for (uint32_t i = 0; i < node->mNumMeshes; i++) {
-				aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-				m_Meshes.push_back(ProcessMesh(mesh, scene));
-			}
-
-			//process all the node children recursively
-			for (uint32_t i = 0; i < node->mNumChildren; i++) {
-				ProcessNode(node->mChildren[i], scene);
-			}
-		}
-
-		Ref<Mesh> ProcessMesh(const aiMesh* mesh, const aiScene* scene) {
-			std::vector<MeshVertex> vertices;
-			std::vector<uint16_t> indices;
-			for (uint32_t i = 0; i < mesh->mNumVertices; ++i) {
-				MeshVertex vertex{};
-				glm::vec3 vector{};
-				
-				vector.x = mesh->mVertices[i].x;
-				vector.y = mesh->mVertices[i].y;
-				vector.z = mesh->mVertices[i].z;
-				vertex.Position = vector;
-
-				vector.x = mesh->mTangents[i].x;
-				vector.y = mesh->mTangents[i].y;
-				vector.z = mesh->mTangents[i].z;
-				vertex.ModelTangent = vector;
-
-				vector.x = mesh->mBitangents[i].x;
-				vector.y = mesh->mBitangents[i].y;
-				vector.z = mesh->mBitangents[i].z;
-				vertex.ModelBitangent = vector;
-
-				vector.x = mesh->mNormals[i].x;
-				vector.y = mesh->mNormals[i].y;
-				vector.z = mesh->mNormals[i].z;
-				vertex.ModelNormal = vector;
-
-				if (mesh->HasTextureCoords(0)) {
-					glm::vec2 vec{};
-					vec.x = mesh->mTextureCoords[0][i].x;
-					vec.y = mesh->mTextureCoords[0][i].y;
-					vertex.TexCoords = vec;
-				}
-				else {
-					vertex.TexCoords = glm::vec2(0, 0);
-				}
-
-				vertices.push_back(vertex);
-			}
-			
-			for (uint32_t i = 0; i < mesh->mNumFaces; ++i) {
-				aiFace face = mesh->mFaces[i];
-				for (uint32_t j = 0; j < face.mNumIndices; ++j) {
-					indices.push_back(face.mIndices[j]);
-				}
-			}
-
-			Ref<Material> mat = ProcessMaterial(scene->mMaterials[mesh->mMaterialIndex], scene);
-
-			Ref<Mesh> m = CreateRef<Mesh>(vertices, indices);
-			
-			m->SetDefaultMaterial(mat);
-
-			return m;
-		}
-
-		Ref<Texture2D> GetMaterialTexture(aiTextureType type, const aiMaterial* material, const aiScene* scene) {
-			if (!material->GetTextureCount(type))
-				return {};
-
-			aiString texturePath;
-			KD_CORE_ASSERT(material->GetTexture(type, 0, &texturePath) == aiReturn_SUCCESS);
-			KD_CORE_ASSERT(texturePath.length);
-
-			std::string pathStr = texturePath.C_Str();
-
-			return TextureLibrary::Load(m_ModelDir / pathStr, ImageLayout::ShaderReadOnlyOptimal, Format::RGBA8UN);
-		}
-
-		glm::vec3 aiColor3DTovec3(const aiColor3D& v) {
-			return { v.r,v.g,v.b };
-		}
-
-		template<typename T>
-		T GetMaterialColor(const char* name, uint32_t type, uint32_t idx, const aiMaterial* material) {
-			T value{};
-			material->Get(name, type, idx, value);
-			return value;
-		}
-
-		Ref<Material> ProcessMaterial(const aiMaterial* material, const aiScene* scene) {
-			Ref<Material> mat = CreateRef<Material>();
-			mat->SetTexture(MaterialTextureType::Albedo, GetMaterialTexture(aiTextureType_DIFFUSE, material, scene));
-			mat->SetTexture(MaterialTextureType::Specular, GetMaterialTexture(aiTextureType_SPECULAR, material, scene));
-			//mat->SetTexture(MaterialTextureType::Normal, GetMaterialTexture(aiTextureType_NORMALS, material, scene));
-			
-			mat->SetAlbedoColor(aiColor3DTovec3(GetMaterialColor<aiColor3D>(AI_MATKEY_COLOR_AMBIENT, material)));
-			mat->SetSpecular(aiColor3DTovec3(GetMaterialColor<aiColor3D>(AI_MATKEY_COLOR_AMBIENT, material)));
-			return mat;
-		}	
-
-	private:
-		Path m_ModelPath;
-		Path m_ModelDir;
-		std::vector<Ref<Mesh>> m_Meshes;
-	};
+#include "temp.h"
 
 	static Model* model;
 
 	static void CreateTestSponzaModel() {
 		model = new Model("assets/models/Sponza/Sponza.gltf");
 	}
-
 
 	static void CreateClusterResources() {
 		s_Data->ClusterPipeline = ComputePipeline::Create(ShaderLibrary::LoadShader("Cluster", "assets/_shaders/ClusterComp.shader"));
@@ -466,8 +164,11 @@ namespace Kaidel {
 				//Normals
 				RenderPassAttachment(Format::RGBA32F,ImageLayout::None,ImageLayout::ColorAttachmentOptimal,samples,
 					AttachmentLoadOp::Clear,AttachmentStoreOp::Store),
-				//Albedo + Specular
+				//Albedo
 				RenderPassAttachment(Format::RGBA8UN,ImageLayout::None,ImageLayout::ColorAttachmentOptimal,samples,
+					AttachmentLoadOp::Clear,AttachmentStoreOp::Store),
+				//Mettalic/roughness
+				RenderPassAttachment(Format::RG32F,ImageLayout::None,ImageLayout::ColorAttachmentOptimal,samples,
 					AttachmentLoadOp::Clear,AttachmentStoreOp::Store)
 			};
 			specs.DepthStencil =
@@ -511,12 +212,11 @@ namespace Kaidel {
 	}
 
 	static void CreateScreenPassResources() {
-		
 		{
 			RenderPassSpecification specs{};
 			specs.Colors =
 			{
-				RenderPassAttachment(Format::RGBA8UN,ImageLayout::None,ImageLayout::ColorAttachmentOptimal,samples,
+				RenderPassAttachment(Format::RGBA16F,ImageLayout::None,ImageLayout::ColorAttachmentOptimal,samples,
 					AttachmentLoadOp::Clear, AttachmentStoreOp::Store)
 			};
 			s_Data->ScreenRenderPass = RenderPass::Create(specs);
@@ -526,7 +226,7 @@ namespace Kaidel {
 			specs.RenderPass = s_Data->ScreenRenderPass;
 			specs.Width = s_Data->Width;
 			specs.Height = s_Data->Height;
-			for (auto& fb : s_Data->Outputs) {
+			for (auto& fb : s_Data->HDROutputs) {
 				fb = Framebuffer::Create(specs);
 			}
 		}
@@ -553,11 +253,66 @@ namespace Kaidel {
 			pack[0]->Update(s_Data->Clusters[i], 0);
 			pack[1]->Update(s_Data->LightCullPipelinePack[i].GetSet(1)->GetStorageBufferAtBinding(0), 0).
 				Update(s_Data->ClusterGrids[i], 1);
+			//sampler
 			pack[2]->Update({}, s_Data->GlobalSampler, {}, 0).
+				//positions
 				Update(s_Data->GBuffers[i]->GetColorAttachment(0), {}, ImageLayout::ShaderReadOnlyOptimal, 1).
+				//normals
 				Update(s_Data->GBuffers[i]->GetColorAttachment(1), {}, ImageLayout::ShaderReadOnlyOptimal, 2).
+				//albedo
 				Update(s_Data->GBuffers[i]->GetColorAttachment(2), {}, ImageLayout::ShaderReadOnlyOptimal, 3).
-				Update(s_Data->GBuffers[i]->GetDepthAttachment(), {}, ImageLayout::ShaderReadOnlyOptimal, 4);
+				//metallic/roughness
+				Update(s_Data->GBuffers[i]->GetColorAttachment(3), {},ImageLayout::ShaderReadOnlyOptimal,4).
+				//depths
+				Update(s_Data->GBuffers[i]->GetDepthAttachment(), {}, ImageLayout::ShaderReadOnlyOptimal, 5);
+			pack[3]->Update(s_Data->DirectionalLight[i], 0);
+			++i;
+		}
+	}
+
+	static void CreateTonemapPassResources() {
+		{
+			RenderPassSpecification specs{};
+			specs.Colors =
+			{
+				RenderPassAttachment(Format::RGBA8SRGB,ImageLayout::None,ImageLayout::ColorAttachmentOptimal,samples,
+					AttachmentLoadOp::Clear, AttachmentStoreOp::Store)
+			};
+			s_Data->TonemapRenderPass = RenderPass::Create(specs);
+		}
+		{
+			FramebufferSpecification specs;
+			specs.RenderPass = s_Data->TonemapRenderPass;
+			specs.Width = s_Data->Width;
+			specs.Height = s_Data->Height;
+			for (auto& fb : s_Data->Outputs) {
+				fb = Framebuffer::Create(specs);
+			}
+		}
+
+		{
+			GraphicsPipelineSpecification specs{};
+			specs.Input.Bindings = {
+				{
+					{"a_NDC",Format::RG32F},
+					{"a_TexCoords",Format::RG32F}
+				}
+			};
+			specs.Multisample.Samples = samples;
+			specs.Primitive = PrimitiveTopology::TriangleList;
+			specs.RenderPass = s_Data->TonemapRenderPass;
+			specs.Subpass = 0;
+			specs.Rasterization.CullMode = PipelineCullMode::None;
+			specs.Shader = ShaderLibrary::LoadShader("TonemapPass", "assets/_shaders/TonemapPass.shader");
+			s_Data->TonemapPipeline = GraphicsPipeline::Create(specs);
+		}
+		uint32_t i = 0;
+		for (auto& pack : s_Data->TonemapPipelinePack) {
+			pack = DescriptorSetPack(ShaderLibrary::GetNamedShader("TonemapPass"), {});
+			//sampler
+			pack[0]->Update({}, s_Data->GlobalSampler, {}, 0).
+				//hdr
+				Update(s_Data->HDROutputs[i]->GetColorAttachment(0), {}, ImageLayout::ShaderReadOnlyOptimal, 1);
 			++i;
 		}
 	}
@@ -566,27 +321,26 @@ namespace Kaidel {
 		s_Data->Albedo = TextureLibrary::Load("assets/textures/container2.png", ImageLayout::ShaderReadOnlyOptimal, Format::RGBA8UN);
 		s_Data->Spec = TextureLibrary::Load("assets/textures/container2_specular.png", ImageLayout::ShaderReadOnlyOptimal, Format::R8UN);
 		
-		
-
-		s_Data->GBufferPipelinePack = DescriptorSetPack(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), {});
-		s_Data->GBufferPipelinePack.GetSet(1)->Update(s_Data->Albedo, {}, ImageLayout::ShaderReadOnlyOptimal, 0)
-			.Update(s_Data->Spec, {}, ImageLayout::ShaderReadOnlyOptimal, 1)
-			.Update({}, s_Data->GBufferSampler, {}, 2);
-		s_Data->GBufferPipelinePack.GetSet(0)->Update(s_Data->GBufferInstances, 0);
 	}
 
 	static void DeferredPass(const glm::mat4& viewProj, Scene* scene) {
+
+		std::vector<AttachmentClearValue> clears;
+		for (auto& clear : s_Data->GBufferRenderPass->GetSpecification().Colors) {
+			clears.push_back(AttachmentColorClearValue(glm::vec4(0.0f)));
+		}
+
+		clears.push_back(AttachmentDepthStencilClearValue(1.0f, 0));
+
 		RenderCommand::BeginRenderPass(s_Data->GBufferRenderPass, *s_Data->GBuffers,
-		{
-			AttachmentColorClearValue(glm::vec4(0.0f)),
-			AttachmentColorClearValue(glm::vec4(0.0f)),AttachmentColorClearValue(glm::vec4(0.0f)),AttachmentDepthStencilClearValue(1.0f,0),
-		});
+			std::initializer_list<AttachmentClearValue>(clears.data(),clears.data() + clears.size())
+		);
 
 		Ref<VertexBuffer> lastSetVertexBuffer = s_Data->CubeVertexBuffer;
 		Ref<IndexBuffer> lastSetIndexBuffer = s_Data->CubeIndexBuffer;
 
 		RenderCommand::BindGraphicsPipeline(s_Data->GBufferPipeline);
-		s_Data->GBufferPipelinePack.Bind();
+		RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), s_Data->TransformsSet, 0);
 		RenderCommand::SetViewport(s_Data->Width, s_Data->Height, 0, 0);
 		RenderCommand::SetScissor(s_Data->Width, s_Data->Height, 0, 0);
 		RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), 0, viewProj);
@@ -611,8 +365,14 @@ namespace Kaidel {
 			ImageLayout::ShaderReadOnlyOptimal,
 			AccessFlags_ColorAttachmentWrite,
 			AccessFlags_ShaderRead);
-		ImageMemoryBarrier albedoSpecBarrier(
+		ImageMemoryBarrier albedoBarrier(
 			s_Data->GBuffers->Get()->GetColorAttachment(2),
+			ImageLayout::ShaderReadOnlyOptimal,
+			AccessFlags_ColorAttachmentWrite,
+			AccessFlags_ShaderRead
+		);
+		ImageMemoryBarrier metallicRoughnessBarrier(
+			s_Data->GBuffers->Get()->GetColorAttachment(3),
 			ImageLayout::ShaderReadOnlyOptimal,
 			AccessFlags_ColorAttachmentWrite,
 			AccessFlags_ShaderRead
@@ -628,9 +388,22 @@ namespace Kaidel {
 			PipelineStages_VertexShader,
 			{},
 			{},
-			{ positionBarrier,albedoSpecBarrier,normalBarrier,depthBarrier }
+			{ positionBarrier,albedoBarrier,normalBarrier,metallicRoughnessBarrier,depthBarrier }
 		);
 	}
+
+	static void TonemapPass() {
+		RenderCommand::BeginRenderPass(s_Data->TonemapRenderPass, *s_Data->Outputs, {
+			AttachmentClearValue(glm::vec4(0.0f))
+			});
+		RenderCommand::BindGraphicsPipeline(s_Data->TonemapPipeline);
+		RenderCommand::BindVertexBuffers({ s_Data->ScreenNDC }, { 0 });
+		s_Data->TonemapPipelinePack->Bind();
+		//RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("TonemapPass"));
+		RenderCommand::Draw(6, 1, 0, 0);
+		RenderCommand::EndRenderPass();
+	}
+
 
 #if 0
 	template<typename T>
@@ -660,8 +433,7 @@ namespace Kaidel {
 	bool SceneRenderer::NeedsRecreation(Ref<Texture2D> output) {
 		const auto& specs = output->GetTextureSpecification();
 		return specs.Width != s_Data->Width ||
-			specs.Height != s_Data->Height ||
-			specs.Samples != samples;
+			specs.Height != s_Data->Height;
 	}
 	
 	SceneRenderer::SceneRenderer(void* scene)
@@ -670,8 +442,8 @@ namespace Kaidel {
 		if (!s_Data) {
 			s_Data = new Data;
 
-			s_Data->CubeVertexBuffer = VertexBuffer::Create(vertices.data(), vertices.size() * sizeof(Vertex));
-			s_Data->CubeIndexBuffer = IndexBuffer::Create(indices.data(), indices.size() * sizeof(uint16_t), IndexType::Uint16);
+			//s_Data->CubeVertexBuffer = VertexBuffer::Create(vertices.data(), vertices.size() * sizeof(Vertex));
+			//s_Data->CubeIndexBuffer = IndexBuffer::Create(indices.data(), indices.size() * sizeof(uint16_t), IndexType::Uint16);
 			{
 				glm::vec2 screenVertices[] =
 				{
@@ -736,7 +508,18 @@ namespace Kaidel {
 			CreateClusterResources();
 			CreateLightCullResources();
 			CreateGBufferResources();
+
+			s_Data->DirectionalLight.Construct([](uint32_t) {return UniformBuffer::Create(sizeof(DirectionalLight)); });
+			
+			s_Data->DirectionalLightSet.Construct([](uint32_t i) {
+				auto set = DescriptorSet::Create(DescriptorSetLayoutSpecification({ {DescriptorType::UniformBuffer,ShaderStage_FragmentShader} }));
+				set->Update(s_Data->DirectionalLight[i], 0);
+				return set;
+			});
+
 			CreateScreenPassResources();
+			
+			CreateTonemapPassResources();
 			CreateTestSponzaModel();
 			
 			cubes.resize(1);
@@ -744,27 +527,29 @@ namespace Kaidel {
 
 			s_Data->GBufferInstances = StorageBuffer::Create(cubes.size() * sizeof(glm::mat4));
 			s_Data->GBufferInstances->SetData(cubes.data(), cubes.size() * sizeof(glm::mat4));
+
 			CreateMaterialResources();	
+
+			s_Data->TransformsSet = DescriptorSet::Create(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), 0);
+			s_Data->TransformsSet->Update(s_Data->GBufferInstances, 0);
 
 			Light l{};
 			l.Color = glm::vec4(1.0f, 1, 1, 1);
-			l.Position = glm::vec4(0.0f);
-			l.Radius = 5.0f;
+			l.Position = glm::vec4(0,5,0.0f,0.0f);
+			l.Radius = 100.0f;
 
 			lights.push_back(l);
 		}
 	}
 
-	//TODO: normal maps.
 	//TODO: implement to ECS, make hierarchy and frustum culling.
-
+	//TODO: implement shadows.
 	void SceneRenderer::Render(Ref<Texture2D> outputBuffer, const SceneData& sceneData)
 	{
 		if (NeedsRecreation(outputBuffer)) {
 			RenderCommand::DeviceWaitIdle();
 			s_Data->Width = outputBuffer->GetTextureSpecification().Width;
 			s_Data->Height = outputBuffer->GetTextureSpecification().Height;
-			samples = outputBuffer->GetTextureSpecification().Samples;
 			RecreateSizeOrSampleDependent();
 		}
 
@@ -786,16 +571,20 @@ namespace Kaidel {
 		InsertDeferredBarrier();
 
 		ScreenPass(zNear,zFar,sceneData.CameraPos);
+		InsertScreenPassBarrier();
+
+		TonemapPass();
 
 		ResolveToOutput(outputBuffer);
-
 	}
 
 	void SceneRenderer::RecreateSizeOrSampleDependent()
 	{
 		CreateGBufferResources();
 		CreateScreenPassResources();
+		CreateTonemapPassResources();
 	}
+
 	void SceneRenderer::ResolveToOutput(Ref<Texture2D> outputBuffer)
 	{
 		//Screen pass barrier
@@ -857,12 +646,20 @@ namespace Kaidel {
 				{},
 				{ barrier }
 			);
+		}
 	}
-	}
+
+	glm::vec3 col = glm::vec3(1.0), dir = glm::vec3(0.0f,-5.0f,1.33f);
 	void SceneRenderer::ScreenPass(float zNear, float zFar, const glm::vec3& cameraPos) {
 		float scale = 24.0f / (std::log2f(zFar / zNear));
 		float bias = -24.0f * (std::log2f(zNear)) / std::log2f(zFar / zNear);
-		RenderCommand::BeginRenderPass(s_Data->ScreenRenderPass, *s_Data->Outputs,
+
+		DLight.Color = col;
+		DLight.Direction = dir;
+
+		s_Data->DirectionalLight->Get()->SetData(&DLight, sizeof(DLight));
+
+		RenderCommand::BeginRenderPass(s_Data->ScreenRenderPass, *s_Data->HDROutputs,
 			{ AttachmentColorClearValue(glm::vec4{0.0f,0.0f,0.0f,0.0f}) });
 		RenderCommand::BindGraphicsPipeline(s_Data->ScreenPipeline);
 		RenderCommand::BindVertexBuffers({ s_Data->ScreenNDC }, { 0 });
@@ -871,6 +668,23 @@ namespace Kaidel {
 			glm::vec4(cameraPos, 0.0f), glm::vec2{ s_Data->Width,s_Data->Height }, zNear, zFar, scale, bias);
 		RenderCommand::Draw(6, 1, 0, 0);
 		RenderCommand::EndRenderPass();
+	}
+	void SceneRenderer::InsertScreenPassBarrier()
+	{
+		ImageMemoryBarrier hdrBarrier(
+			s_Data->HDROutputs->Get()->GetColorAttachment(0),
+			ImageLayout::ShaderReadOnlyOptimal,
+			AccessFlags_ColorAttachmentWrite,
+			AccessFlags_ShaderRead
+		);
+
+		RenderCommand::PipelineBarrier(
+			PipelineStages_ColorAttachmentOutput,
+			PipelineStages_FragmentShader,
+			{},
+			{},
+			{ hdrBarrier }
+		);
 	}
 	void SceneRenderer::MakeClusters(const glm::mat4& invProj, float zNear, float zFar, const glm::vec2& screenSize) {
 		RenderCommand::BindComputePipeline(s_Data->ClusterPipeline);

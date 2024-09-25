@@ -336,6 +336,7 @@ namespace Kaidel {
 		opt.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
 #ifdef  KD_RELEASE 
 		opt.SetOptimizationLevel(shaderc_optimization_level_performance);
+		opt.SetPreserveBindings(true);
 #endif //  KD_RELEASE 
 
 		opt.SetIncluder(CreateScope<ShaderIncluder>());

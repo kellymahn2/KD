@@ -17,7 +17,7 @@ namespace Kaidel {
 		float zNear, zFar;
 	};
 
-	extern glm::vec3 pos, rot, scale;
+	extern glm::vec3 col,dir;
 
 	class SceneRenderer {
 	public:
@@ -36,6 +36,7 @@ namespace Kaidel {
 		void RecreateSizeOrSampleDependent();
 		void ResolveToOutput(Ref<Texture2D> outputBuffer);
 		void ScreenPass(float zNear, float zFar, const glm::vec3& cameraPos);
+		void InsertScreenPassBarrier();
 		void MakeClusters(const glm::mat4& invProj, float zNear, float zFar, const glm::vec2& screenSize);
 		void InsertClusterBarrier();
 		void MakeLightGrids(const glm::mat4& view);

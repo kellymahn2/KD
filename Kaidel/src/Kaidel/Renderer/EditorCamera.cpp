@@ -85,6 +85,10 @@ namespace Kaidel {
 				dir.x = -1.0f;
 			else if (Input::IsKeyDown(Key::D))
 				dir.x = 1.0f;
+			if (Input::IsKeyDown(Key::LeftShift))
+				dir.y = 1.0f;
+			if (Input::IsKeyDown(Key::LeftControl))
+				dir.y = -1.0f;
 
 			if (dir != glm::vec3(0.0f)) {
 				dir = glm::normalize(dir);
@@ -114,6 +118,7 @@ namespace Kaidel {
 	void EditorCamera::KeyMove(const glm::vec3& delta)
 	{
 		m_FocalPoint += GetRightDirection() * delta.x * m_Distance;
+		m_FocalPoint += GetUpDirection() * delta.y * m_Distance;
 		m_FocalPoint += GetForwardDirection() * delta.z * m_Distance;
 	}
 

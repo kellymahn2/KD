@@ -26,7 +26,6 @@ namespace Kaidel {
 
 }
 
-
 // Core log macros
 #ifdef KD_DEBUG
 #define KD_CORE_TRACE(...)    ::Kaidel::Log::GetCoreLogger()->trace(__VA_ARGS__)

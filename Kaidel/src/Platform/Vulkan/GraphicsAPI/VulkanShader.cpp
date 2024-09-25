@@ -14,7 +14,6 @@ namespace Kaidel {
 			
 			vkSpirvs[Utils::ShaderTypeToVulkanShaderStageFlag(shader)] = std::initializer_list<uint32_t>(beg,end);
 		}
-
 		m_Shader = VK_CONTEXT.GetBackend()->CreateShader(vkSpirvs);
 	}
 	VulkanShader::~VulkanShader()

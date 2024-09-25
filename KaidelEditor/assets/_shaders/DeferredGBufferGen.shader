@@ -32,7 +32,7 @@ void main(){
 	Output.FragPos = vec3(pos);
 	Output.T = normalize(mat3(transform) * a_Tangent);
 	Output.B = normalize(mat3(transform) * a_BiTangent);
-	Output.N = normalize(cross(Output.T,Output.B));
+	Output.N = normalize(mat3(transform) * a_Normal);
 	Output.TexCoords = a_TexCoords;
 }
 
@@ -41,7 +41,8 @@ void main(){
 
 layout (location = 0) out vec4 o_Position;
 layout (location = 1) out vec4 o_Normal;
-layout (location = 2) out vec4 o_AlbedoSpec;
+layout (location = 2) out vec4 o_Albedo;
+layout (location = 3) out vec2 o_MetallicRoughness;
 
 layout(push_constant) uniform DrawData{
 	mat4 ViewProj;
@@ -55,15 +56,21 @@ layout(location = 0) in VS_OUT{
 	vec2 TexCoords;
 } Input;
 
-layout(set = 1,binding = 0) uniform texture2D Albedo;
-layout(set = 1,binding = 1) uniform texture2D Specular;
-layout(set = 1,binding = 2) uniform sampler GlobalSampler;
+layout(set = 1,binding = 0) uniform sampler GlobalSampler;
+layout(set = 1,binding = 1) uniform texture2D Albedo;
+layout(set = 1,binding = 2) uniform texture2D NormalMap;
+layout(set = 1,binding = 3) uniform texture2D MetallicMap;
+layout(set = 1,binding = 4) uniform texture2D RoughnessMap;
 
 void main(){
 	o_Position = vec4(Input.FragPos,1.0);
-	//For a cube should be fixed to sample from an actual map.
-	o_Normal = vec4(normalize(mat3(Input.T,Input.B,Input.N) * vec3(0,0,1)),1.0);
-	o_AlbedoSpec = vec4(texture(sampler2D(Albedo,GlobalSampler),Input.TexCoords).rgb,
-					1.0
-					/*texture(sampler2D(Specular,GlobalSampler),Input.TexCoords).r*/);
+
+	vec3 normal = normalize(2.0 * texture(sampler2D(NormalMap,GlobalSampler),Input.TexCoords).rgb - 1.0);
+	mat3 TBN  = mat3(Input.T, Input.B, Input.N);
+	vec3 norm = normalize(TBN * normal);
+	o_Normal = vec4(norm,1.0);
+	o_Albedo = vec4(texture(sampler2D(Albedo,GlobalSampler),Input.TexCoords).rgba);
+	o_MetallicRoughness = vec2(
+				texture(sampler2D(MetallicMap,GlobalSampler),Input.TexCoords).b,
+				texture(sampler2D(RoughnessMap,GlobalSampler),Input.TexCoords).g);
 }

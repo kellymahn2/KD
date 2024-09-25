@@ -54,7 +54,7 @@ namespace Kaidel {
 			std::string pathStr = path.string();
 
 			using LoadFunc = void* (*)(const char*, int*, int*, int*,int);
-			LoadFunc func;
+			LoadFunc func = nullptr;
 			
 			using ConvertFunc = void* (*)(const float*, int, int, int);
 			ConvertFunc convert = nullptr;
@@ -77,7 +77,6 @@ namespace Kaidel {
 			break;
 			case Kaidel::Format::R8I:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RG8UN:
@@ -92,12 +91,10 @@ namespace Kaidel {
 			break;
 			case Kaidel::Format::RG8UI:
 			{
-		
 			}
 			break;
 			case Kaidel::Format::RG8I:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RGB8UN:
@@ -112,12 +109,10 @@ namespace Kaidel {
 			break;
 			case Kaidel::Format::RGB8UI:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RGB8I:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RGBA8UN:
@@ -132,12 +127,10 @@ namespace Kaidel {
 			break;
 			case Kaidel::Format::RGBA8UI:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RGBA8I:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::R16UN:
@@ -152,17 +145,14 @@ namespace Kaidel {
 			break;
 			case Kaidel::Format::R16UI:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::R16I:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::R16F:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RG16UN:
@@ -177,17 +167,14 @@ namespace Kaidel {
 			break;
 			case Kaidel::Format::RG16UI:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RG16I:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RG16F:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RGB16UN:
@@ -202,17 +189,14 @@ namespace Kaidel {
 			break;
 			case Kaidel::Format::RGB16UI:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RGB16I:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RGB16F:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RGBA16UN:
@@ -227,87 +211,72 @@ namespace Kaidel {
 			break;
 			case Kaidel::Format::RGBA16UI:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RGBA16I:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RGBA16F:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::R32UI:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::R32I:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::R32F:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RG32UI:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RG32I:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RG32F:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RGB32UI:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RGB32I:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RGB32F:
 			{
-				
+				func = (LoadFunc)stbi_loadf;
 			}
 			break;
 			case Kaidel::Format::RGBA32UI:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RGBA32I:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::RGBA32F:
 			{
-				
+				func = (LoadFunc)stbi_loadf;
 			}
 			break;
 			case Kaidel::Format::Depth24Stencil8:
 			{
-				
 			}
 			break;
 			case Kaidel::Format::Depth32F:
 			{
-				
 			}
 			break;
 			}
