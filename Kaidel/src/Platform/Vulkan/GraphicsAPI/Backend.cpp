@@ -588,7 +588,9 @@ namespace VulkanBackend {
 						case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER: type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER; break;
 						}
 
-						shaderReflection.AddDescriptor(type, binding.count, binding.set, binding.binding, stage);
+						std::string name = binding.name;
+
+						shaderReflection.AddDescriptor(name, type, binding.count, binding.set, binding.binding, stage);
 					}
 				}
 
@@ -1358,6 +1360,12 @@ namespace VulkanBackend {
 		std::initializer_list<VkBufferImageCopy> regions)
 	{
 		vkCmdCopyImageToBuffer(commandBuffer, srcTexture.ViewInfo.image, srcLayout, dstBuffer.Buffer, (uint32_t)regions.size(), regions.begin());
+	}
+
+	void Backend::CommandBlitTexture(VkCommandBuffer commandBuffer, In<TextureInfo> srcTexture, VkImageLayout srcLayout,
+		In<TextureInfo> dstTexture, VkImageLayout dstLayout, In<VkImageBlit> blit)
+	{
+		vkCmdBlitImage(commandBuffer, srcTexture.ViewInfo.image, srcLayout, dstTexture.ViewInfo.image, dstLayout, 1, &blit, VK_FILTER_LINEAR);
 	}
 
 	void Backend::CommandPipelineBarrier(

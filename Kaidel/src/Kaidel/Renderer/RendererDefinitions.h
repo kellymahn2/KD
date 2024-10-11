@@ -587,6 +587,7 @@ namespace Kaidel {
 			return CalculateChannelSize(format) * CalculateChannelCount(format);
 		}
 
+
 	}
 
 }

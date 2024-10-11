@@ -45,9 +45,9 @@ namespace Kaidel {
 	struct RenderPassSpecification {
 		std::vector<RenderPassAttachment> Inputs;
 		std::vector<RenderPassAttachment> Colors;
-		std::vector<RenderPassAttachment> Resolves;
 		RenderPassAttachment DepthStencil;
 		RenderPassAttachment VRS;
+		bool AutoResolve = false;
 	};
 
 	class RenderPass : public IRCCounter<false> {
@@ -55,7 +55,14 @@ namespace Kaidel {
 		virtual ~RenderPass() = default;
 		
 		virtual const RenderPassSpecification& GetSpecification()const = 0;
+		
+		virtual void SetColorClearValue(const AttachmentColorClearValue& clearValue, uint32_t index) = 0;
+		virtual void SetDepthClearValue(const AttachmentDepthStencilClearValue& clearValue) = 0;
+		
 		static Ref<RenderPass> Create(const RenderPassSpecification& specs);
+
+
+
 	};
 
 

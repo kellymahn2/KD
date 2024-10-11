@@ -40,6 +40,7 @@ namespace Kaidel {
 			Subresource.StartLayer = 0;
 			Subresource.StarMip = 0;
 		}
+		
 	};
 
 	struct BufferMemoryBarrier {
@@ -113,7 +114,6 @@ namespace Kaidel {
 			std::initializer_list<MemoryBarrier> memoryBarriers,
 			std::initializer_list<BufferMemoryBarrier> bufferBarriers,
 			std::initializer_list<ImageMemoryBarrier> textureBarriers) = 0;
-
 
 		static RendererSettings& GetSettings() { return s_RendererSettings; }
 

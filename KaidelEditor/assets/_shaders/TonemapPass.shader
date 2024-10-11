@@ -25,7 +25,9 @@ void main(){
 
     //Exposure tone mapping
     vec3 toneMappedResult = vec3(1.0) - exp(-hdrCol);
-
+	//toneMappedResult = hdrCol;
+	//if(toneMappedResult.r != 1.0)
+	//	toneMappedResult.r = 0.0;
     //reinhard tone mapping
     // vec3 toneMappedResult = hdrCol / (hdrCol + vec3(1.0));
 

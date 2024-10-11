@@ -15,11 +15,18 @@ namespace Kaidel {
 		EditorCamera() = default;
 		EditorCamera(float fov, float aspectRatio, float nearClip, float farClip);
 
+		float GetFOV()const { return m_FOV; }
+		float GetAspectRatio()const { return m_AspectRatio; }
+
 		void OnUpdate(Timestep ts);
 		void OnEvent(Event& e);
 
 		inline float GetDistance() const { return m_Distance; }
 		inline void SetDistance(float distance) { m_Distance = distance; }
+		
+		void SetPosition(const glm::vec3& position) {
+			m_FocalPoint = position + GetForwardDirection() * m_Distance;
+		}
 
 		inline void SetViewportSize(float width, float height) { m_ViewportWidth = width; m_ViewportHeight = height; UpdateProjection(); }
 

@@ -19,6 +19,18 @@ namespace Kaidel {
 			}
 		}
 
+		void Map(std::function<T(uint32_t, const T&)>&& func) {
+			for (uint32_t i = 0; i < m_Resources.size(); ++i) {
+				m_Resources[i] = func(i, m_Resources[i]);
+			}
+		}
+
+		void Set(const T& value) {
+			for (uint32_t i = 0; i < m_Resources.size(); ++i) {
+				m_Resources[i] = value;
+			}
+		}
+
 		T* operator->() { return &m_Resources[Application::Get().GetWindow().GetContext()->GetCurrentFrameIndex()]; }
 		T& operator*() { return m_Resources[Application::Get().GetWindow().GetContext()->GetCurrentFrameIndex()]; }
 
@@ -34,6 +46,9 @@ namespace Kaidel {
 
 		T& operator[](uint32_t i) { return m_Resources[i]; }
 		const T& operator[](uint32_t i)const { return m_Resources[i]; }
+
+		operator T& () { return m_Resources[Application::Get().GetWindow().GetContext()->GetCurrentFrameIndex()]; }
+		operator const T& ()const { return m_Resources[Application::Get().GetWindow().GetContext()->GetCurrentFrameIndex()]; }
 
 	private:
 		std::vector<T> m_Resources;

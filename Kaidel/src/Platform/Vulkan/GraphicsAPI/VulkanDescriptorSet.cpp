@@ -72,7 +72,6 @@ namespace Kaidel {
 	VulkanDescriptorSet::VulkanDescriptorSet(const DescriptorSetSpecification& specs)
 		:m_Specification(specs)
 	{
-
 		std::vector<VkWriteDescriptorSet> writes;
 		std::vector<VkDescriptorImageInfo> images;
 		std::vector<VkDescriptorBufferInfo> buffers;
@@ -93,6 +92,9 @@ namespace Kaidel {
 			}
 			m_Info = VK_CONTEXT.GetBackend()->CreateDescriptorSet(writes, flags);
 		}
+
+
+
 	}
 
 	VulkanDescriptorSet::VulkanDescriptorSet(const DescriptorSetLayoutSpecification& layout){
@@ -109,8 +111,11 @@ namespace Kaidel {
 	
 	VulkanDescriptorSet::VulkanDescriptorSet(Ref<Shader> shader, uint32_t setIndex) {
 		Ref<VulkanShader> vs = shader;
+		const auto& set = vs->GetShaderInfo().Reflection.Sets.at(setIndex);
+
 		m_Info = VK_BACKEND->CreateDescriptorSet(vs->GetShaderInfo(), setIndex);
-		m_Values.resize(vs->GetShaderInfo().Reflection.Sets.at(setIndex).Bindings.size());
+		m_Values.resize(set.Bindings.size());
+		m_NamesToBindings = set.NameToBinding;
 	}
 
 	VulkanDescriptorSet::~VulkanDescriptorSet()

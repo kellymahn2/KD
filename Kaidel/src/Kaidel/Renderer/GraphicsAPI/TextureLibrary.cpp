@@ -321,8 +321,10 @@ namespace Kaidel {
 	{
 		if (auto t = Get(path); t)
 			return t;
-		Utils::ImageLoadResult res = Utils::LoadImage(path,format);
-
+		Utils::ImageLoadResult res;
+		
+		res = Utils::LoadImage(path, format);
+		
 		Texture2DSpecification specs;
 		specs.Format = format;
 		specs.Width = res.Width;

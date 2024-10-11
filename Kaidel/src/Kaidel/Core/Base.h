@@ -1,5 +1,6 @@
 #pragma once
 
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE 1
 
 #include "Kaidel/Core/PlatformDetection.h"
 #include "Kaidel/Core/Random.h"

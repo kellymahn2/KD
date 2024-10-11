@@ -9,75 +9,7 @@ struct MeshVertex
 	glm::vec3 ModelBitangent;
 };
 
-enum class MaterialTextureType {
-	Albedo = 1,
-	Normal,
-	Mettalic,
-	Roughness,
-	Max
-};
 
-
-class Material : public IRCCounter<false> {
-public:
-	Material() {
-		m_Pipeline = s_Data->GBufferPipeline;
-		m_TextureSet = DescriptorSet::Create(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), 1);
-
-		for (uint32_t i = 1; i < (uint32_t)MaterialTextureType::Max; ++i) {
-			m_TextureSet->Update(s_Data->DefaultWhite, {}, ImageLayout::ShaderReadOnlyOptimal, i);
-		}
-
-		m_TextureSet->Update({}, s_Data->GBufferSampler, {}, (uint32_t)0);
-	}
-
-	~Material() = default;
-
-	void BindPipeline()const {
-	}
-
-	void BindDescriptorSets()const {
-
-	}
-
-	Ref<DescriptorSet> GetTextureSet()const { return m_TextureSet; }
-
-	const glm::vec3& GetAlbedoColor()const { return m_Values.AlbedoColor; }
-	void SetAlbedoColor(const glm::vec3& color) { m_Values.AlbedoColor = color; }
-
-	const glm::vec3& GetSpecular()const { return m_Values.Specular; }
-	void SetSpecular(const glm::vec3& value) { m_Values.Specular = value; }
-
-	const glm::vec3& GetMetallic()const { return m_Values.Metallic; }
-	void SetMetallic(const glm::vec3& value) { m_Values.Metallic = value; }
-
-	const glm::vec3& GetRoughness()const { return m_Values.Roughness; }
-	void SetRoughness(const glm::vec3& value) { m_Values.Roughness = value; }
-
-	void SetTexture(MaterialTextureType type, Ref<Texture2D> image) {
-		m_Textures[(uint32_t)type] = image;
-		if (image)
-			m_TextureSet->Update(image, {}, ImageLayout::ShaderReadOnlyOptimal, (uint32_t)type);
-	}
-private:
-	struct MaterialValues {
-		glm::vec3 AlbedoColor = {};
-		glm::vec3 Specular = {};
-		glm::vec3 Metallic = {};
-		glm::vec3 Roughness = {};
-	};
-private:
-
-	MaterialValues m_Values;
-
-	Ref<UniformBuffer> m_MaterialData;
-	Ref<DescriptorSet> m_DataSet;
-
-	Ref<GraphicsPipeline> m_Pipeline;
-
-	Ref<Texture2D> m_Textures[(uint32_t)MaterialTextureType::Max] = {};
-	Ref<DescriptorSet> m_TextureSet;
-};
 
 class Mesh : public IRCCounter<false> {
 public:
@@ -224,7 +156,7 @@ private:
 	}
 
 	Ref<Material> ProcessMaterial(const aiMaterial* material, const aiScene* scene) {
-		Ref<Material> mat = CreateRef<Material>();
+		Ref<Material> mat = CreateRef<Material>(s_Data->DeferredPass.RenderPass);
 		mat->SetTexture(MaterialTextureType::Albedo, GetMaterialTexture(aiTextureType_DIFFUSE, Format::RGBA8UN, material, scene));
 		mat->SetTexture(MaterialTextureType::Mettalic, GetMaterialTexture(aiTextureType_UNKNOWN, Format::RGBA8UN, material, scene));
 		mat->SetTexture(MaterialTextureType::Roughness, GetMaterialTexture(aiTextureType_UNKNOWN, Format::RGBA8UN, material, scene));

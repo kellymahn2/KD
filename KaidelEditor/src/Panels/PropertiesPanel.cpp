@@ -345,10 +345,6 @@ namespace Kaidel {
 		std::unordered_map<std::string, AssetChooserScriptItem> m_ScriptMap;
 	};
 
-
-
-
-
 	void HandleEntityDragDrops(Entity entity) {
 
 		DragDropTarget dragdropTarget;
@@ -401,7 +397,6 @@ namespace Kaidel {
 			return;
 		Scene* scene = m_Context->Scene.Get();
 
-
 		//Drag drops
 		{
 			ImVec2 size = ImGui::GetContentRegionAvail();
@@ -411,13 +406,11 @@ namespace Kaidel {
 
 			ImGui::Dummy(size);
 
-
 			HandleEntityDragDrops(entity);
 
 			ImGui::SetCursorPos(cursorPos);
 			ImGui::PopStyleColor();
 		}
-
 
 		auto& id = entity.GetComponent<IDComponent>();
 		ImGui::Checkbox("##Active", &id.IsActive);
@@ -625,6 +618,14 @@ namespace Kaidel {
 				component.RecalculateFinalPoints();
 			}
 			});
+
+		DrawComponent<DirectionalLightComponent>("Directional light", entity, [entity, scene = scene](DirectionalLightComponent& component) {
+			ImGui::DragFloat3("Direction", &component.Direction.x);
+			ImGui::ColorEdit3("Color", &component.Color.r);
+			ImGui::DragFloat("Near", &component.Near);
+			ImGui::DragFloat("Far", &component.Far);
+			ImGui::DragFloat("Size", &component.Size);
+		});
 
 		//Scripts
 		DrawComponent<ScriptComponent>("Script", entity, [entity, scene = scene](ScriptComponent& component) mutable

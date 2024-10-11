@@ -37,6 +37,7 @@ namespace Kaidel {
 
 			VulkanFramebufferResources ret{};
 			ret.Textures.resize(rpSpec.Colors.size() + (uint32_t)usesDepth);
+			ret.Resolves.resize(rpSpec.AutoResolve ? rpSpec.Colors.size() : 0);
 
 			std::vector<const VulkanBackend::TextureInfo*> infos;
 			
@@ -54,10 +55,23 @@ namespace Kaidel {
 				auto& depth = rpSpec.DepthStencil;
 
 				ret.Textures[rpSpec.Colors.size()] =
-					CreateRef<VulkanFramebufferTexture>(specs.Width, specs.Height, depth.AttachmentFormat, depth.Samples, true);
+					CreateRef<VulkanFramebufferTexture>(specs.Width, specs.Height, depth.AttachmentFormat, TextureSamples::x1, true);
 
 				infos.push_back(((const VulkanBackend::TextureInfo*)ret.Textures[rpSpec.Colors.size()]->GetBackendInfo()));
 			}
+
+			if (rpSpec.AutoResolve) 
+			{
+				for (uint32_t i = 0; i < rpSpec.Colors.size(); ++i) {
+					const auto& color = rpSpec.Colors[i];
+
+					ret.Resolves[i] =
+						CreateRef<VulkanFramebufferTexture>(specs.Width, specs.Height, color.AttachmentFormat, TextureSamples::x1, false);
+
+					infos.push_back(((const VulkanBackend::TextureInfo*)ret.Resolves[i]->GetBackendInfo()));
+				}
+			}
+
 
 			ret.Framebuffer = 
 				backend->CreateFramebuffer(((VulkanRenderPass*)specs.RenderPass.Get())->GetRenderPass(), infos, specs.Width, specs.Height);
@@ -118,7 +132,7 @@ namespace Kaidel {
 
 		Invalidate();
 	}
-	
+
 	void VulkanFramebuffer::Invalidate()
 	{
 		m_Framebuffer = Utils::CreateFramebuffer(m_Specification,m_HasDepth);

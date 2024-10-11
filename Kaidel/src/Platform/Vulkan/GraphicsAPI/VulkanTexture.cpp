@@ -37,6 +37,131 @@ namespace Kaidel {
 
 			return stagingBuffer;
 		}
+
+		static VkImageMemoryBarrier TransitionMipBarrier(const VulkanBackend::TextureInfo& info, uint32_t mip,
+			VkImageLayout srcLayout, VkAccessFlags srcAccess,
+			VkImageLayout dstLayout, VkAccessFlags dstAccess) {
+			
+			VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+			barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.srcAccessMask = srcAccess;
+			barrier.dstAccessMask = dstAccess;
+			barrier.oldLayout = srcLayout;
+			barrier.newLayout = dstLayout;
+			barrier.image = info.ViewInfo.image;
+			barrier.subresourceRange = info.ViewInfo.subresourceRange;
+			barrier.subresourceRange.levelCount = 1;
+			barrier.subresourceRange.baseMipLevel = mip;
+
+			return barrier;
+		}
+
+		static void GenerateMips(const VulkanBackend::TextureInfo& info, VkCommandBuffer cb, 
+			VkImageLayout srcLayout, VkAccessFlags srcAccess, VkPipelineStageFlags srcStages) {
+			auto& backend = VK_BACKEND;
+			
+			uint32_t mipLevels = info.ImageInfo.mipLevels;
+
+			int w = info.ImageInfo.extent.width, h = info.ImageInfo.extent.height;
+
+			VkImageLayout layout = srcLayout;
+			VkAccessFlags access = srcAccess;
+			VkPipelineStageFlags stages = srcStages;
+
+			if (srcLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+				VkImageMemoryBarrier barrier = 
+					TransitionMipBarrier(info, 0, srcLayout, srcAccess, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT);
+				backend->CommandPipelineBarrier(
+					cb,
+					srcStages,
+					VK_PIPELINE_STAGE_TRANSFER_BIT,
+					{}, {}, { barrier }
+				);
+			}
+
+			for (uint32_t i = 1; i < mipLevels; ++i) {
+
+				//Transform mip i to dst.
+				{
+					VkImageMemoryBarrier barrier = 
+						TransitionMipBarrier(
+							info,i,
+							VK_IMAGE_LAYOUT_UNDEFINED,0,
+							VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,VK_ACCESS_TRANSFER_WRITE_BIT);
+					backend->CommandPipelineBarrier(
+						cb,
+						VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+						VK_PIPELINE_STAGE_TRANSFER_BIT,
+						{},
+						{},
+						{ barrier });
+				}
+				VkImageBlit blit{};
+				blit.srcOffsets[0] = { 0, 0, 0 };
+				blit.srcOffsets[1] = { w, h, 1 };
+				blit.srcSubresource.aspectMask = info.ViewInfo.subresourceRange.aspectMask;
+				blit.srcSubresource.mipLevel = i - 1;
+				blit.srcSubresource.baseArrayLayer = 0;
+				blit.srcSubresource.layerCount = 1;
+				blit.dstOffsets[0] = { 0, 0, 0 };
+				blit.dstOffsets[1] = { w > 1 ? h / 2 : 1, h > 1 ? h / 2 : 1, 1 };
+				blit.dstSubresource.aspectMask = info.ViewInfo.subresourceRange.aspectMask;
+				blit.dstSubresource.mipLevel = i;
+				blit.dstSubresource.baseArrayLayer = 0;
+				blit.dstSubresource.layerCount = 1;
+
+				backend->CommandBlitTexture(
+					cb,
+					info, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+					info, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+					blit);
+
+				//Transform mip i to src for next iteration.
+				{
+					VkImageMemoryBarrier barrier =
+						TransitionMipBarrier(
+							info, i, 
+							VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT, 
+							VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT);
+					backend->CommandPipelineBarrier(
+						cb,
+						VK_PIPELINE_STAGE_TRANSFER_BIT,
+						VK_PIPELINE_STAGE_TRANSFER_BIT,
+						{}, {}, { barrier }
+					);
+				}
+
+				if(w > 1)
+					w /= 2;
+				if(h > 1)
+					h /= 2;
+			}
+
+			//reverse all mips to layout.
+
+			if (srcLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+				for (uint32_t i = 0; i < mipLevels; ++i) {
+					//Transform mip i to layout.
+					{
+						VkImageMemoryBarrier barrier =
+							TransitionMipBarrier(info, i,
+								VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT,
+								srcLayout, srcAccess);
+						backend->CommandPipelineBarrier(
+							cb,
+							VK_PIPELINE_STAGE_TRANSFER_BIT,
+							srcStages,
+							{},
+							{},
+							{ barrier });
+					}
+				}
+			}
+
+		}
+
+
 	}
 
 
@@ -49,6 +174,8 @@ namespace Kaidel {
 		KD_CORE_ASSERT(specs.Layers == 1);
 		KD_CORE_ASSERT(!specs.IsCube);
 
+		uint32_t mips = (uint32_t)std::floor(std::log2(std::max(specs.Width, specs.Height))) + 1;
+
 		auto& backend = VK_CONTEXT.GetBackend();
 
 		VulkanBackend::TextureInputInfo info{};
@@ -58,7 +185,7 @@ namespace Kaidel {
 		info.Height = specs.Height;
 		info.Depth = 1;
 		info.Layers = 1;
-		info.Mips = specs.Mips;
+		info.Mips = mips;
 		info.Type = VK_IMAGE_TYPE_2D;
 		info.Samples = (VkSampleCountFlagBits)specs.Samples;
 		info.Usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -70,6 +197,8 @@ namespace Kaidel {
 		info.Swizzles[3] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[3]);
 		info.IsCube = false;
 		info.IsCpuReadable = specs.IsCpuReadable;
+
+		m_Specification.Mips = mips;
 
 		m_Info = backend->CreateTexture(info);
 
@@ -95,11 +224,12 @@ namespace Kaidel {
 
 			backend->CommandPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, {}, { barrier });
 
-
 			for (auto& initData : specs.InitialDatas) {
 				auto stagingBuffer = Utils::AddCopyOperation(initData, m_Info, cb, specs.Format);
 				stagingBuffers.push_back(stagingBuffer);
 			}
+			if(mips > 1)
+				Utils::GenerateMips(m_Info,cb, layout,VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
 		}
 
 		VkImageLayout finalLayout = Utils::ImageLayoutToVulkanImageLayout(specs.Layout);
@@ -116,7 +246,7 @@ namespace Kaidel {
 			barrier.subresourceRange.baseArrayLayer = 0;
 			barrier.subresourceRange.baseMipLevel = 0;
 			barrier.subresourceRange.layerCount = 1;
-			barrier.subresourceRange.levelCount = specs.Mips;
+			barrier.subresourceRange.levelCount = mips;
 
 			backend->CommandPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, {}, { barrier });
 		}

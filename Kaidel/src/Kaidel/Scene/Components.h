@@ -1,5 +1,6 @@
 #pragma once
 #include "SceneCamera.h"
+#include "Model.h"
 #include "Kaidel/Core/UUID.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -110,6 +111,19 @@ namespace Kaidel {
 			FinalPoints = std::move(points);
 		}
 
+	};
+
+	struct ModelComponent {
+		Ref<Model> UsedModel;
+		ModelComponent() = default;
+		ModelComponent(const ModelComponent&) = default;
+	};
+
+	struct DirectionalLightComponent {
+		glm::vec3 Direction = glm::vec3(0.0);
+		glm::vec3 Color = glm::vec3(1.0);
+		float Near = 1.0f, Far = 2000.0f;
+		float Size = 20.0f;
 	};
 
 	struct CameraComponent

@@ -15,6 +15,10 @@ namespace Kaidel {
 		VertexInputElement(const std::string& name, Format format)
 			:Name(name), AttribFormat(format), Size(0)
 		{}
+
+		VertexInputElement(uint32_t size)
+			:IsDummy(true), Size(size)
+		{}
 	};
 
 	struct VertexInputBinding
@@ -50,7 +54,7 @@ namespace Kaidel {
 
 	struct PipelineMultisample
 	{
-		TextureSamples Samples;
+		TextureSamples Samples = TextureSamples::x1;
 		bool SampleShading = false;
 		float SampleShadingMin = 0.0f;
 		std::vector<uint32_t> SampleMasks;
@@ -104,7 +108,7 @@ namespace Kaidel {
 		};
 
 		std::vector<Attachment> Attachments;
-		float BlendConstant[4];
+		float BlendConstant[4] = { 0.0f };
 	};
 
 	enum PipelineDynamicState_
@@ -128,9 +132,9 @@ namespace Kaidel {
 		PipelineMultisample Multisample;
 		PipelineDepthStencil DepthStencil;
 		PipelineColorBlend Blend;
-		PipelineDynamicState DynamicStates;
+		PipelineDynamicState DynamicStates = 0;
 		Ref<RenderPass> RenderPass;
-		uint32_t Subpass;
+		uint32_t Subpass = 0;
 	};
 
 

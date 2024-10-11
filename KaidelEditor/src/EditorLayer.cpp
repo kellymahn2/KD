@@ -100,7 +100,7 @@ namespace Kaidel {
 		
 		m_ActiveScene = CreateRef<Scene>();
 		m_EditorScene = m_ActiveScene;
-		m_EditorCamera = EditorCamera(60.0f, 1.778f, 1.0f, 300.0f);
+		m_EditorCamera = EditorCamera(60.0f, 1.778f, m_Near, m_Far);
 		m_PanelContext = CreateRef<PanelContext>();
 		auto& commandLineArgs = Application::Get().GetCommandLineArgs();
 		if (commandLineArgs.Count > 1) {
@@ -128,6 +128,46 @@ namespace Kaidel {
 				m_OutputDescriptorSet.GetResources()[i] = DescriptorSet::Create(specs);
 				m_OutputDescriptorSet.GetResources()[i]->Update(m_OutputTextures[i], m_OutputSampler, ImageLayout::ShaderReadOnlyOptimal, 0);
 			}
+
+			m_OutputDepthDescriptors.Construct([](uint32_t) {
+				DescriptorSetLayoutSpecification specs{};
+				specs.Types = { {DescriptorType::SamplerWithTexture, ShaderStage_FragmentShader} };
+				return DescriptorSet::Create(specs);
+			});
+		}
+
+		//{
+		//	Entity e = m_ActiveScene->CreateEntity("Occluder");
+		//	
+		//	auto& mc = e.AddComponent<ModelComponent>();
+		//	mc.UsedModel = CreateRef<Model>();
+		//	mc.UsedModel->MakeCubeModel();
+		//}
+		//
+		//{
+		//	Entity e = m_ActiveScene->CreateEntity("Occluded");
+		//	auto& tc = e.GetComponent<TransformComponent>();
+		//	tc.Translation = { 0,0,10.0f };
+		//	tc.Scale = { 10,10,1 };
+		//	auto& mc = e.AddComponent<ModelComponent>();
+		//	mc.UsedModel = CreateRef<Model>();
+		//	mc.UsedModel->MakeCubeModel();
+		//}
+
+		{
+			Entity e = m_ActiveScene->CreateEntity("Sponza");
+			auto& tc = e.GetComponent<TransformComponent>();
+			tc.Scale = glm::vec3(.3f);
+			auto& mc = e.AddComponent<ModelComponent>();
+			mc.UsedModel = CreateRef<Model>("assets/models/Sponza/Sponza.gltf");
+		}
+
+		{
+			Entity e = m_ActiveScene->CreateEntity("Light");
+			auto& dlc = e.AddComponent<DirectionalLightComponent>();
+			dlc.Color = glm::vec3(1.0);
+			dlc.Direction = glm::vec3(0, -5, 1.33f);
+			dlc.Size = 100;
 		}
 
 	}
@@ -161,11 +201,14 @@ namespace Kaidel {
 			data.Proj = m_EditorCamera.GetProjection();
 			data.View = m_EditorCamera.GetViewMatrix();
 			data.ViewProj = m_EditorCamera.GetViewProjection();
-			data.zNear = 0.1f;
-			data.zFar = 1000.0f;
+			data.zNear = m_Near;
+			data.zFar = m_Far;
 			data.ScreenSize = { m_ViewportSize.x,m_ViewportSize.y };
 			data.CameraPos = m_EditorCamera.GetPosition();
+			data.FOV = m_EditorCamera.GetFOV();
+			data.AspectRatio = m_EditorCamera.GetAspectRatio();
 			renderer.Render(*m_OutputTextures,data);
+
 			// Project Auto Save
 			auto& currentProjectConfig = Project::GetActive()->GetConfig();
 			if (currentProjectConfig.ProjectAutoSave) {
@@ -522,6 +565,13 @@ namespace Kaidel {
 		*segmentPerLineCount = maxTessLevel;*/
 	}
 
+	void ShowTextures(const std::string& name, DescriptorSet* set, const ImVec2& size) {
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0, 0 });
+		ImGui::Begin(name.c_str(),nullptr);
+		ImGui::Image((ImTextureID)set->GetSetID(), size);
+		ImGui::End();
+		ImGui::PopStyleVar();
+	}
 	void EditorLayer::ShowDebugWindow()
 	{
 		ImGui::Begin("Styler");
@@ -538,7 +588,7 @@ namespace Kaidel {
 			float s = (float)ns * 1e-9;
 			ImGui::TextWrapped("%s Took :(%.3f ns,%.3f ms,%.3f s)", name.c_str(), ns, ms, s);
 		}
-
+		
 		if (ImGui::Button("x2")) {
 			samples = TextureSamples::x2;
 		}
@@ -553,18 +603,27 @@ namespace Kaidel {
 		}
 
 		ImGui::Text("Current samples: %d", (int)samples);
-
+		ImGui::InputInt("Show debug shadows", &ShowDebugShadow);
 
 		ImGui::Text("UI Vertex Count: %d", ImGui::GetIO().MetricsRenderVertices);
-		//ImGui::Image((ImTextureID)SpotLight::GetDepthMaps()->GetView(0)->GetRendererID(), {64,64}, {0,1}, {1,0});
+		static int split = 0;
+
+		ImGui::InputInt("Split", &split);
+		
+		split = std::clamp(split, 0, 0);
+
+		Ref<Texture2D> t = *(DepthTexture[split]);
+
+		m_OutputDepthDescriptors->Get()->Update(t, m_OutputSampler, ImageLayout::ShaderReadOnlyOptimal, 0);
+		ShowTextures("Debug depths", m_OutputDepthDescriptors->Get(), { m_ViewportSize.x,m_ViewportSize.y });
 		AccumulativeTimer::ResetTimers();
 
-
-		static bool isOpen = false;
-		ImGui::DragFloat3("Dir", &dir.x, 0.1);
-		ImGui::DragFloat3("Col", &col.x, 0.1);
-
-		ImGui::Checkbox("Open", &isOpen);
+		ImGui::Text("X out of bounds: Blue");
+		ImGui::Text("Y out of bounds: Yellow");
+		ImGui::Text("Z out of bounds: Magenta");
+		
+		ImGui::Text("In shadow: Red");
+		ImGui::Text("Not in shadow: Green");
 
 		ImGui::Text("%.3f,%.3f,%.3f", 
 			m_EditorCamera.GetForwardDirection().x, 
@@ -574,25 +633,8 @@ namespace Kaidel {
 			m_EditorCamera.GetPosition().x,
 			m_EditorCamera.GetPosition().y,
 			m_EditorCamera.GetPosition().z);
-
 		ImGui::End();
 
-		{
-			bool shouldBeOpen = isOpen;
-
-			if (shouldBeOpen) {
-
-				if (ImGui::Begin("Hello", &shouldBeOpen)) {
-
-				}
-
-				ImGui::End();
-			}
-
-			isOpen = shouldBeOpen;
-
-		}
-		
 	}
 	static void UpdateBounds(glm::vec2 bounds[2]) {
 		auto viewportMinRegion = ImGui::GetWindowContentRegionMin();
@@ -617,7 +659,7 @@ namespace Kaidel {
 
 		glm::vec4 uvs = _GetUVs();
 		Ref<DescriptorSet> ds = *m_OutputDescriptorSet;
-		ImGui::Image(reinterpret_cast<ImTextureID>(ds->GetSetID()), ImVec2{m_ViewportSize.x,m_ViewportSize.y}, {uvs.x,uvs.y}, {uvs.z,uvs.w});
+		ImGui::Image(reinterpret_cast<ImTextureID>(ds->GetSetID()), ImVec2{m_ViewportSize.x,m_ViewportSize.y});
 		
 		//ImGui::Text("Hello");
 		

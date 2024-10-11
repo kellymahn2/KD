@@ -123,6 +123,7 @@ namespace VulkanBackend
 	{
 		uint32_t Set;
 		std::unordered_map<uint32_t, DescriptorSetBindingReflection> Bindings;
+		std::unordered_map<std::string, uint32_t> NameToBinding;
 	};
 
 	struct ShaderReflection 
@@ -130,8 +131,9 @@ namespace VulkanBackend
 		std::unordered_map<uint32_t, DescriptorSetReflection> Sets;
 		uint32_t PushConstantSize;
 
-		void AddDescriptor(VkDescriptorType type, uint32_t count, uint32_t set, uint32_t binding, VkShaderStageFlagBits stage) {
+		void AddDescriptor(const std::string& name,VkDescriptorType type, uint32_t count, uint32_t set, uint32_t binding, VkShaderStageFlagBits stage) {
 			Sets[set].Set = set;
+			Sets[set].NameToBinding[name] = binding;
 
 			DescriptorSetBindingReflection& setBinding = Sets[set].Bindings[binding];
 			setBinding.Binding = binding;
@@ -456,6 +458,9 @@ namespace VulkanBackend
 			std::initializer_list<VkBufferImageCopy> regions);
 		void CommandCopyTextureToBuffer(VkCommandBuffer commandBuffer, In<TextureInfo> srcTexture, VkImageLayout srcLayout, In<BufferInfo> dstBuffer,
 			std::initializer_list<VkBufferImageCopy> regions);
+
+		void CommandBlitTexture(VkCommandBuffer commandBuffer, In<TextureInfo> srcTexture, VkImageLayout srcLayout, 
+			In<TextureInfo> dstTexture, VkImageLayout dstLayout, In<VkImageBlit> blit);
 
 		void CommandPipelineBarrier(
 			VkCommandBuffer commandBuffer,

@@ -94,7 +94,13 @@ namespace Kaidel {
 		std::vector<VulkanBackend::RenderPassAttachment> attachments;
 		VulkanBackend::Subpass subpass{};
 		
+		TextureSamples samples = (TextureSamples)0;
+
 		for (auto& attachment : specs.Colors) {
+			
+			KD_CORE_ASSERT(samples == (TextureSamples)0 || samples == attachment.Samples);
+			samples = attachment.Samples;
+
 			VulkanBackend::AttachmentReference ref{};
 			ref.Aspects = VK_IMAGE_ASPECT_COLOR_BIT;
 			ref.Attachment = attachments.size();
@@ -106,15 +112,46 @@ namespace Kaidel {
 		}
 		
 		if (Utils::IsDepthFormat(specs.DepthStencil.AttachmentFormat)) {
+			
+			KD_CORE_ASSERT(samples == (TextureSamples)0 || samples == specs.DepthStencil.Samples);
+			samples = specs.DepthStencil.Samples;
+			
 			VulkanBackend::AttachmentReference ref{};
 			ref.Aspects = VK_IMAGE_ASPECT_DEPTH_BIT;
 			ref.Attachment = attachments.size();
 			ref.Layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+			
+			auto attachment = Utils::ToAttachment(specs.DepthStencil);
+			attachment.Samples = VK_SAMPLE_COUNT_1_BIT;
 
-			attachments.push_back(Utils::ToAttachment(specs.DepthStencil));
+			attachments.push_back(attachment);
 			
 			subpass.DepthStencil = ref;
+
 		}
+
+		if (specs.AutoResolve)
+		{
+			KD_CORE_ASSERT(samples != TextureSamples::x1);
+
+			m_ResolvesOffset = attachments.size();
+
+			for (uint32_t i = 0; i < specs.Colors.size(); ++i) {
+				VulkanBackend::AttachmentReference ref{};
+				ref.Aspects = VK_IMAGE_ASPECT_COLOR_BIT;
+				ref.Attachment = attachments.size();
+				ref.Layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+				VulkanBackend::RenderPassAttachment attachment = attachments[i];
+				attachment.Samples = VK_SAMPLE_COUNT_1_BIT;
+
+				attachments.push_back(attachment);
+
+				subpass.Resolves.push_back(ref);
+			}
+		}
+
+		m_ClearValues.resize(attachments.size());
 
 		m_RenderPass = VK_CONTEXT.GetBackend()->CreateRenderPass(
 			std::initializer_list<VulkanBackend::RenderPassAttachment>(attachments.data(), attachments.data() + attachments.size()),

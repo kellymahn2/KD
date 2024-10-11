@@ -13,9 +13,6 @@
 
 #include <imgui.h>
 
-
-
-
 namespace Kaidel {
 	
 	static uint8_t s_GLFWWindowCount = 0;
@@ -38,7 +35,6 @@ namespace Kaidel {
 
 	void WindowsWindow::Init(const WindowProps& props)
 	{
-
 		m_Data.Title = props.Title;
 		m_Data.Width = props.Width;
 		m_Data.Height = props.Height;
@@ -186,6 +182,7 @@ namespace Kaidel {
 			m_Context->Shutdown();
 			glfwTerminate();
 		}
+
 	}
 
 	void WindowsWindow::PollEvents() const

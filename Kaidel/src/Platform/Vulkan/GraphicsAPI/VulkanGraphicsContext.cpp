@@ -9,12 +9,9 @@
 #include <backends/imgui_impl_vulkan.h>
 #include <backends/imgui_impl_dx11.h>
 
-
-
+#include <GLFW/glfw3.h>
 
 namespace Kaidel {
-
-
 
 	namespace Utils {
 		static VkDescriptorSetLayout CreateSingleDescriptorSetLayout(VkDevice device, VkDescriptorType type, uint32_t binding, uint32_t descriptorCount,VkShaderStageFlags flags) {
@@ -29,6 +26,7 @@ namespace Kaidel {
 			layoutInfo.pBindings = &setBinding;
 			VkDescriptorSetLayout layout{};
 			vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &layout);
+
 			return layout;
 		}
 	}
@@ -226,7 +224,7 @@ namespace Kaidel {
 		m_Backend->CommandBufferBegin(m_Swapchain.Frames[m_Swapchain.ImageIndex].MainCommandBuffer);
 		m_Stager->Reset();
 	}
-
+	
 	void VulkanGraphicsContext::PresentImage()
 	{
 		VkCommandBuffer commandBuffer = m_Swapchain.Frames[m_Swapchain.ImageIndex].MainCommandBuffer;

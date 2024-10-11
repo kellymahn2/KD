@@ -3,6 +3,7 @@
 #include "Kaidel/Renderer/2D/Renderer2D.h"
 #include "Kaidel/Renderer/GraphicsAPI/ShaderLibrary.h"
 #include "Kaidel/Renderer/GraphicsAPI/TextureLibrary.h"
+#include "Kaidel/Renderer/RendererGlobals.h"
 
 namespace Kaidel {
 
@@ -12,6 +13,7 @@ namespace Kaidel {
 	{
 
 		RenderCommand::Init();
+		RendererGlobals::Init();
 
 		ShaderLibrary::Init("assets/_shaders/cache", ".shader_cache");
 		TextureLibrary::Init();
@@ -89,6 +91,8 @@ namespace Kaidel {
 		//Renderer2D::Shutdown();
 		TextureLibrary::Shutdown();
 		ShaderLibrary::Shutdown();
+		RendererGlobals::Shutdown();
+
 		//TextureLibrary::Shutdown();
 		/*
 		Renderer3D::Shutdown();*/

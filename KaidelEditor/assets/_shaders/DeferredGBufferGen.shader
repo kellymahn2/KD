@@ -9,6 +9,7 @@ layout(location = 4)in vec3 a_BiTangent;
 
 layout(push_constant) uniform DrawData{
 	mat4 ViewProj;
+	mat4 Transform;
 };
 
 layout(location = 0) out VS_OUT{
@@ -19,12 +20,12 @@ layout(location = 0) out VS_OUT{
 	vec2 TexCoords;
 } Output;
 
-layout(set = 0,binding = 0)buffer instance{
-	mat4 Transforms[];
-};
+//layout(set = 0,binding = 0)buffer instance{
+//	mat4 Transforms[];
+//};
 
 void main(){
-	mat4 transform = Transforms[gl_InstanceIndex];
+	mat4 transform = Transform;
 	vec4 pos = transform * vec4(a_Position,1.0);
 	
 	gl_Position = ViewProj * pos;
@@ -33,7 +34,11 @@ void main(){
 	Output.T = normalize(mat3(transform) * a_Tangent);
 	Output.B = normalize(mat3(transform) * a_BiTangent);
 	Output.N = normalize(mat3(transform) * a_Normal);
+	Output.T = Output.T - (dot(Output.T,Output.N)) * Output.N;
+	Output.B = Output.B - (dot(Output.B,Output.N)) * Output.N - (dot(Output.B,Output.T)) * Output.T;
 	Output.TexCoords = a_TexCoords;
+
+	gl_Position.y *= -1.0;
 }
 
 #type fragment
@@ -46,6 +51,7 @@ layout (location = 3) out vec2 o_MetallicRoughness;
 
 layout(push_constant) uniform DrawData{
 	mat4 ViewProj;
+	mat4 Transform;
 };
 
 layout(location = 0) in VS_OUT{
@@ -56,15 +62,15 @@ layout(location = 0) in VS_OUT{
 	vec2 TexCoords;
 } Input;
 
-layout(set = 1,binding = 0) uniform sampler GlobalSampler;
-layout(set = 1,binding = 1) uniform texture2D Albedo;
-layout(set = 1,binding = 2) uniform texture2D NormalMap;
-layout(set = 1,binding = 3) uniform texture2D MetallicMap;
-layout(set = 1,binding = 4) uniform texture2D RoughnessMap;
+layout(set = 0,binding = 0) uniform sampler GlobalSampler;
+layout(set = 0,binding = 1) uniform texture2D Albedo;
+layout(set = 0,binding = 2) uniform texture2D NormalMap;
+layout(set = 0,binding = 3) uniform texture2D MetallicMap;
+layout(set = 0,binding = 4) uniform texture2D RoughnessMap;
 
 void main(){
 	o_Position = vec4(Input.FragPos,1.0);
-
+	
 	vec3 normal = normalize(2.0 * texture(sampler2D(NormalMap,GlobalSampler),Input.TexCoords).rgb - 1.0);
 	mat3 TBN  = mat3(Input.T, Input.B, Input.N);
 	vec3 norm = normalize(TBN * normal);

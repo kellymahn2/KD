@@ -423,4 +423,7 @@ namespace Kaidel {
 	DEF_COMPONENT_ADD(ChildComponent)
 	DEF_COMPONENT_ADD(LineRendererComponent)
 	DEF_COMPONENT_ADD(AnimationPlayerComponent)
+	DEF_COMPONENT_ADD(ModelComponent)
+	DEF_COMPONENT_ADD(DirectionalLightComponent)
+
 }

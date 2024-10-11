@@ -334,6 +334,7 @@ namespace Kaidel {
 		shaderc::CompileOptions opt;
 
 		opt.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
+		opt.SetGenerateDebugInfo();
 #ifdef  KD_RELEASE 
 		opt.SetOptimizationLevel(shaderc_optimization_level_performance);
 		opt.SetPreserveBindings(true);

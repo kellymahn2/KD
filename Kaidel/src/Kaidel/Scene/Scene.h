@@ -77,7 +77,6 @@ namespace Kaidel {
 		friend class EditorLayer;
 		friend struct GeometryPass;
 		friend struct LightingPass;
-		friend struct ShadowPass;
 		friend struct SharedPassData;
 
 

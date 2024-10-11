@@ -73,6 +73,7 @@ namespace Kaidel {
 		Console m_DebugConsole;
 		PerFrameResource<Ref<Texture2D>> m_OutputTextures;
 		PerFrameResource<Ref<DescriptorSet>> m_OutputDescriptorSet;
+		PerFrameResource<Ref<DescriptorSet>> m_OutputDepthDescriptors;
 		Ref<RenderPass> m_OutputRenderPass;
 		Ref<Framebuffer> m_ScreenOutputbuffer;
 		Ref<Scene> m_ActiveScene;
@@ -86,9 +87,10 @@ namespace Kaidel {
 
 		bool m_Debug = false;
 
-		bool m_ConsoleOpen=false;
+		bool m_ConsoleOpen = false;
 		EditorCamera m_EditorCamera;
-
+		float m_Near = .1f, m_Far = 500.0f;
+		
 		bool m_ViewportFocused = false, m_ViewportHovered = false;
 
 

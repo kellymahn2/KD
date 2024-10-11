@@ -25,6 +25,12 @@ namespace Kaidel {
 				}
 			}
 		}
+
+		void Update(Ref<DescriptorSet> set, uint32_t index) {
+			KD_CORE_ASSERT(index < m_Sets.size());
+			m_Sets[index] = set;
+		}
+
 		void Bind()const {
 			for (uint32_t i = 0; i < m_Sets.size(); ++i) {
 				RenderCommand::BindDescriptorSet(m_Shader, m_Sets[i], i);

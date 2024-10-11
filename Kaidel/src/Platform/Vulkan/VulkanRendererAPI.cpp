@@ -39,8 +39,8 @@ namespace Kaidel {
 		renderArea.offset = { 0,0 };
 		renderArea.extent = { fb->GetSpecification().Width,fb->GetSpecification().Height };
 
-		const VkClearValue* clearBegin = (const VkClearValue*)clearValues.begin();
-		const VkClearValue* clearEnd = clearBegin + clearValues.size();
+		const VkClearValue* clearBegin = rp->GetVkClearValues().data();
+		const VkClearValue* clearEnd = rp->GetVkClearValues().data() + rp->GetVkClearValues().size();
 
 		VK_BACKEND->CommandBeginRenderPass(
 			VK_CURRENT_COMMAND_BUFFER,
@@ -72,6 +72,7 @@ namespace Kaidel {
 				++colorIndex;
 			}
 		}
+
 		m_RenderPassInstance = {};
     }
 	void VulkanRendererAPI::NextSubpass()

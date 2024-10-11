@@ -8,6 +8,7 @@ namespace Kaidel {
 	struct VulkanFramebufferResources {
 		VkFramebuffer Framebuffer;
 		std::vector<Ref<VulkanFramebufferTexture>> Textures;
+		std::vector<Ref<VulkanFramebufferTexture>> Resolves;
 	};
 
 
@@ -20,8 +21,11 @@ namespace Kaidel {
 		virtual const FramebufferSpecification& GetSpecification()const override { return m_Specification; }
 		virtual void Recreate(const FramebufferSpecification& newSpecs) override;
 		virtual void Resize(uint32_t width, uint32_t height) override;
+		
+		
 		virtual Ref<Texture2D> GetColorAttachment(uint32_t index)const override{ return m_Framebuffer.Textures[index]; }
 		virtual Ref<Texture2D> GetDepthAttachment()const override { return m_HasDepth ? m_Framebuffer.Textures.back() : nullptr; }
+		virtual Ref<Texture2D> GetResolveAttachment(uint32_t index)const override { return m_Framebuffer.Resolves[index]; }
 
 		VkFramebuffer GetFramebuffer()const { return m_Framebuffer.Framebuffer; }
 		auto& GetResources() { return m_Framebuffer; }
