@@ -9,13 +9,12 @@ namespace Kaidel {
 		auto devices = GetDevices(instance);
 		for (auto& device : devices) {
 			m_QueueManager.FillQueueManager(specs, device);
-			if (m_QueueManager.Filled()) {
+			VkPhysicalDeviceProperties props{};
+			vkGetPhysicalDeviceProperties(device, &props);
+			if (m_QueueManager.Filled() && props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
 				m_Device = device;
-				VkPhysicalDeviceProperties props{};
-				vkGetPhysicalDeviceProperties(m_Device, &props);
 				KD_CORE_INFO("Chosen device {}", props.deviceName);
 				m_Properties = CreateScope<VkPhysicalDeviceProperties>(props);
-
 				break;
 			}
 		}

@@ -136,37 +136,41 @@ namespace Kaidel {
 			});
 		}
 
-		//{
-		//	Entity e = m_ActiveScene->CreateEntity("Occluder");
-		//	
-		//	auto& mc = e.AddComponent<ModelComponent>();
-		//	mc.UsedModel = CreateRef<Model>();
-		//	mc.UsedModel->MakeCubeModel();
-		//}
-		//
-		//{
-		//	Entity e = m_ActiveScene->CreateEntity("Occluded");
-		//	auto& tc = e.GetComponent<TransformComponent>();
-		//	tc.Translation = { 0,0,10.0f };
-		//	tc.Scale = { 10,10,1 };
-		//	auto& mc = e.AddComponent<ModelComponent>();
-		//	mc.UsedModel = CreateRef<Model>();
-		//	mc.UsedModel->MakeCubeModel();
-		//}
-
 		{
-			Entity e = m_ActiveScene->CreateEntity("Sponza");
-			auto& tc = e.GetComponent<TransformComponent>();
-			tc.Scale = glm::vec3(.3f);
+			Entity e = m_ActiveScene->CreateEntity("Occluder");
+			
 			auto& mc = e.AddComponent<ModelComponent>();
-			mc.UsedModel = CreateRef<Model>("assets/models/Sponza/Sponza.gltf");
+			mc.UsedModel = CreateRef<Model>();
+			mc.UsedModel->MakeCubeModel();
 		}
+		
+		{
+			Entity e = m_ActiveScene->CreateEntity("Occluded");
+			auto& tc = e.GetComponent<TransformComponent>();
+			tc.Translation = { 0,0,-10.0f };
+			tc.Scale = { 10,10,1 };
+			auto& mc = e.AddComponent<ModelComponent>();
+			mc.UsedModel = CreateRef<Model>();
+			mc.UsedModel->MakeCubeModel();
+		}
+
+		//{
+			//Entity e = m_ActiveScene->CreateEntity("Sponza");
+			//auto& tc = e.GetComponent<TransformComponent>();
+			//tc.Scale = glm::vec3(.3f);
+			//auto& mc = e.AddComponent<ModelComponent>();
+			//mc.UsedModel = CreateRef<Model>("assets/models/Sponza/Sponza.gltf");
+		//}
 
 		{
 			Entity e = m_ActiveScene->CreateEntity("Light");
+			auto& tc = e.GetComponent<TransformComponent>();
+			tc.Rotation.x = glm::pi<float>() / 2.0f;
+			tc.Rotation.y = glm::pi<float>() / 2.0f;
+			tc.Rotation.z = glm::pi<float>() / 2.0f;
 			auto& dlc = e.AddComponent<DirectionalLightComponent>();
 			dlc.Color = glm::vec3(1.0);
-			dlc.Direction = glm::vec3(0, -5, 1.33f);
+			dlc.Direction = glm::vec3(0, -5.0f, 1.0f);
 			dlc.Size = 100;
 		}
 
@@ -610,7 +614,7 @@ namespace Kaidel {
 
 		ImGui::InputInt("Split", &split);
 		
-		split = std::clamp(split, 0, 0);
+		split = std::clamp(split, 0, 3);
 
 		Ref<Texture2D> t = *(DepthTexture[split]);
 

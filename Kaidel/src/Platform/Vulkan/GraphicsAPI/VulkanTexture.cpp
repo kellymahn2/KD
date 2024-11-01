@@ -362,6 +362,8 @@ namespace Kaidel {
 	VulkanFramebufferTexture::VulkanFramebufferTexture(uint32_t width, uint32_t height, Format format, TextureSamples samples, bool isDepth)
 		:m_Specification(ImageType::_2D)
 	{
+		int formatChannelCount = Utils::CalculateChannelCount(format);
+
 		m_Specification.Format = format;
 		m_Specification.Width = width;
 		m_Specification.Height = height;
@@ -372,10 +374,19 @@ namespace Kaidel {
 		m_Specification.IsCube = false;
 		m_Specification.IsCpuReadable = false;
 		m_Specification.Samples = samples;
+		
 		m_Specification.Swizzles[0] = TextureSwizzle::Red;
 		m_Specification.Swizzles[1] = TextureSwizzle::Green;
 		m_Specification.Swizzles[2] = TextureSwizzle::Blue;
 		m_Specification.Swizzles[3] = TextureSwizzle::Alpha;
+
+		//if (Utils::IsDepthFormat(format)) {
+		//	m_Specification.Swizzles[0] = TextureSwizzle::Red;
+		//	m_Specification.Swizzles[1] = TextureSwizzle::Red;
+		//	m_Specification.Swizzles[2] = TextureSwizzle::Red;
+		//	m_Specification.Swizzles[3] = TextureSwizzle::One;
+		//}
+
 
 		auto& backend = VK_CONTEXT.GetBackend();
 
@@ -396,10 +407,20 @@ namespace Kaidel {
 			(isDepth ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 		info.ViewFormat = info.Format;
 		info.ViewType = VK_IMAGE_VIEW_TYPE_2D;
+		
 		info.Swizzles[0] = VK_COMPONENT_SWIZZLE_R;
 		info.Swizzles[1] = VK_COMPONENT_SWIZZLE_G;
 		info.Swizzles[2] = VK_COMPONENT_SWIZZLE_B;
 		info.Swizzles[3] = VK_COMPONENT_SWIZZLE_A;
+
+		//if (Utils::IsDepthFormat(format)) {
+		//	info.Swizzles[0] = VK_COMPONENT_SWIZZLE_R;
+		//	info.Swizzles[1] = VK_COMPONENT_SWIZZLE_R;
+		//	info.Swizzles[2] = VK_COMPONENT_SWIZZLE_R;
+		//	info.Swizzles[3] = VK_COMPONENT_SWIZZLE_ONE;
+		//}
+
+		
 		info.IsCube = false;
 		info.IsCpuReadable = false;
 

@@ -9,7 +9,6 @@ layout(push_constant) uniform PushConstants{
 
 void main(){
 	gl_Position = MVP * vec4(a_Position,1.0);
-	gl_Position.y *= -1.0;
 }
 
 #type fragment

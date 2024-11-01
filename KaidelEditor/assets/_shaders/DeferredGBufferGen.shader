@@ -38,7 +38,6 @@ void main(){
 	Output.B = Output.B - (dot(Output.B,Output.N)) * Output.N - (dot(Output.B,Output.T)) * Output.T;
 	Output.TexCoords = a_TexCoords;
 
-	gl_Position.y *= -1.0;
 }
 
 #type fragment

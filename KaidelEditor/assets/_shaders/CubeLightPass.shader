@@ -8,7 +8,7 @@ layout(location = 0)out vec2 v_TexCoords;
 
 void main(){
 	gl_Position = vec4(a_NDC,0.0,1.0);
-
+	gl_Position.y *= -1.0;
 	v_TexCoords = a_TexCoords;
 }
 #type fragment
@@ -67,12 +67,17 @@ layout(set = 2,binding = 4) uniform texture2D MetallicRoughness;
 layout(set = 2,binding = 5) uniform texture2D Depths;
 
 layout(set = 3,binding = 0, std140) uniform DirLight{
-	mat4 ViewProjection;
+	mat4 ViewProjection[4];
 	vec3 Direction;
 	vec3 Color;
+	vec4 SplitDistances;
 } DLight;
 layout(set = 3,binding = 1) uniform sampler ShadowSampler;
-layout(set = 3,binding = 2) uniform texture2D DirectionalShadows;
+layout(set = 3,binding = 2) uniform texture2D DirectionalShadows0;
+layout(set = 3,binding = 3) uniform texture2D DirectionalShadows1;
+layout(set = 3,binding = 4) uniform texture2D DirectionalShadows2;
+layout(set = 3,binding = 5) uniform texture2D DirectionalShadows3;
+
 
 
 const float M_PI = 3.1415926535897932384626433832795;
@@ -152,7 +157,7 @@ void main(){
 
 	vec3 radiance = vec3(0.0);
 
-	radiance = calcDirLight(calcDirShadow(pos,norm,normalize(-DLight.Direction)), DLight.Direction,DLight.Color,norm,viewDir,color.rgb,roughness,metallic,F0);
+	radiance = calcDirLight(calcDirShadow(pos,norm,-normalize(DLight.Direction)), DLight.Direction,DLight.Color,norm,viewDir,color.rgb,roughness,metallic,F0);
 
 	//for(uint i = 0;i< Grids[tileIndex].Count;++i) {
 	//	uint lightIndex = Grids[tileIndex].Indices[i];
@@ -176,31 +181,73 @@ float linearDepth(float depthSample){
 }
 
 
-float PCFSample(vec3 baseCoords,float bias){
-	vec2 texelSize = 1.0 / textureSize(sampler2D(DirectionalShadows,ShadowSampler),0);
+float PCFSample(in texture2D shadowTexture,vec3 baseCoords,float bias){
+	float scale = 1.0;
+	vec2 texelSize = scale * 1.0 / vec2(textureSize(sampler2D(shadowTexture,ShadowSampler),0));
 	
 	float shadow = 0.0;
 
-	for(int i = -1;i<=1;++i){
-		for(int j = -1;j<=1;++j){
-			vec2 offset = vec2(i * texelSize.x,j * texelSize.y);
-			float pcfDepth = texture(sampler2D(DirectionalShadows,ShadowSampler),baseCoords.xy + offset).r;
+	int radius = 1;
+
+	float count = 0.0;
+
+	for(int i = -radius;i<=radius;++i){
+		for(int j = -radius;j<=radius;++j){
+			vec2 offset = vec2(float(i) * texelSize.x,float(j) * texelSize.y);
+			float pcfDepth = texture(sampler2D(shadowTexture,ShadowSampler),baseCoords.xy + offset).r;
 
 			shadow += (baseCoords.z - bias) > pcfDepth ? 1.0 : 0.0;
+			count += 1.0;
 		}
 	}
 
-	shadow /= 9.0;
+	shadow /= count;
 	return shadow;
 }
 
+bool IsOutOfBounds(vec4 coords){
+	return 
+	(coords.x < -coords.w || coords.x > coords.w) ||
+	(coords.y < -coords.w || coords.y > coords.w) ||
+	(coords.z < 0.0 || coords.z > coords.w);
+}
+
+
 float calcDirShadow(vec3 worldPos,vec3 norm,vec3 lightDir)  
 {
-	vec4 fragPosLightSpace = DLight.ViewProjection * vec4(worldPos,1.0);
+
+	vec4 fragPosViewSpace = View * vec4(worldPos,1.0);
+	fragPosViewSpace /= fragPosViewSpace.w;
+
+	float viewDepth = abs(fragPosViewSpace.z);
+
+	int index = -1;
+
+	for(int i = 0;i<4;i++){
+		if(viewDepth < DLight.SplitDistances[i]){
+			index = i;
+			break;
+		}
+	}
+
+	if(index == -1)
+		return 0.0;
+
+	if(ShowDebugShadow == 4){
+		switch(index){
+		case 0:o_Color = vec4(1,0,0,1);break;
+		case 1:o_Color = vec4(0,1,0,1);break;
+		case 2:o_Color = vec4(0,0,1,1);break;
+		case 3:o_Color = vec4(1,1,1,1);break;
+		}
+		return 0.0;
+	}
+
+	vec4 fragPosLightSpace = DLight.ViewProjection[index] * vec4(worldPos,1.0);
 	
 	vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
 
-	if(ShowDebugShadow != 0){
+	if(ShowDebugShadow == 1){
 		if(projCoords.x > 1.0 || projCoords.x < -1.0)
 		{
 			o_Color = vec4(0,0,1,1);
@@ -213,15 +260,30 @@ float calcDirShadow(vec3 worldPos,vec3 norm,vec3 lightDir)
 		{
 			o_Color = vec4(1,0,1,1);
 		}
+		else {
+			o_Color = vec4(1);
+		}
 	}
 
+	if(IsOutOfBounds(fragPosLightSpace))
+		return 0.0;
+
 	projCoords.xy = projCoords.xy * 0.5 + 0.5;
-	projCoords.y = 1.0 - projCoords.y;
 	
 	float bias = max(0.05 * (1.0 - dot(norm, lightDir)), 0.005);
-	float shadow = PCFSample(projCoords,bias);
+	//bias = 0.005;
+	float shadow = 0.0;
+	if(index == 0)
+		shadow = PCFSample(DirectionalShadows0, projCoords,bias);
+	if(index == 1)
+		shadow = PCFSample(DirectionalShadows1, projCoords,bias);
+	if(index == 2)
+		shadow = PCFSample(DirectionalShadows2, projCoords,bias);
+	if(index == 3)
+		shadow = PCFSample(DirectionalShadows3, projCoords,bias);
 
-	if(ShowDebugShadow != 0){	
+
+	if(ShowDebugShadow == 2){	
 		if(shadow != 0.0)
 		{
 			o_Color = vec4(1,0,0,1);
@@ -229,6 +291,10 @@ float calcDirShadow(vec3 worldPos,vec3 norm,vec3 lightDir)
 		else{
 			o_Color = vec4(0,1,0,1);
 		}
+	}
+
+	if(ShowDebugShadow == 3){
+		o_Color = vec4(shadow);
 	}
 	
 	return shadow;

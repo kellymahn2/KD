@@ -89,7 +89,7 @@ namespace Kaidel {
 
 		bool m_ConsoleOpen = false;
 		EditorCamera m_EditorCamera;
-		float m_Near = .1f, m_Far = 500.0f;
+		float m_Near = .1f, m_Far = 1000.0f;
 		
 		bool m_ViewportFocused = false, m_ViewportHovered = false;
 
