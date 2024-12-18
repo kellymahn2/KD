@@ -9,13 +9,13 @@ namespace Kaidel {
 	namespace Utils {
 
 		static Texture2DSpecification GetTextureSpecification(
-			Format format, bool isDepth, uint32_t width,uint32_t height,TextureSamples samples) {
+			Format format, bool isDepth, uint32_t width,uint32_t height, uint32_t layers,TextureSamples samples) {
 			Texture2DSpecification info{};
 			info.Format = format;
 			info.Width = width;
 			info.Height = height;
 			info.Depth = 1;
-			info.Layers = 1;
+			info.Layers = layers;
 			info.Mips = 1;
 			info.Samples = samples;
 			info.IsCpuReadable = false;
@@ -45,7 +45,7 @@ namespace Kaidel {
 				const auto& color = rpSpec.Colors[i];
 
 				ret.Textures[i] = 
-					CreateRef<VulkanFramebufferTexture>(specs.Width,specs.Height,color.AttachmentFormat,color.Samples,false);
+					CreateRef<VulkanFramebufferTexture>(specs.Width,specs.Height, specs.Layers, color.AttachmentFormat,color.Samples,false);
 
 				infos.push_back(((const VulkanBackend::TextureInfo*)ret.Textures[i]->GetBackendInfo()));
 			}
@@ -55,7 +55,7 @@ namespace Kaidel {
 				auto& depth = rpSpec.DepthStencil;
 
 				ret.Textures[rpSpec.Colors.size()] =
-					CreateRef<VulkanFramebufferTexture>(specs.Width, specs.Height, depth.AttachmentFormat, TextureSamples::x1, true);
+					CreateRef<VulkanFramebufferTexture>(specs.Width, specs.Height, specs.Layers, depth.AttachmentFormat, TextureSamples::x1, true);
 
 				infos.push_back(((const VulkanBackend::TextureInfo*)ret.Textures[rpSpec.Colors.size()]->GetBackendInfo()));
 			}
@@ -66,7 +66,7 @@ namespace Kaidel {
 					const auto& color = rpSpec.Colors[i];
 
 					ret.Resolves[i] =
-						CreateRef<VulkanFramebufferTexture>(specs.Width, specs.Height, color.AttachmentFormat, TextureSamples::x1, false);
+						CreateRef<VulkanFramebufferTexture>(specs.Width, specs.Height, specs.Layers, color.AttachmentFormat, TextureSamples::x1, false);
 
 					infos.push_back(((const VulkanBackend::TextureInfo*)ret.Resolves[i]->GetBackendInfo()));
 				}
@@ -74,7 +74,7 @@ namespace Kaidel {
 
 
 			ret.Framebuffer = 
-				backend->CreateFramebuffer(((VulkanRenderPass*)specs.RenderPass.Get())->GetRenderPass(), infos, specs.Width, specs.Height);
+				backend->CreateFramebuffer(((VulkanRenderPass*)specs.RenderPass.Get())->GetRenderPass(), infos, specs.Width, specs.Height, specs.Layers);
 
 			return ret;
 		}
@@ -152,7 +152,7 @@ namespace Kaidel {
 		for (auto& attachment : m_Specification.RenderPass->GetSpecification().Colors) {
 			m_ColorInfos.push_back(Utils::GetTextureSpecification(
 				attachment.AttachmentFormat,
-				false, m_Specification.Width, m_Specification.Height, attachment.Samples
+				false, m_Specification.Width, m_Specification.Height, m_Specification.Layers,attachment.Samples
 			));
 		}
 
@@ -161,7 +161,7 @@ namespace Kaidel {
 			m_HasDepth = true;
 			m_DepthInfo = new Texture2DSpecification(Utils::GetTextureSpecification(
 				attachment.AttachmentFormat,
-				true, m_Specification.Width, m_Specification.Height, attachment.Samples));
+				true, m_Specification.Width, m_Specification.Height, m_Specification.Layers, attachment.Samples));
 		}
 	}
 	

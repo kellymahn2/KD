@@ -6,6 +6,7 @@
 #include "Entity.h"
 #include "SceneRenderer.h"
 #include "Kaidel/Scripting/ScriptEngine.h"
+#include "ModelLibrary.h"
 
 #include <glm/glm.hpp>
 #include <box2d/b2_world.h>
@@ -225,6 +226,8 @@ namespace Kaidel {
 
 	Entity Scene::CreateCube(const std::string& name, UUID uuid) {
 		Entity entity = CreateEntity(uuid, name);
+		auto& mc = entity.AddComponent<ModelComponent>();
+		mc.UsedModel = ModelLibrary::GetBaseCube();
 		return entity;
 	}
 

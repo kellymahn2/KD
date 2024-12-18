@@ -3,6 +3,7 @@
 #include "Components.h"
 #include "Scene.h"
 #include "Entity.h"
+#include "temp.h"
 
 #include "Kaidel/Renderer/GraphicsAPI/PerFrameResource.h"
 
@@ -29,34 +30,22 @@
 #define MAX_LIGHT_COUNT 100
 
 #define SHADOW_MAP_SIZE 4096
-#define SHADOW_NEAR 1.0f
-#define SHADOW_FAR 1000.0f
 #define SHADOW_MAPPING
-#define TYPE 2
 
 namespace Kaidel {
 	struct DeferredPassData {
 		Ref<RenderPass> RenderPass;
 		PerFrameResource<Ref<Framebuffer>> Output;
 		//Ref<GraphicsPipeline> Pipeline;
-		DescriptorSetPack Pack;
 	};
-
-#ifdef CSM
-	struct ShadowData {
-		Ref<RenderPass> RenderPass;
-		PerFrameResource<Ref<Framebuffer>> Buffers[4];
-		Ref<GraphicsPipeline> Pipeline;
-	};
-
-#endif
 
 #ifdef SHADOW_MAPPING
 	struct ShadowData {
 		Ref<RenderPass> RenderPass;
 		Ref<GraphicsPipeline> Pipeline;
-		PerFrameResource<Ref<Framebuffer>> Framebuffer[4];
+		PerFrameResource<Ref<Framebuffer>> Framebuffer;
 		Ref<Sampler> ShadowSampler;
+		PerFrameResource<DescriptorSetPack> Pack;
 	};
 #endif
 	static struct Data {
@@ -124,10 +113,14 @@ namespace Kaidel {
 	std::vector<Light> lights;
 
 	struct DirectionalLight {
+		glm::mat4 GlobalShadowMatrix;
 		glm::mat4 ViewProj[4];
 		alignas(16) glm::vec3 Direction;
 		alignas(16) glm::vec3 Color;
 		alignas(16) float SplitDistances[4];
+		alignas(16) glm::vec4 CascadeOffsets[4];
+		alignas(16) glm::vec4 CascadeScales[4];
+		float FadeStart;
 	} DLight;
 
 	struct Cluster {
@@ -276,19 +269,20 @@ namespace Kaidel {
 
 		{
 			SamplerState state;
-			state.AddressModeU = SamplerAddressMode::ClampToBorder;
-			state.AddressModeV = SamplerAddressMode::ClampToBorder;
-			state.AddressModeW = SamplerAddressMode::ClampToBorder;
+			state.AddressModeU = SamplerAddressMode::ClampToEdge;
+			state.AddressModeV = SamplerAddressMode::ClampToEdge;
+			state.AddressModeW = SamplerAddressMode::ClampToEdge;
 			state.BorderColor = SamplerBorderColor::FloatOpaqueWhite;
 			state.MagFilter = SamplerFilter::Nearest;
 			state.MinFilter = SamplerFilter::Nearest;
 			state.MipFilter = SamplerMipMapMode::Nearest;
+			state.Compare = true;
+			state.CompareOp = CompareOp::LessOrEqual;
 
 			s_Data->Shadows.ShadowSampler = Sampler::Create(state);
 		}
 
-		s_Data->DirectionalLight.Construct([](uint32_t i) {return UniformBuffer::Create(sizeof(DirectionalLight)); });
-
+		 
 		s_Data->ScreenPipelinePack.Construct([](uint32_t i) {
 			Ref<Texture2D> pos, norm, albedo, metalRough, depth;
 			
@@ -325,10 +319,8 @@ namespace Kaidel {
 			pack[3]->Update(s_Data->DirectionalLight[i], 0).
 				Update({}, s_Data->Shadows.ShadowSampler, {}, "ShadowSampler").
 #ifdef SHADOW_MAPPING
-				Update(s_Data->Shadows.Framebuffer[0][i]->GetDepthAttachment(), {}, ImageLayout::ShaderReadOnlyOptimal, "DirectionalShadows0").
-				Update(s_Data->Shadows.Framebuffer[1][i]->GetDepthAttachment(), {}, ImageLayout::ShaderReadOnlyOptimal, "DirectionalShadows1").
-				Update(s_Data->Shadows.Framebuffer[2][i]->GetDepthAttachment(), {}, ImageLayout::ShaderReadOnlyOptimal, "DirectionalShadows2").
-				Update(s_Data->Shadows.Framebuffer[3][i]->GetDepthAttachment(), {}, ImageLayout::ShaderReadOnlyOptimal, "DirectionalShadows3");
+				Update(s_Data->Shadows.Framebuffer[i]->GetDepthAttachment(), {}, ImageLayout::ShaderReadOnlyOptimal, "DirectionalShadows");
+				
 #endif
 			return pack;
 		});
@@ -350,7 +342,6 @@ namespace Kaidel {
 		RenderCommand::Draw(6, 1, 0, 0);
 		RenderCommand::EndRenderPass();
 	}
-	
 	void SceneRenderer::InsertScreenPassBarrier()
 	{
 		ImageMemoryBarrier hdrBarrier(
@@ -644,18 +635,17 @@ namespace Kaidel {
 		FramebufferSpecification fbSpecs;
 		fbSpecs.Width = SHADOW_MAP_SIZE;
 		fbSpecs.Height = SHADOW_MAP_SIZE;
+		fbSpecs.Layers = 4;
 		fbSpecs.RenderPass = s_Data->Shadows.RenderPass;
-		for (int i = 0; i < 4; ++i) {
-			s_Data->Shadows.Framebuffer[i].Construct([&fbSpecs](uint32_t) {
-				return Framebuffer::Create(fbSpecs);
-				});
-		}
-		for (int j = 0; j < 4; ++j) {
+		s_Data->Shadows.Framebuffer.Construct([&fbSpecs](uint32_t) {
+			return Framebuffer::Create(fbSpecs);
+		});
+		/*for (int j = 0; j < 4; ++j) {
 			DepthTexture[j] = new PerFrameResource<Ref<Texture2D>>;
 			DepthTexture[j]->Construct([j](uint32_t i) {
 				return s_Data->Shadows.Framebuffer[j][i]->GetDepthAttachment();
 				});
-		}
+		}*/
 		
 		GraphicsPipelineSpecification gpSpecs;
 		gpSpecs.Shader = ShaderLibrary::LoadOrGetNamedShader("ShadowPass", "assets/_shaders/ShadowPass.glsl");
@@ -674,205 +664,21 @@ namespace Kaidel {
 		gpSpecs.DepthStencil.DepthCompareOperator = CompareOp::LessOrEqual;
 		
 		s_Data->Shadows.Pipeline = GraphicsPipeline::Create(gpSpecs);
+
+		s_Data->Shadows.Pack.Construct([&gpSpecs](uint32_t i) {
+			auto pack = DescriptorSetPack(gpSpecs.Shader, {});
+			pack[0]->Update(s_Data->DirectionalLight[i], "DLight");
+			return pack;
+		});
+
 #endif
 	}
 
-#if TYPE == 1
-	static glm::mat4 CalcLightViewProjectionMatrix(const glm::mat4& cameraViewProjInv, const glm::vec3& normalizedLightDir) {
-		glm::vec3 endpoints[8] = {
-			glm::vec3(-1.0f,1.0f,0.0f),
-			glm::vec3(1.0f,1.0f,0.0f),
-			glm::vec3(1.0f,-1.0f,0.0f),
-			glm::vec3(-1.0f,-1.0f,0.0f),
-
-			glm::vec3(-1.0f,1.0f,1.0f),
-			glm::vec3(1.0f,1.0f,1.0f),
-			glm::vec3(1.0f,-1.0f,1.0f),
-			glm::vec3(-1.0f,-1.0f,1.0f),
-		};
-
-		for (uint32_t j = 0; j < 8; j++) {
-			glm::vec4 invCorner = cameraViewProjInv * glm::vec4(endpoints[j], 1.0f);
-			endpoints[j] = invCorner / invCorner.w;
-		}
-
-		// Get frustum center
-		glm::vec3 center = glm::vec3(0.0f);
-		for (uint32_t j = 0; j < 8; j++) {
-			center += endpoints[j];
-		}
-		center /= 8.0f;
-
-		float radius = glm::length(endpoints[6] - endpoints[0]);
-
-
-		glm::vec3 lightPos = center - normalizedLightDir * radius;
-
-		glm::mat4 lightView = glm::lookAt(lightPos, center, glm::vec3(0, 1, 0));
-
-		glm::mat4 lightProj = glm::ortho(-radius, radius, -radius, radius, 0.0f, 2.0f * radius);
-
-		return lightProj * lightView;
-	}
-#endif
-
-#ifdef TYPE == 2
 #undef near
 #undef far
 
-#define CONCAT(x,y) x ## (y)
-
-	static void GetEndpoints(const glm::mat4& invViewProjMatrix, glm::vec3* endpoints) {
-
-		endpoints[0] = glm::vec3(-1.0f,  1.0f, 0.0f);
-		endpoints[1] = glm::vec3(1.0f,  1.0f, 0.0f);
-		endpoints[2] = glm::vec3(1.0f, -1.0f, 0.0f);
-		endpoints[3] = glm::vec3(-1.0f, -1.0f, 0.0f);
-		endpoints[4] = glm::vec3(-1.0f,  1.0f, 1.0f);
-		endpoints[5] = glm::vec3(1.0f,  1.0f, 1.0f);
-		endpoints[6] = glm::vec3(1.0f, -1.0f, 1.0f);
-		endpoints[7] = glm::vec3(-1.0f, -1.0f, 1.0f);
-
-		for (int i = 0; i < 8; ++i) {
-			glm::vec4 corner = invViewProjMatrix * glm::vec4(endpoints[i],1.0f);
-			endpoints[i] = corner / corner.w;
-		}
-	}
-
-	static glm::vec3 GetCenter(const glm::vec3* endpoints) {
-		glm::vec3 center = glm::vec3(0, 0, 0);
-		for (int i = 0; i < 8; ++i) {
-			center += endpoints[i];
-		}
-
-		return center / 8.0f;
-	}
-
-	static float GetRadius(const glm::vec3* endpoints, const glm::vec3& center) {
-		float radius = 0.0f;
-
-		for (int i = 0; i < 8; ++i) {
-			float d = glm::length(endpoints[i] - center);
-			if (d > radius)
-				radius = d;
-		}
-
-		return radius;
-	}
-
-	double Snapped(double p_value, double p_step) {
-		if (p_step != 0) {
-			p_value = glm::floor(p_value / p_step + 0.5) * p_step;
-		}
-		return p_value;
-	}
-
-	static std::vector<glm::mat4> ComputeLightViewProjections(
-		const std::vector<float>& cascadeSplits,
-		int numCascades,
-		float nearPlane,
-		float farPlane,
-		float fovDegrees,
-		float aspectRatio,
-		const glm::mat4& cameraViewMatrix,
-		const glm::vec3& lightDir,
-		const glm::mat4& lightRotation,
-		int shadowMapResolution)
-	{
-		std::vector<glm::mat4> lightViewProjections;
-		lightViewProjections.reserve(numCascades);
-
-		for (int i = 0; i < numCascades; ++i) {
-			float near = cascadeSplits[i];
-			float far = cascadeSplits[i + 1];
-
-			glm::mat4 cameraSplitProjection = glm::perspective(glm::radians(fovDegrees), aspectRatio, near, far);
-
-			glm::vec3 endpoints[8];
-			GetEndpoints(glm::inverse(cameraSplitProjection * cameraViewMatrix), endpoints);
-
-			glm::vec3 center = GetCenter(endpoints);
-
-			float radius = GetRadius(endpoints, center);
-
-			radius = std::ceil(radius);
-
-			auto lightPos = center - radius * lightDir;
-
-			KD_CORE_INFO("{},{},{}", lightPos.x, lightPos.y, lightPos.z);
-
-			glm::mat4 lightViewMatrix = glm::lookAt(-lightDir, glm::vec3(0), glm::vec3(0.0f, 1.0f, 0.0f));
-
-			glm::vec3 maxOrtho = glm::vec3(radius, radius, 2.0f * radius);
-			glm::vec3 minOrtho = glm::vec3(-radius, -radius, 0.0f);
-
-			glm::mat4 lightOrthoMatrix = glm::ortho(minOrtho.x, maxOrtho.x, minOrtho.y, maxOrtho.y, minOrtho.z, maxOrtho.z);
-
-			//glm::mat4 shadowMatrix = lightOrthoMatrix * lightViewMatrix;
-
-			float texelsPerUnit = (float)shadowMapResolution / (2.0f * radius);
-
-			glm::mat4 scaler = glm::scale(glm::mat4(1.0f), glm::vec3(texelsPerUnit));
-			lightViewMatrix = scaler * lightViewMatrix;
-
-			glm::vec4 newCenter = lightViewMatrix * glm::vec4(center,1.0);
-			float w = newCenter.w;
-			newCenter /= w;
-			newCenter.x = (float)floor(newCenter.x);
-			newCenter.y = (float)floor(newCenter.y);
-			newCenter *= w;
-			center = glm::inverse(lightViewMatrix) * newCenter;
-
-			glm::vec3 eye = center - (lightDir * radius * 1.0f);
-
-			lightViewMatrix = glm::lookAt(eye, center, glm::vec3(0, 1, 0));
-			lightOrthoMatrix = glm::ortho(-radius, radius, -radius, radius, -1.0f * radius, 1.0f * radius);
-
-			lightViewProjections.push_back(lightOrthoMatrix * lightViewMatrix);
-		}
-		//how do i stabalize a directional light's split frustum's light view projection using snapping to texel size increments in c++(im using vulkan with glm)
-		return lightViewProjections;
-	}
-
-#endif
-			//// Now apply texel snapping  
-			//float texelSizeX = 1.0f / shadowMapResolution;
-			//float texelSizeY = 1.0f / shadowMapResolution;
-
-			//// Computing snapped light space position (assuming we want the center of the cascade)  
-			//glm::vec4 lightSpacePos = shadowMatrix * glm::vec4(center, 1.0f);
-			//lightSpacePos /= lightSpacePos.w; // Convert to normalized device coordinates (NDC)  
-
-			//float snappedX = std::floor(lightSpacePos.x * shadowMapResolution) * texelSizeX;
-			//float snappedY = std::floor(lightSpacePos.y * shadowMapResolution) * texelSizeY;
-
-			//// Create a new shadow matrix adjusting with the snapped values  
-			//shadowMatrix = glm::translate(shadowMatrix, glm::vec3(snappedX - lightSpacePos.x, snappedY - lightSpacePos.y, 0.0f));
-
-	static glm::vec4 NearZeroToZero(const glm::vec4& vec, float epsilon) {
-		glm::vec4 ret = vec;
-		
-		if (glm::epsilonEqual(ret.x, 0.0f, epsilon)) {
-			ret.x = 0.0f;
-		}
-
-		if (glm::epsilonEqual(ret.y, 0.0f, epsilon)) {
-			ret.y = 0.0f;
-		}
-
-		if (glm::epsilonEqual(ret.z, 0.0f, epsilon)) {
-			ret.z = 0.0f;
-		}
-
-		if (glm::epsilonEqual(ret.w, 0.0f, epsilon)) {
-			ret.w = 0.0f;
-		}
-
-		return ret;
-	}
-
-	static std::vector<float> GetSplitDistances(uint32_t count, float near, float far) {
-		std::vector<float> cascadeSplits(count + 1);
+	static std::vector<float> GetSplitDistances(uint32_t count, float near, float far, float splitLambda) {
+		std::vector<float> cascadeSplits(count);
 
 		float minZ = near;
 		float maxZ = far;
@@ -880,64 +686,75 @@ namespace Kaidel {
 		float range = maxZ - minZ;
 		float ratio = maxZ / minZ;
 
-		cascadeSplits[0] = near;
-
-		for (uint32_t i = 0; i < 4; i++) {
-			float p = (i + 2) / static_cast<float>(count);
+		for (uint32_t i = 0; i < count; i++) {
+			float p = (i + 1) / (float)count;
 			float log = minZ * std::pow(ratio, p);
 			float uniform = minZ + range * p;
-			float d = 0.5f* (log - uniform) + uniform;
-			cascadeSplits[i + 1] = (d - near);
+			float d = splitLambda * (log - uniform) + uniform;
+			cascadeSplits[i] = d;
 		}
-
-		cascadeSplits[count] = far;
-
+		
 		return cascadeSplits;
 	}
 
-	static void ShadowPass(const SceneData& sceneData, const entt::registry& sceneReg) {
+	void SceneRenderer::ShadowPass(const SceneData& sceneData) {
 
+		Scene* scene = (Scene*)m_Context;
 		{
-			auto view = sceneReg.view<TransformComponent, DirectionalLightComponent>();
+			auto view = scene->m_Registry.view<TransformComponent, DirectionalLightComponent>();
 			entt::entity e = *view.begin();
-			auto& [tc, dlc] = view.get<TransformComponent, DirectionalLightComponent>(e);
+			Entity entity{ e, scene };
 
-			float maxDistance = glm::min(sceneData.zFar, dlc.Size);
+			auto& [tc, dlc] = entity.GetComponent<TransformComponent, DirectionalLightComponent>();
+
+			float maxDistance = glm::min(sceneData.zFar, dlc.MaxDistance);
 			maxDistance = glm::max(maxDistance, sceneData.zNear + 0.001f);
 
 			float minDistance = glm::min(sceneData.zNear, maxDistance);
 
 			DLight.Color = dlc.Color;
-#if TYPE == 2
+
 			glm::mat4 lightRotation = glm::toMat4(glm::quat(tc.Rotation));
+			lightRotation = glm::transpose(glm::inverse(glm::mat3(lightRotation)));
 
-			glm::vec3 lightDir = lightRotation * glm::vec4(1,0,0,1);
-			
-			lightDir = glm::normalize(NearZeroToZero(glm::vec4(lightDir, 0.0f), glm::epsilon<float>()));
 
-			lightDir = glm::normalize(dlc.Direction);
+			static const constexpr int cascadeSplitLambda = 0.95f;
 
-			DLight.Direction = lightDir;
+			std::vector<float> splits = GetSplitDistances(4, minDistance, maxDistance, dlc.SplitLambda);
 
-			std::vector<float> splits = GetSplitDistances(4, minDistance, maxDistance);
+			//KD_CORE_INFO("{},{},{},{}", splits[0], splits[1], splits[2], splits[3]);
 
-			auto viewProjs = ComputeLightViewProjections(splits, 4, minDistance, maxDistance, sceneData.FOV, sceneData.AspectRatio, sceneData.View, lightDir, lightRotation, SHADOW_MAP_SIZE);
-			DLight.ViewProj[0] = viewProjs[0];
-			DLight.ViewProj[1] = viewProjs[1];
-			DLight.ViewProj[2] = viewProjs[2];
-			DLight.ViewProj[3] = viewProjs[3];
-			
-			DLight.SplitDistances[0] = splits[1];
-			DLight.SplitDistances[1] = splits[2];
-			DLight.SplitDistances[2] = splits[3];
-			DLight.SplitDistances[3] = splits[4];
-#endif
-#if TYPE == 1
-			glm::mat4 invViewProj = glm::perspective(glm::radians(sceneData.FOV), sceneData.AspectRatio, minDistance, maxDistance) * sceneData.View;
+			splits[0] = (maxDistance - minDistance) * 0.3f + minDistance;
+			splits[1] = (maxDistance - minDistance) * 0.5f + minDistance;
+			splits[2] = (maxDistance - minDistance) * 0.7f + minDistance;
+			splits[3] = (maxDistance - minDistance) * 1.0f + minDistance;
 
-			invViewProj = glm::inverse(invViewProj);
-			DLight.ViewProj = CalcLightViewProjectionMatrix(invViewProj,glm::normalize(dlc.Direction));
-#endif
+			auto viewProj = ComputeLightViewProjections(sceneData, {0.1f,0.3f,0.5f,1.0f}, lightRotation, SHADOW_MAP_SIZE);
+			DLight.GlobalShadowMatrix = viewProj.GlobalShadowMatrix;
+
+			DLight.ViewProj[0] = viewProj.Cascades[0].ShadowMatrix;
+			DLight.ViewProj[1] = viewProj.Cascades[1].ShadowMatrix;
+			DLight.ViewProj[2] = viewProj.Cascades[2].ShadowMatrix;
+			DLight.ViewProj[3] = viewProj.Cascades[3].ShadowMatrix;
+
+			DLight.CascadeOffsets[0] = viewProj.Cascades[0].CascadeOffsets;
+			DLight.CascadeOffsets[1] = viewProj.Cascades[1].CascadeOffsets;
+			DLight.CascadeOffsets[2] = viewProj.Cascades[2].CascadeOffsets;
+			DLight.CascadeOffsets[3] = viewProj.Cascades[3].CascadeOffsets;
+
+			DLight.CascadeScales[0] = viewProj.Cascades[0].CascadeScales;
+			DLight.CascadeScales[1] = viewProj.Cascades[1].CascadeScales;
+			DLight.CascadeScales[2] = viewProj.Cascades[2].CascadeScales;
+			DLight.CascadeScales[3] = viewProj.Cascades[3].CascadeScales;
+
+			DLight.SplitDistances[0] = splits[0];
+			DLight.SplitDistances[1] = splits[1];
+			DLight.SplitDistances[2] = splits[2];
+			DLight.SplitDistances[3] = splits[3];
+
+			DLight.Direction = -glm::normalize(lightRotation[2]);
+
+			DLight.FadeStart = dlc.FadeStart * splits[3];
 		}
 
 		s_Data->DirectionalLight->Get()->SetData(&DLight, sizeof(DLight));
@@ -951,66 +768,44 @@ namespace Kaidel {
 		RenderCommand::SetScissor(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE,0,0);
 
 		
-		for (int i = 0; i < 4; ++i) {
-			RenderCommand::BeginRenderPass(s_Data->Shadows.RenderPass, s_Data->Shadows.Framebuffer[i], {});
+		RenderCommand::BeginRenderPass(s_Data->Shadows.RenderPass, s_Data->Shadows.Framebuffer, {});
 
-			glm::mat4 vp = DLight.ViewProj[i];
-			{
-				auto view = sceneReg.view<TransformComponent, ModelComponent>();
-				for (auto& e : view) {
-					auto& [tc, mc] = view.get(e);
+		s_Data->Shadows.Pack->Bind();
+		{
+			auto view = scene->m_Registry.view<TransformComponent, ModelComponent>();
+			for (auto& e : view) {
+				auto& [tc, mc] = view.get(e);
 
-					if (!mc.UsedModel)
-						continue;
+				if (!mc.UsedModel)
+					continue;
 
-					glm::mat4 model = tc.GetTransform();
+				glm::mat4 model = tc.GetTransform();
 
-					for (auto& mesh : mc.UsedModel->GetMeshes()) {
-						Ref<VertexBuffer> vb = mesh->GetVertexBuffer();
-						Ref<IndexBuffer> ib = mesh->GetIndexBuffer();
-						if (lastSetVertexBuffer != vb) {
-							RenderCommand::BindVertexBuffers({ vb }, { 0 });
-							lastSetVertexBuffer = vb;
-						}
-						if (lastSetIndexBuffer != ib) {
-							RenderCommand::BindIndexBuffer(ib, 0);
-							lastSetIndexBuffer = ib;
-						}
-						glm::mat4 mvp = vp * model;
-						RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("ShadowPass"), 0, mvp);
-
-						RenderCommand::DrawIndexed(mesh->GetIndexCount(), mesh->GetVertexCount(), 1, 0, 0, 0);
+				for (auto& mesh : mc.UsedModel->GetMeshes()) {
+					Ref<VertexBuffer> vb = mesh->GetVertexBuffer();
+					Ref<IndexBuffer> ib = mesh->GetIndexBuffer();
+					if (lastSetVertexBuffer != vb) {
+						RenderCommand::BindVertexBuffers({ vb }, { 0 });
+						lastSetVertexBuffer = vb;
 					}
+					if (lastSetIndexBuffer != ib) {
+						RenderCommand::BindIndexBuffer(ib, 0);
+						lastSetIndexBuffer = ib;
+					}
+					RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("ShadowPass"), 0, model);
+
+					RenderCommand::DrawIndexed(mesh->GetIndexCount(), mesh->GetVertexCount(), 1, 0, 0, 0);
 				}
 			}
-
-			RenderCommand::EndRenderPass();
 		}
+		RenderCommand::EndRenderPass();
 	}
 	
 	static void InsertShadowPassBarrier() {
 
 #ifdef SHADOW_MAPPING
-		ImageMemoryBarrier depthBarrier0(
-			s_Data->Shadows.Framebuffer[0]->Get()->GetDepthAttachment(),
-			ImageLayout::ShaderReadOnlyOptimal,
-			AccessFlags_DepthStencilWrite,
-			AccessFlags_ShaderRead
-		);
-		ImageMemoryBarrier depthBarrier1(
-			s_Data->Shadows.Framebuffer[1]->Get()->GetDepthAttachment(),
-			ImageLayout::ShaderReadOnlyOptimal,
-			AccessFlags_DepthStencilWrite,
-			AccessFlags_ShaderRead
-		);
-		ImageMemoryBarrier depthBarrier2(
-			s_Data->Shadows.Framebuffer[2]->Get()->GetDepthAttachment(),
-			ImageLayout::ShaderReadOnlyOptimal,
-			AccessFlags_DepthStencilWrite,
-			AccessFlags_ShaderRead
-		);
-		ImageMemoryBarrier depthBarrier3(
-			s_Data->Shadows.Framebuffer[3]->Get()->GetDepthAttachment(),
+		ImageMemoryBarrier depthBarrier(
+			s_Data->Shadows.Framebuffer->Get()->GetDepthAttachment(),
 			ImageLayout::ShaderReadOnlyOptimal,
 			AccessFlags_DepthStencilWrite,
 			AccessFlags_ShaderRead
@@ -1021,7 +816,7 @@ namespace Kaidel {
 			PipelineStages_VertexShader,
 			{},
 			{},
-			{ depthBarrier0,depthBarrier1,depthBarrier2,depthBarrier3}
+			{ depthBarrier }
 		);
 #endif
 	}
@@ -1108,10 +903,12 @@ namespace Kaidel {
 			CreateLightCullResources();
 			CreateGBufferResources();
 
+			s_Data->DirectionalLight.Construct([](uint32_t i) {return UniformBuffer::Create(sizeof(DirectionalLight)); });
+
 			CreateShadowPassResources();
 			
 			CreateScreenPassResources();
-			
+
 			CreateTonemapPassResources();
 			
 			cubes.resize(1);
@@ -1138,7 +935,6 @@ namespace Kaidel {
 	//TODO: make it easy to switch render modes, deferred/forward renderer.
 	void SceneRenderer::Render(Ref<Texture2D> outputBuffer, const SceneData& sceneData)
 	{
-		
 		Scene* scene = (Scene*)m_Context;
 		if (NeedsRecreation(outputBuffer)) {
 			RenderCommand::DeviceWaitIdle();
@@ -1164,7 +960,7 @@ namespace Kaidel {
 		InsertLightGridBarrier();
 		InsertDeferredBarrier();
 
-		ShadowPass(sceneData, scene->m_Registry);
+		ShadowPass(sceneData);
 		InsertShadowPassBarrier();
 
 		ScreenPass(zNear,zFar,sceneData.CameraPos,view);

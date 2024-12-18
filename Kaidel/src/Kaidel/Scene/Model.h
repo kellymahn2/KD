@@ -24,6 +24,8 @@ namespace Kaidel {
 		glm::vec3 ModelBitangent;
 	};
 
+	extern Ref<RenderPass> GetDeferredPassRenderPass();
+
 	class Mesh : public IRCCounter<false> {
 	public:
 		Mesh(const std::vector<MeshVertex>& vertices, const std::vector<uint16_t>& indices)
@@ -52,7 +54,7 @@ namespace Kaidel {
 		Ref<Kaidel::Mesh> Mesh;
 		Ref<Material> OverrideMaterial;
 	};
-	extern Ref<RenderPass> GetDeferredPassRenderPass();
+
 	class Model : public IRCCounter<false> {
 	public:
 
@@ -131,7 +133,6 @@ namespace Kaidel {
 			mesh->SetDefaultMaterial(mat);
 			m_Meshes.push_back(mesh);
 		}
-
 	private:
 		void LoadModel(const std::string& path) {
 			Assimp::Importer importer;
@@ -219,7 +220,7 @@ namespace Kaidel {
 		Ref<Texture2D> GetMaterialTexture(aiTextureType type, Format format, const aiMaterial* material, const aiScene* scene) {
 			if (!material->GetTextureCount(type))
 				return {};
-
+			
 			aiString texturePath;
 			KD_CORE_ASSERT(material->GetTexture(type, 0, &texturePath) == aiReturn_SUCCESS);
 			KD_CORE_ASSERT(texturePath.length);
@@ -256,5 +257,6 @@ namespace Kaidel {
 		Path m_ModelPath;
 		Path m_ModelDir;
 		std::vector<Ref<Mesh>> m_Meshes;
+		friend class ModelLibrary;
 	};
 }

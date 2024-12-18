@@ -13,6 +13,8 @@ namespace Kaidel {
 
 		static Ref<Texture2D> Load(const Path& path, ImageLayout layout, Format format);
 		static Ref<Texture2D> Get(const Path& path);
+		static const Path& GetPath(Ref<Texture2D> texture);
+		
 		static bool Exists(const Path& path);
 	};
 

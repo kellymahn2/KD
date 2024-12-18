@@ -300,6 +300,8 @@ namespace Kaidel {
 	
 	std::unordered_map<ShaderType, Spirv> ShaderLibrary::ReadSPIRVsFromFile(const Path& path)
 	{
+		KD_CORE_INFO("Compiling shader at: {}", path);
+
 		std::string content = ReadFile(path);
 		shaderc::Compiler comp;
 

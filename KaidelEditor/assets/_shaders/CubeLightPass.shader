@@ -67,16 +67,20 @@ layout(set = 2,binding = 4) uniform texture2D MetallicRoughness;
 layout(set = 2,binding = 5) uniform texture2D Depths;
 
 layout(set = 3,binding = 0, std140) uniform DirLight{
+	mat4 GlobalShadowMatrix;
 	mat4 ViewProjection[4];
 	vec3 Direction;
 	vec3 Color;
 	vec4 SplitDistances;
+	vec4 CascadeOffsets[4];
+	vec4 CascadeScales[4];
+	float FadeStart;
 } DLight;
 layout(set = 3,binding = 1) uniform sampler ShadowSampler;
-layout(set = 3,binding = 2) uniform texture2D DirectionalShadows0;
-layout(set = 3,binding = 3) uniform texture2D DirectionalShadows1;
-layout(set = 3,binding = 4) uniform texture2D DirectionalShadows2;
-layout(set = 3,binding = 5) uniform texture2D DirectionalShadows3;
+layout(set = 3,binding = 2) uniform texture2DArray DirectionalShadows;
+//layout(set = 3,binding = 3) uniform texture2D DirectionalShadows1;
+//layout(set = 3,binding = 4) uniform texture2D DirectionalShadows2;
+//layout(set = 3,binding = 5) uniform texture2D DirectionalShadows3;
 
 
 
@@ -96,7 +100,7 @@ layout(push_constant) uniform PushConstants{
 
 vec3 PointLight(vec3 pos,vec3 norm,vec3 viewDir,uint lightIndex);
 vec3 Calculate(vec3 pos,vec3 norm,vec3 viewDir,uint tileIndex);
-float linearDepth(float depthSample);
+float linearDepth(float depthSample,float zNear,float zFar);
 
 //PBR Functions
 vec3 fresnelSchlick(float cosTheta, vec3 F0);
@@ -115,7 +119,7 @@ vec3 calcPointLight(uint index, vec3 normal, vec3 fragPos,
                     vec3 viewDir, vec3 albedo, float rough,
                     float metal, vec3 F0,  float viewDistance);
 uint CalcTileIndex(float ndcDepth){
-	uint zTile = uint(max(log2(linearDepth(ndcDepth)) * SliceScale + SliceBias, 0.0));
+	uint zTile = uint(max(log2(linearDepth(ndcDepth,zNear,zFar)) * SliceScale + SliceBias, 0.0));
 	vec2 clusterCoord = vec2(16,9) * (gl_FragCoord.xy / ScreenDimensions);
 	uvec2 cluster2DCoord = clamp(uvec2(clusterCoord),uvec2(0,0),uvec2(15,8));
 	uvec3 tiles = uvec3(cluster2DCoord,zTile);
@@ -123,6 +127,16 @@ uint CalcTileIndex(float ndcDepth){
                      16 * tiles.y +
                      ( 16 * 9) * tiles.z; 
 	return tileIndex;
+}
+
+uint CalcCascadeIndex(float viewDepth, vec4 splits){
+	uint cascadeIndex = 3;
+
+	for(int i = 3; i >= 0; --i) {
+		if(viewDepth <= splits[i]) 
+			cascadeIndex = i;
+	}
+	return cascadeIndex;
 }
 
 void main(){
@@ -157,6 +171,31 @@ void main(){
 
 	vec3 radiance = vec3(0.0);
 
+	if(ShowDebugShadow == 1){
+		
+		vec4 colors[4] = {
+			vec4(1,0,0,1),
+			vec4(0,1,0,1),
+			vec4(0,0,1,1),
+			vec4(1,1,0,1)
+		};
+
+		
+		vec3 viewPos = (View * vec4(pos,1.0)).xyz;
+		float viewDepth = abs(viewPos.z);
+		
+		uint cascadeIndex = CalcCascadeIndex(viewDepth,DLight.SplitDistances);
+
+		o_Color = colors[cascadeIndex];
+		return;
+	}
+	
+	if(ShowDebugShadow > 1 && ShowDebugShadow < 6){
+		int index = ShowDebugShadow - 2;
+		float depth = texture(sampler2DArray(DirectionalShadows,GlobalSampler),vec3(v_TexCoords,float(index))).r;
+		o_Color = vec4(depth,depth,depth,1.0);
+		return;
+	}
 	radiance = calcDirLight(calcDirShadow(pos,norm,-normalize(DLight.Direction)), DLight.Direction,DLight.Color,norm,viewDir,color.rgb,roughness,metallic,F0);
 
 	//for(uint i = 0;i< Grids[tileIndex].Count;++i) {
@@ -173,36 +212,11 @@ void main(){
 		o_Color = vec4(radiance,1.0);
 }
 
-float linearDepth(float depthSample){
+float linearDepth(float depthSample,float zNear,float zFar){
     float depthRange = 2.0 * depthSample - 1.0;
     // Near... Far... wherever you are...
     float linear = 2.0 * zNear * zFar / (zFar + zNear - depthRange * (zFar - zNear));
     return linear;
-}
-
-
-float PCFSample(in texture2D shadowTexture,vec3 baseCoords,float bias){
-	float scale = 1.0;
-	vec2 texelSize = scale * 1.0 / vec2(textureSize(sampler2D(shadowTexture,ShadowSampler),0));
-	
-	float shadow = 0.0;
-
-	int radius = 1;
-
-	float count = 0.0;
-
-	for(int i = -radius;i<=radius;++i){
-		for(int j = -radius;j<=radius;++j){
-			vec2 offset = vec2(float(i) * texelSize.x,float(j) * texelSize.y);
-			float pcfDepth = texture(sampler2D(shadowTexture,ShadowSampler),baseCoords.xy + offset).r;
-
-			shadow += (baseCoords.z - bias) > pcfDepth ? 1.0 : 0.0;
-			count += 1.0;
-		}
-	}
-
-	shadow /= count;
-	return shadow;
 }
 
 bool IsOutOfBounds(vec4 coords){
@@ -212,92 +226,55 @@ bool IsOutOfBounds(vec4 coords){
 	(coords.z < 0.0 || coords.z > coords.w);
 }
 
-
 float calcDirShadow(vec3 worldPos,vec3 norm,vec3 lightDir)  
 {
+	vec3 viewPos = (View * vec4(worldPos,1.0)).xyz;
+	float viewDepth = abs(viewPos.z);
+	uint cascadeIdx = CalcCascadeIndex(viewDepth,DLight.SplitDistances);
 
-	vec4 fragPosViewSpace = View * vec4(worldPos,1.0);
-	fragPosViewSpace /= fragPosViewSpace.w;
+	vec3 offset = vec3(0.0);
 
-	float viewDepth = abs(fragPosViewSpace.z);
+	vec3 samplePos = worldPos + offset;
+	vec3 shadowPosition = (DLight.GlobalShadowMatrix * vec4(samplePos, 1.0)).xyz;
 
-	int index = -1;
+	shadowPosition += DLight.CascadeOffsets[cascadeIdx].xyz;
+    shadowPosition *= DLight.CascadeScales[cascadeIdx].xyz;
 
-	for(int i = 0;i<4;i++){
-		if(viewDepth < DLight.SplitDistances[i]){
-			index = i;
-			break;
+    vec3 shadowMapSize = textureSize(sampler2DArrayShadow(DirectionalShadows,ShadowSampler),0);
+
+    float lightDepth = shadowPosition.z;
+
+    const float bias = 0.005;
+	lightDepth -= bias;
+
+	vec2 uv = shadowPosition.xy;
+
+	if(ShowDebugShadow == 6){
+		o_Color = vec4(uv,0,1.0);
+		return 1.0;
+	}
+	if(ShowDebugShadow == 7){
+		o_Color = vec4(lightDepth,lightDepth,lightDepth,1.0);
+		return 1.0;
+	}
+
+	int maxSamples = 1;
+	float sampleCount = 0.0;
+	float shadowSum = 0.0;
+	vec2 increment = 1.0 / shadowMapSize.xy;
+	for(int i = -maxSamples; i < maxSamples; ++i){
+		for(int j = -maxSamples; j < maxSamples; ++j){
+			vec2 offset = vec2(i, j) * increment;
+			shadowSum += texture(sampler2DArrayShadow(DirectionalShadows,ShadowSampler), vec4(uv + offset,cascadeIdx,lightDepth));
+			sampleCount += 1.0;
 		}
 	}
 
-	if(index == -1)
-		return 0.0;
+	//float shadow = texture(sampler2DArrayShadow(DirectionalShadows,ShadowSampler), vec4(uv,cascadeIdx,lightDepth));
 
-	if(ShowDebugShadow == 4){
-		switch(index){
-		case 0:o_Color = vec4(1,0,0,1);break;
-		case 1:o_Color = vec4(0,1,0,1);break;
-		case 2:o_Color = vec4(0,0,1,1);break;
-		case 3:o_Color = vec4(1,1,1,1);break;
-		}
-		return 0.0;
-	}
+	float shadow = shadowSum / sampleCount;
 
-	vec4 fragPosLightSpace = DLight.ViewProjection[index] * vec4(worldPos,1.0);
-	
-	vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-
-	if(ShowDebugShadow == 1){
-		if(projCoords.x > 1.0 || projCoords.x < -1.0)
-		{
-			o_Color = vec4(0,0,1,1);
-		}
-		else if(projCoords.y > 1.0 || projCoords.y < -1.0)
-		{
-			o_Color = vec4(1,1,0,1);
-		}
-		else if(projCoords.z > 1.0 || projCoords.z < 0.0)
-		{
-			o_Color = vec4(1,0,1,1);
-		}
-		else {
-			o_Color = vec4(1);
-		}
-	}
-
-	if(IsOutOfBounds(fragPosLightSpace))
-		return 0.0;
-
-	projCoords.xy = projCoords.xy * 0.5 + 0.5;
-	
-	float bias = max(0.05 * (1.0 - dot(norm, lightDir)), 0.005);
-	//bias = 0.005;
-	float shadow = 0.0;
-	if(index == 0)
-		shadow = PCFSample(DirectionalShadows0, projCoords,bias);
-	if(index == 1)
-		shadow = PCFSample(DirectionalShadows1, projCoords,bias);
-	if(index == 2)
-		shadow = PCFSample(DirectionalShadows2, projCoords,bias);
-	if(index == 3)
-		shadow = PCFSample(DirectionalShadows3, projCoords,bias);
-
-
-	if(ShowDebugShadow == 2){	
-		if(shadow != 0.0)
-		{
-			o_Color = vec4(1,0,0,1);
-		}
-		else{
-			o_Color = vec4(0,1,0,1);
-		}
-	}
-
-	if(ShowDebugShadow == 3){
-		o_Color = vec4(shadow);
-	}
-	
-	return shadow;
+	return 1.0 - shadow;
 } 
 
 vec3 calcDirLight(float shadow, vec3 direction, vec3 color, vec3 normal, 

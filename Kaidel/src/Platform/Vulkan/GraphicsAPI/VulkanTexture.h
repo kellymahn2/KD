@@ -33,7 +33,7 @@ namespace Kaidel {
 
 	class VulkanFramebufferTexture : public FramebufferTexture {
 	public:
-		VulkanFramebufferTexture(uint32_t width, uint32_t height, Format format, TextureSamples samples, bool isDepth);
+		VulkanFramebufferTexture(uint32_t width, uint32_t height, uint32_t layers, Format format, TextureSamples samples, bool isDepth);
 		~VulkanFramebufferTexture();
 
 		virtual RendererID GetBackendInfo()const override { return (RendererID)&m_Info; }
@@ -45,4 +45,5 @@ namespace Kaidel {
 		TextureSpecification m_Specification;
 		VulkanBackend::TextureInfo m_Info;
 	};
+
 }

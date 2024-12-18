@@ -497,7 +497,7 @@ namespace VulkanBackend {
 		vkDestroySampler(m_Device, sampler, nullptr);
 	}
 	
-	VkFramebuffer Backend::CreateFramebuffer(VkRenderPass renderPass, const std::vector<const TextureInfo*>& attachments, uint32_t width, uint32_t height)
+	VkFramebuffer Backend::CreateFramebuffer(VkRenderPass renderPass, const std::vector<const TextureInfo*>& attachments, uint32_t width, uint32_t height, uint32_t layers)
 	{
 		std::vector<VkImageView> views{};
 		for (auto& attachment : attachments) {
@@ -510,7 +510,7 @@ namespace VulkanBackend {
 		framebufferInfo.pAttachments = views.data();
 		framebufferInfo.width = width;
 		framebufferInfo.height = height;
-		framebufferInfo.layers = 1;
+		framebufferInfo.layers = layers;
 
 		VkFramebuffer framebuffer{};
 

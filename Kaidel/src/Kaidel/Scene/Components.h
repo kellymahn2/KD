@@ -120,10 +120,11 @@ namespace Kaidel {
 	};
 
 	struct DirectionalLightComponent {
-		glm::vec3 Direction = glm::vec3(0.0);
 		glm::vec3 Color = glm::vec3(1.0);
-		float Near = 1.0f, Far = 2000.0f;
-		float Size = 20.0f;
+		float MaxDistance = 1000.0f;
+		float PancakeSize = 20.0f;
+		float SplitLambda = 0.95f;
+		float FadeStart = 1.0f;
 	};
 
 	struct CameraComponent

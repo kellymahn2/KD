@@ -53,7 +53,7 @@ namespace Kaidel {
 			int width, height;
 			std::string pathStr = path.string();
 
-			using LoadFunc = void* (*)(const char*, int*, int*, int*,int);
+			using LoadFunc = void* (*)(const char*, int*, int*, int*, int);
 			LoadFunc func = nullptr;
 			
 			using ConvertFunc = void* (*)(const float*, int, int, int);
@@ -305,6 +305,7 @@ namespace Kaidel {
 
 	struct TextureLibraryData {
 		std::unordered_map<Path, Ref<Texture2D>> LoadedTextures;
+		std::unordered_map<Ref<Texture2D>, Path> LoadedTexturesInv;
 	};
 
 	static TextureLibraryData* s_LibraryData;
@@ -319,6 +320,7 @@ namespace Kaidel {
 	}
 	Ref<Texture2D> TextureLibrary::Load(const Path& path, ImageLayout layout, Format format)
 	{
+		SCOPED_TIMER("Load");
 		if (auto t = Get(path); t)
 			return t;
 		Utils::ImageLoadResult res;
@@ -346,6 +348,7 @@ namespace Kaidel {
 		Ref<Texture2D> t = Texture2D::Create(specs);
 
 		s_LibraryData->LoadedTextures[path] = t;
+		s_LibraryData->LoadedTexturesInv[t] = path;
 		return t;
 	}
 	Ref<Texture2D> TextureLibrary::Get(const Path& path)
@@ -354,6 +357,14 @@ namespace Kaidel {
 		if (it != s_LibraryData->LoadedTextures.end())
 			return it->second;
 		return {};
+	}
+
+	const Path& TextureLibrary::GetPath(Ref<Texture2D> texture)
+	{
+		auto it = s_LibraryData->LoadedTexturesInv.find(texture);
+		if (it != s_LibraryData->LoadedTexturesInv.end())
+			return it->second;
+		KD_CORE_ASSERT(false);
 	}
 	
 	bool TextureLibrary::Exists(const Path& path)

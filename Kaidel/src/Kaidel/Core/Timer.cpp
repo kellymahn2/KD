@@ -28,9 +28,14 @@ namespace Kaidel {
 		m_AccumulatedTimeInNanoSecs += (uint64_t)std::chrono::duration_cast<std::chrono::nanoseconds>(end - m_Start).count();
 	}
 
-	void Timer::Print()
+	void Timer::Print(const std::string& padding)
 	{
-		KD_CORE_INFO("{} Took:({}ns, {}ms, {}s)",m_Name,GetNS(),GetMS(),GetS());
+#ifdef KD_DEBUG
+		KD_CORE_INFO("{}{} Took:({}ns, {}ms, {}s)", padding, m_Name, GetNS(), GetMS(), GetS());
+#elif KD_RELEASE
+		KD_INFO("{}{} Took:({}ns, {}ms, {}s)", padding, m_Name, GetNS(), GetMS(), GetS());
+#endif // KD_DEBUG
+
 	}
 
 	double Timer::GetNS() const
@@ -108,12 +113,15 @@ namespace Kaidel {
 		:m_Timer(name)
 	{
 		m_Timer.Start();
+		s_Padding.append("  ");
 	}
 
 	ScopedTimer::~ScopedTimer()
 	{
 		m_Timer.Stop();
-		m_Timer.Print();
+		m_Timer.Print(s_Padding);
+		s_Padding.pop_back();
+		s_Padding.pop_back();
 	}
 
 	void ScopedTimer::Reset()

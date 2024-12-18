@@ -97,6 +97,11 @@ namespace Kaidel {
 			if (image)
 				m_TextureSet->Update(image, {}, ImageLayout::ShaderReadOnlyOptimal, (uint32_t)type);
 		}
+
+		Ref<Texture2D> GetTexture(MaterialTextureType type) {
+			return m_Textures[(uint32_t)type];
+		}
+
 	private:
 		struct MaterialValues {
 			glm::vec3 AlbedoColor = {};

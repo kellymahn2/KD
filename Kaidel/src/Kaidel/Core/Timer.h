@@ -13,7 +13,7 @@ namespace Kaidel {
 		void ResetTimer();
 		void Stop();
 		
-		void Print();
+		void Print(const std::string& padding = "");
 
 		double GetMS()const;
 		double GetS()const;
@@ -32,6 +32,7 @@ namespace Kaidel {
 		void Reset();
 	private:
 		Timer m_Timer;
+		static inline std::string s_Padding = "";
 	};
 
 	class AccumulativeTimer {

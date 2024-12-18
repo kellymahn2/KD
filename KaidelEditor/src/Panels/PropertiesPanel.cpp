@@ -620,11 +620,10 @@ namespace Kaidel {
 			});
 
 		DrawComponent<DirectionalLightComponent>("Directional light", entity, [entity, scene = scene](DirectionalLightComponent& component) {
-			ImGui::DragFloat3("Direction", &component.Direction.x);
 			ImGui::ColorEdit3("Color", &component.Color.r);
-			ImGui::DragFloat("Near", &component.Near);
-			ImGui::DragFloat("Far", &component.Far);
-			ImGui::DragFloat("Size", &component.Size);
+			ImGui::DragFloat("Max distance", &component.MaxDistance);
+			ImGui::DragFloat("Split lambda", &component.SplitLambda, 0.005f, 0.0f, 1.0f);
+			ImGui::DragFloat("Fade start", &component.FadeStart, 0.005f, 0.0f, 1.0f);
 		});
 
 		//Scripts

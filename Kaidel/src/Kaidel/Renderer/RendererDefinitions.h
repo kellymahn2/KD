@@ -309,8 +309,6 @@ namespace Kaidel {
 		_3D,
 		_1D_Array,
 		_2D_Array,
-		Cube,
-		CubeArray,
 	};
 
 	enum class ShaderType {

@@ -220,7 +220,6 @@ namespace Kaidel {
 
 			out << YAML::EndMap; // TransformComponent
 		}
-
 		if (entity.HasComponent<CameraComponent>())
 		{
 			out << YAML::Key << "CameraComponent";
@@ -245,7 +244,6 @@ namespace Kaidel {
 
 			out << YAML::EndMap; // CameraComponent
 		}
-
 		if (entity.HasComponent<SpriteRendererComponent>())
 		{
 			out << YAML::Key << "SpriteRendererComponent";
@@ -363,6 +361,17 @@ namespace Kaidel {
 			}
 			out << YAML::EndSeq;
 			out << YAML::EndMap; // ScriptComponent
+		}
+		if (entity.HasComponent<DirectionalLightComponent>()) {
+			out << YAML::Key << "DirectionalLightComponent";
+			
+			out << YAML::BeginMap; // DirectionalLightComponent
+
+			auto& dlc = entity.GetComponent<DirectionalLightComponent>();
+			out << YAML::Key << "Color" << YAML::Value << dlc.Color;
+			out << YAML::Key << "MaxDistance" << YAML::Value << dlc.MaxDistance;
+
+			out << YAML::EndMap; // DirectionalLightComponent
 		}
 
 
@@ -517,6 +526,12 @@ namespace Kaidel {
 					}
 				);
 
+				DeserializeComponent<DirectionalLightComponent>
+					(deserializedEntity, "DirectionalLightComponent", entityNode,
+					 [](DirectionalLightComponent& dlc, auto& entity, YAML::Node& directionalLightComponent) {
+						 dlc.Color = directionalLightComponent["Color"].as<glm::vec3>();
+						 dlc.MaxDistance = directionalLightComponent["MaxDistance"].as<float>();
+					 });
 
 				DeserializeComponent<ScriptComponent>(deserializedEntity, "ScriptComponent", entityNode,
 					[](ScriptComponent& src , auto& entity,YAML::Node& scriptRendererComponent) {

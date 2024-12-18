@@ -379,7 +379,7 @@ namespace VulkanBackend
 		void DestroyBuffer(InOut<BufferInfo> buffer);
 		
 		//Framebuffer
-		VkFramebuffer CreateFramebuffer(VkRenderPass renderPass, const std::vector<const TextureInfo*>& attachments, uint32_t width, uint32_t height);
+		VkFramebuffer CreateFramebuffer(VkRenderPass renderPass, const std::vector<const TextureInfo*>& attachments, uint32_t width, uint32_t height, uint32_t layers);
 		void DestroyFramebuffer(VkFramebuffer framebuffer);
 
 		//Shader

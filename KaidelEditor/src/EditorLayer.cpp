@@ -12,6 +12,7 @@
 #include "Kaidel/Utils/PlatformUtils.h"
 
 #include "Kaidel/Scripting/ScriptEngine.h"
+#include "Kaidel/Scene/ModelLibrary.h"
 
 #include "yaml-cpp/yaml.h"
 
@@ -136,42 +137,62 @@ namespace Kaidel {
 			});
 		}
 
-		{
-			Entity e = m_ActiveScene->CreateEntity("Occluder");
-			
-			auto& mc = e.AddComponent<ModelComponent>();
-			mc.UsedModel = CreateRef<Model>();
-			mc.UsedModel->MakeCubeModel();
-		}
-		
-		{
-			Entity e = m_ActiveScene->CreateEntity("Occluded");
-			auto& tc = e.GetComponent<TransformComponent>();
-			tc.Translation = { 0,0,-10.0f };
-			tc.Scale = { 10,10,1 };
-			auto& mc = e.AddComponent<ModelComponent>();
-			mc.UsedModel = CreateRef<Model>();
-			mc.UsedModel->MakeCubeModel();
-		}
+		//{
+		//	Entity e = m_ActiveScene->CreateEntity("Occluder");
+		//	
+		//	auto& mc = e.AddComponent<ModelComponent>();
+		//	mc.UsedModel = CreateRef<Model>();
+		//	mc.UsedModel->MakeCubeModel();
+		//}
+		//
+		//{
+		//	Entity e = m_ActiveScene->CreateEntity("Occluded");
+		//	auto& tc = e.GetComponent<TransformComponent>();
+		//	tc.Translation = { 0,0,-10.0f };
+		//	tc.Scale = { 10,10,1 };
+		//	auto& mc = e.AddComponent<ModelComponent>();
+		//	mc.UsedModel = CreateRef<Model>();
+		//	mc.UsedModel->MakeCubeModel();
+		//}
+
 
 		//{
-			//Entity e = m_ActiveScene->CreateEntity("Sponza");
-			//auto& tc = e.GetComponent<TransformComponent>();
-			//tc.Scale = glm::vec3(.3f);
-			//auto& mc = e.AddComponent<ModelComponent>();
-			//mc.UsedModel = CreateRef<Model>("assets/models/Sponza/Sponza.gltf");
+		//	Entity e = m_ActiveScene->CreateEntity("Sponza");
+		//	auto& tc = e.GetComponent<TransformComponent>();
+		//	tc.Scale = glm::vec3(.1f);
+		//	auto& mc = e.AddComponent<ModelComponent>();
+		//	mc.UsedModel = CreateRef<Model>("assets/models/Sponza/Sponza.gltf");
 		//}
+
+		//{
+		//	ScopedTimer t("Model loading");
+		//	ModelLibrary::LoadModel("assets/models/Sponza/Sponza.gltf");
+		//}
+
+		{
+			Entity e = m_ActiveScene->CreateCube("Cube");
+			auto& tc = e.GetComponent<TransformComponent>();
+			tc.Translation = { 10,0 ,0 };
+			tc.Scale = { 1,10,10 };
+			
+		}
+		{
+			Entity e = m_ActiveScene->CreateEntity("Sphere");
+			auto& tc = e.GetComponent<TransformComponent>();
+			auto& mc = e.AddComponent<ModelComponent>();
+			mc.UsedModel = ModelLibrary::GetBaseSphere();
+		}
 
 		{
 			Entity e = m_ActiveScene->CreateEntity("Light");
 			auto& tc = e.GetComponent<TransformComponent>();
-			tc.Rotation.x = glm::pi<float>() / 2.0f;
-			tc.Rotation.y = glm::pi<float>() / 2.0f;
+			tc.Rotation.x = -glm::pi<float>() / 2.0f;
 			tc.Rotation.z = glm::pi<float>() / 2.0f;
 			auto& dlc = e.AddComponent<DirectionalLightComponent>();
 			dlc.Color = glm::vec3(1.0);
-			dlc.Direction = glm::vec3(0, -5.0f, 1.0f);
-			dlc.Size = 100;
+			dlc.MaxDistance = m_Far;
+			dlc.SplitLambda = 0.95f;
+			dlc.FadeStart = 1.0f;
 		}
 
 	}
@@ -616,12 +637,12 @@ namespace Kaidel {
 		
 		split = std::clamp(split, 0, 3);
 
-		Ref<Texture2D> t = *(DepthTexture[split]);
-
-		m_OutputDepthDescriptors->Get()->Update(t, m_OutputSampler, ImageLayout::ShaderReadOnlyOptimal, 0);
-		ShowTextures("Debug depths", m_OutputDepthDescriptors->Get(), { m_ViewportSize.x,m_ViewportSize.y });
+		//Ref<Texture2D> t = *(DepthTexture[split]);
+		
+		//m_OutputDepthDescriptors->Get()->Update(t, m_OutputSampler, ImageLayout::ShaderReadOnlyOptimal, 0);
+		//ShowTextures("Debug depths", m_OutputDepthDescriptors->Get(), { m_ViewportSize.x,m_ViewportSize.y });
+		//
 		AccumulativeTimer::ResetTimers();
-
 		ImGui::Text("X out of bounds: Blue");
 		ImGui::Text("Y out of bounds: Yellow");
 		ImGui::Text("Z out of bounds: Magenta");

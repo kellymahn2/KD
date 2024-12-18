@@ -43,6 +43,7 @@ namespace Kaidel {
 		void InsertClusterBarrier();
 		void MakeLightGrids(const glm::mat4& view);
 		void InsertLightGridBarrier();
+		void ShadowPass(const SceneData& sceneData);
 	private:
 		void* m_Context;
 	};

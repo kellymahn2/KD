@@ -359,7 +359,7 @@ namespace Kaidel {
 	{
 		VK_CONTEXT.GetBackend()->DestroyTexture(m_Info);
 	}
-	VulkanFramebufferTexture::VulkanFramebufferTexture(uint32_t width, uint32_t height, Format format, TextureSamples samples, bool isDepth)
+	VulkanFramebufferTexture::VulkanFramebufferTexture(uint32_t width, uint32_t height, uint32_t layers, Format format, TextureSamples samples, bool isDepth)
 		:m_Specification(ImageType::_2D)
 	{
 		int formatChannelCount = Utils::CalculateChannelCount(format);
@@ -368,7 +368,7 @@ namespace Kaidel {
 		m_Specification.Width = width;
 		m_Specification.Height = height;
 		m_Specification.Depth = 1;
-		m_Specification.Layers = 1;
+		m_Specification.Layers = layers;
 		m_Specification.Mips = 1;
 		m_Specification.Layout = isDepth ? ImageLayout::DepthAttachmentOptimal : ImageLayout::ColorAttachmentOptimal;
 		m_Specification.IsCube = false;
@@ -396,7 +396,7 @@ namespace Kaidel {
 		info.Width = width;
 		info.Height = height;
 		info.Depth = 1;
-		info.Layers = 1;
+		info.Layers = layers;
 		info.Mips = 1;
 		info.Type = VK_IMAGE_TYPE_2D;
 		info.Samples = (VkSampleCountFlagBits)samples;
@@ -406,7 +406,7 @@ namespace Kaidel {
 			VK_IMAGE_USAGE_SAMPLED_BIT		|
 			(isDepth ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 		info.ViewFormat = info.Format;
-		info.ViewType = VK_IMAGE_VIEW_TYPE_2D;
+		info.ViewType = layers == 1 ? VK_IMAGE_VIEW_TYPE_2D : VK_IMAGE_VIEW_TYPE_2D_ARRAY;
 		
 		info.Swizzles[0] = VK_COMPONENT_SWIZZLE_R;
 		info.Swizzles[1] = VK_COMPONENT_SWIZZLE_G;
@@ -441,7 +441,7 @@ namespace Kaidel {
 		barrier.subresourceRange.aspectMask = info.Aspects;
 		barrier.subresourceRange.baseArrayLayer = 0;
 		barrier.subresourceRange.baseMipLevel = 0;
-		barrier.subresourceRange.layerCount = 1;
+		barrier.subresourceRange.layerCount = layers;
 		barrier.subresourceRange.levelCount = 1;
 
 		backend->CommandPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, {}, { barrier });
