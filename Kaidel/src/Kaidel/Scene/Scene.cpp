@@ -1,12 +1,12 @@
 #include "KDpch.h"
 
-#include "Kaidel/Renderer/Primitives.h"
 #include "Scene.h"
 #include "Components.h"
 #include "ScriptableEntity.h"
 #include "Entity.h"
 #include "SceneRenderer.h"
 #include "Kaidel/Scripting/ScriptEngine.h"
+#include "ModelLibrary.h"
 
 #include <glm/glm.hpp>
 #include <box2d/b2_world.h>
@@ -77,7 +77,7 @@ namespace Kaidel {
 				CameraComponent,
 				BoxCollider2DComponent, Rigidbody2DComponent,
 				NativeScriptComponent, ScriptComponent,ParentComponent,ChildComponent 
-				,LineRendererComponent,CubeRendererComponent,DirectionalLightComponent>
+				,LineRendererComponent>
 				(entity, srcReg, e); });
 		newScene->m_IDMap = rhs->m_IDMap;
 		return newScene;
@@ -226,64 +226,9 @@ namespace Kaidel {
 
 	Entity Scene::CreateCube(const std::string& name, UUID uuid) {
 		Entity entity = CreateEntity(uuid, name);
-		auto& mc = entity.AddComponent<MeshComponent>();
-		mc.Mesh = Primitives::CubePrimitive;
+		auto& mc = entity.AddComponent<ModelComponent>();
+		mc.UsedModel = ModelLibrary::GetBaseCube();
 		return entity;
-	}
-
-	void Scene::CreateModelOnEntity(const std::vector<Asset<Mesh>>& modelData, Entity entity) {
-	
-		uint32_t i = 1;
-		for (auto& handle : modelData) {
-			Entity child = CreateEntity("Mesh " + std::to_string(i));
-			auto& tc = child.GetComponent<TransformComponent>();
-			auto& mc = child.AddComponent<MeshComponent>();
-			auto& mat = child.AddComponent<MaterialComponent>();
-			mat.Material = handle.Data->GetMaterial();
-			tc.Translation = handle.Data->GetCenter();
-			mc.Mesh = handle;
-			child.AddParent(entity.GetUUID());
-			entity.AddChild(child.GetUUID());
-			++i;
-		}
-		
-		/*auto& handle = modelData[1];
-
-		Entity child = CreateEntity("Mesh " + std::to_string(1));
-		auto& tc = child.GetComponent<TransformComponent>();
-		auto& mc = child.AddComponent<MeshComponent>();
-		auto& mat = child.AddComponent<MaterialComponent>();
-		mat.Material = handle.Handle->GetMaterial();
-		tc.Translation = handle->GetCenter();
-		mc.Mesh = handle;
-		child.AddParent(entity.GetUUID());
-		entity.AddChild(child.GetUUID());*/
-
-		/*if (modelData.SubTrees.empty()) {
-			uint32_t i = 1;
-			for (auto& mesh : modelData.Data.Meshes) {
-				Entity child = CreateEntity("Mesh " + std::to_string(i));
-				auto& tc = child.GetComponent<TransformComponent>();
-				auto& mc = child.AddComponent<MeshComponent>();
-				auto& mat = child.AddComponent<MaterialComponent>();
-				mat.Material = mesh.GetMaterial();
-				tc.Translation = mesh.GetCenter();
-				mc.Mesh = &mesh;
-				child.AddParent(entity.GetUUID());
-				entity.AddChild(child.GetUUID());
-				++i;
-			}
-		}
-		else {
-			uint32_t i = 1;
-			for (auto& subTree : modelData.SubTrees) {
-				Entity child = CreateEntity("Child " + std::to_string(i));
-				CreateModelOnEntity(subTree, child);
-				entity.AddChild(child.GetUUID());
-				child.AddParent(entity.GetUUID());
-				++i;
-			}
-		}*/
 	}
 
 	Entity Scene::GetEntity(UUID id)
@@ -406,39 +351,14 @@ namespace Kaidel {
 
 	}
 
-	void Scene::OnUpdateEditor(Timestep ts, EditorCamera& camera,Ref<Framebuffer> _3DOutputFramebuffer,Ref<Framebuffer> _2DOutputFramebuffer)
+	void Scene::OnUpdateEditor(Timestep ts, EditorCamera& camera, Ref<Texture2D> outputBuffer)
 	{
-		//Particle Updates
-		{
-			auto view = m_Registry.view<ParticleSystemComponent>();
-			for (auto e : view) {
-				auto& pc = view.get<ParticleSystemComponent>(e);
-				if (pc.PS)
-					pc.PS->Update(ts);
-			}
-
-		}
-
-		//Animation Updates
-		{
-			auto view = m_Registry.view<AnimationPlayerComponent>();
-			for (auto e : view) {
-				auto& ac = view.get<AnimationPlayerComponent>(e);
-				if (!ac.Anim || ac.State != AnimationPlayerComponent::PlayerState::Playing)
-					continue;
-
-				Entity entity{ e,this};
-				AnimationPlayerSettings settings{ entity,ac.Time };
-				ac.Anim->Update(settings);
-				ac.Time += ts;
-
-			}
-		}
-
-
-		SceneRenderer sceneRenderer{ this };
-		sceneRenderer.Render(_3DOutputFramebuffer, _2DOutputFramebuffer, camera.GetViewProjection(), camera.GetPosition());
-
+		static SceneRenderer sceneRenderer{ this };
+		SceneData data{};
+		data.Proj = camera.GetProjection();
+		data.View = camera.GetViewMatrix();
+		data.ViewProj = camera.GetViewProjection();
+		sceneRenderer.Render(outputBuffer, data);
 	}
 
 	void Scene::OnUpdateSimulation(Timestep ts, EditorCamera& camera)
@@ -476,12 +396,12 @@ namespace Kaidel {
 	}
 
 	Entity Scene::GetMainDirectionalLight() {
-		auto view = m_Registry.view<DirectionalLightComponent>();
+		/*auto view = m_Registry.view<DirectionalLightComponent>();
 		for (auto entity : view) {
 			const auto& light = view.get<DirectionalLightComponent>(entity);
 			if (light.IsPrimary)
 				return Entity{ entity,this };
-		}
+		}*/
 		return {};
 	}
 
@@ -492,14 +412,6 @@ namespace Kaidel {
 		component.Camera.SetViewportSize(m_ViewportWidth, m_ViewportHeight);
 	}
 	
-	template<>
-	void Scene::OnComponentAdded<DirectionalLightComponent>(Entity entity, DirectionalLightComponent& component) {
-		if (!GetMainDirectionalLight()) {
-			component.IsPrimary = true;
-		}
-	}
-	DEF_COMPONENT_ADD(SpotLightComponent)
-	DEF_COMPONENT_ADD(PointLightComponent)
 	DEF_COMPONENT_ADD(TransformComponent)
 	DEF_COMPONENT_ADD(SpriteRendererComponent)
 	DEF_COMPONENT_ADD(TagComponent)
@@ -513,9 +425,8 @@ namespace Kaidel {
 	DEF_COMPONENT_ADD(ParentComponent)
 	DEF_COMPONENT_ADD(ChildComponent)
 	DEF_COMPONENT_ADD(LineRendererComponent)
-	DEF_COMPONENT_ADD(CubeRendererComponent)
-	DEF_COMPONENT_ADD(MeshComponent)
-	DEF_COMPONENT_ADD(MaterialComponent)
 	DEF_COMPONENT_ADD(AnimationPlayerComponent)
-	DEF_COMPONENT_ADD(ParticleSystemComponent)
+	DEF_COMPONENT_ADD(ModelComponent)
+	DEF_COMPONENT_ADD(DirectionalLightComponent)
+
 }

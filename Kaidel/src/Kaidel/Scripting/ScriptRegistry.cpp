@@ -566,7 +566,7 @@ namespace Kaidel {
 #pragma endregion
 
 	glm::vec3 _Math_Bezier(LineRendererComponent::Point* start, LineRendererComponent::Point* end, float t) {
-		uint32_t n = end-start - 1;
+		uint32_t n = (uint32_t)(end - start - 1);
 		glm::vec3 result{ 0.0f };
 		float oneMinusT = 1.0f - t;
 		for (uint32_t i = 0; start!=end; ++i,++start) {

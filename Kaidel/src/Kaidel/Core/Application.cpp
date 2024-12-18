@@ -4,8 +4,6 @@
 #include "Kaidel/Events/SettingsEvent.h"
 #include "Kaidel/Core/Log.h"
 
-#include "Kaidel/Assets/AssetManager.h"
-
 #include "Kaidel/Renderer/Renderer.h"
 
 #include "Kaidel/Scripting/ScriptEngine.h"
@@ -29,8 +27,6 @@ namespace Kaidel {
 			std::filesystem::current_path(m_Specification.WorkingDirectory);
 		m_Window = Window::Create(WindowProps(m_Specification.Name));
 		m_Window->SetEventCallback(KD_BIND_EVENT_FN(Application::OnEvent));
-
-
 
 		Renderer::Init();
 		ScriptEngine::Init();
@@ -76,12 +72,43 @@ namespace Kaidel {
 		m_AppThreadQueue.push_back(func);
 	}
 
+	void Application::OnUpdate()
+	{
+		float time = (float)glfwGetTime();
+		Timestep timestep = time - m_LastFrameTime;
+		m_LastFrameTime = time;
+
+		{
+			if (!m_Minimized)
+			{
+				ExecuteMainThreadQueue();
+
+				{
+					for (Layer* layer : m_LayerStack)
+						layer->OnUpdate(timestep);
+				}
+
+				{
+					m_ImGuiLayer->Begin();
+					{
+
+						for (Layer* layer : m_LayerStack)
+							layer->OnImGuiRender();
+					}
+					m_ImGuiLayer->End();
+				}
+			}
+			
+		}
+	}
+
 	void Application::OnEvent(Event& e)
 	{
 
 		EventDispatcher dispatcher(e);
 		dispatcher.Dispatch<WindowCloseEvent>(KD_BIND_EVENT_FN(Application::OnWindowClose));
 		dispatcher.Dispatch<WindowResizeEvent>(KD_BIND_EVENT_FN(Application::OnWindowResize));
+		//dispatcher.Dispatch<WindowRedrawEvent>(KD_BIND_EVENT_FN(Application::OnWindowRedraw));
 
 		for (auto it = m_LayerStack.rbegin(); it != m_LayerStack.rend(); ++it)
 		{
@@ -90,7 +117,7 @@ namespace Kaidel {
 			(*it)->OnEvent(e);
 		}
 
-		dispatcher.Dispatch<RendererSettingsChangedEvent>(KD_BIND_EVENT_FN(Application::OnRendererSettingsChanged));
+		//dispatcher.Dispatch<RendererSettingsChangedEvent>(KD_BIND_EVENT_FN(Application::OnRendererSettingsChanged));
 	}
 
 	void Application::Run()
@@ -98,35 +125,19 @@ namespace Kaidel {
 
 		while (m_Running)
 		{
-			float time = glfwGetTime();
-			Timestep timestep = time - m_LastFrameTime;
-			m_LastFrameTime = time;
 
-			{
-				if (!m_Minimized)
-				{
-					ExecuteMainThreadQueue();
+			m_Window->AcquireImage();
+			OnUpdate();
+			//{
+			//	//SCOPED_TIMER(Swap Buffers)
+			//	m_Window->SwapBuffers();
+			//	m_Window->PollEvents();
+			//}
 
-					{
-						for (Layer* layer : m_LayerStack)
-							layer->OnUpdate(timestep);
-					}
+			m_Window->PresentImage();
+			m_Window->PollEvents();
 
-					{
-						m_ImGuiLayer->Begin();
-						{
-
-							for (Layer* layer : m_LayerStack)
-								layer->OnImGuiRender();
-						}
-						m_ImGuiLayer->End();
-					}
-				}
-				{
-					SCOPED_TIMER(Swap Buffers)
-					m_Window->OnUpdate();
-				}
-			}
+			m_Window->WrapCursor();
 		}
 	}
 
@@ -156,6 +167,11 @@ namespace Kaidel {
 
 
 		return true;
+	}
+
+	bool Application::OnWindowRedraw(WindowRedrawEvent& e)
+	{
+		return false;
 	}
 
 	void Application::ExecuteMainThreadQueue()

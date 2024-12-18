@@ -13,7 +13,8 @@
 namespace Kaidel {
 
 	EditorCamera::EditorCamera(float fov, float aspectRatio, float nearClip, float farClip)
-		: m_FOV(fov), m_AspectRatio(aspectRatio), m_NearClip(nearClip), m_FarClip(farClip), Camera(glm::infinitePerspective(glm::radians(m_FOV), m_AspectRatio, m_NearClip))
+		: m_FOV(fov), m_AspectRatio(aspectRatio), m_NearClip(nearClip), m_FarClip(farClip), 
+		Camera(glm::perspective(glm::radians(m_FOV), m_AspectRatio, m_NearClip, m_FarClip))
 	{
 		UpdateView();
 	}
@@ -21,7 +22,7 @@ namespace Kaidel {
 	void EditorCamera::UpdateProjection()
 	{
 		m_AspectRatio = m_ViewportWidth / m_ViewportHeight;
-		m_Projection = glm::infinitePerspective(glm::radians(m_FOV), m_AspectRatio, m_NearClip);
+		m_Projection = glm::perspective(glm::radians(m_FOV), m_AspectRatio, m_NearClip, m_FarClip);
 	}
 
 	void EditorCamera::UpdateView()
@@ -73,6 +74,28 @@ namespace Kaidel {
 				MouseRotate(delta);
 			else if (Input::IsMouseButtonDown(Mouse::ButtonRight))
 				MouseZoom(delta.y);
+
+			glm::vec3 dir = glm::vec3(0.0f);
+
+			if (Input::IsKeyDown(Key::W))
+				dir.z = 1.0f;
+			else if (Input::IsKeyDown(Key::S))
+				dir.z = -1.0f;
+			if (Input::IsKeyDown(Key::A))
+				dir.x = -1.0f;
+			else if (Input::IsKeyDown(Key::D))
+				dir.x = 1.0f;
+			if (Input::IsKeyDown(Key::LeftShift))
+				dir.y = 1.0f;
+			if (Input::IsKeyDown(Key::LeftControl))
+				dir.y = -1.0f;
+
+			if (dir != glm::vec3(0.0f)) {
+				dir = glm::normalize(dir);
+				KeyMove(dir * (float)ts);
+			}
+
+
 		}
 
 		UpdateView();
@@ -90,6 +113,13 @@ namespace Kaidel {
 		MouseZoom(delta);
 		UpdateView();
 		return false;
+	}
+
+	void EditorCamera::KeyMove(const glm::vec3& delta)
+	{
+		m_FocalPoint += GetRightDirection() * delta.x * m_Distance;
+		m_FocalPoint += GetUpDirection() * delta.y * m_Distance;
+		m_FocalPoint += GetForwardDirection() * delta.z * m_Distance;
 	}
 
 	void EditorCamera::MousePan(const glm::vec2& delta)

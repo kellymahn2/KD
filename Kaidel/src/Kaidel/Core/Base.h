@@ -1,5 +1,6 @@
 #pragma once
 
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE 1
 
 #include "Kaidel/Core/PlatformDetection.h"
 #include "Kaidel/Core/Random.h"
@@ -33,6 +34,10 @@
 
 #define KD_BIND_EVENT_FN(fn) [this](auto&&... args) -> decltype(auto) { return this->fn(std::forward<decltype(args)>(args)...); }
 
+#define ALLOCA(size) ((size != 0) ? alloca(size) : nullptr)
+#define ALLOCA_ARRAY(type, count) ((type*)ALLOCA(sizeof(type) * (count)))
+#define ALLOCA_SINGLE(type) ALLOCA_ARRAY(type, 1)
+
 namespace Kaidel {
 
 	template<typename T>
@@ -61,7 +66,7 @@ namespace Kaidel {
 		return n * Fact<T>(n - 1);
 	}
 	template<typename  T>
-	float CalcBinomialCoefficient(T n, T r) {
+	T CalcBinomialCoefficient(T n, T r) {
 		return (Fact(n)) / (Fact(r) * Fact(n - r));
 
 	}
@@ -71,6 +76,8 @@ namespace Kaidel {
 
 	using Path = FileSystem::path;
 	using DirectoryEntry = FileSystem::directory_entry;
+
+	typedef uintptr_t RendererID;
 
 }
 

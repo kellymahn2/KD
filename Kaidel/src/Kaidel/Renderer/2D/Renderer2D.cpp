@@ -2,391 +2,255 @@
 
 #include "Kaidel/Core/BoundedVector.h"
 #include "Kaidel/Renderer/RenderCommand.h"
-#include "Renderer2D.h"
-#include "Kaidel/Renderer/GraphicsAPI/VertexArray.h"
-#include "Kaidel/Renderer/GraphicsAPI/Buffer.h"
 #include "Kaidel/Renderer/GraphicsAPI/Shader.h"
+#include "Kaidel/Renderer/GraphicsAPI/ShaderLibrary.h"
 #include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
-#include "Kaidel/Renderer/MaterialTexture.h"
+#include "Kaidel/Renderer/GraphicsAPI/GraphicsPipeline.h"
+#include "Kaidel/Renderer/GraphicsAPI/RenderPass.h"
+#include "Kaidel/Renderer/GraphicsAPI/DescriptorSet.h"
+#include "Renderer2D.h"
 
-namespace Kaidel {
+namespace Kaidel{
+	struct Renderer2DData {
+		static constexpr const uint32_t MaxSpriteCount = 10000;
+		static constexpr const uint32_t MaxSpriteVertexCount = MaxSpriteCount * 4;
+		static constexpr const uint32_t MaxSpriteIndexCount = MaxSpriteCount * 6;
+
+		SpriteVertex PresetSpriteVertices[4];
+
+		uint32_t SpritesWaitingForRender = 0;
+		uint32_t SpritesRendered = 0;
+
+		BoundedVector<SpriteVertex> BakedSpriteVertices = BoundedVector<SpriteVertex>(0, MaxSpriteVertexCount, [](SpriteVertex*, uint64_t) {});
+
+		Ref<VertexBuffer> SpriteVertexBuffer;
+		Ref<IndexBuffer> SpriteIndexBuffer;
+		Ref<RenderPass> SpriteRenderPass;
+		Ref<GraphicsPipeline> SpritePipeline;
 
 
-	CustomRenderer Renderer2D::CreatePointRenderer(const std::initializer_list<BufferElement>& additionalElements, Ref<Shader> shader) {
-
-		const BufferLayout& defaults = s_Renderer2DData.PointRendererData.CustomRenderers.top().VAO->GetVertexBuffers().front()->GetLayout();
-
-		BufferLayout layout = defaults;
-
-		layout.Push(additionalElements);
-
-		CustomRenderer renderer;
-
-		Ref<VertexBuffer> vbo = VertexBuffer::Create(0);
+		Ref<Framebuffer> OutputBuffer;
 		
-		vbo->SetLayout(layout);
+		Ref<UniformBuffer> CameraUnifomBuffer;
+		struct CameraUnifomData {
+			glm::mat4 ViewProjection;
+		};
+		CameraUnifomData Camera;
+		Ref<DescriptorSet> CameraDescriptorSet;
+
+		Ref<DescriptorSet> TextureDescriptorSet;
+		Ref<Sampler> TextureSampler;
+    };
+
+    static Renderer2DData* s_RendererData;
+
+	static uint32_t* CreateSpiteIndices(uint32_t count) {
+		uint32_t actualCount = count - (count % 6);
+		uint32_t* indices = new uint32_t[actualCount];
+
+		uint32_t vertex = 0;
+		for (uint32_t i = 0; i < actualCount; i += 6) {
+			indices[i + 0] = vertex + 0;
+			indices[i + 1] = vertex + 1;
+			indices[i + 2] = vertex + 2;
+			
+			indices[i + 3] = vertex + 2;
+			indices[i + 4] = vertex + 3;
+			indices[i + 5] = vertex + 0;
+			vertex += 4;
+		}
+		return indices;
+	}
+
+
+
+    void Renderer2D::Init() {
+		//s_RendererData = new Renderer2DData;
+		//
+		//{
+		//	SCOPED_TIMER("Vertex buffer");
+		//	s_RendererData->SpriteVertexBuffer = VertexBuffer::Create(4);
+		//}
+
+		//{
+		//	SCOPED_TIMER("Index buffer");
+		//	uint32_t* indices = CreateSpiteIndices(s_RendererData->MaxSpriteIndexCount);
+		//	s_RendererData->SpriteIndexBuffer = IndexBuffer::Create(indices, s_RendererData->MaxSpriteIndexCount);
+		//	delete[] indices;
+		//}
+
+		//{
+		//	SCOPED_TIMER("Uniform buffer");
+		//	s_RendererData->CameraUnifomBuffer = UniformBuffer::Create(sizeof(Renderer2DData::CameraUnifomData), 0);
+		//}
+
+		//{
+		//	SCOPED_TIMER("Render pass");
+		//	RenderPassSpecification spec{};
+		//	{
+		//		AttachmentSpecification attach{};
+		//		attach.AttachmentFormat = Format::RGBA8UN;
+		//		attach.InitialLayout = ImageLayout::General;
+		//		attach.FinalLayout = ImageLayout::ShaderReadOnlyOptimal;
+		//		attach.LoadOp = AttachmentLoadOp::Load;
+		//		attach.StoreOp = AttachmentStoreOp::Store;
+		//		spec.OutputColors.push_back(AttachmentSpecification{ attach });
+		//	}
+		//	//spec.OutputDepth = { Format::Depth32F };
+		//	//spec.OutputDepth.FinalLayout = ImageLayout::DepthAttachmentOptimal;
+		//	s_RendererData->SpriteRenderPass = RenderPass::Create(spec);
+		//}
+
+		//{
+		//	SCOPED_TIMER("Graphics pipeline");
+		//	Ref<ShaderModule> vs = ShaderLibrary::LoadShader("assets/_shaders/SpriteVS.glsl", ShaderType::VertexShader);
+		//	Ref<ShaderModule> fs = ShaderLibrary::LoadShader("assets/_shaders/SpriteFS.glsl", ShaderType::FragmentShader);
+
+		//	GraphicsPipelineSpecification spec{};
+		//	spec.CullMode = PipelineCullMode::None;
+		//	spec.FrontCCW = true;
+		//	spec.Name = "Sprite pipeline";
+		//	spec.UsedRenderPass = s_RendererData->SpriteRenderPass;
+		//	spec.VertexShader = vs;
+		//	spec.FragmentShader = fs;
+
+		//	VertexInpuBinding binding{};
+		//	binding.Elements = { {"a_Position",VertexInputType::Float3},{"a_Color",VertexInputType::Float4},{"a_UVCoords",VertexInputType::Float3} };
+		//	binding.InputRate = VertexInputRate::Vertex;
+		//	VertexInputSpecification input{};
+		//	input.Bindings.push_back(binding);
+		//	spec.InputSpecification = input;
+
+		//	s_RendererData->SpritePipeline = GraphicsPipeline::Create(spec);
+		//}
+
+		//{
+		//	SCOPED_TIMER("Camera Descriptor set");
+		//	s_RendererData->CameraDescriptorSet = DescriptorSet::Create(s_RendererData->SpritePipeline, 0);
+		//	
+		//}
+
+		//{
+		//	SCOPED_TIMER("Texture Descriptor set");
+		//	s_RendererData->TextureDescriptorSet = DescriptorSet::Create(s_RendererData->SpritePipeline, 1);
+		//}
+
+		//{
+		//	SCOPED_TIMER("Texture Sampler");
+		//	SamplerParameters params{};
+		//	params.MipmapMode = SamplerMipMapMode::Linear;
+		//	params.MinificationFilter = SamplerFilter::Linear;
+		//	params.MagnificationFilter = SamplerFilter::Linear;
+		//	params.BorderColor = SamplerBorderColor::None;
+		//	params.AddressModeU = SamplerAddressMode::ClampToEdge;
+		//	params.AddressModeV = SamplerAddressMode::ClampToEdge;
+		//	params.AddressModeW = SamplerAddressMode::ClampToEdge;
+		//	s_RendererData->TextureSampler = SamplerState::Create(params);
+		//}
+
+		//s_RendererData->PresetSpriteVertices[0] = { glm::vec3{-.5f,-.5f,.0f} ,glm::vec4{1.0f}};
+		//s_RendererData->PresetSpriteVertices[1] = { glm::vec3{ .5f,-.5f,.0f} ,glm::vec4{1.0f}};
+		//s_RendererData->PresetSpriteVertices[2] = { glm::vec3{ .5f, .5f,.0f} ,glm::vec4{1.0f}};
+		//s_RendererData->PresetSpriteVertices[3] = { glm::vec3{-.5f, .5f,.0f} ,glm::vec4{1.0f}};
+		//s_RendererData->SpriteRenderPass->SetClearValue(0, { AttachmentColorClearValue(glm::vec4{1.0f}) });
+	}
+    void Renderer2D::Shutdown() {
+		delete s_RendererData;
+	}
+    void Renderer2D::Begin(const glm::mat4& cameraVP,Ref<Framebuffer> outputColorBuffer) {
+		/*s_RendererData->SpritesRendered = 0;
+
+		s_RendererData->Camera.ViewProjection = cameraVP;
+		s_RendererData->CameraUnifomBuffer->SetData(&s_RendererData->Camera, sizeof(Renderer2DData::CameraUnifomData));
+		{
+			DescriptorSetUpdate update{};
+			update.ArrayIndex = 0;
+			update.Binding = 0;
+			update.Type = DescriptorType::UniformBuffer;
+			update.BufferUpdate.Buffer = s_RendererData->CameraUnifomBuffer->GetBufferID();
+			update.BufferUpdate.Offset = 0;
+			update.BufferUpdate.Size = std::numeric_limits<uint64_t>::max();
+			s_RendererData->CameraDescriptorSet->Update(update);
+		}
 
 		{
-			VertexArraySpecification spec;
-			spec.UsedShader = shader;
-			spec.VertexBuffers = { vbo };
-			renderer.VAO = VertexArray::Create(spec);
-		}
-		renderer.Shader = shader;
-		return renderer;
-	}
-	
-	void Renderer2D::PushPointRenderer(const CustomRenderer& renderer) {
-		s_Renderer2DData.PointRendererData.CustomRenderers.push(renderer);
-	}
-	void Renderer2D::PopPointRenderer() {
-		KD_CORE_ASSERT(s_Renderer2DData.PointRendererData.CustomRenderers.size() > 1);
-		s_Renderer2DData.PointRendererData.CustomRenderers.pop();
-	}
-
-	#pragma region Initialization
-	void Renderer2D::SpriteRendererData::Init() {
-		{
-			using path = FileSystem::path;
-			SpriteShader = Shader::Create({ {"assets/shaders/GeometryPass/Geometry_Sprite_VS_2D.glsl",ShaderType::VertexShader}, {"assets/shaders/GeometryPass/Geometry_Sprite_FS_2D.glsl",ShaderType::FragmentShader} });
-			Ref<IndexBuffer> ibo;
-			//Index Buffer Object
-			{
-				uint32_t* indices = SetupSpriteIndices();
-				ibo = IndexBuffer::Create(indices, MaxSpriteIndices);
-				delete[] indices;
-			}
-
-			//Vertex Buffer Object
-			{
-				SpriteVBO = VertexBuffer::Create(0);
-				SpriteVBO->SetLayout({
-					{ShaderDataType::Float3,"a_Position"},
-					{ShaderDataType::Float2,"a_TexCoords"},
-					{ShaderDataType::Int,"a_MaterialID"}
-					});
-			}
-
-
-			//Vertex Array Object
-			{
-				VertexArraySpecification spec;
-				spec.VertexBuffers = { SpriteVBO };
-				spec.IndexBuffer = ibo;
-				spec.UsedShader = SpriteShader;
-				SpriteVAO = VertexArray::Create(spec);
-			}
-
-
-			//Default Sprite Vertices
-			{
-				DefaultSpriteVertices[0] = { glm::vec3{-.5f,-.5f,.0f} ,glm::vec2{0,0},0 };
-				DefaultSpriteVertices[1] = { glm::vec3{ .5f,-.5f,.0f} ,glm::vec2{1,0},0 };
-				DefaultSpriteVertices[2] = { glm::vec3{ .5f, .5f,.0f} ,glm::vec2{1,1},0 };
-				DefaultSpriteVertices[3] = { glm::vec3{-.5f, .5f,.0f} ,glm::vec2{0,1},0 };
-			}
-		}
-	}
-
-	void Renderer2D::LineRendererData::Init() {
-		{
-			LineShader = Shader::Create({ { "assets/shaders/GeometryPass/Geometry_Line_VS_2D.glsl" ,ShaderType::VertexShader}, {"assets/shaders/GeometryPass/Geometry_Line_FS_2D.glsl",ShaderType::FragmentShader } });
-
-			//Vertex Buffer Object
-			{
-				LineVBO = VertexBuffer::Create(0);
-				LineVBO->SetLayout({
-					{ShaderDataType::Float3,"a_Position"},
-					{ShaderDataType::Float4,"a_Color"}
-					});
-			}
-
-			//Vertex Array Object
-			{
-				VertexArraySpecification spec;
-				spec.VertexBuffers = { LineVBO };
-				spec.UsedShader = LineShader;
-				LineVAO = VertexArray::Create(spec);
-			}
-
-		}
-	}
-
-	void Renderer2D::BezierRendererData::Init() {
-		{
-
-			ShaderSpecification bezierShaderSpecification;
-
-			bezierShaderSpecification.Definitions = {
-				{"assets/shaders/GeometryPass/Geometry_Bezier_VS_2D.glsl",ShaderType::VertexShader},
-				{"assets/shaders/GeometryPass/Geometry_Bezier_FS_2D.glsl",ShaderType::FragmentShader},
-				{"assets/shaders/GeometryPass/Geometry_Bezier_TES_2D.glsl",ShaderType::TessellationEvaluationShader}
-			};
-
-			BezierShader = Shader::Create(bezierShaderSpecification);
-
-			//Vertex Buffer Object
-			{
-				BezierVBO = VertexBuffer::Create(0);
-				BezierVBO->SetLayout({
-					{ShaderDataType::Float3,"a_Position"}
-					});
-			}
-
-			//Vertex Array Object
-			{
-				VertexArraySpecification spec;
-				spec.VertexBuffers = { BezierVBO };
-				spec.UsedShader = BezierShader;
-
-				BezierVAO = VertexArray::Create(spec);
-			}
-
-
-
-		}
-	}
-
-	void Renderer2D::PointRendererData::Init() {
-		{
-			Ref<Shader> pointShader = Shader::Create({ {"assets/shaders/GeometryPass/Geometry_Point_VS_2D.glsl",ShaderType::VertexShader},{"assets/shaders/GeometryPass/Geometry_Point_FS_2D.glsl",ShaderType::FragmentShader} });
-
-
-
-
-			//Vertex Buffer Object
-			Ref<VertexBuffer> pointVBO = VertexBuffer::Create(0);
-			{
-				pointVBO->SetLayout({
-					{ShaderDataType::Float3,"a_Position"},
-					{ShaderDataType::Float4,"a_Color"}
-					});
-			}
-
-
-
-			CustomRenderer renderer;
-
-			//Vertex Array Object
-			{
-				VertexArraySpecification spec;
-				spec.VertexBuffers = { pointVBO};
-				spec.UsedShader = pointShader;
-
-				renderer.VAO = VertexArray::Create(spec);
-				renderer.Shader = pointShader;
-			}
-
-			CustomRenderers.push(renderer);
-
-
-
-		}
-	}
-
-
-	void Renderer2D::Init() {
-
-		//Sprite Renderer Init
-		{
-			s_Renderer2DData.SpriteRendererData.Init();
+			DescriptorSetUpdate update{};
+			update.ArrayIndex = 0;
+			update.Binding = 0;
+			update.Type = DescriptorType::CombinedSampler;
+			update.ImageUpdate.Layout = ImageLayout::ShaderReadOnlyOptimal;
+			update.ImageUpdate.Sampler = s_RendererData->TextureSampler->GetRendererID();
+			update.ImageUpdate.ImageView = TextureLibrary::GetTextureArray()->GetImage()->GetSpecification().ImageView;
+			s_RendererData->TextureDescriptorSet->Update(update);
 		}
 
-		//Line Renderer Init
-		{
-			s_Renderer2DData.LineRendererData.Init();
-		}
+		RenderCommand::Transition(TextureLibrary::GetTextureArray()->GetImage(), ImageLayout::ShaderReadOnlyOptimal);
 
-		//Bezier Renderer Init
-		{
-			s_Renderer2DData.BezierRendererData.Init();
-		}
+		s_RendererData->OutputBuffer = outputColorBuffer;
+		StartSpriteBatch();*/
 
-		//Point Renderer Init
-		{
-			s_Renderer2DData.PointRendererData.Init();
-		}
-
-		//Camera Uniform Buffer
-		{
-			s_Renderer2DData.CameraUniformBuffer = UniformBuffer::Create(sizeof(Renderer2DData::Camera), 0);
-		}
-
-		//Default Material
-		{
-			s_Renderer2DData.DefaultMaterial = CreateRef<Material2D>();
-		}
-
-	}
-
-	#pragma endregion
-
-
-
-	void Renderer2D::Shutdown() {
-
-	}
-	
-	Ref<Material2D> Renderer2D::GetDefaultMaterial() {
-		return s_Renderer2DData.DefaultMaterial;
-	}
-
-
-	Ref<Framebuffer> Renderer2D::GetOutputFramebuffer() {
-		return s_Renderer2DData.OutputBuffer;
-	}
-
-	void Renderer2D::Begin(const Renderer2DBeginData& beginData) {
-
-
-
-		s_Renderer2DData.OutputBuffer = beginData.OutputBuffer;
-		s_Renderer2DData.CameraBuffer.CameraViewProjection = beginData.CameraVP;
-		s_Renderer2DData.CameraUniformBuffer->SetData(&s_Renderer2DData.CameraBuffer, sizeof(Renderer2DData::Camera));
-		s_Renderer2DData.CameraUniformBuffer->Bind();
-
-
-
-		s_Renderer2DData.SpriteRendererData.SpritesWaitingForRender = 0;
-		s_Renderer2DData.SpriteRendererData.RenderedSpriteCount = 0;
-		s_Renderer2DData.LineRendererData.LinesWaitingForRender = 0;
-		s_Renderer2DData.LineRendererData.RenderedLineCount = 0;
-		s_Renderer2DData.PointRendererData.PointsWaitingForRender = 0;
-		s_Renderer2DData.PointRendererData.RenderedPointCount = 0;
-
-
-
-		MaterialTexture::GetTextureArray()->Bind(0);
-		Material2D::SetMaterials();
-	}
-
-#pragma region Sprite
-	void Renderer2D::DrawSprite(const glm::mat4& transform, Ref<Material2D> material) {
-		if (!material) {
-			DrawSprite(transform, s_Renderer2DData.DefaultMaterial);
-			return;
-		}
-
-		SpriteVertex vertex[4];
-		for (uint32_t i = 0; i < 4; ++i) {
-			vertex[i].Position = transform * glm::vec4(s_Renderer2DData.SpriteRendererData.DefaultSpriteVertices[i].Position, 1.0f);
-			vertex[i].TexCoords = s_Renderer2DData.SpriteRendererData.DefaultSpriteVertices[i].TexCoords;
-			vertex[i].MaterialID = material->GetIndex();
-		}
-
-		std::unique_lock<std::mutex> lock(s_Renderer2DData.SpriteRendererData.SpriteRenderingMutex);
-		auto bvi = VerticesBuffer<SpriteVertex,MaxSpriteVertices>::Vertices.Reserve(4);
-		for (uint32_t i = 0; i < 4; ++i) {
-			bvi[i] = std::move(vertex[i]);
-		}
-		s_Renderer2DData.SpriteRendererData.SpritesWaitingForRender++;
-	}
-
-	void Renderer2D::FlushSprites() {
-
-		auto& vertices = VerticesBuffer<SpriteVertex, MaxSpriteVertices>::Vertices;
-
-		if (s_Renderer2DData.SpriteRendererData.SpritesWaitingForRender) {
-			s_Renderer2DData.OutputBuffer->Bind();
-			s_Renderer2DData.SpriteRendererData.SpriteVBO->SetData(vertices.Get(), vertices.Size() * sizeof(SpriteVertex));
-			s_Renderer2DData.SpriteRendererData.SpriteShader->Bind();
-			RenderCommand::SetCullMode(CullMode::None);
-			RenderCommand::DrawIndexed(s_Renderer2DData.SpriteRendererData.SpriteVAO, s_Renderer2DData.SpriteRendererData.SpritesWaitingForRender * 6);
-			s_Renderer2DData.SpriteRendererData.RenderedSpriteCount += s_Renderer2DData.SpriteRendererData.SpritesWaitingForRender;
-			s_Renderer2DData.SpriteRendererData.SpritesWaitingForRender = 0;
-			s_Renderer2DData.OutputBuffer->Unbind();
-		}
-		vertices.Reset();
-	}
-
-#pragma endregion
-#pragma region Bezier
-
-	void Renderer2D::GetSegmentCount(float totalSegmentCount, float* lineCount, float* segmentPerLineCount) {
-		float maxTessLevel = RenderCommand::QueryMaxTessellationLevel();
-		for (float i = 1.0f; i < maxTessLevel; i += 1.0f) {
-			for (float j = 1.0f; j < maxTessLevel; j += 1.0f) {
-				if (i * j >= totalSegmentCount) {
-					*lineCount = i;
-					*segmentPerLineCount = j;
-					return;
-				}
-			}
-		}
-		*lineCount = maxTessLevel;
-		*segmentPerLineCount = maxTessLevel;
-	}
-
-	void Renderer2D::DrawBezier(const glm::mat4& transform, const std::vector<glm::vec3>& points, const glm::vec4& color, float increment) {
-
-		glm::mat4 mvp = s_Renderer2DData.CameraBuffer.CameraViewProjection * transform;
-		s_Renderer2DData.BezierRendererData.BezierVBO->SetData(points.data(), points.size() * sizeof(glm::vec3));
-		s_Renderer2DData.BezierRendererData.BezierShader->Bind();
-		s_Renderer2DData.BezierRendererData.BezierShader->SetMat4("u_MVP", s_Renderer2DData.CameraBuffer.CameraViewProjection * transform);
-
-		s_Renderer2DData.BezierRendererData.BezierShader->SetInt("u_NumControlPoints", points.size());
-		s_Renderer2DData.BezierRendererData.BezierShader->SetFloat4("u_Color",color);
-
-		float totalNumSegments = ceilf(1.0f / (float)increment);
-		float numLines;
-		float numSegmentsPerLine;
 		
-		GetSegmentCount(totalNumSegments, &numLines, &numSegmentsPerLine);
-
-		s_Renderer2DData.OutputBuffer->Bind();
-		RenderCommand::SetCullMode(CullMode::None);
-		RenderCommand::SetPatchVertexCount(points.size());
-		RenderCommand::SetDefaultTessellationLevels({ numLines,numSegmentsPerLine,1.0,1.0 });
-		RenderCommand::DrawPatches(s_Renderer2DData.BezierRendererData.BezierVAO, points.size());
-		RenderCommand::SetPatchVertexCount(3);
-		RenderCommand::SetDefaultTessellationLevels();
-		s_Renderer2DData.OutputBuffer->Unbind();
-
+	}
+    void Renderer2D::End() {
+		//FlushSprites();
 	}
 
-#pragma endregion
-#pragma region Line
+	void Renderer2D::DrawSprite(const glm::mat4& transform, const glm::vec4& color, const SamplingRegion& region)
+	{
+		SpriteVertex vertices[4] = {};
 
-	void Renderer2D::DrawLine(const glm::vec3& p0, const glm::vec3& p1, const glm::vec4& color) {
-		LineVertex vertices[2];
-		vertices[0].Position = p0;
-		vertices[0].Color = color;
-		vertices[1].Position = p1;
-		vertices[1].Color = color;
+		glm::vec2 uvs[4] = {};
+		//Bottom-Left
+		uvs[0] = { region.UV0.x,region.UV1.y };
+		//Bottom-Right
+		uvs[1] = region.UV1;
+		//Top-Right
+		uvs[2] = { region.UV1.x,region.UV0.y };
+		//Top-Left
+		uvs[3] = region.UV0;
 
-		auto bvi = VerticesBuffer<LineVertex,MaxLineVertices>::Vertices.Reserve(2);
-		bvi[0] = vertices[0];
-		bvi[1] = vertices[1];
-		++s_Renderer2DData.LineRendererData.LinesWaitingForRender;
-	}
-
-	void Renderer2D::FlushLines() {
-
-		auto& vertices = VerticesBuffer<LineVertex, MaxLineVertices>::Vertices;
-
-		if (s_Renderer2DData.LineRendererData.LinesWaitingForRender) {
-			s_Renderer2DData.OutputBuffer->Bind();
-			s_Renderer2DData.LineRendererData.LineVBO->SetData(vertices.Get(), vertices.Size() * sizeof(LineVertex));
-			s_Renderer2DData.LineRendererData.LineShader->Bind();
-			RenderCommand::SetCullMode(CullMode::None);
-			RenderCommand::DrawLines(s_Renderer2DData.LineRendererData.LineVAO, vertices.Size());
-			s_Renderer2DData.LineRendererData.RenderedLineCount+= s_Renderer2DData.LineRendererData.LinesWaitingForRender;
-			s_Renderer2DData.LineRendererData.LinesWaitingForRender = 0;
-			s_Renderer2DData.OutputBuffer->Unbind();
+		for (uint32_t i = 0; i < 4; ++i) {
+			vertices[i].Position = transform * glm::vec4(s_RendererData->PresetSpriteVertices[i].Position, 1.0f);
+			vertices[i].Color = color;
+			vertices[i].UV = { uvs[i],region.Layer };
 		}
-		vertices.Reset();
+		AddSprite(vertices);
 	}
 
-#pragma endregion
-#pragma region Point
+   
+	void Renderer2D::AddSprite(SpriteVertex vertices[4]) {
+		if (!s_RendererData->BakedSpriteVertices.CanReserveWithoutOverflow(4)) {
+			FlushSprites();
+		}
+		auto bvi = s_RendererData->BakedSpriteVertices.Reserve(4);
+		memcpy(&bvi[0], vertices, 4 * sizeof(SpriteVertex));
+		s_RendererData->SpritesWaitingForRender++;
+	}
 
+	void Renderer2D::StartSpriteBatch()
+	{
+		s_RendererData->SpritesWaitingForRender = 0;
+		s_RendererData->BakedSpriteVertices.Reset();
+	}
 
-#pragma endregion
+	void Renderer2D::FlushSprites()
+	{
+		/*if (s_RendererData->SpritesWaitingForRender) {
+			s_RendererData->SpriteVertexBuffer->SetData(s_RendererData->BakedSpriteVertices.Get(), s_RendererData->BakedSpriteVertices.Size() * sizeof(SpriteVertex));
+			
+			RenderCommand::BindVertexBuffers({ s_RendererData->SpriteVertexBuffer });
+			RenderCommand::BindIndexBuffer(s_RendererData->SpriteIndexBuffer);
+			RenderCommand::Transition(s_RendererData->OutputBuffer->GetImage(0), ImageLayout::General);
+			RenderCommand::BeginRenderPass(s_RendererData->OutputBuffer, s_RendererData->SpriteRenderPass);
+			RenderCommand::BindGraphicsPipeline(s_RendererData->SpritePipeline);
+			RenderCommand::BindDescriptorSet(s_RendererData->CameraDescriptorSet, 0);
+			RenderCommand::BindDescriptorSet(s_RendererData->TextureDescriptorSet, 1);
+			RenderCommand::DrawIndexed(s_RendererData->SpritesWaitingForRender * 6);
+			RenderCommand::EndRenderPass();
+		}
 
-	void Renderer2D::End() {
-		FlushSprites();
-		FlushLines();
-		FlushPoints<0>();
+		s_RendererData->SpritesRendered += s_RendererData->SpritesWaitingForRender;
+		s_RendererData->SpritesWaitingForRender = 0;*/
 	}
 
 }

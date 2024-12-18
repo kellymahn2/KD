@@ -1,18 +1,12 @@
 #pragma once
 #include "Kaidel/Core/Base.h"
+#include "Buffer.h"
 namespace Kaidel {
-	class UniformBuffer : public IRCCounter<false>
-	{
+	class UniformBuffer : public Buffer {
 	public:
-
-		virtual ~UniformBuffer() {}
-		virtual void SetData(const void* data, uint32_t size, uint32_t offset = 0) = 0;
-		virtual void Bind(uint32_t binding)=0;
-		virtual void Bind() = 0;
-		virtual void UnBind() = 0;
-		static Ref<UniformBuffer> Create(uint32_t size, uint32_t binding);
-	protected:
-		uint32_t m_Binding = 0;
+		virtual ~UniformBuffer() = default;
+		virtual void SetData(const void* data, uint64_t size, uint64_t offset = 0) = 0;
+		virtual BufferType GetBufferType()const { return BufferType::UniformBuffer; }
+		static Ref<UniformBuffer> Create(uint64_t size);
 	};
 }
-

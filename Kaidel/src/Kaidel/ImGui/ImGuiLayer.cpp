@@ -4,10 +4,12 @@
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
+#include <backends/imgui_impl_vulkan.h>
 #include <backends/imgui_impl_dx11.h>
 
 #include "Kaidel/Core/Application.h"
 #include "Kaidel/Renderer/RendererAPI.h"
+
 
 // TEMPORARY
 #include <GLFW/glfw3.h>
@@ -15,7 +17,20 @@
 
 #include "ImGuizmo.h"
 
+
+
+
 namespace Kaidel {
+
+
+	namespace Vulkan {
+		void ImGuiInit();
+		void ImGuiNewFrame();
+		void ImGuiRender(ImDrawData* drawData);
+		void ImGuiShutdown();
+	}
+
+
 	struct ImGuiDirectXRes {
 		ID3D11Device* Device;
 		ID3D11DeviceContext* DeviceContext;
@@ -28,7 +43,6 @@ namespace Kaidel {
 
 	void ImGuiLayer::OnAttach()
 	{
-
 		// Setup Dear ImGui context
 		IMGUI_CHECKVERSION();
 		ImGui::CreateContext();
@@ -60,38 +74,16 @@ namespace Kaidel {
 		Application& app = Application::Get();
 		GLFWwindow* window = static_cast<GLFWwindow*>(app.GetWindow().GetNativeWindow());
 
+		app.GetWindow().GetContext()->ImGuiInit();
+
 		// Setup Platform/Renderer bindings
-		switch (RendererAPI::GetAPI())
-		{
-		case RendererAPI::API::OpenGL: {
-			ImGui_ImplGlfw_InitForOpenGL(window, true);
-			ImGui_ImplOpenGL3_Init("#version 410");
-		}
-		break;
-		case RendererAPI::API::DirectX: {
-			ImGui_ImplGlfw_InitForOther(window, true);
-			auto data = InitImGuiForDirectX();
-			ImGui_ImplDX11_Init(data.Device, data.DeviceContext);
-		}
-		break;
-		}
 	}
 
 	void ImGuiLayer::OnDetach()
 	{
-		switch (RendererAPI::GetAPI())
-		{
-		case RendererAPI::API::OpenGL: {
-			ImGui_ImplOpenGL3_Shutdown();
-			ImGui_ImplGlfw_Shutdown();
-		}
-		break;
-		case RendererAPI::API::DirectX: {
-			ImGui_ImplDX11_Shutdown();
-			ImGui_ImplGlfw_Shutdown();
-		}
-		break;
-		}
+		Application& app = Application::Get();
+		app.GetWindow().GetContext()->ImGuiShutdown();
+
 		ImGui::DestroyContext();
 	}
 
@@ -103,27 +95,34 @@ namespace Kaidel {
 			e.Handled |= e.IsInCategory(EventCategoryMouse) & io.WantCaptureMouse;
 			e.Handled |= e.IsInCategory(EventCategoryKeyboard) & io.WantCaptureKeyboard;
 		}
+
+	}
+
+	void ImGuiLayer::OnMouseWrap(float x)
+	{
+		m_WasWrapped = true;
+		m_NewPosAfterWrap = x;
 	}
 	
 	void ImGuiLayer::Begin()
 	{
 
-		switch (RendererAPI::GetAPI())
-		{
-		case RendererAPI::API::OpenGL: {
-			ImGui_ImplOpenGL3_NewFrame();
-			ImGui_ImplGlfw_NewFrame();
-		}
-		break;
-		case RendererAPI::API::DirectX: {
-			ImGui_ImplDX11_NewFrame();
-			ImGui_ImplGlfw_NewFrame();
-		}
-		break;
+		Application& app = Application::Get();
+		app.GetWindow().GetContext()->ImGuiBegin();
+
+		ImGuiIO& io = ImGui::GetIO();
+		
+		if (m_WasWrapped) {
+
+			io.MousePos.x = m_NewPosAfterWrap;
+			io.MousePosPrev.x = io.MousePos.x;
+			m_WasWrapped = false;
 		}
 		
 		ImGui::NewFrame();
 		ImGuizmo::BeginFrame();
+
+
 	}
 
 	void ImGuiLayer::End()
@@ -135,17 +134,8 @@ namespace Kaidel {
 
 		// Rendering
 		ImGui::Render();
-		switch (RendererAPI::GetAPI())
-		{
-		case RendererAPI::API::OpenGL: {
-			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-		}
-		break;
-		case RendererAPI::API::DirectX: {
-			ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-		}
-		break;
-		}
+
+		app.GetWindow().GetContext()->ImGuiEnd();
 
 		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 		{

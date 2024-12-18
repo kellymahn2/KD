@@ -4,13 +4,14 @@
 #include "Panels/SceneHierarchyPanel.h"
 #include "Panels/ContentBrowserPanel.h"
 #include "Panels/PropertiesPanel.h"
-#include "Panels/AnimationPanel.h"
 #include "Panels/ConsolePanel.h"
 #include "Kaidel/Renderer/EditorCamera.h"
 #include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
 #include "Kaidel/Renderer/2D/Renderer2D.h"
 #include "Kaidel/Renderer/RenderCommand.h"
-#include "Kaidel/ParticleSystem/ParticleSystem.h"
+#include "Kaidel/Renderer/GraphicsAPI/DescriptorSet.h"
+#include "EditorIcon.h"
+
 namespace Kaidel {
 
 	class EditorLayer : public Layer
@@ -66,10 +67,15 @@ namespace Kaidel {
 		void ShowViewport();
 		void HandleViewportResize();
 
+
 	private:
 		
 		Console m_DebugConsole;
-		Ref<Framebuffer> m_OutputBuffer,m_ScreenOutputbuffer;
+		PerFrameResource<Ref<Texture2D>> m_OutputTextures;
+		PerFrameResource<Ref<DescriptorSet>> m_OutputDescriptorSet;
+		PerFrameResource<Ref<DescriptorSet>> m_OutputDepthDescriptors;
+		Ref<RenderPass> m_OutputRenderPass;
+		Ref<Framebuffer> m_ScreenOutputbuffer;
 		Ref<Scene> m_ActiveScene;
 		Ref<Scene> m_EditorScene, m_RuntimeScene,m_SimulationScene;
 
@@ -81,9 +87,10 @@ namespace Kaidel {
 
 		bool m_Debug = false;
 
-		bool m_ConsoleOpen=false;
+		bool m_ConsoleOpen = false;
 		EditorCamera m_EditorCamera;
-
+		float m_Near = .1f, m_Far = 250.0f;
+		
 		bool m_ViewportFocused = false, m_ViewportHovered = false;
 
 
@@ -99,16 +106,13 @@ namespace Kaidel {
 		ConsolePanel m_ConsolePanel;
 		PropertiesPanel m_PropertiesPanel;
 
-		AnimationPanel m_AnimationPanel;
-
-		Ref<ComputeShader> m_2D3DCompositeShader;
 
 		struct Icons {
-			Ref<Texture2D> IconPlay;
-			Ref<Texture2D> IconPause;
-			Ref<Texture2D> IconSimulateStart;
-			Ref<Texture2D> IconSimulateStop;
-			Ref<Texture2D> IconStop;
+			EditorIcon IconPlay;
+			EditorIcon IconPause;
+			EditorIcon IconSimulateStart;
+			EditorIcon IconSimulateStop;
+			EditorIcon IconStop;
 		} m_Icons;
 
 		enum class SceneState {
@@ -118,12 +122,9 @@ namespace Kaidel {
 		SceneState m_SceneState = SceneState::Edit;
 
 		Ref<PanelContext> m_PanelContext;
-		Ref<ComputeShader> m_FXAAComputeShader;
 
 		RendererSettings m_RendererSettings = RendererAPI::GetSettings();
 
-
-		Ref<CubeMap> cm;
+		Ref<Sampler> m_OutputSampler;
 	};
-
 }

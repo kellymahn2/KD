@@ -25,21 +25,17 @@
 #include "Kaidel/Project/Project.h"
 
 
-// ---Model---------------------------
-#include "Kaidel/Mesh/Model.h"
-
 // ---Renderer------------------------
 #include "Kaidel/Renderer/Renderer.h"
 #include "Kaidel/Renderer/2D/Renderer2D.h"
-#include "Kaidel/Renderer/3D/Renderer3D.h"
-#include "Kaidel/Renderer/Primitives.h"
 #include "Kaidel/Renderer/RenderCommand.h"
 
-#include "Kaidel/Renderer/GraphicsAPI/Buffer.h"
-#include "Kaidel/Renderer/GraphicsAPI/Shader.h"
+#include "Kaidel/Renderer/GraphicsAPI/DescriptorSet.h"
 #include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
-#include "Kaidel/Renderer/GraphicsAPI/Texture.h"
-#include "Kaidel/Renderer/GraphicsAPI/VertexArray.h"
-#include "Kaidel/Renderer/GraphicsAPI/CubeMap.h"
+#include "Kaidel/Renderer/GraphicsAPI/GraphicsPipeline.h"
+#include "Kaidel/Renderer/GraphicsAPI/RenderPass.h"
+#include "Kaidel/Renderer/GraphicsAPI/Shader.h"
+#include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
+#include "Kaidel/Renderer/GraphicsAPI/PerFrameResource.h"
 
 // -----------------------------------

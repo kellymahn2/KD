@@ -17,6 +17,8 @@ namespace Kaidel {
 		virtual void OnAttach() override;
 		virtual void OnDetach() override;
 		virtual void OnEvent(Event& e) override;
+		
+		void OnMouseWrap(float x);
 
 		void Begin();
 		void End();
@@ -26,6 +28,8 @@ namespace Kaidel {
 		void SetDarkThemeColors();
 	private:
 		bool m_BlockEvents = true;
+		bool m_WasWrapped = false;
+		float m_NewPosAfterWrap = 0.0f;
 		float m_Time = 0.0f;
 	};
 

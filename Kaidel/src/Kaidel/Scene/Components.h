@@ -1,14 +1,7 @@
 #pragma once
 #include "SceneCamera.h"
-#include "Kaidel/Animation/Animation.h"
-#include "Kaidel/Renderer/GraphicsAPI/Texture.h"
+#include "Model.h"
 #include "Kaidel/Core/UUID.h"
-#include "Kaidel/Renderer/2D/Material2D.h"
-#include "Kaidel/Renderer/3D/Light.h"
-#include "Kaidel/Renderer/3D/Material.h"
-#include "Kaidel/ParticleSystem/ParticleSystem.h"
-#include "Kaidel/Mesh/Mesh.h"
-#include "Kaidel/Assets/AssetManager.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -68,7 +61,7 @@ namespace Kaidel {
 	//2D
 	struct SpriteRendererComponent
 	{
-		Asset<Material2D> Material;
+		int x = 3;
 		SpriteRendererComponent() = default;
 		SpriteRendererComponent(const SpriteRendererComponent&) = default;
 	};
@@ -84,7 +77,7 @@ namespace Kaidel {
 	};
 	template<typename T, typename _Points>
 	glm::vec3 Bezier(const std::vector<_Points>& controlPoints, T t) {
-		uint32_t n = controlPoints.size() - 1;
+		uint32_t n = (uint32_t)controlPoints.size() - 1U;
 		glm::vec3 result{ 0.0f };
 		T oneMinusT = 1.0f - t;
 		for (uint32_t i = 0; i <= n; ++i) {
@@ -120,61 +113,19 @@ namespace Kaidel {
 
 	};
 
-	//3D
-	#pragma region 3D
-	struct CubeRendererComponent {
-		Ref<Material> Material;
-		CubeRendererComponent() = default;
-		CubeRendererComponent(const CubeRendererComponent&) = default;
-
-	};
-
-
-	struct MaterialComponent {
-		Ref<Material> Material;
-		MaterialComponent() = default;
-		MaterialComponent(const MaterialComponent&) = default;
-	};
-
-	struct PointLightComponent {
-		using LightType = PointLight;
-		Ref<LightType> Light;
-		PointLightComponent() {
-			Light = CreateRef<LightType>();
-		}
-		PointLightComponent(const PointLightComponent& rhs) {
-			Light = CreateRef<LightType>();
-			Light->GetLight() = rhs.Light->GetLight();
-		}
+	struct ModelComponent {
+		Ref<Model> UsedModel;
+		ModelComponent() = default;
+		ModelComponent(const ModelComponent&) = default;
 	};
 
 	struct DirectionalLightComponent {
-		using LightType = DirectionalLight;
-		Ref<LightType> Light;
-		bool IsPrimary = false;
-		DirectionalLightComponent() {
-			Light = CreateRef<LightType>();
-		}
-		DirectionalLightComponent(const DirectionalLightComponent& rhs) {
-			Light = CreateRef<LightType>();
-			Light->GetLight() = rhs.Light->GetLight();
-		}
+		glm::vec3 Color = glm::vec3(1.0);
+		float MaxDistance = 1000.0f;
+		float PancakeSize = 20.0f;
+		float SplitLambda = 0.95f;
+		float FadeStart = 1.0f;
 	};
-
-	struct SpotLightComponent {
-		using LightType = SpotLight;
-		Ref<LightType> Light;
-		SpotLightComponent() {
-			Light = CreateRef<LightType>();
-		}
-		SpotLightComponent(const SpotLightComponent& rhs) {
-			Light = CreateRef<LightType>();
-			Light->GetLight() = rhs.Light->GetLight();
-		}
-
-
-	};
-#pragma endregion
 
 	struct CameraComponent
 	{
@@ -208,12 +159,6 @@ namespace Kaidel {
 		}
 	};
 
-	struct MeshComponent {
-		Asset<Mesh> Mesh;
-		MeshComponent() = default;
-		MeshComponent(const MeshComponent&) = default;
-	};
-	
 
 	struct AnimationPlayerComponent {
 		enum class PlayerState {
@@ -222,7 +167,7 @@ namespace Kaidel {
 			Stopped,
 		};
 		float Time = 0.0f;
-		Asset<Animation> Anim;
+		//Asset<Animation> Anim;
 		PlayerState State = PlayerState::Stopped;
 		AnimationPlayerComponent() = default;
 		AnimationPlayerComponent(const AnimationPlayerComponent&) = default;
@@ -274,11 +219,5 @@ namespace Kaidel {
 		CircleCollider2DComponent(const CircleCollider2DComponent&) = default;
 	};
 #pragma endregion
-
-
-	//Particles
-	struct ParticleSystemComponent {
-		Ref<ParticleSystem> PS;
-	};
 
 }

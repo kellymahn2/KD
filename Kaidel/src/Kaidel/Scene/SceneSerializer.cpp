@@ -109,12 +109,6 @@ namespace Kaidel {
 		return out;
 	}
 
-	template<typename _Asset>
-	static YAML::Emitter& operator<<(YAML::Emitter& out, Asset<_Asset> asset) {
-		out << (uint64_t)asset.UniqueAssetID;
-		return out;
-	}
-
 	static std::string ScriptFieldTypeToString(ScriptFieldType type) {
 		switch (type)
 		{
@@ -226,7 +220,6 @@ namespace Kaidel {
 
 			out << YAML::EndMap; // TransformComponent
 		}
-
 		if (entity.HasComponent<CameraComponent>())
 		{
 			out << YAML::Key << "CameraComponent";
@@ -251,36 +244,13 @@ namespace Kaidel {
 
 			out << YAML::EndMap; // CameraComponent
 		}
-
-		if (entity.HasComponent<MeshComponent>()) {
-			out << YAML::Key << "MeshComponent";
-			out << YAML::BeginMap; // MeshComponent
-
-			
-			auto& meshComponent = entity.GetComponent<MeshComponent>();
-			out << YAML::Key << "Mesh" << YAML::Value << meshComponent.Mesh;
-
-
-			out << YAML::EndMap; // MeshComponent
-		}
-
-		if (entity.HasComponent<MaterialComponent>()) {
-			out << YAML::Key << "MaterialComponent";
-			out << YAML::BeginMap; // MaterialComponent
-
-			auto& materialComponent = entity.GetComponent<MaterialComponent>();
-			out << YAML::Key << "MaterialID" << YAML::Value << materialComponent.Material->AssetID().operator size_t();
-			out << YAML::EndMap; // MaterialComponent
-		}
-
-
 		if (entity.HasComponent<SpriteRendererComponent>())
 		{
 			out << YAML::Key << "SpriteRendererComponent";
 			out << YAML::BeginMap; // SpriteRendererComponent
 
-			auto& spriteRendererComponent = entity.GetComponent<SpriteRendererComponent>();
-			out << YAML::Key << "Material" << YAML::Value << spriteRendererComponent.Material;
+			//auto& spriteRendererComponent = entity.GetComponent<SpriteRendererComponent>();
+			//out << YAML::Key << "Material" << YAML::Value << spriteRendererComponent.Material;
 			out << YAML::EndMap; // SpriteRendererComponent
 		}
 		if (entity.HasComponent<CircleRendererComponent>())
@@ -394,56 +364,15 @@ namespace Kaidel {
 		}
 		if (entity.HasComponent<DirectionalLightComponent>()) {
 			out << YAML::Key << "DirectionalLightComponent";
+			
 			out << YAML::BeginMap; // DirectionalLightComponent
 
 			auto& dlc = entity.GetComponent<DirectionalLightComponent>();
-
-			auto& light = dlc.Light->GetLight();
-			out << YAML::Key << "IsPrimary" << YAML::Value << dlc.IsPrimary;
-			out << YAML::Key << "Direction" << YAML::Value << light.Direction;
-			out << YAML::Key << "Ambient" << YAML::Value << light.Ambient;
-			out << YAML::Key << "Diffuse" << YAML::Value << light.Diffuse;
-			out << YAML::Key << "Specular" << YAML::Value << light.Specular;
-
+			out << YAML::Key << "Color" << YAML::Value << dlc.Color;
+			out << YAML::Key << "MaxDistance" << YAML::Value << dlc.MaxDistance;
 
 			out << YAML::EndMap; // DirectionalLightComponent
 		}
-		
-		if (entity.HasComponent<SpotLightComponent>()) {
-			out << YAML::Key << "SpotLightComponent";
-			out << YAML::BeginMap; //SpotLightComponent
-			
-			
-			auto& light = entity.GetComponent<SpotLightComponent>().Light->GetLight();
-			out << YAML::Key << "Direction" << YAML::Value << light.Direction;
-			out << YAML::Key << "Ambient" << YAML::Value << light.Ambient;
-			out << YAML::Key << "Diffuse" << YAML::Value << light.Diffuse;
-			out << YAML::Key << "Specular" << YAML::Value << light.Specular;
-			out << YAML::Key << "CutOffAngle" << YAML::Value << light.CutOffAngle;
-			out << YAML::Key << "ConstantCoefficient" << YAML::Value << light.ConstantCoefficient;
-			out << YAML::Key << "LinearCoefficient" << YAML::Value << light.LinearCoefficient;
-			out << YAML::Key << "QuadraticCoefficient" << YAML::Value << light.QuadraticCoefficient;
-
-			out << YAML::EndMap; //SpotLightComponent
-		}
-
-		if (entity.HasComponent<PointLightComponent>()) {
-			out << YAML::Key << "PointLightComponent";
-			out << YAML::BeginMap; // PointLightComponent
-
-
-			auto& light = entity.GetComponent<PointLightComponent>().Light->GetLight();
-			out << YAML::Key << "Ambient" << YAML::Value << light.Ambient;
-			out << YAML::Key << "Diffuse" << YAML::Value << light.Diffuse;
-			out << YAML::Key << "Specular" << YAML::Value << light.Specular;
-			out << YAML::Key << "ConstantCoefficient" << YAML::Value << light.ConstantCoefficient;
-			out << YAML::Key << "LinearCoefficient" << YAML::Value << light.LinearCoefficient;
-			out << YAML::Key << "QuadraticCoefficient" << YAML::Value << light.QuadraticCoefficient;
-
-
-			out << YAML::EndMap; // PointLightComponent
-		}
-
 
 
 		out << YAML::EndMap; // Entity
@@ -547,13 +476,6 @@ namespace Kaidel {
 
 				DeserializeComponent<SpriteRendererComponent>(deserializedEntity, "SpriteRendererComponent", entityNode,
 					[](SpriteRendererComponent& src, auto& entity, auto& spriteRendererComponent) {
-						src.Material = {};
-
-						uint64_t assetID = spriteRendererComponent["Material"].as<uint64_t>();
-						if (assetID && SingleAssetManager<Material2D>::AssetExists(assetID)) {
-							src.Material = SingleAssetManager<Material2D>::Get(assetID);
-						}
-
 					}
 				);
 				DeserializeComponent<CircleRendererComponent>(deserializedEntity, "CircleRendererComponent", entityNode,
@@ -581,54 +503,6 @@ namespace Kaidel {
 					}
 				);
 
-				DeserializeComponent<DirectionalLightComponent>(deserializedEntity, "DirectionalLightComponent", entityNode, 
-					[](DirectionalLightComponent& dlc, auto& entity, auto& directionalLightComponent) {
-						dlc.IsPrimary = directionalLightComponent["IsPrimary"].as<bool>();
-						auto& light = dlc.Light->GetLight();
-						light.Direction = directionalLightComponent["Direction"].as<glm::vec3>();
-						light.Ambient = directionalLightComponent["Ambient"].as<glm::vec3>();
-						light.Diffuse = directionalLightComponent["Diffuse"].as<glm::vec3>();
-						light.Specular = directionalLightComponent["Specular"].as<glm::vec3>();
-
-					});
-
-				DeserializeComponent<SpotLightComponent>(deserializedEntity, "SpotLightComponent", entityNode, 
-					[](SpotLightComponent& slc,auto& entity,auto& spotLightComponent) {
-						auto& light = slc.Light->GetLight();
-						light.Direction = glm::vec4(spotLightComponent["Direction"].as<glm::vec4>());
-						light.Ambient = glm::vec4(spotLightComponent["Ambient"].as<glm::vec4>());
-						light.Diffuse = glm::vec4(spotLightComponent["Diffuse"].as<glm::vec4>());
-						light.Specular =  glm::vec4(spotLightComponent["Specular"].as<glm::vec4>());
-						light.CutOffAngle = spotLightComponent["CutOffAngle"].as<float>();
-						light.ConstantCoefficient = spotLightComponent["ConstantCoefficient"].as<float>();
-						light.LinearCoefficient = spotLightComponent["LinearCoefficient"].as<float>();
-						light.QuadraticCoefficient = spotLightComponent["QuadraticCoefficient"].as<float>();
-					});
-
-				DeserializeComponent<MeshComponent>(deserializedEntity, "MeshComponent", entityNode,
-					[](MeshComponent& mc,auto& entity,auto& meshComponent) {
-						mc.Mesh = SingleAssetManager<Mesh>::Get(meshComponent["Mesh"].as<uint64_t>());
-					});
-				DeserializeComponent<MaterialComponent>(deserializedEntity, "MaterialComponent", entityNode,
-					[](MaterialComponent& mc, auto& entity, auto& materialComponent) {
-						mc.Material = AssetManager::AssetByID(materialComponent["MaterialID"].as<uint64_t>());
-					});
-
-				
-
-				DeserializeComponent<PointLightComponent>(deserializedEntity, "PointLightComponent", entityNode,
-					[](PointLightComponent& plc, auto& entity, auto& pointLightComponent) {
-						_PointLightInternal& light = plc.Light->GetLight();
-						light.Ambient = glm::vec4(pointLightComponent["Ambient"].as<glm::vec4>());
-						light.Diffuse = glm::vec4(pointLightComponent["Diffuse"].as<glm::vec4>());
-						light.Specular = glm::vec4(pointLightComponent["Specular"].as<glm::vec4>());
-						light.ConstantCoefficient = pointLightComponent["ConstantCoefficient"].as<float>();
-						light.LinearCoefficient = pointLightComponent["LinearCoefficient"].as<float>();
-						light.QuadraticCoefficient = pointLightComponent["QuadraticCoefficient"].as<float>();
-					});
-
-
-
 				DeserializeComponent<CircleCollider2DComponent>(deserializedEntity, "CircleCollider2DComponent", entityNode,
 					[](auto& cc2d, auto& entity, auto& circleCollider2DComponent) {
 						cc2d.Offset = circleCollider2DComponent["Offset"].as<glm::vec2>();
@@ -652,6 +526,12 @@ namespace Kaidel {
 					}
 				);
 
+				DeserializeComponent<DirectionalLightComponent>
+					(deserializedEntity, "DirectionalLightComponent", entityNode,
+					 [](DirectionalLightComponent& dlc, auto& entity, YAML::Node& directionalLightComponent) {
+						 dlc.Color = directionalLightComponent["Color"].as<glm::vec3>();
+						 dlc.MaxDistance = directionalLightComponent["MaxDistance"].as<float>();
+					 });
 
 				DeserializeComponent<ScriptComponent>(deserializedEntity, "ScriptComponent", entityNode,
 					[](ScriptComponent& src , auto& entity,YAML::Node& scriptRendererComponent) {

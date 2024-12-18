@@ -6,10 +6,12 @@
 #include "Kaidel/Events/ApplicationEvent.h"
 #include "Kaidel/Events/MouseEvent.h"
 #include "Kaidel/Events/KeyEvent.h"
+#include "Kaidel/ImGui/ImGuiLayer.h"
 
 #include "Kaidel/Renderer/Renderer.h"
+#include "Kaidel/Renderer/RendererAPI.h"
 
-#include "Platform/OpenGL/OpenGLContext.h"
+#include <imgui.h>
 
 namespace Kaidel {
 	
@@ -22,7 +24,6 @@ namespace Kaidel {
 
 	WindowsWindow::WindowsWindow(const WindowProps& props)
 	{
-
 		Init(props);
 	}
 
@@ -34,15 +35,10 @@ namespace Kaidel {
 
 	void WindowsWindow::Init(const WindowProps& props)
 	{
-
 		m_Data.Title = props.Title;
 		m_Data.Width = props.Width;
 		m_Data.Height = props.Height;
 		m_Data.Fullscreen = props.Fullscreen;
-
-
-
-
 
 		if (s_GLFWWindowCount == 0)
 		{
@@ -63,13 +59,15 @@ namespace Kaidel {
 			if (Renderer::GetAPI() == RendererAPI::API::OpenGL)
 				glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 		#endif
-			if(Renderer::GetAPI() == RendererAPI::API::DirectX)
+			if(Renderer::GetAPI() == RendererAPI::API::DirectX || Renderer::GetAPI() == RendererAPI::API::Vulkan)
 				glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 			m_Window = glfwCreateWindow((int)m_Data.Width, (int)m_Data.Height, m_Data.Title.c_str(), nullptr, nullptr);
 			++s_GLFWWindowCount;
 		}
-		m_Context = GraphicsContext::Create(m_Window);
+		m_Context = GraphicsContext::Create(this);
 		m_Context->Init();
+
+		RenderCommand::Get() = RendererAPI::Create();
 
 		glfwSetWindowUserPointer(m_Window, &m_Data);
 
@@ -162,25 +160,55 @@ namespace Kaidel {
 			MouseMovedEvent event((float)xPos, (float)yPos);
 			data.EventCallback(event);
 		});
+
+
+		glfwSetWindowRefreshCallback(m_Window, [](GLFWwindow* window) {
+			WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+			WindowRedrawEvent event;
+			data.EventCallback(event);
+			});
+
 		SetVSync(false);
 	}
 
 	void WindowsWindow::Shutdown()
 	{
-
 		glfwDestroyWindow(m_Window);
 		--s_GLFWWindowCount;
 
 		if (s_GLFWWindowCount == 0)
 		{
+			RenderCommand::Get()->Shutdown();
+			m_Context->Shutdown();
 			glfwTerminate();
 		}
+
+	}
+
+	void WindowsWindow::PollEvents() const
+	{
+		glfwPollEvents();
+	}
+
+	void WindowsWindow::AcquireImage() const
+	{
+		m_Context->AcquireImage();
+	}
+
+	void WindowsWindow::PresentImage() const
+	{
+		m_Context->PresentImage();
+	}
+
+	void WindowsWindow::SwapBuffers() const
+	{
+		m_Context->SwapBuffers();
 	}
 
 	void WindowsWindow::OnUpdate()
 	{
-		glfwPollEvents();
-		m_Context->SwapBuffers();
+		PollEvents();
+		SwapBuffers();
 	}
 
 	void WindowsWindow::SetVSync(bool enabled)
@@ -199,37 +227,54 @@ namespace Kaidel {
 		return m_Data.VSync;
 	}
 
+
+	static void GetMonitorInformation(int* w, int* h) {
+		GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+		int a, b;
+		glfwGetMonitorWorkarea(monitor, &a, &b, w, h);
+	}
+
+
 	static void CheckAndSetCursorPosition(GLFWwindow* window) {
-			double rel_xpos, rel_ypos;
-			glfwGetCursorPos(window, &rel_xpos, &rel_ypos);
 
-			GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+		//KD_CORE_INFO("-----------------------------");
+		
+		double currentPosRelWindowX, currentPosRelWindowY;
+		glfwGetCursorPos(window, &currentPosRelWindowX, &currentPosRelWindowY);
+		//KD_CORE_INFO("\t({},{})", currentPosRelWindowX, currentPosRelWindowY);
 
+		int monitorWidth, monitorHeight;
+		GetMonitorInformation(&monitorWidth, &monitorHeight);
+		//KD_CORE_INFO("\t({},{})", monitorWidth, monitorHeight);
 
-			int window_pos_x, window_pos_y;
-			glfwGetWindowPos(window, &window_pos_x, &window_pos_y);
+		int windowPosX, windowPosY;
+		glfwGetWindowPos(window, &windowPosX, &windowPosY);
+		//KD_CORE_INFO("\t({},{})", windowPosX, windowPosY);
 
-			double xpos = rel_xpos + window_pos_x;
-			double ypos = rel_ypos + window_pos_y;
+		int globalPosX, globalPosY;
+		globalPosX = currentPosRelWindowX + windowPosX;
+		globalPosY = currentPosRelWindowY + windowPosY;
+		//KD_CORE_INFO("\t({},{})", globalPosX, globalPosY);
 
+		bool wrapped = false;
 
-			if (monitor != NULL) {
-				int monitor_x, monitor_y;
-				glfwGetMonitorPos(monitor, &monitor_x, &monitor_y);
-				const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-				int monitor_width = mode->width;
-				int monitor_height = mode->height;
+		if (globalPosX <= 0) {
+			globalPosX = monitorWidth - 2;
+			wrapped = true;
+		}
+		if (globalPosX >= monitorWidth - 1) {
+			globalPosX = 1;
+			wrapped = true;
+		}
+		
+		double newPosRelWindowX, newPosRelWindowY;
+		newPosRelWindowX = globalPosX - windowPosX;
+		newPosRelWindowY = currentPosRelWindowY;
+		glfwSetCursorPos(window, newPosRelWindowX, newPosRelWindowY);
 
-				if (xpos <= monitor_x)
-					xpos = monitor_x + monitor_width - 1;
-				else if (xpos >= monitor_x + monitor_width -1)
-					xpos = monitor_x;
-
-
-				glfwSetCursorPos(window, xpos - window_pos_x, rel_ypos);
-			}
-
-
+		if (wrapped) {
+			Application::Get().GetImGuiLayer()->OnMouseWrap(globalPosX);
+		}
 
 	}
 

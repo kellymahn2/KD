@@ -18,9 +18,10 @@ project "Kaidel"
 		"vendor/stb_image/**.cpp",
 		"vendor/glm/glm/**.hpp",
 		"vendor/glm/glm/**.inl",
-
 		"vendor/ImGuizmo/ImGuizmo.h",
-		"vendor/ImGuizmo/ImGuizmo.cpp"
+		"vendor/ImGuizmo/ImGuizmo.cpp",
+		"vendor/VMA/**.h",
+		"vendor/VMA/**.cpp",
 	}
 
 	defines
@@ -48,6 +49,8 @@ project "Kaidel"
 		"%{IncludeDir.ImGuizmo}",
 		"%{IncludeDir.VulkanSDK}",
 		"%{IncludeDir.DirectX}",
+		"%{IncludeDir.Vulkan}",
+		"vendor/VMA"
 	}
 
 	links
@@ -56,15 +59,20 @@ project "Kaidel"
 		"GLFW",
 		"Glad",
 		"ImGui",
-		"vendor/Assimp/lib/Debug/assimp-vc143-mt.lib",
+		"vendor/Assimp/lib/assimp-vc140-mt.lib",
 		"yaml-cpp",
 		"opengl32.lib",
 		"D3D11.lib",
 		"%{Library.mono}",
+		"%{Library.Vulkan}",
+
 	}
 
 	filter "files:vendor/ImGuizmo/**.cpp"
-	flags { "NoPCH" }
+		flags { "NoPCH" }
+	filter "files:vendor/stb_image/stb_image.cpp"
+		optimize "on"
+		runtime "Release"
 
 	filter "system:windows"
 		systemversion "latest"
@@ -85,15 +93,36 @@ project "Kaidel"
 		defines "KD_DEBUG"
 		runtime "Debug"
 		symbols "on"
+		links{
+			"%{Library.ShaderC_Debug}",
+			"%{Library.SPIRV_Cross_Debug}",
+			"%{Library.SPIRV_Cross_GLSL_Debug}",
+			"%{Library.SPIRV_Reflect_Debug}",
+			"%{Library.SPIRV_Cross_Reflect_Debug}",
+		}
 
 
 	filter "configurations:Release"
 		defines "KD_RELEASE"
 		runtime "Release"
 		optimize "on"
+		links{
+			"%{Library.ShaderC_Release}",
+			"%{Library.SPIRV_Cross_Release}",
+			"%{Library.SPIRV_Cross_GLSL_Release}",
+			"%{Library.SPIRV_Reflect_Release}",
+			"%{Library.SPIRV_Cross_Reflect_Release}",
+		}
 
 
 	filter "configurations:Dist"
 		defines "KD_DIST"
 		runtime "Release"
 		optimize "on"
+		links{
+			"%{Library.ShaderC_Release}",
+			"%{Library.SPIRV_Cross_Release}",
+			"%{Library.SPIRV_Cross_GLSL_Release}",
+			"%{Library.SPIRV_Reflect_Release}",
+			"%{Library.SPIRV_Cross_Reflect_Release}",
+		}

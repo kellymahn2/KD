@@ -20,3 +20,5 @@ KaidelEditor/assets/models/test/bugatti/bugatti.mtl
 KaidelEditor/assets/models/test/bugatti/bugatti.obj
 KaidelEditor/assets/models/test/bugatti/README.txt
 KaidelEditor/assets/models
+Kaidel/vendor/Glad/obj
+KaidelEditor/assets/_shaders/cache

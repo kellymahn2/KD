@@ -84,6 +84,6 @@ namespace Kaidel {
 		uint64_t m_MaxSize = 0;
 		T* m_ActualEnd = nullptr;
 		template<class U>
-		friend class BoundedVector_Iterator;
+		friend struct BoundedVector_Iterator;
 	};
 }

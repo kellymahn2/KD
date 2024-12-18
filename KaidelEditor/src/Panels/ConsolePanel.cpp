@@ -6,9 +6,9 @@ namespace Kaidel {
 
 	ConsolePanel::ConsolePanel()
 	{
-		m_Icons.ErrorIcon = Texture2D::Create("Resources/Icons/ConsolePanel/ErrorIcon.png");
+		/*m_Icons.ErrorIcon = Texture2D::Create("Resources/Icons/ConsolePanel/ErrorIcon.png");
 		m_Icons.WarnIcon = Texture2D::Create("Resources/Icons/ConsolePanel/WarnIcon.png");
-		m_Icons.InfoIcon = Texture2D::Create("Resources/Icons/ConsolePanel/InfoIcon.png");
+		m_Icons.InfoIcon = Texture2D::Create("Resources/Icons/ConsolePanel/InfoIcon.png");*/
 
 	}
 	static int GetFilters(int filter) {
@@ -173,9 +173,9 @@ namespace Kaidel {
 					break;				}
 				
 				if (icon) {
-					ImGui::Image((ImTextureID)icon->GetRendererID(), { (float)icon->GetWidth(),(float)icon->GetHeight() },
+					/*ImGui::Image((ImTextureID)icon->GetRendererID(), { (float)icon->GetWidth(),(float)icon->GetHeight() },
 						{ 0,1 }, { 1,0 });
-					ImGui::SameLine();
+					ImGui::SameLine();*/
 				}
 				ImGui::PushStyleColor(ImGuiCol_Text, messageColor);
 				ImGui::TextWrapped("Editor [%s] : %s", message.TimeText.c_str(), message.Text.c_str());

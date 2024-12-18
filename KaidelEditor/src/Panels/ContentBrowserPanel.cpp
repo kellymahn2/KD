@@ -1,5 +1,4 @@
 #include "ContentBrowserPanel.h"
-#include "Kaidel/Renderer/3D/MaterialSerializer.h"
 #include "Kaidel/Core/UsedFileExtensions.h"
 #include "UI/UIHelper.h"
 #include "Kaidel/Project/Project.h"
@@ -48,8 +47,8 @@ namespace Kaidel {
 
 	ContentBrowserPanel::ContentBrowserPanel() 
 	{
-		m_Icons.DirectoryIcon = Texture2D::Create("Resources/Icons/ContentBrowser/DirectoryIcon.png");
-		m_Icons.FileIcon = Texture2D::Create("Resources/Icons/ContentBrowser/FileIcon.png");
+		/*m_Icons.DirectoryIcon = Texture2D::Create("Resources/Icons/ContentBrowser/DirectoryIcon.png");
+		m_Icons.FileIcon = Texture2D::Create("Resources/Icons/ContentBrowser/FileIcon.png");*/
 	}
 
 	constexpr static float padding = 32.0f;
@@ -91,13 +90,6 @@ namespace Kaidel {
 					std::ofstream file(x);
 				}
 				if (ImGui::MenuItem("Material")) {
-					std::string fileName = Utils::CreateNewFileName(m_CurrentPath.string(), "Material", Extensions::Material);
-					auto x = m_CurrentPath / fileName;
-					Ref<Material> mat = CreateRef<Material>();
-					mat->Name(fileName);
-					MaterialSerializer serializer(mat);
-					serializer.Serialize(x);
-					AssetManager::Manage(mat,true,x);
 				}
 				ImGui::EndMenu();
 			}
@@ -127,28 +119,26 @@ namespace Kaidel {
 
 
 
-		Ref<_Asset> asset = AssetManager::AssetsByPath(path);
-
 		if (isDirectory) {
-			if (ImGui::ImageButtonEx(1, (ImTextureID)icon->GetRendererID(), { thumbnailSize,thumbnailSize }, { 0,1 }, { 1,0 }, { 0,0,0,0 }, { 1,1,1,1 }, ImGuiButtonFlags_PressedOnDoubleClick)) {
+			/*if (ImGui::ImageButtonEx(1, (ImTextureID)icon->GetRendererID(), { thumbnailSize,thumbnailSize }, { 0,1 }, { 1,0 }, { 0,0,0,0 }, { 1,1,1,1 }, ImGuiButtonFlags_PressedOnDoubleClick)) {
 				m_CurrentPath /= path.filename();
 				editingIndex = -1;
 				strcpy(m_SelectedFileName, "");
-			}
+			}*/
 		}
 		else {
-			if (ImGui::ImageButton((ImTextureID)icon->GetRendererID(), { thumbnailSize,thumbnailSize }, { 0,1 }, { 1,0 })) {
-				SelectedType type = Utils::SelectedTypeFromExtension(Utils::Lower(path.extension().string()));
-				if (type == SelectedType::Asset) {
-					if (asset) {
-						m_Context->_SelectedAsset = asset;
-						m_Context->Type = SelectedType::Asset;
-					}
-					//Asset doesn't exist
-					else {
-					}
-				}
-			}
+			//if (ImGui::ImageButton((ImTextureID)icon->GetRendererID(), { thumbnailSize,thumbnailSize }, { 0,1 }, { 1,0 })) {
+			//	SelectedType type = Utils::SelectedTypeFromExtension(Utils::Lower(path.extension().string()));
+			//	if (type == SelectedType::Asset) {
+			//		if (asset) {
+			//			m_Context->_SelectedAsset = asset;
+			//			m_Context->Type = SelectedType::Asset;
+			//		}
+			//		//Asset doesn't exist
+			//		else {
+			//		}
+			//	}
+			//}
 		}
 
 		
@@ -164,9 +154,6 @@ namespace Kaidel {
 				const wchar_t* itemPath = path.c_str();
 				dragdropSource.Send<wchar_t>(type, itemPath, wcslen(itemPath) + 1);
 			}*/
-			if (asset) {
-				HandleDrag<uint64_t>(dragdropSource, path, Extensions::Material, "ENTITY_ADD_MATERIAL", asset->AssetID().operator size_t());
-			}
 		}
 
 		//// Mouse clicking

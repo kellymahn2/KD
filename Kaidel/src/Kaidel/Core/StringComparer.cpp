@@ -1,7 +1,7 @@
 #include "KDpch.h"
 #include "StringComparer.h"
 namespace Kaidel {
-	constexpr char caseInsensetiveMask = 0b11011111;
+	constexpr unsigned char caseInsensetiveMask = (unsigned char)0b11011111ul;
 	StringComparer::StringComparer(StringCompareFunc func)
 		:m_CompareFunc(func)
 	{
@@ -18,7 +18,7 @@ namespace Kaidel {
 			return CaseSensetiveCompareImpl(lhs, rhs);
 		else if (func & StringCompareFunc_CaseInsensetive)
 			return CaseInsensetiveCompareImpl(lhs, rhs);
-
+		return false;
 	}
 	bool StringComparer::operator()(const std::string& lhs, const std::string& rhs)
 	{

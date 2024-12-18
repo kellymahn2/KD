@@ -44,7 +44,6 @@ namespace Kaidel {
 
 		if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered() && m_Context->SelectedEntity()) {
 
-			std::cout << "hello\n";
 			m_Context->Type = SelectedType::Entity;
 			m_Context->_SelectedEntity = {};
 		}

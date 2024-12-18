@@ -35,6 +35,16 @@ namespace Kaidel {
 		EVENT_CLASS_CATEGORY(EventCategoryApplication)
 	};
 
+	class WindowRedrawEvent : public Event{
+	public:
+		WindowRedrawEvent() = default;
+
+		EVENT_CLASS_TYPE(WindowRedraw)
+		EVENT_CLASS_CATEGORY(EventCategoryApplication)
+
+	};
+
+
 	class AppTickEvent : public Event
 	{
 	public:

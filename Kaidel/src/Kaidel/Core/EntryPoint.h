@@ -8,7 +8,7 @@ extern Kaidel::Application* Kaidel::CreateApplication(const Kaidel::ApplicationC
 
 int main(int argc, char** argv)
 {
-	Log::Init();
+	Kaidel::Log::Init();
 
 	auto app = Kaidel::CreateApplication({argc,argv});
 
