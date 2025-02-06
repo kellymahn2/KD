@@ -62,7 +62,6 @@ project "Kaidel"
 		"Glad",
 		"ImGui",
 		"msdf-atlas-gen",
-		"vendor/Assimp/lib/Debug/assimp-vc143-mt.lib",
 		"vendor/Assimp/lib/assimp-vc140-mt.lib",
 		"yaml-cpp",
 		"opengl32.lib",
@@ -83,6 +82,7 @@ project "Kaidel"
 
 		defines
 		{
+			"KD_PLATFORM_WINDOWS"
 		}
 
 		links

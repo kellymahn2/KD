@@ -37,7 +37,7 @@ namespace Kaidel {
 		bool NeedsRecreation(Ref<Texture2D> output);
 		void RecreateSizeOrSampleDependent();
 		void ResolveToOutput(Ref<Texture2D> outputBuffer);
-		void ScreenPass(float zNear, float zFar, const glm::vec3& cameraPos, const glm::mat4& viewMatrix);
+		void ScreenPass(float zNear, float zFar, const glm::vec3& cameraPos, const glm::mat4& viewMatrix, const glm::mat4& viewProjection);
 		void InsertScreenPassBarrier();
 		void MakeClusters(const glm::mat4& invProj, float zNear, float zFar, const glm::vec2& screenSize);
 		void InsertClusterBarrier();

@@ -81,6 +81,7 @@ namespace Kaidel {
 		{
 			if (!m_Minimized)
 			{
+				m_Window->AcquireImage();
 				ExecuteMainThreadQueue();
 
 				{
@@ -97,6 +98,7 @@ namespace Kaidel {
 					}
 					m_ImGuiLayer->End();
 				}
+				m_Window->PresentImage();
 			}
 			
 		}
@@ -126,7 +128,6 @@ namespace Kaidel {
 		while (m_Running)
 		{
 
-			m_Window->AcquireImage();
 			OnUpdate();
 			//{
 			//	//SCOPED_TIMER(Swap Buffers)
@@ -134,7 +135,6 @@ namespace Kaidel {
 			//	m_Window->PollEvents();
 			//}
 
-			m_Window->PresentImage();
 			m_Window->PollEvents();
 
 			m_Window->WrapCursor();

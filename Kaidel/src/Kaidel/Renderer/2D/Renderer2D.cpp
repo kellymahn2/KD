@@ -157,100 +157,27 @@ namespace Kaidel{
     void Renderer2D::Shutdown() {
 		delete s_RendererData;
 	}
-    void Renderer2D::Begin(const glm::mat4& cameraVP,Ref<Framebuffer> outputColorBuffer) {
-		/*s_RendererData->SpritesRendered = 0;
-
-		s_RendererData->Camera.ViewProjection = cameraVP;
-		s_RendererData->CameraUnifomBuffer->SetData(&s_RendererData->Camera, sizeof(Renderer2DData::CameraUnifomData));
-		{
-			DescriptorSetUpdate update{};
-			update.ArrayIndex = 0;
-			update.Binding = 0;
-			update.Type = DescriptorType::UniformBuffer;
-			update.BufferUpdate.Buffer = s_RendererData->CameraUnifomBuffer->GetBufferID();
-			update.BufferUpdate.Offset = 0;
-			update.BufferUpdate.Size = std::numeric_limits<uint64_t>::max();
-			s_RendererData->CameraDescriptorSet->Update(update);
-		}
-
-		{
-			DescriptorSetUpdate update{};
-			update.ArrayIndex = 0;
-			update.Binding = 0;
-			update.Type = DescriptorType::CombinedSampler;
-			update.ImageUpdate.Layout = ImageLayout::ShaderReadOnlyOptimal;
-			update.ImageUpdate.Sampler = s_RendererData->TextureSampler->GetRendererID();
-			update.ImageUpdate.ImageView = TextureLibrary::GetTextureArray()->GetImage()->GetSpecification().ImageView;
-			s_RendererData->TextureDescriptorSet->Update(update);
-		}
-
-		RenderCommand::Transition(TextureLibrary::GetTextureArray()->GetImage(), ImageLayout::ShaderReadOnlyOptimal);
-
-		s_RendererData->OutputBuffer = outputColorBuffer;
-		StartSpriteBatch();*/
-
-		
-	}
-    void Renderer2D::End() {
-		//FlushSprites();
-	}
-
-	void Renderer2D::DrawSprite(const glm::mat4& transform, const glm::vec4& color, const SamplingRegion& region)
-	{
-		SpriteVertex vertices[4] = {};
-
-		glm::vec2 uvs[4] = {};
-		//Bottom-Left
-		uvs[0] = { region.UV0.x,region.UV1.y };
-		//Bottom-Right
-		uvs[1] = region.UV1;
-		//Top-Right
-		uvs[2] = { region.UV1.x,region.UV0.y };
-		//Top-Left
-		uvs[3] = region.UV0;
-
-		for (uint32_t i = 0; i < 4; ++i) {
-			vertices[i].Position = transform * glm::vec4(s_RendererData->PresetSpriteVertices[i].Position, 1.0f);
-			vertices[i].Color = color;
-			vertices[i].UV = { uvs[i],region.Layer };
-		}
-		AddSprite(vertices);
-	}
-
-   
-	void Renderer2D::AddSprite(SpriteVertex vertices[4]) {
-		if (!s_RendererData->BakedSpriteVertices.CanReserveWithoutOverflow(4)) {
-			FlushSprites();
-		}
-		auto bvi = s_RendererData->BakedSpriteVertices.Reserve(4);
-		memcpy(&bvi[0], vertices, 4 * sizeof(SpriteVertex));
-		s_RendererData->SpritesWaitingForRender++;
-	}
-
-	void Renderer2D::StartSpriteBatch()
-	{
-		s_RendererData->SpritesWaitingForRender = 0;
-		s_RendererData->BakedSpriteVertices.Reset();
-	}
-
-	void Renderer2D::FlushSprites()
-	{
-		/*if (s_RendererData->SpritesWaitingForRender) {
-			s_RendererData->SpriteVertexBuffer->SetData(s_RendererData->BakedSpriteVertices.Get(), s_RendererData->BakedSpriteVertices.Size() * sizeof(SpriteVertex));
-			
-			RenderCommand::BindVertexBuffers({ s_RendererData->SpriteVertexBuffer });
-			RenderCommand::BindIndexBuffer(s_RendererData->SpriteIndexBuffer);
-			RenderCommand::Transition(s_RendererData->OutputBuffer->GetImage(0), ImageLayout::General);
-			RenderCommand::BeginRenderPass(s_RendererData->OutputBuffer, s_RendererData->SpriteRenderPass);
-			RenderCommand::BindGraphicsPipeline(s_RendererData->SpritePipeline);
-			RenderCommand::BindDescriptorSet(s_RendererData->CameraDescriptorSet, 0);
-			RenderCommand::BindDescriptorSet(s_RendererData->TextureDescriptorSet, 1);
-			RenderCommand::DrawIndexed(s_RendererData->SpritesWaitingForRender * 6);
-			RenderCommand::EndRenderPass();
-		}
-
-		s_RendererData->SpritesRendered += s_RendererData->SpritesWaitingForRender;
-		s_RendererData->SpritesWaitingForRender = 0;*/
-	}
-
+	//	//FlushSprites();
+	//}
+	//
+	//void Renderer2D::DrawSprite(const glm::mat4& transform, const glm::vec4& color, const SamplingRegion& region)
+	//{
+	//	SpriteVertex vertices[4] = {};
+	//
+	//	glm::vec2 uvs[4] = {};
+	//	//Bottom-Left
+	//	uvs[0] = { region.UV0.x,region.UV1.y };
+	//	//Bottom-Right
+	//	uvs[1] = region.UV1;
+	//	//Top-Right
+	//	uvs[2] = { region.UV1.x,region.UV0.y };
+	//	//Top-Left
+	//	uvs[3] = region.UV0;
+	//
+	//	for (uint32_t i = 0; i < 4; ++i) {
+	//		vertices[i].Position = transform * glm::vec4(s_RendererData->PresetSpriteVertices[i].Position, 1.0f);
+	//		vertices[i].Color = color;
+	//		vertices[i].UV = { uvs[i],region.Layer };
+	//	}
+	//}
 }

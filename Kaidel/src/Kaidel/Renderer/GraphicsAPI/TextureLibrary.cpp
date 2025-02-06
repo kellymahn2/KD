@@ -116,6 +116,7 @@ namespace Kaidel {
 			}
 			break;
 			case Kaidel::Format::RGBA8UN:
+			case Kaidel::Format::RGBA8SRGB:
 			{
 				func = (LoadFunc)&stbi_load;
 			}

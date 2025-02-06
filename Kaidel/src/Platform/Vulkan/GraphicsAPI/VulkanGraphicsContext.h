@@ -64,7 +64,7 @@ namespace Kaidel {
 
 		VulkanBufferStager& GetBufferStager() { return *m_Stager;  }
 
-		VkCommandBuffer GetCurrentCommandBuffer()const { return m_Swapchain.Frames[m_Swapchain.ImageIndex].MainCommandBuffer; }
+		VkCommandBuffer GetCurrentCommandBuffer()const { return m_Swapchain.Frames[m_CurrentFrameNumber].MainCommandBuffer; }
 
 
 		void AcquireImage() override;

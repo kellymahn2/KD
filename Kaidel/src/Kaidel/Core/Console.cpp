@@ -27,7 +27,7 @@ namespace Kaidel {
 
 
 	Message::Message(const std::string& text, MessageLevel level)
-		:Text(text),Level(level)
+		:Text(text), Level(level)
 	{
 		std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 		std::tm tm = *std::localtime(&time);

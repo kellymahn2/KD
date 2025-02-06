@@ -153,10 +153,30 @@ namespace Kaidel {
 
 		m_ClearValues.resize(attachments.size());
 
+		std::vector<VulkanBackend::SubpassDependency> dependencies;
+
+		for (uint32_t i = 0; i < specs.Dependencies.size(); ++i) {
+			const SubpassDependency& dependency = specs.Dependencies[i];
+			
+			VulkanBackend::SubpassDependency dep;
+			dep.Src = 0;
+			dep.Dst = 0;
+
+			dep.SrcStages = Utils::PipelineStagesToVulkanPipelineStageFlags(dependency.SrcStages);
+			dep.DstStages = Utils::PipelineStagesToVulkanPipelineStageFlags(dependency.DstStages);
+
+			dep.SrcAccesses = Utils::AccessFlagsToVulkanAccessFlags(dependency.SrcAccess);
+			dep.DstAccesses = Utils::AccessFlagsToVulkanAccessFlags(dependency.DstAccess);
+
+			dep.DependencyFlags = Utils::SubpassDependencyFlagsToVulkanDependencyFlags(dependency.Flags);
+			
+			dependencies.push_back(dep);
+		}
+
 		m_RenderPass = VK_CONTEXT.GetBackend()->CreateRenderPass(
 			std::initializer_list<VulkanBackend::RenderPassAttachment>(attachments.data(), attachments.data() + attachments.size()),
 			{ subpass },
-			{}
+			std::initializer_list<VulkanBackend::SubpassDependency>(dependencies.data(), dependencies.data() + dependencies.size())
 		);
 #endif
 	}

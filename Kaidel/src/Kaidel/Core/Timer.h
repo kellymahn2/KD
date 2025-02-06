@@ -12,7 +12,7 @@ namespace Kaidel {
 		void Start();
 		void ResetTimer();
 		void Stop();
-		
+
 		void Print(const std::string& padding = "");
 
 		double GetMS()const;
@@ -40,7 +40,7 @@ namespace Kaidel {
 		AccumulativeTimer(const std::string& name);
 
 		void Start();
-		
+
 		void ResetTimer();
 
 		void Stop();

@@ -101,8 +101,11 @@ namespace Kaidel {
 		VkPhysicalDeviceFeatures features{};
 		features.geometryShader = true;
 		features.tessellationShader = true;
+		VkPhysicalDeviceSynchronization2Features sync2Feature{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES };
+		sync2Feature.synchronization2 = VK_TRUE;
+		sync2Feature.pNext = &feature;
 		m_LogicalDevice = CreateScope<VulkanLogicalDevice>(*m_PhysicalDevice, std::vector<const char*>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME },
-																layers, features, &feature);
+																layers, features, &sync2Feature);
 
 		gladLoaderLoadVulkan(m_Instance->GetInstance(), m_PhysicalDevice->GetDevice(), m_LogicalDevice->GetDevice());
 		#pragma endregion
@@ -221,13 +224,14 @@ namespace Kaidel {
 		VK_ASSERT(vkAcquireNextImageKHR(m_LogicalDevice->GetDevice(), m_Swapchain.Swapchain, UINT64_MAX, frame.ImageAvailable
 			, VK_NULL_HANDLE, &m_Swapchain.ImageIndex));
 
-		m_Backend->CommandBufferBegin(m_Swapchain.Frames[m_Swapchain.ImageIndex].MainCommandBuffer);
+		m_Backend->CommandBufferBegin(m_Swapchain.Frames[m_CurrentFrameNumber].MainCommandBuffer);
+		
 		m_Stager->Reset();
 	}
 	
 	void VulkanGraphicsContext::PresentImage()
 	{
-		VkCommandBuffer commandBuffer = m_Swapchain.Frames[m_Swapchain.ImageIndex].MainCommandBuffer;
+		VkCommandBuffer commandBuffer = m_Swapchain.Frames[m_CurrentFrameNumber].MainCommandBuffer;
 		m_Backend->CommandBufferEnd(commandBuffer);
 
 		auto& frame = m_Swapchain.Frames[m_CurrentFrameNumber];
@@ -325,6 +329,17 @@ namespace Kaidel {
 		renderPassInfo.clearValueCount = 1;
 		renderPassInfo.pClearValues = &clearColor;
 		renderPassInfo.renderPass = m_Swapchain.RenderPass;
+
+
+		VkViewport viewport{};
+		viewport.width = m_Swapchain.Extent.width;
+		viewport.height = m_Swapchain.Extent.height;
+		viewport.minDepth = 0.0f;
+		viewport.height = 1.0f;
+		viewport.x = 0;
+		viewport.y = 0;
+
+		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
 		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 

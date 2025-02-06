@@ -5,33 +5,35 @@
 namespace Kaidel{
     VulkanVertexBuffer::VulkanVertexBuffer(const void* initData, uint64_t size)
     {
-		auto& backend = VK_BACKEND;
+		if (size != 0) {
+			auto& backend = VK_BACKEND;
 
-		m_Buffer = backend->CreateBuffer(size,VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+			m_Buffer = backend->CreateBuffer(size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
-		VulkanBackend::BufferInfo stagingBuffer = backend->CreateBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, false);
-		uint8_t* mapped = backend->BufferMap(stagingBuffer);
-		std::memcpy(mapped, initData, size);
-		backend->BufferUnmap(stagingBuffer);
+			VulkanBackend::BufferInfo stagingBuffer = backend->CreateBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, false);
+			uint8_t* mapped = backend->BufferMap(stagingBuffer);
+			std::memcpy(mapped, initData, size);
+			backend->BufferUnmap(stagingBuffer);
 
-		{
-			VkCommandBuffer commandBuffer = backend->CreateCommandBuffer(VK_CONTEXT.GetPrimaryCommandPool());
-			backend->CommandBufferBegin(commandBuffer);
+			{
+				VkCommandBuffer commandBuffer = backend->CreateCommandBuffer(VK_CONTEXT.GetPrimaryCommandPool());
+				backend->CommandBufferBegin(commandBuffer);
 
-			VkBufferCopy region{};
-			region.srcOffset = 0;
-			region.dstOffset = 0;
-			region.size = size;
-			backend->CommandCopyBuffer(commandBuffer, stagingBuffer, m_Buffer, { region });
+				VkBufferCopy region{};
+				region.srcOffset = 0;
+				region.dstOffset = 0;
+				region.size = size;
+				backend->CommandCopyBuffer(commandBuffer, stagingBuffer, m_Buffer, { region });
 
-			backend->CommandBufferEnd(commandBuffer);
+				backend->CommandBufferEnd(commandBuffer);
 
-			backend->SubmitCommandBuffers(VK_CONTEXT.GetGraphicsQueue(), { commandBuffer });
-			vkQueueWaitIdle(VK_CONTEXT.GetGraphicsQueue());
-			backend->DestroyCommandBuffer(commandBuffer, VK_CONTEXT.GetPrimaryCommandPool());
+				backend->SubmitCommandBuffers(VK_CONTEXT.GetGraphicsQueue(), { commandBuffer });
+				vkQueueWaitIdle(VK_CONTEXT.GetGraphicsQueue());
+				backend->DestroyCommandBuffer(commandBuffer, VK_CONTEXT.GetPrimaryCommandPool());
+			}
+
+			backend->DestroyBuffer(stagingBuffer);
 		}
-
-		backend->DestroyBuffer(stagingBuffer);
     }
     VulkanVertexBuffer::~VulkanVertexBuffer()
     {
@@ -42,7 +44,8 @@ namespace Kaidel{
     {   
         auto& buffer = m_Buffer;
         if(buffer.BufferSize < size + offset){
-            VK_CONTEXT.GetBackend()->DestroyBuffer(buffer);
+			if(buffer.Buffer)
+				VK_CONTEXT.GetBackend()->DestroyBuffer(buffer);
 
             buffer = VK_CONTEXT.GetBackend()->CreateBuffer(size + offset, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
         }

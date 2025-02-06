@@ -20,18 +20,22 @@
 #include "imguizmo/ImGuizmo.h"
 #include "Kaidel/Scene/SceneRenderer.h"
 
-
 #include <forward_list>
 
 #include <random>
 
 namespace Kaidel {
 	glm::vec4 _GetUVs();
+	Ref<Font> font;
+
 	EditorLayer::EditorLayer()
 		: Layer("EditorLayer")
 	{
-		Font font("C:/Windows/Fonts/arial.ttf");
+		//font = CreateRef<Font>("assets/fonts/opensans/OpenSans-Regular.ttf");
+		font = CreateRef<Font>("C:/Windows/Fonts/Hack-BoldItalic.ttf");
 	}
+
+
 	static std::vector<uint8_t> ReadFile(const FileSystem::path& filePath) {
 		std::ifstream file(filePath, std::ios::binary | std::ios::in);
 		std::vector<uint8_t> res;
@@ -139,52 +143,6 @@ namespace Kaidel {
 			});
 		}
 
-		//{
-		//	Entity e = m_ActiveScene->CreateEntity("Occluder");
-		//	
-		//	auto& mc = e.AddComponent<ModelComponent>();
-		//	mc.UsedModel = CreateRef<Model>();
-		//	mc.UsedModel->MakeCubeModel();
-		//}
-		//
-		//{
-		//	Entity e = m_ActiveScene->CreateEntity("Occluded");
-		//	auto& tc = e.GetComponent<TransformComponent>();
-		//	tc.Translation = { 0,0,-10.0f };
-		//	tc.Scale = { 10,10,1 };
-		//	auto& mc = e.AddComponent<ModelComponent>();
-		//	mc.UsedModel = CreateRef<Model>();
-		//	mc.UsedModel->MakeCubeModel();
-		//}
-
-
-		//{
-		//	Entity e = m_ActiveScene->CreateEntity("Sponza");
-		//	auto& tc = e.GetComponent<TransformComponent>();
-		//	tc.Scale = glm::vec3(.1f);
-		//	auto& mc = e.AddComponent<ModelComponent>();
-		//	mc.UsedModel = CreateRef<Model>("assets/models/Sponza/Sponza.gltf");
-		//}
-
-		//{
-		//	ScopedTimer t("Model loading");
-		//	ModelLibrary::LoadModel("assets/models/Sponza/Sponza.gltf");
-		//}
-
-		{
-			Entity e = m_ActiveScene->CreateCube("Cube");
-			auto& tc = e.GetComponent<TransformComponent>();
-			tc.Translation = { 10,0 ,0 };
-			tc.Scale = { 1,10,10 };
-			
-		}
-		{
-			Entity e = m_ActiveScene->CreateEntity("Sphere");
-			auto& tc = e.GetComponent<TransformComponent>();
-			auto& mc = e.AddComponent<ModelComponent>();
-			mc.UsedModel = ModelLibrary::GetBaseSphere();
-		}
-
 		{
 			Entity e = m_ActiveScene->CreateEntity("Light");
 			auto& tc = e.GetComponent<TransformComponent>();
@@ -197,6 +155,11 @@ namespace Kaidel {
 			dlc.FadeStart = 1.0f;
 		}
 
+		//{
+		//	Entity e = m_ActiveScene->CreateEntity("Square2");
+		//	auto& src = e.AddComponent<SpriteRendererComponent>();
+		//	src.SpriteTexture = TextureLibrary::Load("assets/textures/Checkerboard.png",ImageLayout::ShaderReadOnlyOptimal,Format::RGBA8SRGB);
+		//}
 	}
 
 	void EditorLayer::OnDetach()

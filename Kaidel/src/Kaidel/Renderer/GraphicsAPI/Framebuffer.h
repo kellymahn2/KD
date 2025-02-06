@@ -9,6 +9,8 @@ namespace Kaidel {
 	struct FramebufferSpecification {
 		Ref<RenderPass> RenderPass;
 		uint32_t Width = 1, Height = 1, Layers = 1;
+		std::unordered_map<uint32_t, Ref<Texture>> TextureOverrides;
+		Ref<Texture> OverrideDepth;
 	};
 
 

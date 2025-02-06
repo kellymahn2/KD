@@ -61,7 +61,7 @@ namespace Kaidel {
 	//2D
 	struct SpriteRendererComponent
 	{
-		int x = 3;
+		Ref<Texture> SpriteTexture;
 		SpriteRendererComponent() = default;
 		SpriteRendererComponent(const SpriteRendererComponent&) = default;
 	};

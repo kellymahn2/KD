@@ -441,6 +441,24 @@ namespace Kaidel {
 			return ret;
 		}
 
+		static VkDependencyFlags SubpassDependencyFlagsToVulkanDependencyFlags(DependencyFlags flags) {
+			VkDependencyFlags ret = 0;
+
+			if (flags & DependencyFlags_Region) {
+				ret |= VK_DEPENDENCY_BY_REGION_BIT;
+			}
+
+			if (flags & DependencyFlags_Device) {
+				ret |= VK_DEPENDENCY_DEVICE_GROUP_BIT;
+			}
+
+			if (flags & DependencyFlags_ViewLocal) {
+				ret |= VK_DEPENDENCY_VIEW_LOCAL_BIT;
+			}
+
+			return ret;
+		}
+
 		static VkDeviceSize CalculateImageSize(uint32_t width, uint32_t height, uint32_t depth, uint32_t layerCount, uint32_t pixelSize) {
 			VkDeviceSize imageSize = (VkDeviceSize)width
 				* (VkDeviceSize)height
