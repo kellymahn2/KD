@@ -94,7 +94,6 @@ namespace Kaidel {
 			{0x0020, 0x00FF}
 		};
 
-
 		msdf_atlas::Charset charset;
 
 		for (const CharsetRange& range : charsetRanges) {
@@ -102,7 +101,6 @@ namespace Kaidel {
 				charset.add(c);
 			}
 		}
-
 
 		double fontScale = 1.0;
 		m_Data->FontGeometry = msdf_atlas::FontGeometry(&m_Data->Glyphs);

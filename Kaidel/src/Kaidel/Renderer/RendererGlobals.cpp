@@ -16,6 +16,8 @@ namespace Kaidel {
 		Ref<Sampler> NearestMipNearest;
 		Ref<Sampler> NearestMipLinear;
 		std::vector<ColorTexture> Textures;
+
+		Ref<Font> DefaultFont;
 	};
 
 	static GlobalsData* s_Data = nullptr;;
@@ -44,6 +46,7 @@ namespace Kaidel {
 		state.MipFilter = SamplerMipMapMode::Linear;
 		s_Data->NearestMipLinear = Sampler::Create(state);
 
+		s_Data->DefaultFont = CreateRef<Font>("assets/fonts/opensans/OpenSans-Regular.ttf");
 	}
 	void RendererGlobals::Shutdown()
 	{
@@ -60,6 +63,10 @@ namespace Kaidel {
 		else if (filter == SamplerFilter::Nearest && mipMode == SamplerMipMapMode::Linear)
 			return s_Data->NearestMipLinear;
 		return {};
+	}
+	Ref<Font> RendererGlobals::GetDefaultFont()
+	{
+		return s_Data->DefaultFont;
 	}
 	Ref<Texture2D> RendererGlobals::GetSingleColorTexture(const glm::vec4& color)
 	{

@@ -27,6 +27,7 @@
 #include <chrono>
 #include <cmath>
 #include <iostream>
+#include <future>
 
 #include "stb_image.h"
 #define MAX_LIGHT_COUNT 100
@@ -43,7 +44,7 @@ namespace Kaidel {
 	
 	struct SpriteData {
 		static const constexpr uint64_t MaxTextureCount = 32;
-		static const constexpr uint64_t MaxSpriteCount = 10000;
+		static const constexpr uint64_t MaxSpriteCount = 60000;
 		static const constexpr uint64_t MaxVertexCount = MaxSpriteCount * 4;
 		static const constexpr uint64_t MaxIndexCount = MaxSpriteCount * 6;
 
@@ -103,6 +104,7 @@ namespace Kaidel {
 			glm::vec3 Position;
 			glm::vec4 Color;
 			glm::vec2 TexCoord;
+			glm::vec4 Border;
 		};
 		
 		Ref<GraphicsPipeline> Pipeline;
@@ -411,7 +413,7 @@ namespace Kaidel {
 		sprites.VertexCount += 4;
 	}
 
-	static void AddStringToBatch(const std::string& string, Ref<Font> font, const glm::mat4& transform, const glm::vec4& color) {
+	static uint64_t AddStringToBatch(const std::string& string, Ref<Font> font, const glm::mat4& transform, const glm::vec4& color, const glm::vec4& borderColor, float borderThickness, float kerningOffset) {
 
 		auto& texts = s_Data->Texts;
 
@@ -427,79 +429,98 @@ namespace Kaidel {
 		double y = 0.0;
 		double lineHeightOffset = 0.0;
 
-		uint32_t tabSize = 1;
-
+		uint64_t renderedCharacters = 0;
+		const float spaceGlyphAdvance = fontGeometry.getGlyph(' ')->getAdvance();
 		for (uint32_t i = 0; i < string.length(); ++i) {
 
-			if (string[i] == '\n') {
-				x = 0.0;
+			if (string[i] == '\n')
+			{
+				x = 0;
 				y -= fsScale * metrics.lineHeight + lineHeightOffset;
 				continue;
 			}
-			if (string[i] == '\r') {
+
+			if (string[i] == ' ')
+			{
+				double advance = spaceGlyphAdvance;
+				x += (fsScale * advance + kerningOffset);
 				continue;
 			}
-			
-			auto glyph = fontGeometry.getGlyph(string[i]);
 
-			if (string[i] == '\t') {
-				glyph = fontGeometry.getGlyph(' ');
+			if (string[i] == '\t')
+			{
+				double advance = spaceGlyphAdvance;
+				x += 4.0f * (fsScale * advance + kerningOffset);
+				continue;
 			}
-
-			if (!glyph)
-				glyph = fontGeometry.getGlyph('?');
-			if (!glyph)
-				return;
-
-			
-
-
 			double pl, pb, pr, pt;
-			glyph->getQuadPlaneBounds(pl, pb, pr, pt);
-
-			pl *= fsScale; pb *= fsScale; pr *= fsScale; pt *= fsScale;
-			pl += x; pb += y; pr += x; pt += y;
-			glm::vec2 quadMin((float)pl, (float)pb), quadMax((float)pr, (float)pt);
-
 			double al, ab, ar, at;
-			glyph->getQuadAtlasBounds(al, ab, ar, at);
-			float texelWidth = 1.0f / (float)fontAtlas->GetTextureSpecification().Width;
-			float texelHeight = 1.0f / (float)fontAtlas->GetTextureSpecification().Height;
-			al *= texelWidth; ab *= texelHeight; ar *= texelWidth; at *= texelHeight;
-			glm::vec2 coordTopLeft((float)al, (float)at), coordBottomRight((float)ar, (float)ab);
+
+			{
+				const msdf_atlas::GlyphGeometry* glyph = nullptr;
+
+				glyph = fontGeometry.getGlyph(string[i]);
+
+				if (!glyph)
+					glyph = fontGeometry.getGlyph('?');
+				if (!glyph)
+					return renderedCharacters;
+
+				glyph->getQuadPlaneBounds(pl, pb, pr, pt);
+				pl *= fsScale; pb *= fsScale; pr *= fsScale; pt *= fsScale;
+				pl += x; pb += y; pr += x; pt += y;
+				glm::vec2 quadMin((float)pl, (float)pb), quadMax((float)pr, (float)pt);
+
+				glyph->getQuadAtlasBounds(al, ab, ar, at);
+				float texelWidth = 1.0f / (float)fontAtlas->GetTextureSpecification().Width;
+				float texelHeight = 1.0f / (float)fontAtlas->GetTextureSpecification().Height;
+				al *= texelWidth; ab *= texelHeight; ar *= texelWidth; at *= texelHeight;
+				glm::vec2 coordTopLeft((float)al, (float)at), coordBottomRight((float)ar, (float)ab);
+			}
 
 			if (texts.VertexCount + 4 > texts.Vertices.size()) {
 				uint64_t newSize = texts.VertexCount * 1.5f + 4;
 				texts.Vertices.resize(newSize);
 			}
 
-			texts.Vertices[texts.VertexCount + 0].Position = transform * glm::vec4((float)pl, (float)pb, 0.0f, 1.0f);
-			texts.Vertices[texts.VertexCount + 0].Color = color;
-			texts.Vertices[texts.VertexCount + 0].TexCoord = glm::vec2((float)al, (float)ab);
+			{
+				glm::vec2 positions[4] =
+				{
+					glm::vec2((float)pl, (float)pb),
+					glm::vec2((float)pr, (float)pb),
+					glm::vec2((float)pr, (float)pt),
+					glm::vec2((float)pl, (float)pt)
+				};
+				glm::vec2 texCoords[4] =
+				{
+					glm::vec2((float)al, (float)ab),
+					glm::vec2((float)ar, (float)ab),
+					glm::vec2((float)ar, (float)at),
+					glm::vec2((float)al, (float)at)
+				};
 
-			texts.Vertices[texts.VertexCount + 1].Position = transform * glm::vec4((float)pr, (float)pb, 0.0f, 1.0f);
-			texts.Vertices[texts.VertexCount + 1].Color = color;
-			texts.Vertices[texts.VertexCount + 1].TexCoord = glm::vec2((float)ar, (float)ab);
+				
+				
+				for (int i = 0; i < 4; ++i) {
+					s_Data->Texts.Vertices[s_Data->Texts.VertexCount + i].Position = transform * glm::vec4(positions[i], 0.0f, 1.0f);
+					s_Data->Texts.Vertices[s_Data->Texts.VertexCount + i].Color = color;
+					s_Data->Texts.Vertices[s_Data->Texts.VertexCount + i].TexCoord = texCoords[i];
+					s_Data->Texts.Vertices[s_Data->Texts.VertexCount + i].Border = glm::vec4(glm::vec3(borderColor), borderThickness);
+				}
+			}
 
-			texts.Vertices[texts.VertexCount + 2].Position = transform * glm::vec4((float)pr, (float)pt, 0.0f, 1.0f);
-			texts.Vertices[texts.VertexCount + 2].Color = color;
-			texts.Vertices[texts.VertexCount + 2].TexCoord = glm::vec2((float)ar, (float)at);
-
-			texts.Vertices[texts.VertexCount + 3].Position = transform * glm::vec4((float)pl, (float)pt, 0.0f, 1.0f);
-			texts.Vertices[texts.VertexCount + 3].Color = color;
-			texts.Vertices[texts.VertexCount + 3].TexCoord = glm::vec2((float)al, (float)at);
-			
 			texts.VertexCount += 4;
 
-			if (i < string.length() - 1) {
-				double advance = glyph->getAdvance();
-				char nextChar = 'K';
-				fontGeometry.getAdvance(advance, string[i], string[i + 1]);
+			++renderedCharacters;
 
-				float kerningOffset = 0.0f;
+			if (i < string.length() - 1) {
+				double advance;
+				fontGeometry.getAdvance(advance, string[i], string[i + 1]);
 				x += fsScale * advance + kerningOffset;
 			}
 		}
+		
+		return renderedCharacters;
 	}
 
 	#pragma endregion
@@ -1215,13 +1236,12 @@ namespace Kaidel {
 
 			specs.Blend.Attachments.push_back(attachment);
 
-			
-
 			specs.Input.Bindings.push_back(
 				{
 					{"a_Position", Format::RGB32F},
 					{"a_Color", Format::RGBA32F},
-					{"a_TexCoords", Format::RG32F}
+					{"a_TexCoords", Format::RG32F},
+					{"a_Border", Format::RGBA32F}
 				}
 			);
 			specs.Primitive = PrimitiveTopology::TriangleList;
@@ -1241,84 +1261,29 @@ namespace Kaidel {
 		}
 	}
 
-	static void TextPass(const SceneData& sceneData) 
+	static void TextPass(const SceneData& sceneData, entt::registry& sceneReg) 
 	{
-		//static std::string test = "Kaidel v0.1";
-		static std::string test = R"(#type vertex
-#version 460 core
-layout(location = 0) in vec3 a_Position;
-layout(location = 1) in vec4 a_Color;
-layout(location = 2) in vec2 a_TexCoords;
-
-layout(push_constant) uniform PushConstants{
-	mat4 ViewProjection;
-};
-
-layout(location = 0) out vec4 v_Color;
-layout(location = 1) out vec2 v_TexCoords;
-
-void main(){
-	v_Color = a_Color;
-	v_TexCoords = a_TexCoords.xy;
-
-	gl_Position = ViewProjection * vec4(a_Position, 1.0);
-	gl_Position.y *= -1.0;
-}
-
-#type fragment
-#version 460 core
-
-layout(location = 0) in vec4 v_Color;
-layout(location = 1) in vec2 v_TexCoords;
-
-layout(location = 0) out vec4 o_Color;
-
-layout(set = 0, binding = 0) uniform texture2D u_FontAtlas;
-layout(set = 0, binding = 1) uniform sampler u_Sampler;
-
-const float pxRange = 2.0;
-
-float screenPxRange() {
-    vec2 unitRange = vec2(pxRange)/vec2(textureSize(sampler2D(u_FontAtlas, u_Sampler), 0));
-    vec2 screenTexSize = vec2(1.0)/fwidth(v_TexCoords);
-    return max(0.5*dot(unitRange, screenTexSize), 1.0);
-}
-
-float median(float r, float g, float b) {
-    return max(min(r, g), min(max(r, g), b));
-}
-
-void main() {
-	vec3 msd = texture(sampler2D(u_FontAtlas, u_Sampler), v_TexCoords).rgb;
-    float sd = median(msd.r, msd.g, msd.b);
-    float screenPxDistance = screenPxRange()*(sd - 0.5);
-    float opacity = clamp(screenPxDistance + 0.5, 0.0, 1.0);
-
-	if(opacity == 0.0)
-		discard;
-
-	vec4 bgColor = vec4(0.0);
-    o_Color = mix(bgColor, v_Color, opacity);
-	if(o_Color.a == 0.0)
-		discard;
-}
-
-
-)";
 		auto& texts = s_Data->Texts;
 		//Reset.
 		texts.VertexCount = 0;
 
 		//Go through all texts need to be drawn and add to vertex buffer.
-		AddStringToBatch(test, font, glm::mat4(1.0f), glm::vec4(1.0f));
+		//AddStringToBatch(test, font, glm::mat4(1.0f), glm::vec4(1.0f));
+		auto view = sceneReg.view<TransformComponent, TextComponent>();
+		for (auto e : view) {
+			auto& [transform, text] = view.get(e);
+			if (text.TextContent.empty() || !text.TextFont)
+				continue;
+			text.RenderableCharacters = AddStringToBatch(text.TextContent, text.TextFont, transform.GetTransform(), text.Color, text.BorderColor, text.BorderThickness, text.Kerning);
+		}
 
 		if (texts.VertexCount == 0)
 			return;
 
 		texts.Buffer->Get()->SetData(texts.Vertices.data(), texts.VertexCount * sizeof(TextData::TextVertex), 0);
-		
+
 		//Go through all texts need to be drawn and draw them.
-		uint64_t vertexOffset = 0;
+		uint64_t indexCount = 0;
 		uint64_t indexOffset = 0;
 
 		RenderCommand::BindVertexBuffers({ *texts.Buffer }, { 0 });
@@ -1329,8 +1294,32 @@ void main() {
 
 		RenderCommand::BeginRenderPass(texts.TextRenderPass, *s_Data->Outputs, {});
 		
-		RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("TextPass"), font->GetSet(), 0);
-		RenderCommand::DrawIndexed(texts.VertexCount / 4 * 6, 4, 1, 0, 0, 0);
+		Ref<Font> lastFont = {};
+		
+		for (auto e : view) {
+			auto& [transform, text] = view.get(e);
+			if (text.TextContent.empty() || !text.TextFont)
+				continue;
+			if (!lastFont || lastFont == text.TextFont) {
+				indexCount += text.RenderableCharacters * 6;
+				lastFont = text.TextFont;
+			}
+			else {
+				RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("TextPass"), lastFont->GetSet(), 0);
+				RenderCommand::DrawIndexed(indexCount, 4, 1, indexOffset, 0, 0);
+				indexOffset += indexCount;
+				indexCount = 0;
+				lastFont = text.TextFont;
+			}
+		}
+
+		if (indexCount) {
+			RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("TextPass"), lastFont->GetSet(), 0);
+			RenderCommand::DrawIndexed(indexCount, 4, 1, indexOffset, 0, 0);
+		}
+
+		/*RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("TextPass"), font->GetSet(), 0);
+		RenderCommand::DrawIndexed(texts.VertexCount / 4 * 6, 4, 1, 0, 0, 0);*/
 
 		RenderCommand::EndRenderPass();
 	}
@@ -1482,7 +1471,7 @@ void main() {
 		TonemapPass();
 		InsertTonemapPassBarrier();
 
-		TextPass(sceneData);
+		TextPass(sceneData, scene->m_Registry);
 
 		ResolveToOutput(outputBuffer);
 	}

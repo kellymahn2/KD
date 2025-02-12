@@ -4,6 +4,7 @@
 #include "UI/UIHelper.h"
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
+#include <imgui/misc/cpp/imgui_stdlib.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 namespace Kaidel {
@@ -732,6 +733,15 @@ namespace Kaidel {
 				}
 				//TODO: Add functionality for other types
 
+			});
+
+			DrawComponent<TextComponent>("Text Renderer", entity, [entity, scene = scene](TextComponent& component) {
+				ImGui::InputTextMultiline("Text content", &component.TextContent);
+				ImGui::ColorEdit3("Color", &component.Color.r);
+				ImGui::SliderFloat("Border thickness", &component.BorderThickness, 0.0f, 0.35f);
+				if(component.BorderThickness != 0.0f)
+					ImGui::ColorEdit3("Border Color", &component.BorderColor.r);
+				ImGui::DragFloat("Kerning", &component.Kerning, 0.05f, 0.0f, FLT_MAX);
 			});
 
 			ImGui::PushItemWidth(-1);

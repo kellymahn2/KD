@@ -374,6 +374,22 @@ namespace Kaidel {
 			out << YAML::EndMap; // DirectionalLightComponent
 		}
 
+		if (entity.HasComponent<TextComponent>()) {
+			out << YAML::Key << "TextComponent";
+
+			out << YAML::BeginMap; // TextComponent
+
+			auto& tc = entity.GetComponent<TextComponent>();
+			out << YAML::Key << "Text" << YAML::Value << tc.TextContent;
+			out << YAML::Key << "Color" << YAML::Value << tc.Color;
+			out << YAML::Key << "BorderThickness" << YAML::Value << tc.BorderThickness;
+			out << YAML::Key << "BorderColor" << YAML::Value << tc.BorderColor;
+			out << YAML::Key << "Kerning" << YAML::Value << tc.Kerning;
+			//TODO: Add fonts.
+
+			out << YAML::EndMap; // TextComponent
+		}
+
 
 		out << YAML::EndMap; // Entity
 	}
@@ -560,6 +576,15 @@ namespace Kaidel {
 						
 					}
 					);
+				DeserializeComponent<TextComponent>(deserializedEntity, "TextComponent", entityNode,
+					[](TextComponent& tc, auto& entity, YAML::Node& textComponent) {
+						tc.TextContent = textComponent["Text"].as<std::string>();
+						tc.Color = textComponent["Color"].as<glm::vec4>();
+						tc.BorderThickness = textComponent["BorderThickness"].as<float>();
+						tc.BorderColor = textComponent["BorderColor"].as<glm::vec4>();
+						tc.Kerning = textComponent["Kerning"].as<float>();
+						//TODO: Add fonts.
+					});
 
 				/*DeserializeComponent<ScriptComponent>(deserializedEntity, "ScriptComponent", entity,
 					[&uuid](auto& sc, auto& entity, YAML::Node& scriptComponent) {
