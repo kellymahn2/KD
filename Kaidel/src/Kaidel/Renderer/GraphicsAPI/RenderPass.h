@@ -42,11 +42,20 @@ namespace Kaidel {
 
 	};
 
+	struct SubpassDependency {
+		PipelineStages SrcStages;
+		PipelineStages DstStages;
+		AccessFlags SrcAccess;
+		AccessFlags DstAccess;
+		DependencyFlags Flags;
+	};
+
 	struct RenderPassSpecification {
 		std::vector<RenderPassAttachment> Inputs;
 		std::vector<RenderPassAttachment> Colors;
 		RenderPassAttachment DepthStencil;
 		RenderPassAttachment VRS;
+		std::vector<SubpassDependency> Dependencies;
 		bool AutoResolve = false;
 	};
 

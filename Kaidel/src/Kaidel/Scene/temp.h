@@ -210,7 +210,7 @@ namespace Kaidel {
 
 			glm::mat4 shadowCamera = glm::ortho(minExtents.x, maxExtents.x, minExtents.y,
 											maxExtents.y, 0.0f, cascadeExtents.z);
-			KD_CORE_INFO("{}", cascadeExtents.z);
+			//KD_CORE_INFO("{}", cascadeExtents.z);
 
 			glm::mat4 shadowLookAt = glm::lookAt(shadowCameraPos, frustumCenter, upDir);
 

@@ -3,6 +3,8 @@
 #include "Components.h"
 #include "Scene.h"
 #include "Entity.h"
+#include "Kaidel/Renderer/Text/Font.h"
+#include "Kaidel/Renderer/Text/MSDFData.h"
 #include "temp.h"
 
 #include "Kaidel/Renderer/GraphicsAPI/PerFrameResource.h"
@@ -25,6 +27,7 @@
 #include <chrono>
 #include <cmath>
 #include <iostream>
+#include <future>
 
 #include "stb_image.h"
 #define MAX_LIGHT_COUNT 100
@@ -37,6 +40,79 @@ namespace Kaidel {
 		Ref<RenderPass> RenderPass;
 		PerFrameResource<Ref<Framebuffer>> Output;
 		//Ref<GraphicsPipeline> Pipeline;
+	};
+	
+	struct SpriteData {
+		static const constexpr uint64_t MaxTextureCount = 32;
+		static const constexpr uint64_t MaxSpriteCount = 60000;
+		static const constexpr uint64_t MaxVertexCount = MaxSpriteCount * 4;
+		static const constexpr uint64_t MaxIndexCount = MaxSpriteCount * 6;
+
+		Ref<IndexBuffer> SpriteIndexBuffer;
+		Ref<GraphicsPipeline> SpriteGraphicsPipeline;
+		std::vector<SpriteVertex> Vertices;
+		uint64_t VertexCount;
+
+		struct BatchDrawParams {
+			uint64_t BufferIndex;
+			uint64_t VertexCount;
+			uint64_t TextureIndex;
+			uint64_t BufferOffset;
+		};
+
+		struct BatchingData {
+			BatchingData() {
+				Buffers.push_back(VertexBuffer::Create(nullptr, 0));
+				TextureSet.push_back(CreateTextureDescriptorForSprites());
+			}
+
+			void Reset() {
+				BufferOffset = 0;
+				BufferCount = 1;
+				TextureSetCount = 1;
+				TextureCount = 1;
+			}
+
+			std::vector<Ref<VertexBuffer>> Buffers;
+			uint32_t BufferCount = 1;
+			uint64_t BufferOffset = 0;
+
+			std::vector<Ref<DescriptorSet>> TextureSet;
+			uint32_t TextureSetCount = 1;
+			uint32_t TextureCount = 1;
+
+			Ref<DescriptorSet> CreateTextureDescriptorForSprites() {
+				Ref<Shader> s = ShaderLibrary::LoadOrGetNamedShader("SpriteRender", "assets/_shaders/SpriteRender.glsl");
+				Ref<DescriptorSet> set = DescriptorSet::Create(s, 0);
+
+				//Set all the textures in the list to flat white texture.
+				for (uint32_t i = 0; i < SpriteData::MaxTextureCount; ++i) {
+					set->Update(RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f)), {}, ImageLayout::ShaderReadOnlyOptimal, 0, i);
+				}
+				//Set a global sampler for all of them.
+				set->Update({}, RendererGlobals::GetSamler(SamplerFilter::Linear, SamplerMipMapMode::Linear), {}, "u_Sampler");
+
+				return set;
+			}
+		};
+		std::vector<BatchDrawParams> DrawParams;
+		PerFrameResource<BatchingData> Batches;
+	};
+
+	struct TextData {
+		struct TextVertex {
+			glm::vec3 Position;
+			glm::vec4 Color;
+			glm::vec2 TexCoord;
+			glm::vec4 Border;
+		};
+		
+		Ref<GraphicsPipeline> Pipeline;
+		Ref<RenderPass> TextRenderPass;
+		std::vector<TextVertex> Vertices;
+		uint64_t VertexCount;
+
+		PerFrameResource<Ref<VertexBuffer>> Buffer;
 	};
 
 #ifdef SHADOW_MAPPING
@@ -64,10 +140,6 @@ namespace Kaidel {
 
 		DeferredPassData DeferredPass;
 		
-		Ref<StorageBuffer> Instances;
-
-		Ref<DescriptorSet> TransformsSet;
-
 		//Screen pass
 		Ref<VertexBuffer> ScreenNDC;
 		Ref<RenderPass> ScreenRenderPass;
@@ -81,16 +153,11 @@ namespace Kaidel {
 		Ref<GraphicsPipeline> TonemapPipeline;
 		PerFrameResource<DescriptorSetPack> TonemapPipelinePack;
 
-		//Material
-		Ref<Texture2D> Albedo;
-		Ref<Texture2D> Spec;
-		Ref<Sampler> GBufferSampler;
-		Ref<DescriptorSet> MaterialSet;
-
-		Ref<Texture2D> DefaultWhite;
-
 		PerFrameResource<Ref<UniformBuffer>> DirectionalLight;
 		PerFrameResource<Ref<DescriptorSet>> DirectionalLightSet;
+
+		SpriteData Sprites;
+		TextData Texts;
 
 		ShadowData Shadows;
 		Ref<Sampler> GlobalSampler;
@@ -123,6 +190,8 @@ namespace Kaidel {
 		float FadeStart;
 	} DLight;
 
+	#pragma region Clusters
+
 	struct Cluster {
 		glm::vec4 Min;
 		glm::vec4 Max;
@@ -137,7 +206,46 @@ namespace Kaidel {
 	static glm::uvec3 s_ClusterDimensions = { 16,9,24 };
 	static uint64_t s_ClusterGridLength = s_ClusterDimensions.x * s_ClusterDimensions.y * s_ClusterDimensions.z;
 
-	std::vector<glm::mat4> cubes;
+	static void CreateClusterResources() {
+		s_Data->ClusterPipeline = ComputePipeline::Create(ShaderLibrary::LoadShader("Cluster", "assets/_shaders/ClusterComp.shader"));
+		for (auto& cluster : s_Data->Clusters) {
+			cluster =
+				StorageBuffer::Create(s_ClusterGridLength * sizeof(Cluster));
+		}
+
+		uint32_t i = 0;
+		for (auto& pack : s_Data->ClusterPipelinePack) {
+			pack =
+				DescriptorSetPack(ShaderLibrary::GetNamedShader("Cluster"), {});
+			pack.GetSet(0)->Update(s_Data->Clusters.GetResources()[i], 0);
+			++i;
+		}
+	}
+
+	void SceneRenderer::MakeClusters(const glm::mat4& invProj, float zNear, float zFar, const glm::vec2& screenSize) {
+		RenderCommand::BindComputePipeline(s_Data->ClusterPipeline);
+		s_Data->ClusterPipelinePack->Bind();
+		RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("Cluster"), 0,
+			invProj, zNear, zFar, screenSize);
+		RenderCommand::Dispatch(s_ClusterDimensions.x, s_ClusterDimensions.y, s_ClusterDimensions.z);
+	}
+
+	void SceneRenderer::InsertClusterBarrier() {
+		BufferMemoryBarrier barrier{};
+		barrier.Buffer = *s_Data->Clusters;
+		barrier.Offset = 0;
+		barrier.Size = -1;
+		barrier.Src = AccessFlags_ShaderWrite;
+		barrier.Dst = AccessFlags_ShaderRead;
+		RenderCommand::PipelineBarrier(
+			PipelineStages_ComputeShader,
+			PipelineStages_ComputeShader,
+			{},
+			{ barrier },
+			{}
+		);
+	}
+	#pragma endregion
 
 	#pragma region Light Culling
 	static void CreateLightCullResources() {
@@ -186,49 +294,239 @@ namespace Kaidel {
 	}
 	#pragma endregion
 
-	#pragma region Clusters
-	static void CreateClusterResources() {
-		s_Data->ClusterPipeline = ComputePipeline::Create(ShaderLibrary::LoadShader("Cluster", "assets/_shaders/ClusterComp.shader"));
-		for (auto& cluster : s_Data->Clusters) {
-			cluster =
-				StorageBuffer::Create(s_ClusterGridLength * sizeof(Cluster));
+	#pragma region 2D
+
+	static std::array<SpriteVertex, 4> MakeSpriteVertices(const glm::mat4& transform, const glm::vec4& tint, uint32_t textureIndex, const SamplingRegion& region) {
+		glm::vec2 positions[4] = {
+			{-.5,-.5},
+			{.5,-.5},
+			{.5,.5},
+			{-.5,.5}
+		};
+
+		glm::vec2 uv[4] = {
+			{region.UV0.x,region.UV1.y},
+			region.UV1,
+			{region.UV1.x,region.UV0.y},
+			region.UV0
+		};
+
+		std::array<SpriteVertex, 4> vertices{};
+
+		for (uint32_t i = 0; i < 4; ++i) {
+			SpriteVertex& vertex = vertices[i];
+			vertex.Position = transform * glm::vec4(positions[i], 0, 1);
+			vertex.Color = tint;
+			vertex.UV = { uv[i], (float)textureIndex };
 		}
 
-		uint32_t i = 0;
-		for (auto& pack : s_Data->ClusterPipelinePack) {
-			pack =
-				DescriptorSetPack(ShaderLibrary::GetNamedShader("Cluster"), {}); 
-			pack.GetSet(0)->Update(s_Data->Clusters.GetResources()[i],0);
-			++i;
-		}
+		return vertices;
 	}
 
-	void SceneRenderer::MakeClusters(const glm::mat4& invProj, float zNear, float zFar, const glm::vec2& screenSize) {
-		RenderCommand::BindComputePipeline(s_Data->ClusterPipeline);
-		s_Data->ClusterPipelinePack->Bind();
-		RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("Cluster"), 0,
-			invProj, zNear, zFar, screenSize);
-		RenderCommand::Dispatch(s_ClusterDimensions.x, s_ClusterDimensions.y, s_ClusterDimensions.z);
+	static void AddDraw() {
+		auto& sprites = s_Data->Sprites;
+
+		bool textureFull = sprites.Batches->TextureCount == SpriteData::MaxTextureCount;
+		bool vertexFull = sprites.VertexCount + sprites.Batches->BufferOffset == SpriteData::MaxVertexCount;
+
+		SpriteData::BatchDrawParams params;
+		params.BufferIndex = sprites.Batches->BufferCount - 1;
+		params.TextureIndex = sprites.Batches->TextureSetCount - 1;
+		params.BufferOffset = sprites.Batches->BufferOffset;
+		params.VertexCount = sprites.VertexCount;
+		sprites.DrawParams.push_back(params);
+
+		sprites.Batches->Buffers[sprites.Batches->BufferCount - 1]
+			->SetData(sprites.Vertices.data(), sprites.VertexCount * sizeof(SpriteVertex), sprites.Batches->BufferOffset * sizeof(SpriteVertex));
+
+		if (textureFull && vertexFull) {
+			sprites.Batches->BufferCount++;
+			sprites.Batches->BufferOffset = 0;
+			sprites.Batches->TextureSetCount++;
+			sprites.Batches->TextureCount = 1;
+		}
+		else if (textureFull) {
+			sprites.Batches->BufferOffset += sprites.VertexCount;
+			sprites.Batches->TextureSetCount++;
+			sprites.Batches->TextureCount = 1;
+		}
+		else if (vertexFull) {
+			sprites.Batches->BufferCount++;
+			sprites.Batches->BufferOffset = 0;
+		}
+
+		if (sprites.Batches->BufferCount > sprites.Batches->Buffers.size()) {
+			sprites.Batches->Buffers.push_back(VertexBuffer::Create(nullptr, 0));
+		}
+
+		if (sprites.Batches->TextureSetCount > sprites.Batches->TextureSet.size()) {
+			sprites.Batches->TextureSet.push_back(sprites.Batches->CreateTextureDescriptorForSprites());
+		}
+		sprites.VertexCount = 0;
 	}
-	
-	void SceneRenderer::InsertClusterBarrier() {
-		BufferMemoryBarrier barrier{};
-		barrier.Buffer = *s_Data->Clusters;
-		barrier.Offset = 0;
-		barrier.Size = -1;
-		barrier.Src = AccessFlags_ShaderWrite;
-		barrier.Dst = AccessFlags_ShaderRead;
-		RenderCommand::PipelineBarrier(
-			PipelineStages_ComputeShader,
-			PipelineStages_ComputeShader,
-			{},
-			{ barrier },
-			{}
-		);
+
+	static void AddSpriteToBatch(const glm::mat4& transform, const glm::vec4& tint, Ref<TextureReference> texture, const SamplingRegion& region) {
+
+		auto& sprites = s_Data->Sprites;
+
+		uint32_t textureIndex = -1;
+		for (uint32_t i = 0; i < sprites.Batches->TextureCount; ++i) {
+			uint32_t setIndex = sprites.Batches->TextureSetCount - 1;
+			if (sprites.Batches->TextureSet[setIndex]->GetTextureAtBinding(0, i) == texture) {
+				textureIndex = i;
+				break;
+			}
+		}
+
+		if (textureIndex == -1) {
+			if (sprites.Batches->TextureCount != SpriteData::MaxTextureCount) {
+				uint32_t setIndex = sprites.Batches->TextureSetCount - 1;
+				sprites.Batches->TextureSet[setIndex]->Update(texture, {}, ImageLayout::ShaderReadOnlyOptimal, 0, sprites.Batches->TextureCount);
+				textureIndex = sprites.Batches->TextureCount++;
+			}
+			else {
+				AddDraw();
+				uint32_t setIndex = sprites.Batches->TextureSetCount - 1;
+				sprites.Batches->TextureSet[setIndex]->Update(texture, {}, ImageLayout::ShaderReadOnlyOptimal, 0, sprites.Batches->TextureCount);
+				textureIndex = sprites.Batches->TextureCount++;
+			}
+		}
+
+		std::array<SpriteVertex, 4> vertices = MakeSpriteVertices(transform, tint, textureIndex, region);
+
+
+		if (sprites.VertexCount + sprites.Batches->BufferOffset == SpriteData::MaxVertexCount) {
+			AddDraw();
+		}
+
+		if (sprites.VertexCount + 4 > sprites.Vertices.size()) {
+			uint64_t newSize = sprites.VertexCount * 1.5f + 4;
+			if (newSize > SpriteData::MaxVertexCount) {
+				newSize = SpriteData::MaxVertexCount;
+			}
+			sprites.Vertices.resize(newSize);
+		}
+		sprites.Vertices[sprites.VertexCount + 0] = vertices[0];
+		sprites.Vertices[sprites.VertexCount + 1] = vertices[1];
+		sprites.Vertices[sprites.VertexCount + 2] = vertices[2];
+		sprites.Vertices[sprites.VertexCount + 3] = vertices[3];
+		sprites.VertexCount += 4;
 	}
+
+	static uint64_t AddStringToBatch(const std::string& string, Ref<Font> font, const glm::mat4& transform, const glm::vec4& color, const glm::vec4& borderColor, float borderThickness, float kerningOffset) {
+
+		auto& texts = s_Data->Texts;
+
+		const MSDFData* data = font->GetMSDFData();
+		
+		Ref<Texture2D> fontAtlas = font->GetAtlasTexture();
+
+		const auto& fontGeometry = data->FontGeometry;
+		const auto& metrics = fontGeometry.getMetrics();
+
+		double x = 0.0;
+		double fsScale = 1.0 / (metrics.ascenderY - metrics.descenderY);
+		double y = 0.0;
+		double lineHeightOffset = 0.0;
+
+		uint64_t renderedCharacters = 0;
+		const float spaceGlyphAdvance = fontGeometry.getGlyph(' ')->getAdvance();
+		for (uint32_t i = 0; i < string.length(); ++i) {
+
+			if (string[i] == '\n')
+			{
+				x = 0;
+				y -= fsScale * metrics.lineHeight + lineHeightOffset;
+				continue;
+			}
+
+			if (string[i] == ' ')
+			{
+				double advance = spaceGlyphAdvance;
+				x += (fsScale * advance + kerningOffset);
+				continue;
+			}
+
+			if (string[i] == '\t')
+			{
+				double advance = spaceGlyphAdvance;
+				x += 4.0f * (fsScale * advance + kerningOffset);
+				continue;
+			}
+			double pl, pb, pr, pt;
+			double al, ab, ar, at;
+
+			{
+				const msdf_atlas::GlyphGeometry* glyph = nullptr;
+
+				glyph = fontGeometry.getGlyph(string[i]);
+
+				if (!glyph)
+					glyph = fontGeometry.getGlyph('?');
+				if (!glyph)
+					return renderedCharacters;
+
+				glyph->getQuadPlaneBounds(pl, pb, pr, pt);
+				pl *= fsScale; pb *= fsScale; pr *= fsScale; pt *= fsScale;
+				pl += x; pb += y; pr += x; pt += y;
+				glm::vec2 quadMin((float)pl, (float)pb), quadMax((float)pr, (float)pt);
+
+				glyph->getQuadAtlasBounds(al, ab, ar, at);
+				float texelWidth = 1.0f / (float)fontAtlas->GetTextureSpecification().Width;
+				float texelHeight = 1.0f / (float)fontAtlas->GetTextureSpecification().Height;
+				al *= texelWidth; ab *= texelHeight; ar *= texelWidth; at *= texelHeight;
+				glm::vec2 coordTopLeft((float)al, (float)at), coordBottomRight((float)ar, (float)ab);
+			}
+
+			if (texts.VertexCount + 4 > texts.Vertices.size()) {
+				uint64_t newSize = texts.VertexCount * 1.5f + 4;
+				texts.Vertices.resize(newSize);
+			}
+
+			{
+				glm::vec2 positions[4] =
+				{
+					glm::vec2((float)pl, (float)pb),
+					glm::vec2((float)pr, (float)pb),
+					glm::vec2((float)pr, (float)pt),
+					glm::vec2((float)pl, (float)pt)
+				};
+				glm::vec2 texCoords[4] =
+				{
+					glm::vec2((float)al, (float)ab),
+					glm::vec2((float)ar, (float)ab),
+					glm::vec2((float)ar, (float)at),
+					glm::vec2((float)al, (float)at)
+				};
+
+				
+				
+				for (int i = 0; i < 4; ++i) {
+					s_Data->Texts.Vertices[s_Data->Texts.VertexCount + i].Position = transform * glm::vec4(positions[i], 0.0f, 1.0f);
+					s_Data->Texts.Vertices[s_Data->Texts.VertexCount + i].Color = color;
+					s_Data->Texts.Vertices[s_Data->Texts.VertexCount + i].TexCoord = texCoords[i];
+					s_Data->Texts.Vertices[s_Data->Texts.VertexCount + i].Border = glm::vec4(glm::vec3(borderColor), borderThickness);
+				}
+			}
+
+			texts.VertexCount += 4;
+
+			++renderedCharacters;
+
+			if (i < string.length() - 1) {
+				double advance;
+				fontGeometry.getAdvance(advance, string[i], string[i + 1]);
+				x += fsScale * advance + kerningOffset;
+			}
+		}
+		
+		return renderedCharacters;
+	}
+
 	#pragma endregion
 
 	#pragma region Screen Pass
+	int ShowDebugShadow = false;
 
 	static void CreateScreenPassResources() {
 		{
@@ -282,7 +580,6 @@ namespace Kaidel {
 			s_Data->Shadows.ShadowSampler = Sampler::Create(state);
 		}
 
-		 
 		s_Data->ScreenPipelinePack.Construct([](uint32_t i) {
 			Ref<Texture2D> pos, norm, albedo, metalRough, depth;
 			
@@ -325,21 +622,92 @@ namespace Kaidel {
 			return pack;
 		});
 	}
-	int ShowDebugShadow = false;
-	void SceneRenderer::ScreenPass(float zNear, float zFar, const glm::vec3& cameraPos, const glm::mat4& viewMatrix) {
+
+	extern Ref<Font> font;
+
+	void SceneRenderer::ScreenPass(float zNear, float zFar, const glm::vec3& cameraPos, const glm::mat4& viewMatrix, const glm::mat4& viewProjection) {
 		float scale = 24.0f / (std::log2f(zFar / zNear));
 		float bias = -24.0f * (std::log2f(zNear)) / std::log2f(zFar / zNear);
 		
 		RenderCommand::SetViewport(s_Data->Width, s_Data->Height, 0, 0);
 		RenderCommand::SetScissor(s_Data->Width, s_Data->Height, 0, 0);
+
+		//2D setup
+		{
+			auto& sprites = s_Data->Sprites;
+
+			sprites.Batches->Reset();
+			sprites.VertexCount = 0;
+			sprites.DrawParams.clear();
+
+			auto& sceneReg = ((Scene*)m_Context)->m_Registry;
+			auto view = sceneReg.view<TransformComponent, SpriteRendererComponent>();
+
+			for (auto& e : view) {
+				auto& [tc, src] = view.get(e);
+
+				SamplingRegion region{};
+				region.Layer = 0;
+				region.UV0 = { 0,0 };
+				region.UV1 = { 1,1 };
+
+				if (src.SpriteTexture)
+					AddSpriteToBatch(tc.GetTransform(), glm::vec4(1.0f), src.SpriteTexture, region);
+				else
+					AddSpriteToBatch(tc.GetTransform(), glm::vec4(1.0f), RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f)), region);
+			}
+
+			if (sprites.VertexCount) {
+				SpriteData::BatchDrawParams params{};
+				params.BufferIndex = sprites.Batches->BufferCount - 1;
+				params.TextureIndex = sprites.Batches->TextureSetCount - 1;
+				params.BufferOffset = sprites.Batches->BufferOffset;
+				params.VertexCount = sprites.VertexCount;
+				sprites.DrawParams.push_back(params);
+
+				sprites.Batches->Buffers[sprites.Batches->BufferCount - 1]
+					->SetData(sprites.Vertices.data(), sprites.VertexCount * sizeof(SpriteVertex), sprites.Batches->BufferOffset * sizeof(SpriteVertex));
+			}
+		}
+
 		RenderCommand::BeginRenderPass(s_Data->ScreenRenderPass, *s_Data->HDROutputs,
 			{ AttachmentColorClearValue(glm::vec4{0.0f,0.0f,0.0f,0.0f}) });
-		RenderCommand::BindGraphicsPipeline(s_Data->ScreenPipeline);
-		RenderCommand::BindVertexBuffers({ s_Data->ScreenNDC }, { 0 });
-		s_Data->ScreenPipelinePack->Bind();
-		RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("LightPass"), 0, viewMatrix,
-			glm::vec4(cameraPos, 0.0f), glm::vec2{ s_Data->Width,s_Data->Height }, zNear, zFar, scale, bias, ShowDebugShadow);
-		RenderCommand::Draw(6, 1, 0, 0);
+
+		//3D
+		{
+			RenderCommand::BindGraphicsPipeline(s_Data->ScreenPipeline);
+			RenderCommand::BindVertexBuffers({ s_Data->ScreenNDC }, { 0 });
+			s_Data->ScreenPipelinePack->Bind();
+			RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("LightPass"), 0, viewMatrix,
+				glm::vec4(cameraPos, 0.0f), glm::vec2{ s_Data->Width,s_Data->Height }, zNear, zFar, scale, bias, ShowDebugShadow);
+			RenderCommand::Draw(6, 1, 0, 0);
+		}
+
+		//2D
+		{
+			auto& sprites = s_Data->Sprites;
+			
+			if (sprites.DrawParams.size()) {
+				uint64_t lastBuffer = -1;
+				uint64_t lastTexture = -1;
+				RenderCommand::BindGraphicsPipeline(sprites.SpriteGraphicsPipeline);
+				RenderCommand::BindIndexBuffer(sprites.SpriteIndexBuffer, 0);
+				RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("SpriteRender"), 0, viewProjection);
+
+				for (auto& draw : sprites.DrawParams) {
+					if (lastBuffer != draw.BufferIndex) {
+						lastBuffer = draw.BufferIndex;
+						RenderCommand::BindVertexBuffers({ sprites.Batches->Buffers[draw.BufferIndex] }, { draw.BufferOffset });
+					}
+					if (lastTexture != draw.TextureIndex) {
+						lastTexture = draw.TextureIndex;
+						RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("SpriteRender"), sprites.Batches->TextureSet[draw.TextureIndex], 0);
+					}
+					RenderCommand::DrawIndexed((draw.VertexCount / 4) * 6, 0, 1, 0, 0, 0);
+				}
+			}
+		}
+
 		RenderCommand::EndRenderPass();
 	}
 	void SceneRenderer::InsertScreenPassBarrier()
@@ -423,6 +791,22 @@ namespace Kaidel {
 		RenderCommand::Draw(6, 1, 0, 0);
 		RenderCommand::EndRenderPass();
 	}
+
+	static void InsertTonemapPassBarrier() {
+		ImageMemoryBarrier barrier(
+			s_Data->Outputs->Get()->GetColorAttachment(0),
+			ImageLayout::ColorAttachmentOptimal,
+			AccessFlags_ColorAttachmentWrite, 
+			AccessFlags_ColorAttachmentWrite
+		);
+
+		RenderCommand::PipelineBarrier(
+			PipelineStages_ColorAttachmentOutput, 
+			PipelineStages_ColorAttachmentOutput, 
+			{}, 
+			{},
+			{ barrier });
+	}
 	#pragma endregion
 
 	#pragma region Deferred Pass
@@ -463,12 +847,6 @@ namespace Kaidel {
 	}
 
 	static void DeferredPass(const glm::mat4& viewProj, const entt::registry& sceneReg) {
-		//std::vector<AttachmentClearValue> clears;
-		//for (auto& clear : s_Data->DeferredPass.RenderPass->GetSpecification().Colors) {
-		//	clears.push_back(AttachmentColorClearValue(glm::vec4(0.0f)));
-		//}
-		//
-		//clears.push_back(AttachmentDepthStencilClearValue(1.0f, 0));
 
 		s_Data->DeferredPass.RenderPass->SetDepthClearValue(AttachmentDepthStencilClearValue(1.0f, 0));
 
@@ -481,8 +859,6 @@ namespace Kaidel {
 
 		Ref<Material> lastSetMaterial = {};
 
-
-		//RenderCommand::BindGraphicsPipeline(s_Data->DeferredPass.Pipeline);
 		RenderCommand::SetViewport(s_Data->Width, s_Data->Height, 0, 0);
 		RenderCommand::SetScissor(s_Data->Width, s_Data->Height, 0, 0);
 
@@ -623,6 +999,9 @@ namespace Kaidel {
 	#pragma endregion
 	
 	std::array<PerFrameResource<Ref<Texture2D>>*, 4> DepthTexture;
+	
+	#pragma region ShadowPass
+
 	static void CreateShadowPassResources() {
 #ifdef SHADOW_MAPPING
 		RenderPassSpecification rpSpecs;
@@ -823,6 +1202,169 @@ namespace Kaidel {
 
 	#pragma endregion
 
+	static void CreateTextPassResources() {
+		auto& texts = s_Data->Texts;
+
+		{
+			RenderPassSpecification specs{};
+			specs.Colors =
+			{
+				RenderPassAttachment(Format::RGBA8SRGB,ImageLayout::ColorAttachmentOptimal,ImageLayout::ColorAttachmentOptimal,TextureSamples::x1,
+					AttachmentLoadOp::Load, AttachmentStoreOp::Store)
+			};
+			texts.TextRenderPass = RenderPass::Create(specs);
+		}
+
+		{
+			GraphicsPipelineSpecification specs;
+
+			PipelineColorBlend::Attachment attachment;
+			attachment.WriteR = true;
+			attachment.WriteG = true;
+			attachment.WriteB = true;
+			attachment.WriteA = true;
+			attachment.Blend = true;
+			attachment.AttachmentIndex = 0;
+			
+			attachment.SrcColorBlend = BlendFactor::SrcAlpha;
+			attachment.DstColorBlend = BlendFactor::OneMinusSrcAlpha;
+			attachment.ColorBlendOp = BlendOp::Add;
+			
+			attachment.SrcAlphaBlend = BlendFactor::One;
+			attachment.DstAlphaBlend = BlendFactor::Zero;
+			attachment.AlphaBlendOp = BlendOp::Add;
+
+			specs.Blend.Attachments.push_back(attachment);
+
+			specs.Input.Bindings.push_back(
+				{
+					{"a_Position", Format::RGB32F},
+					{"a_Color", Format::RGBA32F},
+					{"a_TexCoords", Format::RG32F},
+					{"a_Border", Format::RGBA32F}
+				}
+			);
+			specs.Primitive = PrimitiveTopology::TriangleList;
+			specs.Rasterization.CullMode = PipelineCullMode::None;
+			
+			specs.Shader = ShaderLibrary::LoadOrGetNamedShader("TextPass", "assets/_shaders/TextPass.glsl");
+			specs.RenderPass = texts.TextRenderPass;
+			specs.Subpass = 0;
+
+			texts.Pipeline = GraphicsPipeline::Create(specs);
+		}
+
+		{
+			texts.Buffer.Construct([](uint32_t i) {
+				return VertexBuffer::Create(nullptr, 0);
+			});
+		}
+	}
+
+	static void TextPass(const SceneData& sceneData, entt::registry& sceneReg) 
+	{
+		auto& texts = s_Data->Texts;
+		//Reset.
+		texts.VertexCount = 0;
+
+		//Go through all texts need to be drawn and add to vertex buffer.
+		//AddStringToBatch(test, font, glm::mat4(1.0f), glm::vec4(1.0f));
+		auto view = sceneReg.view<TransformComponent, TextComponent>();
+		for (auto e : view) {
+			auto& [transform, text] = view.get(e);
+			if (text.TextContent.empty() || !text.TextFont)
+				continue;
+			text.RenderableCharacters = AddStringToBatch(text.TextContent, text.TextFont, transform.GetTransform(), text.Color, text.BorderColor, text.BorderThickness, text.Kerning);
+		}
+
+		if (texts.VertexCount == 0)
+			return;
+
+		texts.Buffer->Get()->SetData(texts.Vertices.data(), texts.VertexCount * sizeof(TextData::TextVertex), 0);
+
+		//Go through all texts need to be drawn and draw them.
+		uint64_t indexCount = 0;
+		uint64_t indexOffset = 0;
+
+		RenderCommand::BindVertexBuffers({ *texts.Buffer }, { 0 });
+		RenderCommand::BindIndexBuffer(s_Data->Sprites.SpriteIndexBuffer, 0);
+
+		RenderCommand::BindGraphicsPipeline(texts.Pipeline);
+		RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("TextPass"), 0, sceneData.ViewProj);
+
+		RenderCommand::BeginRenderPass(texts.TextRenderPass, *s_Data->Outputs, {});
+		
+		Ref<Font> lastFont = {};
+		
+		for (auto e : view) {
+			auto& [transform, text] = view.get(e);
+			if (text.TextContent.empty() || !text.TextFont)
+				continue;
+			if (!lastFont || lastFont == text.TextFont) {
+				indexCount += text.RenderableCharacters * 6;
+				lastFont = text.TextFont;
+			}
+			else {
+				RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("TextPass"), lastFont->GetSet(), 0);
+				RenderCommand::DrawIndexed(indexCount, 4, 1, indexOffset, 0, 0);
+				indexOffset += indexCount;
+				indexCount = 0;
+				lastFont = text.TextFont;
+			}
+		}
+
+		if (indexCount) {
+			RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("TextPass"), lastFont->GetSet(), 0);
+			RenderCommand::DrawIndexed(indexCount, 4, 1, indexOffset, 0, 0);
+		}
+
+		/*RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("TextPass"), font->GetSet(), 0);
+		RenderCommand::DrawIndexed(texts.VertexCount / 4 * 6, 4, 1, 0, 0, 0);*/
+
+		RenderCommand::EndRenderPass();
+	}
+
+	static void CreateSpriteResources() {
+		auto& spriteData = s_Data->Sprites;
+
+		{
+			uint32_t* indices = new uint32_t[SpriteData::MaxIndexCount];
+
+			uint64_t vertex = 0;
+			for (uint64_t i = 0; i < SpriteData::MaxIndexCount; i += 6) {
+				indices[i] = vertex + 0;
+				indices[i + 1] = vertex + 1;
+				indices[i + 2] = vertex + 2;
+				indices[i + 3] = vertex + 2;
+				indices[i + 4] = vertex + 3;
+				indices[i + 5] = vertex + 0;
+				vertex += 4;
+			}
+
+			spriteData.SpriteIndexBuffer = IndexBuffer::Create(indices, SpriteData::MaxIndexCount * sizeof(uint32_t), IndexType::Uint32);
+		}
+
+		//Pipeline
+		{
+			GraphicsPipelineSpecification specs;
+			specs.Shader = ShaderLibrary::LoadOrGetNamedShader("SpriteRender", "assets/_shaders/SpriteRender.glsl");
+			specs.Subpass = 0;
+			specs.RenderPass = s_Data->ScreenRenderPass;
+			specs.Primitive = PrimitiveTopology::TriangleList;
+			specs.Rasterization.CullMode = PipelineCullMode::None;
+			specs.Input.Bindings =
+			{
+				{
+					{"a_Position", Format::RGB32F},
+					{"a_Color", Format::RGBA32F},
+					{"a_TexCoords", Format::RGB32F}
+				}
+			};
+			specs.DepthStencil.DepthTest = false;
+			//specs.DepthStencil.DepthCompareOperator = Comap;
+			spriteData.SpriteGraphicsPipeline = GraphicsPipeline::Create(specs);
+		}
+	}
 
 	bool SceneRenderer::NeedsRecreation(Ref<Texture2D> output) {
 		const auto& specs = output->GetTextureSpecification();
@@ -863,42 +1405,6 @@ namespace Kaidel {
 				s_Data->GlobalSampler = Sampler::Create(state);
 			}
 
-			{
-				SamplerState state;
-				state.AddressModeU = SamplerAddressMode::Repeat;
-				state.AddressModeV = SamplerAddressMode::Repeat;
-				state.AddressModeW = SamplerAddressMode::Repeat;
-				state.MagFilter = SamplerFilter::Linear;
-				state.MinFilter = SamplerFilter::Linear;
-				state.MipFilter = SamplerMipMapMode::Linear;
-
-				s_Data->GBufferSampler = Sampler::Create(state);
-			}
-
-			{
-				Texture2DSpecification specs;
-				specs.Width = 1;
-				specs.Height = 1;
-				specs.Depth = 1;
-				specs.Mips = 1;
-				specs.Layers = 1;
-				specs.Layout = ImageLayout::ShaderReadOnlyOptimal;
-				specs.Samples = TextureSamples::x1;
-				specs.Swizzles[0] = TextureSwizzle::Red;
-				specs.Swizzles[1] = TextureSwizzle::Green;
-				specs.Swizzles[2] = TextureSwizzle::Blue;
-				specs.Swizzles[3] = TextureSwizzle::Alpha;
-
-				uint32_t data = 0xFFFFFFFF;
-
-				TextureData init{};
-				init.Layer = 0;
-				init.Data = &data;
-				specs.InitialDatas.push_back(init);
-				specs.Format = Format::RGBA8UN;
-				s_Data->DefaultWhite = Texture2D::Create(specs);
-			}
-
 			CreateClusterResources();
 			CreateLightCullResources();
 			CreateGBufferResources();
@@ -910,16 +1416,10 @@ namespace Kaidel {
 			CreateScreenPassResources();
 
 			CreateTonemapPassResources();
-			
-			cubes.resize(1);
-			cubes[0] = glm::scale(glm::mat4(1.0f),glm::vec3(.1f));
 
-			//s_Data->Instances = StorageBuffer::Create(cubes.size() * sizeof(glm::mat4));
-			//s_Data->Instances->SetData(cubes.data(), cubes.size() * sizeof(glm::mat4));
+			CreateTextPassResources();
 
-			//s_Data->TransformsSet = DescriptorSet::Create(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), 0);
-			//s_Data->TransformsSet->Update(s_Data->Instances, 0);
-
+			CreateSpriteResources();
 			Light l{};
 			l.Color = glm::vec4(1.0f, 0, 0, 1);
 			l.Position = glm::vec4(0,5,0.0f,0.0f);
@@ -929,10 +1429,8 @@ namespace Kaidel {
 		}
 	}
 
-	//TODO: implement to ECS, make hierarchy and frustum culling.
-	//TODO: shadows.
-	//TODO: forward render.
-	//TODO: make it easy to switch render modes, deferred/forward renderer.
+	//TODO: add depth to 2D.
+
 	void SceneRenderer::Render(Ref<Texture2D> outputBuffer, const SceneData& sceneData)
 	{
 		Scene* scene = (Scene*)m_Context;
@@ -953,20 +1451,27 @@ namespace Kaidel {
 		float zNear = sceneData.zNear;
 		float zFar = sceneData.zFar;
 
-		MakeClusters(invProj,zNear,zFar,sceneData.ScreenSize);
-		InsertClusterBarrier();
-		MakeLightGrids(view);
-		DeferredPass(viewProj,scene->m_Registry);
-		InsertLightGridBarrier();
-		InsertDeferredBarrier();
+		{
+			MakeClusters(invProj, zNear, zFar, sceneData.ScreenSize);
+			InsertClusterBarrier();
+			MakeLightGrids(view);
 
-		ShadowPass(sceneData);
-		InsertShadowPassBarrier();
+			DeferredPass(viewProj, scene->m_Registry);
+			InsertLightGridBarrier();
+			InsertDeferredBarrier();
 
-		ScreenPass(zNear,zFar,sceneData.CameraPos,view);
-		InsertScreenPassBarrier();
+			ShadowPass(sceneData);
+			InsertShadowPassBarrier();
 
+			ScreenPass(zNear, zFar, sceneData.CameraPos, view, sceneData.ViewProj);
+			InsertScreenPassBarrier();
+		}
+
+		
 		TonemapPass();
+		InsertTonemapPassBarrier();
+
+		TextPass(sceneData, scene->m_Registry);
 
 		ResolveToOutput(outputBuffer);
 	}

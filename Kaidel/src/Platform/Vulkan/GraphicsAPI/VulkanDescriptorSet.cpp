@@ -69,34 +69,6 @@ namespace Kaidel {
 		}
 	}
 
-	VulkanDescriptorSet::VulkanDescriptorSet(const DescriptorSetSpecification& specs)
-		:m_Specification(specs)
-	{
-		std::vector<VkWriteDescriptorSet> writes;
-		std::vector<VkDescriptorImageInfo> images;
-		std::vector<VkDescriptorBufferInfo> buffers;
-
-		Utils::ValuesToWrites(specs.Values, writes, images, buffers);
-
-		if (specs.Shader) {
-			const auto& shader = ((VulkanShader*)specs.Shader.Get())->GetShaderInfo();
-			
-			KD_CORE_ASSERT(specs.Set < shader.DescriptorSetLayouts.size());
-
-			m_Info = VK_CONTEXT.GetBackend()->CreateDescriptorSet(writes, shader, specs.Set);
-		}
-		else {
-			std::vector<VkShaderStageFlags> flags;
-			for (auto& flag : specs.Stages) {
-				flags.push_back(Utils::ShaderStagesToVulkanShaderStageFlags(flag));
-			}
-			m_Info = VK_CONTEXT.GetBackend()->CreateDescriptorSet(writes, flags);
-		}
-
-
-
-	}
-
 	VulkanDescriptorSet::VulkanDescriptorSet(const DescriptorSetLayoutSpecification& layout){
 		std::vector<std::pair<VkDescriptorType,VkShaderStageFlags>> types;
 		
@@ -107,6 +79,9 @@ namespace Kaidel {
 		m_Info = VK_BACKEND->CreateDescriptorSet(
 			std::initializer_list<std::pair<VkDescriptorType, VkShaderStageFlags>>(types.data(),types.data() + types.size()));
 		m_Values.resize(types.size());
+		for (uint32_t i = 0; i < types.size(); ++i) {
+			m_Values[i].resize(1);
+		}
 	}
 	
 	VulkanDescriptorSet::VulkanDescriptorSet(Ref<Shader> shader, uint32_t setIndex) {
@@ -115,6 +90,9 @@ namespace Kaidel {
 
 		m_Info = VK_BACKEND->CreateDescriptorSet(vs->GetShaderInfo(), setIndex);
 		m_Values.resize(set.Bindings.size());
+		for (uint32_t i = 0; i < set.Bindings.size(); ++i) {
+			m_Values[i].resize(set.Bindings.at(i).Count);
+		}
 		m_NamesToBindings = set.NameToBinding;
 	}
 
@@ -122,7 +100,7 @@ namespace Kaidel {
 	{
 		VK_CONTEXT.GetBackend()->DestroyDescriptorSet(m_Info);
 	}
-	DescriptorSet& VulkanDescriptorSet::Update(Ref<Buffer> buffer, uint32_t binding)
+	DescriptorSet& VulkanDescriptorSet::Update(Ref<Buffer> buffer, uint32_t binding, uint32_t arrayIndex)
 	{
 		VkDescriptorBufferInfo bufferInfo{};
 		bufferInfo.offset = 0;
@@ -142,10 +120,10 @@ namespace Kaidel {
 
 		VK_BACKEND->UpdateDescriptorSet(m_Info, { write });
 
-		m_Values[binding].BufferValues.Buffer = buffer;
+		m_Values[binding][arrayIndex].BufferValues.Buffer = buffer;
 		return *this;
 	}
-	DescriptorSet& VulkanDescriptorSet::Update(Ref<Texture> image, Ref<Sampler> sampler, ImageLayout layout, uint32_t binding)
+	DescriptorSet& VulkanDescriptorSet::Update(Ref<Texture> image, Ref<Sampler> sampler, ImageLayout layout, uint32_t binding, uint32_t arrayIndex)
 	{
 		VkDescriptorImageInfo imageInfo{};
 		if (image) {
@@ -157,7 +135,7 @@ namespace Kaidel {
 		}
 		VkWriteDescriptorSet write{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 		write.descriptorCount = 1;
-		write.dstArrayElement = 0;
+		write.dstArrayElement = arrayIndex;
 		write.dstBinding = binding;
 		write.dstSet = m_Info.Set;
 		write.pImageInfo = &imageInfo;
@@ -168,9 +146,9 @@ namespace Kaidel {
 
 		VK_BACKEND->UpdateDescriptorSet(m_Info, { write });
 
-		m_Values[binding].ImageValues.Image = image;
-		m_Values[binding].ImageValues.ImageSampler = sampler;
-		m_Values[binding].ImageValues.Layout = layout;
+		m_Values[binding][arrayIndex].ImageValues.Image = image;
+		m_Values[binding][arrayIndex].ImageValues.ImageSampler = sampler;
+		m_Values[binding][arrayIndex].ImageValues.Layout = layout;
 
 		return *this;
 	}

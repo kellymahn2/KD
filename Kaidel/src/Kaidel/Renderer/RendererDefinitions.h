@@ -221,6 +221,14 @@ namespace Kaidel {
 		DecrementAndWrap,
 	};
 
+	enum DependencyFlags_ {
+		DependencyFlags_Region = 1,
+		DependencyFlags_ViewLocal = 2,
+		DependencyFlags_Device = 4,
+	};
+	
+	typedef int DependencyFlags;
+
 	enum class LogicOp {
 		None = 0,
 		Clear,
@@ -309,6 +317,7 @@ namespace Kaidel {
 		_3D,
 		_1D_Array,
 		_2D_Array,
+		Reference
 	};
 
 	enum class ShaderType {
@@ -467,6 +476,7 @@ namespace Kaidel {
 			case Format::RGB8I:
 				return 1;
 			case Format::RGBA8UN:
+			case Format::RGBA8SRGB:
 			case Format::RGBA8N:
 			case Format::RGBA8UI:
 			case Format::RGBA8I:
@@ -562,6 +572,7 @@ namespace Kaidel {
 				return 3;
 
 			case Format::RGBA8UN:
+			case Format::RGBA8SRGB:
 			case Format::RGBA8N:
 			case Format::RGBA8UI:
 			case Format::RGBA8I:

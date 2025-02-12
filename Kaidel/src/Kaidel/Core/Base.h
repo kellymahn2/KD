@@ -14,17 +14,17 @@
 
 
 #ifdef KD_DEBUG
-	#if defined(KD_PLATFORM_WINDOWS)
-		#define KD_DEBUGBREAK() __debugbreak()
-	#elif defined(KD_PLATFORM_LINUX)
-		#include <signal.h>
-		#define KD_DEBUGBREAK() raise(SIGTRAP)
-	#else
-		#error "Platform doesn't support debugbreak yet!"
-	#endif
-	#define KD_ENABLE_ASSERTS
+#if defined(KD_PLATFORM_WINDOWS)
+#define KD_DEBUGBREAK() __debugbreak()
+#elif defined(KD_PLATFORM_LINUX)
+#include <signal.h>
+#define KD_DEBUGBREAK() raise(SIGTRAP)
 #else
-	#define KD_DEBUGBREAK()
+#error "Platform doesn't support debugbreak yet!"
+#endif
+#define KD_ENABLE_ASSERTS
+#else
+#define KD_DEBUGBREAK()
 #endif
 
 #define KD_EXPAND_MACRO(x) x
@@ -49,11 +49,11 @@ namespace Kaidel {
 	}
 
 	template<typename T>
-	using Ref = IRCPointer<T,false>;
+	using Ref = IRCPointer<T, false>;
 	template<typename T, typename ... Args>
 	constexpr Ref<T> CreateRef(Args&& ... args)
 	{
-		return CreateIRCPointer<T,false>(std::forward<Args>(args)...);
+		return CreateIRCPointer<T, false>(std::forward<Args>(args)...);
 	}
 	template<typename T>
 	constexpr T Fact(T n) {
@@ -70,7 +70,7 @@ namespace Kaidel {
 		return (Fact(n)) / (Fact(r) * Fact(n - r));
 
 	}
-	
+
 	namespace FileSystem = std::filesystem;
 
 

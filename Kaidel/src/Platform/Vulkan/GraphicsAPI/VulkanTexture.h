@@ -46,4 +46,19 @@ namespace Kaidel {
 		VulkanBackend::TextureInfo m_Info;
 	};
 
+	class VulkanTextureReference : public TextureReference {
+	public:
+		VulkanTextureReference(const TextureReferenceSpecification& specs);
+		~VulkanTextureReference();
+
+		RendererID GetBackendInfo() const override { return (RendererID)&m_Info; }
+		const TextureSpecification& GetTextureSpecification() const override { return m_Specification.Reference->GetTextureSpecification(); }
+		void SetImageLayout(ImageLayout layout) override { m_Specification.Reference->SetImageLayout(layout); }
+		Ref<Texture> GetReferencedTexture() const override { return m_Specification.Reference; }
+		const TextureReferenceSpecification& GetReferenceSpecification() const override { return m_Specification; }
+	private:
+		TextureReferenceSpecification m_Specification;
+		VulkanBackend::TextureInfo m_Info;
+	};
+
 }

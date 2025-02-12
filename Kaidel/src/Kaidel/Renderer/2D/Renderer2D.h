@@ -26,16 +26,8 @@ namespace Kaidel{
         static void Init();
         static void Shutdown();
 
-        static void Begin(const glm::mat4& cameraVP,Ref<Framebuffer> outputColorBuffer);
-        static void End();
+        static void Begin(const glm::mat4& cameraVP);
 
-        static void DrawSprite(const glm::mat4& transform, const glm::vec4& color, const SamplingRegion& region);
-        static void AddSprite(SpriteVertex vertices[4]);
-
-    private:
-		static void StartSpriteBatch();
-		static void FlushSprites();
-	private:
-
+		static void DrawSprite(const glm::mat4& transform, const glm::vec4& color, Ref<Texture> texture, const SamplingRegion& region);
     };
 }

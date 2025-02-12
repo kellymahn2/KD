@@ -5,7 +5,7 @@
 #include <chrono>
 namespace Kaidel {
 
-	enum class MessageLevel : uint8_t{
+	enum class MessageLevel : uint8_t {
 		None,
 		Log,
 		Info,

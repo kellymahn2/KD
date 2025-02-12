@@ -61,7 +61,7 @@ namespace Kaidel {
 	//2D
 	struct SpriteRendererComponent
 	{
-		int x = 3;
+		Ref<Texture> SpriteTexture;
 		SpriteRendererComponent() = default;
 		SpriteRendererComponent(const SpriteRendererComponent&) = default;
 	};
@@ -218,6 +218,23 @@ namespace Kaidel {
 		CircleCollider2DComponent() = default;
 		CircleCollider2DComponent(const CircleCollider2DComponent&) = default;
 	};
+
+	struct TextComponent {
+
+		uint64_t RenderableCharacters = 0;
+		std::string TextContent;
+		glm::vec4 Color = glm::vec4(1.0f);
+
+		Ref<Font> TextFont = RendererGlobals::GetDefaultFont();
+
+		glm::vec4 BorderColor = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
+		float BorderThickness = 0.2f;
+		float Kerning = 0.0f;
+
+		TextComponent() = default;
+		TextComponent(const TextComponent&) = default;
+	};
+
 #pragma endregion
 
 }

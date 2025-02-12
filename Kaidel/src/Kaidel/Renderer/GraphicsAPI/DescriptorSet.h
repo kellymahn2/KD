@@ -78,20 +78,20 @@ namespace Kaidel {
 		virtual ~DescriptorSet() = default;
 
 		virtual const DescriptorSetSpecification& GetSpecification()const = 0;
-		virtual Ref<StorageBuffer> GetStorageBufferAtBinding(uint32_t i)const = 0;
-		virtual Ref<UniformBuffer> GetUniformBufferAtBinding(uint32_t i)const = 0;
-		virtual Ref<Texture> GetTextureAtBinding(uint32_t i)const = 0;
-		virtual Ref<Sampler> GetSamplerAtBinding(uint32_t i)const = 0;
+		virtual Ref<StorageBuffer> GetStorageBufferAtBinding(uint32_t i, uint32_t arrayIndex = 0)const = 0;
+		virtual Ref<UniformBuffer> GetUniformBufferAtBinding(uint32_t i, uint32_t arrayIndex = 0)const = 0;
+		virtual Ref<Texture> GetTextureAtBinding(uint32_t i, uint32_t arrayIndex = 0)const = 0;
+		virtual Ref<Sampler> GetSamplerAtBinding(uint32_t i, uint32_t arrayIndex = 0)const = 0;
 
-		virtual Ref<StorageBuffer> GetStorageBufferAtBinding(const std::string& name)const = 0;
-		virtual Ref<UniformBuffer> GetUniformBufferAtBinding(const std::string& name)const = 0;
-		virtual Ref<Texture> GetTextureAtBinding(const std::string& name)const = 0;
-		virtual Ref<Sampler> GetSamplerAtBinding(const std::string& name)const = 0;
+		virtual Ref<StorageBuffer> GetStorageBufferAtBinding(const std::string& name, uint32_t arrayIndex = 0)const = 0;
+		virtual Ref<UniformBuffer> GetUniformBufferAtBinding(const std::string& name, uint32_t arrayIndex = 0)const = 0;
+		virtual Ref<Texture> GetTextureAtBinding(const std::string& name, uint32_t arrayIndex = 0)const = 0;
+		virtual Ref<Sampler> GetSamplerAtBinding(const std::string& name, uint32_t arrayIndex = 0)const = 0;
 
-		virtual DescriptorSet& Update(Ref<Buffer> buffer, uint32_t binding) = 0;
-		virtual DescriptorSet& Update(Ref<Texture> image, Ref<Sampler> sampler, ImageLayout layout, uint32_t binding) = 0;
-		virtual DescriptorSet& Update(Ref<Buffer> buffer, const std::string& name) = 0;
-		virtual DescriptorSet& Update(Ref<Texture> image, Ref<Sampler> sampler, ImageLayout layout, const std::string& binding) = 0;
+		virtual DescriptorSet& Update(Ref<Buffer> buffer, uint32_t binding, uint32_t arrayIndex = 0) = 0;
+		virtual DescriptorSet& Update(Ref<Texture> image, Ref<Sampler> sampler, ImageLayout layout, uint32_t binding, uint32_t arrayIndex = 0) = 0;
+		virtual DescriptorSet& Update(Ref<Buffer> buffer, const std::string& name, uint32_t arrayIndex = 0) = 0;
+		virtual DescriptorSet& Update(Ref<Texture> image, Ref<Sampler> sampler, ImageLayout layout, const std::string& binding, uint32_t arrayIndex = 0) = 0;
 
 
 		virtual RendererID GetSetID()const = 0;

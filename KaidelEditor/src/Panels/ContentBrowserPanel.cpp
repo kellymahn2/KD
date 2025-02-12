@@ -19,7 +19,8 @@ namespace Kaidel {
 				return "CONTENT_BROWSER_ITEM";
 			if (extension == ".png")
 				return "ASSET_TEXTURE";
-			if(extension == Extensions::Material)
+			if (extension == Extensions::Material)
+				return "MAT";
 			return nullptr;
 		}
 

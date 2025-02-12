@@ -8,7 +8,7 @@ namespace Kaidel {
 
 
 	Timer::Timer(const std::string& name)
-		:m_Name(name),m_AccumulatedTimeInNanoSecs(0)
+		:m_Name(name), m_AccumulatedTimeInNanoSecs(0)
 	{}
 
 	void Timer::Start()
@@ -52,7 +52,7 @@ namespace Kaidel {
 		return GetNS() * 1e-9;
 	}
 
-	
+
 
 	/*static long long GetNanoseconds(std::chrono::steady_clock::time_point& start) {
 		auto now = std::chrono::high_resolution_clock::now();
@@ -63,13 +63,13 @@ namespace Kaidel {
 	{
 		return GetNanoseconds(m_Start)*1e-6;
 	}*/
-	
+
 	static std::unordered_map<std::string, uint64_t> s_Timers;
 
 	AccumulativeTimer::AccumulativeTimer(const std::string& name)
-		:m_Name(name),m_AccumulatedTimeInNanoSecs(0)
+		:m_Name(name), m_AccumulatedTimeInNanoSecs(0)
 	{
-		if(s_Timers.find(m_Name) == s_Timers.end())
+		if (s_Timers.find(m_Name) == s_Timers.end())
 			s_Timers[m_Name] = 0;
 	}
 	void AccumulativeTimer::Start() {
@@ -82,7 +82,7 @@ namespace Kaidel {
 	void AccumulativeTimer::Stop() {
 		auto end = std::chrono::high_resolution_clock::now();
 		m_AccumulatedTimeInNanoSecs = s_Timers.at(m_Name);
-		
+
 		m_AccumulatedTimeInNanoSecs += (uint64_t)std::chrono::duration_cast<std::chrono::nanoseconds>(end - m_Start).count();
 		s_Timers.at(m_Name) = m_AccumulatedTimeInNanoSecs;
 	}
@@ -95,7 +95,7 @@ namespace Kaidel {
 		}
 	}
 
-	ScopedAccumulativeTimer::ScopedAccumulativeTimer(const std::string& name) 
+	ScopedAccumulativeTimer::ScopedAccumulativeTimer(const std::string& name)
 		:m_Timer(name)
 	{
 		m_Timer.Start();

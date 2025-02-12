@@ -430,7 +430,7 @@ namespace VulkanBackend {
 		vkUnmapMemory(m_Device,info.AllocationInfo.deviceMemory);
 	}
 	
-	TextureInfo Backend::CreateTextureFromExisting(void* nativeTexture, uint32_t layers, uint32_t levels, VkFormat viewFormat, 
+	TextureInfo Backend::CreateTextureFromExisting(void* nativeTexture, uint32_t layer, uint32_t layerCount, uint32_t level, uint32_t levelCount, VkFormat viewFormat,
 		VkImageAspectFlags aspects, VkImageViewType viewType, VkComponentSwizzle swizzles[4])
 	{
 		VkImage image = (VkImage)nativeTexture;
@@ -445,8 +445,10 @@ namespace VulkanBackend {
 		viewInfo.components.g = swizzles[1];
 		viewInfo.components.b = swizzles[2];
 		viewInfo.components.a = swizzles[3];
-		viewInfo.subresourceRange.levelCount = levels;
-		viewInfo.subresourceRange.layerCount = layers;
+		viewInfo.subresourceRange.baseArrayLayer = layer;
+		viewInfo.subresourceRange.layerCount = layerCount;
+		viewInfo.subresourceRange.baseMipLevel = level;
+		viewInfo.subresourceRange.levelCount = levelCount;
 		viewInfo.subresourceRange.aspectMask = aspects;
 
 		VkImageView view = VK_NULL_HANDLE;
@@ -985,6 +987,7 @@ namespace VulkanBackend {
 			dep.dstStageMask = dependency->DstStages;
 			dep.srcAccessMask = dependency->SrcAccesses;
 			dep.dstAccessMask = dependency->DstAccesses;
+			dep.dependencyFlags = dependency->DependencyFlags;
 			subpassDependencies.push_back(dep);
 		}
 

@@ -43,9 +43,15 @@ namespace Kaidel {
 			
 			for (uint32_t i = 0; i < rpSpec.Colors.size(); ++i) {
 				const auto& color = rpSpec.Colors[i];
-
-				ret.Textures[i] = 
-					CreateRef<VulkanFramebufferTexture>(specs.Width,specs.Height, specs.Layers, color.AttachmentFormat,color.Samples,false);
+				Ref<Texture> t;
+				if (auto it = specs.TextureOverrides.find(i); it != specs.TextureOverrides.end() && it->second) {
+					t = it->second;
+				}
+				else {
+					t = 
+						CreateRef<VulkanFramebufferTexture>(specs.Width, specs.Height, specs.Layers, color.AttachmentFormat, color.Samples, false);
+				}
+				ret.Textures[i] = t;
 
 				infos.push_back(((const VulkanBackend::TextureInfo*)ret.Textures[i]->GetBackendInfo()));
 			}
@@ -54,8 +60,16 @@ namespace Kaidel {
 
 				auto& depth = rpSpec.DepthStencil;
 
-				ret.Textures[rpSpec.Colors.size()] =
-					CreateRef<VulkanFramebufferTexture>(specs.Width, specs.Height, specs.Layers, depth.AttachmentFormat, TextureSamples::x1, true);
+				Ref<Texture> t;
+				if (specs.OverrideDepth) {
+					t = specs.OverrideDepth;
+				}
+				else {
+					t = 
+						CreateRef<VulkanFramebufferTexture>(specs.Width, specs.Height, specs.Layers, depth.AttachmentFormat, TextureSamples::x1, true);
+				}
+
+				ret.Textures[rpSpec.Colors.size()] = t;
 
 				infos.push_back(((const VulkanBackend::TextureInfo*)ret.Textures[rpSpec.Colors.size()]->GetBackendInfo()));
 			}

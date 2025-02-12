@@ -457,4 +457,52 @@ namespace Kaidel {
 	{
 		VK_BACKEND->DestroyTexture(m_Info);
 	}
+	VulkanTextureReference::VulkanTextureReference(const TextureReferenceSpecification& specs)
+		: m_Specification(specs)
+	{
+		auto& backend = VK_BACKEND;
+
+		const VulkanBackend::TextureInfo* referenceInfo = (const VulkanBackend::TextureInfo*)specs.Reference->GetBackendInfo();
+		auto& referenceSpecs = specs.Reference->GetTextureSpecification();
+
+		KD_CORE_ASSERT(specs.LayerCount > 0);
+
+		VkImageViewType viewType;
+		if (specs.LayerCount > 1) {
+			viewType = referenceInfo->ViewInfo.viewType;
+		}
+		else if (specs.LayerCount == 1) {
+			if (referenceInfo->ViewInfo.viewType == VK_IMAGE_VIEW_TYPE_1D_ARRAY) {
+				viewType = VK_IMAGE_VIEW_TYPE_1D;
+			}
+			else if (referenceInfo->ViewInfo.viewType == VK_IMAGE_VIEW_TYPE_2D_ARRAY) {
+				viewType = VK_IMAGE_VIEW_TYPE_2D;
+			}
+			else {
+				viewType = referenceInfo->ViewInfo.viewType;
+			}
+		}
+
+		VkComponentSwizzle swizzles[4] = { VK_COMPONENT_SWIZZLE_MAX_ENUM };
+		swizzles[0] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
+		swizzles[1] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[1]);
+		swizzles[2] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[2]);
+		swizzles[3] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[3]);
+
+		m_Info = backend->CreateTextureFromExisting(
+			referenceInfo->ViewInfo.image,
+			specs.StartLayer,
+			specs.StartLayer,
+			specs.StartMip,
+			specs.MipCount,
+			referenceInfo->ViewInfo.format,
+			referenceInfo->ViewInfo.subresourceRange.aspectMask,
+			viewType,
+			swizzles
+		);
+	}
+	VulkanTextureReference::~VulkanTextureReference()
+	{
+		VK_BACKEND->DestroyTexture(m_Info);
+	}
 }

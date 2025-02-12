@@ -428,5 +428,5 @@ namespace Kaidel {
 	DEF_COMPONENT_ADD(AnimationPlayerComponent)
 	DEF_COMPONENT_ADD(ModelComponent)
 	DEF_COMPONENT_ADD(DirectionalLightComponent)
-
+	DEF_COMPONENT_ADD(TextComponent)
 }

@@ -311,6 +311,7 @@ namespace VulkanBackend
 		VkPipelineStageFlags DstStages;
 		VkAccessFlags SrcAccesses;
 		VkAccessFlags DstAccesses;
+		VkDependencyFlags DependencyFlags;
 	};
 
 	class Backend 
@@ -363,7 +364,7 @@ namespace VulkanBackend
 		TextureInfo CreateTexture(In<TextureInputInfo> info);
 		uint8_t* TextureMap(In<TextureInfo> info, VkImageAspectFlagBits aspect = VK_IMAGE_ASPECT_COLOR_BIT, uint32_t layer = 0, uint32_t mip = 0);
 		void TextureUnmap(In<TextureInfo> info);
-		TextureInfo CreateTextureFromExisting(void* nativeTexture, uint32_t layers, uint32_t levels, VkFormat viewFormat,
+		TextureInfo CreateTextureFromExisting(void* nativeTexture, uint32_t layer, uint32_t layerCount, uint32_t level, uint32_t levelCount, VkFormat viewFormat,
 			VkImageAspectFlags aspects, VkImageViewType viewType, VkComponentSwizzle swizzles[4]);
 		void DestroyTexture(InOut<TextureInfo> texture);
 

@@ -1,25 +1,3 @@
-[submodule "Hazel/vendor/spdlog"]
-	path = Hazel/vendor/spdlog
-	url = ../../gabime/spdlog.git
-	branch = v1.x
-[submodule "Hazel/vendor/GLFW"]
-	path = Hazel/vendor/GLFW
-	url = ../../TheCherno/glfw.git
-	branch = master
-[submodule "Hazel/vendor/imgui"]
-	path = Hazel/vendor/imgui
-	url = ../../TheCherno/imgui.git
-	branch = docking
-[submodule "Hazel/vendor/glm"]
-	path = Hazel/vendor/glm
-	url = ../../g-truc/glm.git
-	branch = master
-[submodule "Hazel/vendor/yaml-cpp"]
-	path = Hazel/vendor/yaml-cpp
-	url = https://github.com/thecherno/yaml-cpp
-[submodule "Hazel/vendor/ImGuizmo"]
-	path = Hazel/vendor/ImGuizmo
-	url = https://github.com/thecherno/imguizmo
 [submodule "Kaidel/vendor/glm"]
 	path = Kaidel/vendor/glm
 	url = https://github.com/g-truc/glm/
@@ -44,3 +22,6 @@
 [submodule "Kaidel/vendor/Assimp"]
 	path = Kaidel/vendor/Assimp
 	url = https://github.com/assimp/assimp
+[submodule "Kaidel/vendor/msdf-atlas-gen"]
+	path = Kaidel/vendor/msdf-atlas-gen
+	url = https://github.com/TheCherno/msdf-atlas-gen
