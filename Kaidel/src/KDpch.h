@@ -1,6 +1,7 @@
 #pragma once
 
-
+#pragma warning (disable:4005)
+#pragma warning (disable:4006)
 
 #include "Kaidel/Core/PlatformDetection.h"
 #include "Kaidel/Core/Timer.h"

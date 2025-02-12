@@ -18,7 +18,7 @@ namespace Kaidel {
 		bool Compare = false;
 		CompareOp CompareOp = CompareOp::Always;
 		float MinLod = 0.0f;
-		float MaxLod = 1e20;
+		float MaxLod = 1e20f;
 		SamplerBorderColor BorderColor = SamplerBorderColor::FloatOpaqueBlack;
 		bool Unnormalized = false;
 	};

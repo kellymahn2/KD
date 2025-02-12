@@ -468,6 +468,8 @@ namespace Kaidel {
 			const auto& camera = cameraEntity.GetComponent<CameraComponent>().Camera;
 			return { glm::inverse(cameraEntity.GetComponent<TransformComponent>().GetTransform()),camera.GetProjection() };
 		}
+		else
+			return { glm::mat4(1.0f),glm::mat4(1.0f) };
 	}
 
 	void EditorLayer::MoveChildren(Entity curr, const glm::vec3& deltaTranslation, const glm::vec3& deltaRotation, Entity parent) {
@@ -579,9 +581,9 @@ namespace Kaidel {
 		//auto stats = Renderer2D::GetStats();
 		ImGui::Text("Frame Rate: %.3f", ImGui::GetIO().Framerate);
 		for (const auto& [name, data] : AccumulativeTimer::GetTimers()) {
-			float ns = data;
-			float ms = (float)ns * 1e-6;
-			float s = (float)ns * 1e-9;
+			float ns = (float)data;
+			float ms = (float)ns * 1e-6f;
+			float s = (float)ns * 1e-9f;
 			ImGui::TextWrapped("%s Took :(%.3f ns,%.3f ms,%.3f s)", name.c_str(), ns, ms, s);
 		}
 		
@@ -681,8 +683,8 @@ namespace Kaidel {
 			RenderCommand::DeviceWaitIdle();
 			{
 				Texture2DSpecification specs{};
-				specs.Width = m_ViewportSize.x;
-				specs.Height = m_ViewportSize.y;
+				specs.Width = (uint32_t)m_ViewportSize.x;
+				specs.Height = (uint32_t)m_ViewportSize.y;
 				specs.Depth = outputSpec.Depth;
 				specs.Layers = outputSpec.Layers;
 				specs.Mips = outputSpec.Mips;

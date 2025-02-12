@@ -103,7 +103,7 @@ namespace Kaidel {
 
 			VulkanBackend::AttachmentReference ref{};
 			ref.Aspects = VK_IMAGE_ASPECT_COLOR_BIT;
-			ref.Attachment = attachments.size();
+			ref.Attachment = (uint32_t)attachments.size();
 			ref.Layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 			attachments.push_back(Utils::ToAttachment(attachment));
@@ -118,7 +118,7 @@ namespace Kaidel {
 			
 			VulkanBackend::AttachmentReference ref{};
 			ref.Aspects = VK_IMAGE_ASPECT_DEPTH_BIT;
-			ref.Attachment = attachments.size();
+			ref.Attachment = (uint32_t)attachments.size();
 			ref.Layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
 			
 			auto attachment = Utils::ToAttachment(specs.DepthStencil);
@@ -134,12 +134,12 @@ namespace Kaidel {
 		{
 			KD_CORE_ASSERT(samples != TextureSamples::x1);
 
-			m_ResolvesOffset = attachments.size();
+			m_ResolvesOffset = (uint32_t)attachments.size();
 
 			for (uint32_t i = 0; i < specs.Colors.size(); ++i) {
 				VulkanBackend::AttachmentReference ref{};
 				ref.Aspects = VK_IMAGE_ASPECT_COLOR_BIT;
-				ref.Attachment = attachments.size();
+				ref.Attachment = (uint32_t)attachments.size();
 				ref.Layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 				VulkanBackend::RenderPassAttachment attachment = attachments[i];

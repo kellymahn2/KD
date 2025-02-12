@@ -577,14 +577,14 @@ namespace Kaidel {
 
 
 			ImGui::ColorEdit4("Color", &component.Color.x);
-			int32_t cpy = component.Tesselation;
+			int32_t cpy = (int32_t)component.Tesselation;
 			if (ImGui::InputInt("Tesselation", (int*)&cpy)) {
 				if (cpy >= 0) {
 					component.Tesselation = cpy;
 					component.RecalculateFinalPoints();
 				}
 			}
-			uint32_t size = component.Points.size();
+			uint32_t size = (uint32_t)component.Points.size();
 			uint32_t i = 0;
 			static const ImVec2 padding = { 16.0f,0 };
 			const ImVec2 addButtonSize = ImGui::CalcTextSize("+") + padding;
@@ -648,7 +648,7 @@ namespace Kaidel {
 					}
 					static bool IsChoosingScript = false;
 					ImGui::SameLine();
-					ImGui::PushID(currentIndex);
+					ImGui::PushID((int)currentIndex);
 					IsChoosingScript = !entityScripts.empty() && (ImGui::Button("##ScriptChooser", { 15,0 }) || (IsChoosingScript));
 					ImGui::PopID();
 					if (IsChoosingScript && currentChoosingIndex == -1)
@@ -675,7 +675,7 @@ namespace Kaidel {
 						++currentIndex;
 						continue;
 					}
-					ImGui::PushID(currentIndex);
+					ImGui::PushID((int)currentIndex);
 					if (sceneRunning) {
 						Ref<ScriptInstance> instance = entityScriptInstances.at(klassName);
 						KD_CORE_ASSERT(instance);

@@ -400,7 +400,7 @@ namespace Kaidel {
 		}
 
 		if (sprites.VertexCount + 4 > sprites.Vertices.size()) {
-			uint64_t newSize = sprites.VertexCount * 1.5f + 4;
+			uint64_t newSize = (uint64_t)(sprites.VertexCount * 1.5f) + 4;
 			if (newSize > SpriteData::MaxVertexCount) {
 				newSize = SpriteData::MaxVertexCount;
 			}
@@ -430,7 +430,7 @@ namespace Kaidel {
 		double lineHeightOffset = 0.0;
 
 		uint64_t renderedCharacters = 0;
-		const float spaceGlyphAdvance = fontGeometry.getGlyph(' ')->getAdvance();
+		const float spaceGlyphAdvance = (float)fontGeometry.getGlyph(' ')->getAdvance();
 		for (uint32_t i = 0; i < string.length(); ++i) {
 
 			if (string[i] == '\n')
@@ -479,7 +479,7 @@ namespace Kaidel {
 			}
 
 			if (texts.VertexCount + 4 > texts.Vertices.size()) {
-				uint64_t newSize = texts.VertexCount * 1.5f + 4;
+				uint64_t newSize = (uint64_t)(texts.VertexCount * 1.5f) + 4;
 				texts.Vertices.resize(newSize);
 			}
 
@@ -703,7 +703,7 @@ namespace Kaidel {
 						lastTexture = draw.TextureIndex;
 						RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("SpriteRender"), sprites.Batches->TextureSet[draw.TextureIndex], 0);
 					}
-					RenderCommand::DrawIndexed((draw.VertexCount / 4) * 6, 0, 1, 0, 0, 0);
+					RenderCommand::DrawIndexed((uint32_t)((draw.VertexCount / 4) * 6), 0, 1, 0, 0, 0);
 				}
 			}
 		}
@@ -908,7 +908,7 @@ namespace Kaidel {
 					
 					lastSetMaterial->BindTransform(model);
 					
-					RenderCommand::DrawIndexed(mesh->GetIndexCount(), mesh->GetVertexCount(), 1, 0, 0, 0);
+					RenderCommand::DrawIndexed((uint32_t)mesh->GetIndexCount(), (uint32_t)mesh->GetVertexCount(), 1, 0, 0, 0);
 				}
 			}
 		}
@@ -1097,8 +1097,6 @@ namespace Kaidel {
 			lightRotation = glm::transpose(glm::inverse(glm::mat3(lightRotation)));
 
 
-			static const constexpr int cascadeSplitLambda = 0.95f;
-
 			std::vector<float> splits = GetSplitDistances(4, minDistance, maxDistance, dlc.SplitLambda);
 
 			//KD_CORE_INFO("{},{},{},{}", splits[0], splits[1], splits[2], splits[3]);
@@ -1173,7 +1171,7 @@ namespace Kaidel {
 					}
 					RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("ShadowPass"), 0, model);
 
-					RenderCommand::DrawIndexed(mesh->GetIndexCount(), mesh->GetVertexCount(), 1, 0, 0, 0);
+					RenderCommand::DrawIndexed((uint32_t)mesh->GetIndexCount(), (uint32_t)mesh->GetVertexCount(), 1, 0, 0, 0);
 				}
 			}
 		}
@@ -1306,7 +1304,7 @@ namespace Kaidel {
 			}
 			else {
 				RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("TextPass"), lastFont->GetSet(), 0);
-				RenderCommand::DrawIndexed(indexCount, 4, 1, indexOffset, 0, 0);
+				RenderCommand::DrawIndexed((uint32_t)indexCount, 4, 1, (uint32_t)indexOffset, 0, 0);
 				indexOffset += indexCount;
 				indexCount = 0;
 				lastFont = text.TextFont;
@@ -1315,7 +1313,7 @@ namespace Kaidel {
 
 		if (indexCount) {
 			RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("TextPass"), lastFont->GetSet(), 0);
-			RenderCommand::DrawIndexed(indexCount, 4, 1, indexOffset, 0, 0);
+			RenderCommand::DrawIndexed((uint32_t)indexCount, 4, 1, (uint32_t)indexOffset, 0, 0);
 		}
 
 		/*RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("TextPass"), font->GetSet(), 0);
@@ -1330,8 +1328,8 @@ namespace Kaidel {
 		{
 			uint32_t* indices = new uint32_t[SpriteData::MaxIndexCount];
 
-			uint64_t vertex = 0;
-			for (uint64_t i = 0; i < SpriteData::MaxIndexCount; i += 6) {
+			uint32_t vertex = 0;
+			for (uint32_t i = 0; i < (uint32_t)SpriteData::MaxIndexCount; i += 6) {
 				indices[i] = vertex + 0;
 				indices[i + 1] = vertex + 1;
 				indices[i + 2] = vertex + 2;

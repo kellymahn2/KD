@@ -52,17 +52,17 @@ namespace Kaidel {
 		}
 		
 		static void BindPushConstants(Ref<Shader> shader, uint64_t offset,const uint8_t* ptr,uint64_t size) {
-			s_RendererAPI->BindPushConstants(shader, offset,ptr,size);
+			s_RendererAPI->BindPushConstants(shader, (uint32_t)offset,ptr,size);
 		}
 
 		template<typename T,typename... Args>
 		static void BindPushConstants(Ref<Shader> shader, uint64_t offset, T&& value, Args&&... args) {
-			s_RendererAPI->BindPushConstants(shader, offset, (const uint8_t*)&value, sizeof(T));
+			s_RendererAPI->BindPushConstants(shader, (uint32_t)offset, (const uint8_t*)&value, sizeof(T));
 			BindPushConstants(shader, offset + sizeof(T), std::forward<Args>(args)...);
 		}
 		template<typename T>
 		static void BindPushConstants(Ref<Shader> shader, uint64_t offset, T&& value) {
-			s_RendererAPI->BindPushConstants(shader, offset, (const uint8_t*)&value, sizeof(T));
+			s_RendererAPI->BindPushConstants(shader, (uint32_t)offset, (const uint8_t*)&value, sizeof(T));
 		}
 
 		static void BindDescriptorSet(Ref<Shader> shader, Ref<DescriptorSet> set, uint32_t setIndex) {

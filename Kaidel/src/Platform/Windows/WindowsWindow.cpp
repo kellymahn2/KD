@@ -252,8 +252,8 @@ namespace Kaidel {
 		//KD_CORE_INFO("\t({},{})", windowPosX, windowPosY);
 
 		int globalPosX, globalPosY;
-		globalPosX = currentPosRelWindowX + windowPosX;
-		globalPosY = currentPosRelWindowY + windowPosY;
+		globalPosX = (int)currentPosRelWindowX + windowPosX;
+		globalPosY = (int)currentPosRelWindowY + windowPosY;
 		//KD_CORE_INFO("\t({},{})", globalPosX, globalPosY);
 
 		bool wrapped = false;
@@ -273,7 +273,7 @@ namespace Kaidel {
 		glfwSetCursorPos(window, newPosRelWindowX, newPosRelWindowY);
 
 		if (wrapped) {
-			Application::Get().GetImGuiLayer()->OnMouseWrap(globalPosX);
+			Application::Get().GetImGuiLayer()->OnMouseWrap((float)globalPosX);
 		}
 
 	}

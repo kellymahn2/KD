@@ -34,13 +34,13 @@ namespace Kaidel {
 		void PopColor(uint64_t count) {
 			if (count > m_ColorCount)
 				return;
-			ImGui::PopStyleColor(count);
+			ImGui::PopStyleColor((int)count);
 			m_ColorCount -= count;
 		}
 		void PopStyle(uint64_t count) {
 			if (count > m_StyleCount)
 				return;
-			ImGui::PopStyleVar(count);
+			ImGui::PopStyleVar((int)count);
 			m_StyleCount -= count;
 		}
 

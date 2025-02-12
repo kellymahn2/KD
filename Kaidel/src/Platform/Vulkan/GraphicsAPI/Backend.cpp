@@ -1133,7 +1133,7 @@ namespace VulkanBackend {
 			++sizes[type].descriptorCount;
 
 			VkDescriptorSetLayoutBinding binding{};
-			binding.binding = bindings.size();
+			binding.binding = (uint32_t)bindings.size();
 			binding.descriptorCount = 1;
 			binding.descriptorType = type;
 			binding.stageFlags = flags;

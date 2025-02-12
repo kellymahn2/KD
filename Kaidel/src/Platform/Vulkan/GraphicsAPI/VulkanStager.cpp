@@ -8,7 +8,7 @@ namespace Kaidel {
 		:m_EachBufferSize(eachBufferSize),m_Blocks(VK_CONTEXT.GetMaxFramesInFlightCount())
 	{
 		for (auto& block : m_Blocks) {
-			block = CreateFrameBlock(eachBufferSize, maximumStagingBuffersPerFrame);
+			block = CreateFrameBlock((uint32_t)eachBufferSize, maximumStagingBuffersPerFrame);
 		}
 	}
 

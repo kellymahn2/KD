@@ -332,8 +332,8 @@ namespace Kaidel {
 
 
 		VkViewport viewport{};
-		viewport.width = m_Swapchain.Extent.width;
-		viewport.height = m_Swapchain.Extent.height;
+		viewport.width = (float)m_Swapchain.Extent.width;
+		viewport.height = (float)m_Swapchain.Extent.height;
 		viewport.minDepth = 0.0f;
 		viewport.height = 1.0f;
 		viewport.x = 0;

@@ -48,7 +48,7 @@ namespace Kaidel {
 		AccessFlags Src = 0;
 		AccessFlags Dst = 0;
 		uint64_t Offset = 0;
-		uint64_t Size = -1;
+		uint64_t Size = (uint64_t)-1;
 	};
 
 	class RendererAPI

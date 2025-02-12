@@ -9,39 +9,6 @@ namespace Kaidel {
 
 	namespace Utils {
 
-		static void* ConvertToI32(const float* data, int width, int height, int channelCount) {
-			int32_t* res = new int32_t[width * height * channelCount];
-
-			for (uint32_t i = 0; i < height; ++i) {
-				for (uint32_t j = 0; j < width; ++j) {
-					for (uint32_t k = 0; k < channelCount; ++k) {
-						uint64_t offset = ((uint64_t)i * width + j) * channelCount + k;
-						float val = data[offset];
-						res[offset] = (int32_t)val;
-					}
-				}
-			}
-
-			return res;
-		}
-
-		static void* ConvertToU32(const float* data, int width, int height, int channelCount) {
-			uint32_t* res = new uint32_t[width * height * channelCount];
-
-			for (uint32_t i = 0; i < height; ++i) {
-				for (uint32_t j = 0; j < width; ++j) {
-					for (uint32_t k = 0; k < channelCount; ++k) {
-						uint64_t offset = ((uint64_t)i * width + j) * channelCount + k;
-						float val = data[offset];
-						res[offset] = (int32_t)val;
-					}
-				}
-			}
-
-			return res;
-		}
-
-
 		struct ImageLoadResult {
 			const void* Data;
 			uint32_t Width, Height;
@@ -362,10 +329,12 @@ namespace Kaidel {
 
 	const Path& TextureLibrary::GetPath(Ref<Texture2D> texture)
 	{
+		static Path empty = {};
 		auto it = s_LibraryData->LoadedTexturesInv.find(texture);
 		if (it != s_LibraryData->LoadedTexturesInv.end())
 			return it->second;
 		KD_CORE_ASSERT(false);
+		return empty;
 	}
 	
 	bool TextureLibrary::Exists(const Path& path)

@@ -98,7 +98,7 @@ namespace VulkanBackend
 		bool Compare = false;
 		VkCompareOp CompareOp = VK_COMPARE_OP_ALWAYS;
 		float MinLod = 0.0f;
-		float MaxLod = 1e20;
+		float MaxLod = 1e20f;
 		VkBorderColor BorderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
 		bool Unnormalized = false;
 	};
@@ -288,7 +288,7 @@ namespace VulkanBackend
 
 	struct AttachmentReference 
 	{
-		uint32_t Attachment = -1;
+		uint32_t Attachment = (uint32_t)-1;
 		VkImageLayout Layout = VK_IMAGE_LAYOUT_UNDEFINED;
 		VkImageAspectFlags Aspects;
 	};

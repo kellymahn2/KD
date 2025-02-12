@@ -80,11 +80,6 @@ project "Kaidel"
 	filter "system:windows"
 		systemversion "latest"
 
-		defines
-		{
-			"KD_PLATFORM_WINDOWS"
-		}
-
 		links
 		{
 			"%{Library.WinSock}",

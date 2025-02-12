@@ -75,17 +75,17 @@ namespace Kaidel {
 				return texture.Texture;
 		}
 
-		uint32_t r = color.r * 255.0f;
-		uint32_t g = color.g * 255.0f;
-		uint32_t b = color.b * 255.0f;
-		uint32_t a = color.a * 255.0f;
+		uint32_t r = (uint32_t)(color.r * 255.0f);
+		uint32_t g = (uint32_t)(color.g * 255.0f);
+		uint32_t b = (uint32_t)(color.b * 255.0f);
+		uint32_t a = (uint32_t)(color.a * 255.0f);
 
 		r = std::clamp(r, 0U, 255U);
 		g = std::clamp(g, 0U, 255U);
 		b = std::clamp(b, 0U, 255U);
 		a = std::clamp(a, 0U, 255U);
 
-		uint8_t bytes[4] = { r,g,b,a };
+		uint8_t bytes[4] = { (uint8_t)r,(uint8_t)g,(uint8_t)b,(uint8_t)a };
 
 		Texture2DSpecification specs;
 		specs.Width = 1;

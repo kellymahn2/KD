@@ -143,7 +143,7 @@ namespace Kaidel {
 				unsigned long long glyphSeed = (LCG_MULTIPLIER * (coloringSeed ^ i) + LCG_INCREMENT) * !!coloringSeed;
 				glyphs[i].edgeColoring(msdfgen::edgeColoringInkTrap, DEFAULT_ANGLE_THRESHOLD, glyphSeed);
 				return true;
-				}, m_Data->Glyphs.size()).finish(THREAD_COUNT);
+				}, (int)m_Data->Glyphs.size()).finish(THREAD_COUNT);
 		}
 		else {
 			unsigned long long glyphSeed = coloringSeed;

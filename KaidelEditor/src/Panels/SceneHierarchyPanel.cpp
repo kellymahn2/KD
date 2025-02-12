@@ -80,9 +80,9 @@ namespace Kaidel {
 		static float defFont = ImGui::GetFont()->FontSize;
 		if (currContext == entity) {
 			ImGui::GetFont()->FontSize -= .8f;
-			styler.PushColor(ImGuiCol_HeaderHovered, { .2,.2,.2,1.0f });
-			styler.PushColor(ImGuiCol_HeaderActive, { .2,.2,.2,1.0f });
-			styler.PushColor(ImGuiCol_Header, { .2,.2,.2,1.0f });
+			styler.PushColor(ImGuiCol_HeaderHovered, { .2f,.2f,.2f,1.0f });
+			styler.PushColor(ImGuiCol_HeaderActive, { .2f,.2f,.2f,1.0f });
+			styler.PushColor(ImGuiCol_Header, { .2f,.2f,.2f,1.0f });
 		}
 		else
 			ImGui::GetFont()->FontSize = defFont;
@@ -136,7 +136,7 @@ namespace Kaidel {
 		}
 		else {
 			flags |= ImGuiTreeNodeFlags_Leaf| ImGuiTreeNodeFlags_NoTreePushOnOpen;
-			ImGui::PushID((uint64_t)entity.GetUUID());
+			ImGui::PushID((int)(uint64_t)entity.GetUUID());
 			opened = ImGui::TreeNodeEx(tag.c_str(),flags);
 			const char* id = "PopupID";
 			if (ImGui::IsItemClicked(ImGuiMouseButton_Right))

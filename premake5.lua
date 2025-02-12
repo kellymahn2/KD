@@ -15,6 +15,13 @@ workspace "KD"
 	{
 		"MultiProcessorCompile"
 	}
+	buildoptions{
+		"/wd4005"
+	}
+	linkoptions{
+		"/IGNORE:4006",
+		"/IGNORE:4099",
+	}
 
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
