@@ -154,13 +154,13 @@ namespace Kaidel {
 			dlc.SplitLambda = 0.95f;
 			dlc.FadeStart = 1.0f;
 		}
-		{
-			Entity e = m_ActiveScene->CreateEntity("Text");
-			auto& tc = e.AddComponent<TextComponent>();
-			auto x = ReadFile("E:/KD/Kaidel/src/Kaidel/Scene/SceneRenderer.cpp");
-			tc.TextContent = std::string(x.begin(), x.end());
-			tc.TextFont = RendererGlobals::GetDefaultFont();
-		}
+		//{
+		//	Entity e = m_ActiveScene->CreateEntity("Text");
+		//	auto& tc = e.AddComponent<TextComponent>();
+		//	//auto x = ReadFile("E:/KD/Kaidel/src/Kaidel/Scene/SceneRenderer.cpp");
+		//	tc.TextContent = "Kaidel";
+		//	tc.TextFont = RendererGlobals::GetDefaultFont();
+		//}
 		//{
 		//	Entity e = m_ActiveScene->CreateEntity("Square2");
 		//	auto& src = e.AddComponent<SpriteRendererComponent>();

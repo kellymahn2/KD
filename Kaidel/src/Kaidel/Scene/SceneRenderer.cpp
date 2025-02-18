@@ -110,7 +110,23 @@ namespace Kaidel {
 		Ref<GraphicsPipeline> Pipeline;
 		Ref<RenderPass> TextRenderPass;
 		std::vector<TextVertex> Vertices;
-		uint64_t VertexCount;
+		uint64_t VertexCount = 0;
+
+		PerFrameResource<Ref<VertexBuffer>> Buffer;
+	};
+
+	struct LineData {
+		struct LineVertex {
+			glm::vec3 Position;
+			glm::vec4 Color;
+			glm::vec3 Normal;
+			float LineWidth;
+		};
+
+		Ref<GraphicsPipeline> Pipeline;
+		Ref<RenderPass> LineRenderPass;
+		std::vector<LineVertex> Vertices;
+		uint64_t VertexCount = 0;
 
 		PerFrameResource<Ref<VertexBuffer>> Buffer;
 	};
@@ -158,6 +174,7 @@ namespace Kaidel {
 
 		SpriteData Sprites;
 		TextData Texts;
+		LineData Lines;
 
 		ShadowData Shadows;
 		Ref<Sampler> GlobalSampler;
@@ -1200,6 +1217,129 @@ namespace Kaidel {
 
 	#pragma endregion
 
+	const int n = 100;
+	const glm::vec2 interval = { 0.0f,1.0f }/*{ 0.0f, 2.0f * glm::pi<float>() }*//*{ -10.0f,10.0f }*/;
+	const float lineWidth = 0.01f;
+
+	static void CreateLinePassResources() {
+		auto& lines = s_Data->Lines;
+
+		{
+			lines.LineRenderPass = s_Data->Texts.TextRenderPass;
+		}
+
+		{
+			GraphicsPipelineSpecification specs;
+			
+			specs.Input.Bindings.push_back(
+				VertexInputBinding(
+					{
+						{"a_Position", Format::RGB32F},
+						{"a_Color", Format::RGBA32F},
+						{"a_Tangent", Format::RGB32F},
+						{"a_LineWidth", Format::R32F}
+					}
+				)
+			);
+
+			specs.Primitive = PrimitiveTopology::LineList;
+
+			specs.RenderPass = lines.LineRenderPass;
+
+			specs.Shader = ShaderLibrary::LoadOrGetNamedShader("LinePass", "assets/_shaders/LinePass.glsl");
+
+			lines.Pipeline = GraphicsPipeline::Create(specs);
+		}
+
+		{
+			float maxT = 0.5f;
+			std::vector<LineData::LineVertex> vertices(2 * n);
+
+			auto position = [](float t, glm::vec3 positions[4]) {
+				float u = 1.0f - t;
+				return
+					u * u * u * positions[0] +
+					3.0f * u * u * t * positions[1] +
+					3.0f * u * t * t * positions[2] +
+					t * t * t * positions[3];
+
+				//Sin(x)
+				//return glm::vec3(t, glm::sin(t),0.0f);
+			
+				//X^2
+				//return glm::vec3(t, t * t, 0.0f);
+			};
+
+			auto normal = [](float t, glm::vec3 positions[4]) {
+				glm::vec3 rPrime = glm::vec3(0.0f);
+				{
+					float u = 1.0f - t;
+					rPrime =
+						3.0f * u * u * (positions[1] - positions[0]) +
+						6.0f * u * t * (positions[2] - positions[1]) +
+						3.0f * t * t * (positions[3] - positions[2]);
+
+					//Sin(x)
+					//rPrime = glm::vec3(1.0f, glm::cos(t), 0.0f);
+				
+					//X^2
+					//rPrime = glm::vec3(1, 2.0f * t, 0.0f);
+				}
+				glm::vec3 rDoublePrime = glm::vec3(0.0f);
+				{
+					float u = 1.0f - t;
+					rDoublePrime =
+						-6.0f * u * (positions[1] - positions[0]) +
+						6.0f * (1.0f - 2.0f * t) * (positions[2] - positions[1])
+						+ 6.0f * t * t * (positions[3] - positions[2]);
+					
+					//Sin(x)
+					//rDoublePrime = glm::vec3(0.0f, -glm::sin(t), 0.0f);
+
+					//X^2
+					//rDoublePrime = glm::vec3(0.0f, 2.0f, 0.0f);
+				}
+
+				glm::vec3 rDoublePrime_Cross_rPrime = glm::cross(rDoublePrime, rPrime);
+				return glm::cross(rPrime, rDoublePrime_Cross_rPrime) / (glm::length(rPrime) * glm::length(rDoublePrime_Cross_rPrime));
+			};
+
+			glm::vec3 positions[4] = { {} };
+			positions[0] = glm::vec3(0.0f);
+			positions[1] = glm::vec3(1.0f, 1.0f, 0.0f);
+			positions[2] = glm::vec3(2.0f, 1.0f, 0.0f);
+			positions[3] = glm::vec3(3.0f, 0.0f, 0.0f);
+
+			for (int i = 0; i < n; ++i) {
+				{
+					float t = (float)(i + 0) / (float)(n) * (interval.y - interval.x) + interval.x;
+					vertices[2 * i + 0].Position = position(t, positions);
+					vertices[2 * i + 0].Normal = normal(t, positions);
+					vertices[2 * i + 0].LineWidth = lineWidth;
+					vertices[2 * i + 0].Color = glm::mix(glm::vec4(1.0f, 0.0f, 0.0f, 1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f), t);
+					if (glm::dot(vertices[2 * i + 0].Normal, glm::vec3(0.0f, 1.0f, 0.0f)) < 0.0f) {
+						vertices[2 * i + 0].Normal = -vertices[2 * i + 0].Normal;
+					}
+				}
+
+				{
+					float t = (float)(i + 1) / (float)(n) * (interval.y - interval.x) + interval.x;
+					vertices[2 * i + 1].Position = position(t, positions);
+					vertices[2 * i + 1].Normal = normal(t, positions);
+					vertices[2 * i + 1].LineWidth = lineWidth;
+					vertices[2 * i + 1].Color = glm::mix(glm::vec4(1.0f, 0.0f, 0.0f, 1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f), t);
+					if (glm::dot(vertices[2 * i + 1].Normal, glm::vec3(0.0f, 1.0f, 0.0f)) < 0.0f) {
+						vertices[2 * i + 1].Normal = -vertices[2 * i + 1].Normal;
+					}
+				}
+			}
+
+			lines.Buffer.Construct([vertices](uint32_t i) {
+				return VertexBuffer::Create(vertices.data(), vertices.size() * sizeof(LineData::LineVertex));
+			});
+		}
+	}
+
 	static void CreateTextPassResources() {
 		auto& texts = s_Data->Texts;
 
@@ -1322,6 +1462,22 @@ namespace Kaidel {
 		RenderCommand::EndRenderPass();
 	}
 
+	static void InsertTextPassBarrier() {
+		ImageMemoryBarrier barrier(
+			s_Data->Outputs->Get()->GetColorAttachment(0),
+			ImageLayout::ColorAttachmentOptimal,
+			AccessFlags_ColorAttachmentWrite,
+			AccessFlags_ColorAttachmentWrite
+		);
+
+		RenderCommand::PipelineBarrier(
+			PipelineStages_ColorAttachmentOutput,
+			PipelineStages_ColorAttachmentOutput,
+			{},
+			{},
+			{ barrier });
+	}
+
 	static void CreateSpriteResources() {
 		auto& spriteData = s_Data->Sprites;
 
@@ -1340,6 +1496,7 @@ namespace Kaidel {
 			}
 
 			spriteData.SpriteIndexBuffer = IndexBuffer::Create(indices, SpriteData::MaxIndexCount * sizeof(uint32_t), IndexType::Uint32);
+			delete[] indices;
 		}
 
 		//Pipeline
@@ -1364,12 +1521,28 @@ namespace Kaidel {
 		}
 	}
 
+	static void LinePass(const SceneData& sceneData, entt::registry& sceneReg) 
+	{
+		auto& lines = s_Data->Lines;
+		
+		RenderCommand::BindVertexBuffers({ *lines.Buffer }, { 0 });
+
+		RenderCommand::BindGraphicsPipeline(lines.Pipeline);
+		RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("LinePass"), 0, sceneData.ViewProj);
+
+		RenderCommand::BeginRenderPass(lines.LineRenderPass, *s_Data->Outputs, {});
+
+		RenderCommand::Draw(2 * n, 1, 0, 0);
+		
+		RenderCommand::EndRenderPass();
+	}
+	
 	bool SceneRenderer::NeedsRecreation(Ref<Texture2D> output) {
 		const auto& specs = output->GetTextureSpecification();
 		return specs.Width != s_Data->Width ||
 			specs.Height != s_Data->Height;
 	}
-	
+
 	SceneRenderer::SceneRenderer(void* scene)
 		:m_Context(scene)
 	{
@@ -1416,6 +1589,8 @@ namespace Kaidel {
 			CreateTonemapPassResources();
 
 			CreateTextPassResources();
+
+			CreateLinePassResources();
 
 			CreateSpriteResources();
 			Light l{};
@@ -1470,6 +1645,9 @@ namespace Kaidel {
 		InsertTonemapPassBarrier();
 
 		TextPass(sceneData, scene->m_Registry);
+		InsertTextPassBarrier();
+
+		LinePass(sceneData, scene->m_Registry);
 
 		ResolveToOutput(outputBuffer);
 	}
