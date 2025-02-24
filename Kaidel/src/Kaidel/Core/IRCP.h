@@ -7,15 +7,15 @@ namespace Kaidel {
 	template<bool ThreadSafe>
 	struct IRCCounter;
 
-	template<>
-	struct IRCCounter<false> {
+	template<int MinCount>
+	struct IRCCounter<false, MinCount> {
 		uint64_t Count = 0;
 		void IncrementRef() {
 			++Count;
 		}
 		template<typename T>
 		void DecrementRef() {
-			if (--Count == 0) {
+			if (--Count == MinCount) {
 				delete dynamic_cast<T*>(this);
 			}
 		}
@@ -33,7 +33,7 @@ namespace Kaidel {
 		}
 		template<typename T>
 		void DecrementRef() {
-			if (--Count == 0) {
+			if (--Count == MinCount) {
 				delete dynamic_cast<T*>(this);
 			}
 		}

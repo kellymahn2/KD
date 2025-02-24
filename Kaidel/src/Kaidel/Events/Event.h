@@ -19,6 +19,7 @@ namespace Kaidel {
 		MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled,
 		RendererSettingsChanged,
 		EntityCreated, EntityRemoved, EntityPositionChanged, EntityRotationChanged, EntityScaleChanged,
+		AudioStart, AudioEnd, AudioLoopEnd
 	};
 
 	enum EventCategory
@@ -31,6 +32,7 @@ namespace Kaidel {
 		EventCategoryMouseButton    = BIT(4),
 		EventCategorySettings		= BIT(5),
 		EventCategoryEntity			= BIT(6),
+		EventCategoryAudio			= BIT(6)
 	};
 
 #define EVENT_CLASS_TYPE(type) static EventType GetStaticType() { return EventType::type; }\

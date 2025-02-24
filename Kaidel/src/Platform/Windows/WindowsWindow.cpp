@@ -11,6 +11,8 @@
 #include "Kaidel/Renderer/Renderer.h"
 #include "Kaidel/Renderer/RendererAPI.h"
 
+#include "Platform/Windows/Audio/XAudioEngine.h"
+
 #include <imgui.h>
 
 namespace Kaidel {
@@ -68,6 +70,7 @@ namespace Kaidel {
 		m_Context->Init();
 
 		SetThreadDescription(GetCurrentThread(), L"MainThread");
+		XAudioEngine::Init();
 
 		RenderCommand::Get() = RendererAPI::Create();
 
@@ -186,7 +189,7 @@ namespace Kaidel {
 			m_Context->Shutdown();
 			glfwTerminate();
 		}
-
+		XAudioEngine::Shutdown();
 	}
 
 	void WindowsWindow::PollEvents() const

@@ -12,11 +12,14 @@
 
 #include "Kaidel/Scene/SceneSerializer.h"
 
+#include "Kaidel/Events/AudioEvent.h"
+
 #include "Kaidel/Utils/PlatformUtils.h"
 
 #include "Kaidel/Scripting/ScriptEngine.h"
 #include "Kaidel/Asset/AssetImporters/MaterialSerializer.h"
 #include "Kaidel/Renderer/Text/Font.h"
+#include "Platform/Windows/Audio/XAudioEngine.h"
 #include "Kaidel/Scene/ModelLibrary.h"
 #include "Panels/AssetChooser.h"
 
@@ -44,16 +47,16 @@
 namespace Kaidel {
 	glm::vec4 _GetUVs();
 
-	static Ref<VisualShader> mat;
+	Ref<AudioSource> source;
 
-	//Animations work.
-	//TODO: Add the ability to actually render the animation curve.
-	//TODO: Add the UI for animations.
-	//TODO: Add the ability to load animations from animation files.
-	//TODO: Add the ability to store/load animations into/from scene files.
 	EditorLayer::EditorLayer()
 		: Layer("EditorLayer")
 	{
+		//font = CreateRef<Font>("assets/fonts/opensans/OpenSans-Regular.ttf");
+		//font = CreateRef<Font>("C:/Windows/Fonts/Hack-BoldItalic.ttf");
+
+		//source = XAudioEngine::CreateAudioSource("./assets/sounds/jump-up-245782.wav");
+		source = XAudioEngine::CreateAudioSource("D:/Music/_HQ_Powerwolf_Christ_and_Combat_Lyrics__rXr-Kfa4_cY_140.mp3");
 	}
 
 	static std::vector<uint8_t> ReadFile(const FileSystem::path& filePath) {
@@ -202,13 +205,6 @@ namespace Kaidel {
 
 			e.GetComponent<TransformComponent>().Translation = glm::vec3(0.0f, 3.0f, 0.0f);
 		}
-		{
-			Entity e = m_ActiveScene->CreateCube("Occludee");
-
-			e.GetComponent<TransformComponent>().Scale = glm::vec3(5.0f, 1.0f, 5.0f);
-		}*/
-
-		RendererGlobals::LoadEnvironmentMap("assets/skybox/brown_photostudio_02_4k.hdr");
 	}
 
 	void EditorLayer::OnDetach()
@@ -901,6 +897,25 @@ namespace Kaidel {
 				stoppedTimers = AccumulativeTimer::GetTimers();
 			}
 		}
+		static int min;
+		static int sec;
+		static int ms = 500;
+		
+		ImGui::InputInt("Play from: (min)", &min);
+		
+		ImGui::InputInt("Play from: (sec)", &sec);
+
+		ImGui::InputInt("Play from: (milli)", &ms);
+
+		static bool playing = false;
+		if (ImGui::Button("Play") && !playing) {
+			playing = true;
+			XAudioEngine::Play(source, std::chrono::minutes(min) + std::chrono::seconds(sec) + std::chrono::milliseconds(ms));
+		}
+		if (ImGui::Button("Stop") && playing) {
+			playing = false;
+			XAudioEngine::Stop(source);
+		}
 
 		if (ImGui::BeginTable("##Timers", 4, ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable, ImVec2(0.0f, 200.0f)))
 		{
@@ -1122,6 +1137,18 @@ namespace Kaidel {
 		dispatcher.Dispatch<KeyPressedEvent>(KD_BIND_EVENT_FN(EditorLayer::OnKeyPressed));
 		dispatcher.Dispatch<MouseButtonPressedEvent>(KD_BIND_EVENT_FN(EditorLayer::OnMouseButtonPressed));
 		dispatcher.Dispatch<RendererSettingsChangedEvent>(KD_BIND_EVENT_FN(EditorLayer::OnRendererSettingsChanged));
+		dispatcher.Dispatch<AudioEndEvent>([](auto& event) {
+			KD_CORE_INFO("{}", event.ToString());
+			return false;
+		});
+		dispatcher.Dispatch<AudioStartEvent>([](auto& event) {
+			KD_CORE_INFO("{}", event.ToString());
+			return false;
+		});
+		dispatcher.Dispatch<AudioLoopEndEvent>([](auto& event) {
+			KD_CORE_INFO("{}", event.ToString());
+			return false;
+			});
 	}
 
 	bool EditorLayer::OnKeyPressed(KeyPressedEvent& e)
