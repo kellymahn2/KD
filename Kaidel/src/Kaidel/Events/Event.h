@@ -17,7 +17,8 @@ namespace Kaidel {
 		AppTick, AppUpdate, AppRender,
 		KeyPressed, KeyReleased, KeyTyped,
 		MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled,
-		RendererSettingsChanged
+		RendererSettingsChanged,
+		AudioStart, AudioEnd, AudioLoopEnd
 	};
 
 	enum EventCategory
@@ -29,6 +30,7 @@ namespace Kaidel {
 		EventCategoryMouse          = BIT(3),
 		EventCategoryMouseButton    = BIT(4),
 		EventCategorySettings		= BIT(5),
+		EventCategoryAudio			= BIT(6)
 	};
 
 #define EVENT_CLASS_TYPE(type) static EventType GetStaticType() { return EventType::type; }\

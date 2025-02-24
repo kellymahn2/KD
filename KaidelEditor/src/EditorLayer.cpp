@@ -9,10 +9,13 @@
 
 #include "Kaidel/Scene/SceneSerializer.h"
 
+#include "Kaidel/Events/AudioEvent.h"
+
 #include "Kaidel/Utils/PlatformUtils.h"
 
 #include "Kaidel/Scripting/ScriptEngine.h"
 #include "Kaidel/Renderer/Text/Font.h"
+#include "Platform/Windows/Audio/XAudioEngine.h"
 #include "Kaidel/Scene/ModelLibrary.h"
 
 #include "yaml-cpp/yaml.h"
@@ -28,11 +31,16 @@ namespace Kaidel {
 	glm::vec4 _GetUVs();
 	Ref<Font> font;
 
+	Ref<AudioSource> source;
+
 	EditorLayer::EditorLayer()
 		: Layer("EditorLayer")
 	{
 		//font = CreateRef<Font>("assets/fonts/opensans/OpenSans-Regular.ttf");
 		//font = CreateRef<Font>("C:/Windows/Fonts/Hack-BoldItalic.ttf");
+
+		//source = XAudioEngine::CreateAudioSource("./assets/sounds/jump-up-245782.wav");
+		source = XAudioEngine::CreateAudioSource("D:/Music/_HQ_Powerwolf_Christ_and_Combat_Lyrics__rXr-Kfa4_cY_140.mp3");
 	}
 
 
@@ -154,18 +162,6 @@ namespace Kaidel {
 			dlc.SplitLambda = 0.95f;
 			dlc.FadeStart = 1.0f;
 		}
-		//{
-		//	Entity e = m_ActiveScene->CreateEntity("Text");
-		//	auto& tc = e.AddComponent<TextComponent>();
-		//	//auto x = ReadFile("E:/KD/Kaidel/src/Kaidel/Scene/SceneRenderer.cpp");
-		//	tc.TextContent = "Kaidel";
-		//	tc.TextFont = RendererGlobals::GetDefaultFont();
-		//}
-		//{
-		//	Entity e = m_ActiveScene->CreateEntity("Square2");
-		//	auto& src = e.AddComponent<SpriteRendererComponent>();
-		//	src.SpriteTexture = TextureLibrary::Load("assets/textures/Checkerboard.png",ImageLayout::ShaderReadOnlyOptimal,Format::RGBA8SRGB);
-		//}
 	}
 
 	void EditorLayer::OnDetach()
@@ -180,12 +176,7 @@ namespace Kaidel {
 		if (m_SceneState == SceneState::Edit)
 			m_EditorCamera.OnUpdate(ts);
 
-		// Render
-		{
-			//RenderCommand::BeginRenderPass(m_OutputBuffer, m_OutputBuffer->GetDefaultRenderPass());
-			//RenderCommand::EndRenderPass();
-		}
-		
+
 		// Update scene
 		switch (m_SceneState)
 		{
@@ -323,11 +314,6 @@ namespace Kaidel {
 						ScriptEngine::ReloadAssembly();
 					ImGui::EndMenu();
 				}
-
-
-
-
-
 
 
 				ImGui::EndMenuBar();
@@ -599,6 +585,25 @@ namespace Kaidel {
 		if (ImGui::Button("x16")) {
 			samples = TextureSamples::x16;
 		}
+		static int min;
+		static int sec;
+		static int ms = 500;
+		
+		ImGui::InputInt("Play from: (min)", &min);
+		
+		ImGui::InputInt("Play from: (sec)", &sec);
+
+		ImGui::InputInt("Play from: (milli)", &ms);
+
+		static bool playing = false;
+		if (ImGui::Button("Play") && !playing) {
+			playing = true;
+			XAudioEngine::Play(source, std::chrono::minutes(min) + std::chrono::seconds(sec) + std::chrono::milliseconds(ms));
+		}
+		if (ImGui::Button("Stop") && playing) {
+			playing = false;
+			XAudioEngine::Stop(source);
+		}
 
 		ImGui::Text("Current samples: %d", (int)samples);
 		ImGui::InputInt("Show debug shadows", &ShowDebugShadow);
@@ -795,6 +800,18 @@ namespace Kaidel {
 		dispatcher.Dispatch<KeyPressedEvent>(KD_BIND_EVENT_FN(EditorLayer::OnKeyPressed));
 		dispatcher.Dispatch<MouseButtonPressedEvent>(KD_BIND_EVENT_FN(EditorLayer::OnMouseButtonPressed));
 		dispatcher.Dispatch<RendererSettingsChangedEvent>(KD_BIND_EVENT_FN(EditorLayer::OnRendererSettingsChanged));
+		dispatcher.Dispatch<AudioEndEvent>([](auto& event) {
+			KD_CORE_INFO("{}", event.ToString());
+			return false;
+		});
+		dispatcher.Dispatch<AudioStartEvent>([](auto& event) {
+			KD_CORE_INFO("{}", event.ToString());
+			return false;
+		});
+		dispatcher.Dispatch<AudioLoopEndEvent>([](auto& event) {
+			KD_CORE_INFO("{}", event.ToString());
+			return false;
+			});
 	}
 
 	bool EditorLayer::OnKeyPressed(KeyPressedEvent& e)

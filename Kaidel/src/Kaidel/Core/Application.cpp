@@ -17,7 +17,6 @@ namespace Kaidel {
 	Application::Application(const ApplicationSpecification& specification)
 		: m_Specification(specification)
 	{
-
 		KD_CORE_ASSERT(!s_Instance, "Application already exists!");
 		
 		Random::m_RandomEngine = std::mt19937(Random::m_RandomDevice());
@@ -33,10 +32,8 @@ namespace Kaidel {
 
 		JobSystem::InitMainJobSystem();
 
-
 		m_ImGuiLayer = new ImGuiLayer();
 		PushOverlay(m_ImGuiLayer);
-
 	}
 
 	Application::~Application()

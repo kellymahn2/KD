@@ -3,18 +3,18 @@
 
 
 namespace Kaidel {
-	template<bool ThreadSafe>
+	template<bool ThreadSafe, int MinCount = 0>
 	struct IRCCounter;
 
-	template<>
-	struct IRCCounter<false> {
+	template<int MinCount>
+	struct IRCCounter<false, MinCount> {
 		uint64_t Count = 0;
 		void IncrementRef() {
 			++Count;
 		}
 		template<typename T>
 		void DecrementRef() {
-			if (--Count == 0) {
+			if (--Count == MinCount) {
 				delete dynamic_cast<T*>(this);
 			}
 		}
@@ -22,8 +22,8 @@ namespace Kaidel {
 		virtual ~IRCCounter() = default;
 	};
 
-	template<>
-	struct IRCCounter<true> {
+	template<int MinCount>
+	struct IRCCounter<true, MinCount> {
 		std::atomic<uint64_t> Count = 0;
 
 		void IncrementRef() {
@@ -31,7 +31,7 @@ namespace Kaidel {
 		}
 		template<typename T>
 		void DecrementRef() {
-			if (--Count == 0) {
+			if (--Count == MinCount) {
 				delete dynamic_cast<T*>(this);
 			}
 		}
@@ -42,7 +42,7 @@ namespace Kaidel {
 
 	template<typename T, bool ThreadSafe = false>
 	class IRCPointer {
-		static_assert(std::is_base_of_v<IRCCounter<ThreadSafe>, T>, "T must be derived from IRCCounter");
+		//static_assert(std::is_base_of_v<IRCCounter<ThreadSafe>, T>, "T must be derived from IRCCounter");
 
 	public:
 		IRCPointer() : m_Ptr(nullptr) {}
