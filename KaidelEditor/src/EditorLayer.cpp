@@ -19,6 +19,7 @@
 
 #include "imguizmo/ImGuizmo.h"
 #include "Kaidel/Scene/SceneRenderer.h"
+#include "Kaidel/Animation/AnimationData.h"
 
 #include <forward_list>
 
@@ -27,12 +28,37 @@
 namespace Kaidel {
 	glm::vec4 _GetUVs();
 	Ref<Font> font;
+	AnimationData animationData;
+	Entity e;
 
+	float animationTime = 0.0f;
+
+	bool animationPlaying = false;
+
+
+	//Animations work.
+	//TODO: Add the ability to actually render the animation curve.
+	//TODO: Add the UI for animations.
+	//TODO: Add the ability to load animations from animation files.
+	//TODO: Add the ability to store/load animations into/from scene files.
 	EditorLayer::EditorLayer()
 		: Layer("EditorLayer")
 	{
 		//font = CreateRef<Font>("assets/fonts/opensans/OpenSans-Regular.ttf");
 		//font = CreateRef<Font>("C:/Windows/Fonts/Hack-BoldItalic.ttf");
+
+		auto& posX = animationData.AddProperty(AnimationPropertyNames::PositionX);
+		//auto& posY = animationData.AddProperty(AnimationPropertyNames::PositionY);
+
+		//Goes from 0.0f -> 5.0f on x axis
+		posX.PushKey({ 0.0f,0.0f });
+		posX.PushKey({ 2.0f,5.0f });
+		posX.GetKeys()[0].AfterKey.Point.y = 7.25f;
+		posX.GetKeys()[1].BeforeKey.Point.y = 4.3f;
+
+		//Goes from 0.0f -> 1.0f on Y axis
+		//posY.PushKey({ 0.0f,0.0f });
+		//posY.PushKey({ 2.0f,1.0f });
 	}
 
 
@@ -154,6 +180,10 @@ namespace Kaidel {
 			dlc.SplitLambda = 0.95f;
 			dlc.FadeStart = 1.0f;
 		}
+
+		{
+			e = m_ActiveScene->CreateCube("Cube");
+		}
 		//{
 		//	Entity e = m_ActiveScene->CreateEntity("Text");
 		//	auto& tc = e.AddComponent<TextComponent>();
@@ -166,6 +196,8 @@ namespace Kaidel {
 		//	auto& src = e.AddComponent<SpriteRendererComponent>();
 		//	src.SpriteTexture = TextureLibrary::Load("assets/textures/Checkerboard.png",ImageLayout::ShaderReadOnlyOptimal,Format::RGBA8SRGB);
 		//}
+
+
 	}
 
 	void EditorLayer::OnDetach()
@@ -186,6 +218,39 @@ namespace Kaidel {
 			//RenderCommand::EndRenderPass();
 		}
 		
+		//Update animation.
+		if (animationPlaying) {
+			//Positions.
+			{
+				auto& tc = e.GetComponent<TransformComponent>();
+				if (animationData.HasProperty(AnimationPropertyNames::PositionX)) 
+				{
+					auto& prop = animationData.GetProperty(AnimationPropertyNames::PositionX);
+					tc.Translation.x = prop.Interpolate(animationTime, 0);
+				}
+
+				if (animationData.HasProperty(AnimationPropertyNames::PositionY))
+				{
+					auto& prop = animationData.GetProperty(AnimationPropertyNames::PositionY);
+					tc.Translation.y = prop.Interpolate(animationTime, 0);
+				}
+
+				if (animationData.HasProperty(AnimationPropertyNames::PositionZ))
+				{
+					auto& prop = animationData.GetProperty(AnimationPropertyNames::PositionZ);
+					tc.Translation.z = prop.Interpolate(animationTime, 0);
+				}
+			}
+
+
+			//Update time.
+			animationTime += ts.GetSeconds();
+
+			if (animationTime >= 2.0f) {
+				animationTime = 0.0f;
+			}
+		}
+
 		// Update scene
 		switch (m_SceneState)
 		{
@@ -587,28 +652,12 @@ namespace Kaidel {
 			ImGui::TextWrapped("%s Took :(%.3f ns,%.3f ms,%.3f s)", name.c_str(), ns, ms, s);
 		}
 		
-		if (ImGui::Button("x2")) {
-			samples = TextureSamples::x2;
-		}
-		if (ImGui::Button("x4")) {
-			samples = TextureSamples::x4;
-		}
-		if (ImGui::Button("x8")) {
-			samples = TextureSamples::x8;
-		}
-		if (ImGui::Button("x16")) {
-			samples = TextureSamples::x16;
-		}
-
-		ImGui::Text("Current samples: %d", (int)samples);
-		ImGui::InputInt("Show debug shadows", &ShowDebugShadow);
-
 		ImGui::Text("UI Vertex Count: %d", ImGui::GetIO().MetricsRenderVertices);
-		static int split = 0;
-
-		ImGui::InputInt("Split", &split);
 		
-		split = std::clamp(split, 0, 3);
+		ImGui::Text("Current animation time: %.3f", animationTime);
+		if (ImGui::Button(!animationPlaying ? "Animation play" : "Animation Stop")) {
+			animationPlaying = !animationPlaying;
+		}
 
 		//Ref<Texture2D> t = *(DepthTexture[split]);
 		
