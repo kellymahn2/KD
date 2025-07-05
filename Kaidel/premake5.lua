@@ -22,6 +22,7 @@ project "Kaidel"
 		"vendor/ImGuizmo/ImGuizmo.cpp",
 		"vendor/VMA/**.h",
 		"vendor/VMA/**.cpp",
+		"vendor/spirv-reflect/spirv-reflect.cpp"
 	}
 
 	defines
@@ -52,7 +53,8 @@ project "Kaidel"
 		"%{IncludeDir.msdfgen}",
 		"%{IncludeDir.msdf_atlas_gen}",
 		"%{IncludeDir.Vulkan}",
-		"vendor/VMA"
+		"vendor/VMA",
+		"vendor/spirv-reflect"
 	}
 
 	links
@@ -62,13 +64,11 @@ project "Kaidel"
 		"Glad",
 		"ImGui",
 		"msdf-atlas-gen",
-		"vendor/Assimp/lib/assimp-vc140-mt.lib",
 		"yaml-cpp",
 		"opengl32.lib",
 		"D3D11.lib",
 		"%{Library.mono}",
 		"%{Library.Vulkan}",
-
 	}
 
 	filter "files:vendor/ImGuizmo/**.cpp"
@@ -96,8 +96,8 @@ project "Kaidel"
 			"%{Library.ShaderC_Debug}",
 			"%{Library.SPIRV_Cross_Debug}",
 			"%{Library.SPIRV_Cross_GLSL_Debug}",
-			"%{Library.SPIRV_Reflect_Debug}",
 			"%{Library.SPIRV_Cross_Reflect_Debug}",
+			"%{Library.Assimp_Debug}"
 		}
 
 
@@ -109,8 +109,8 @@ project "Kaidel"
 			"%{Library.ShaderC_Release}",
 			"%{Library.SPIRV_Cross_Release}",
 			"%{Library.SPIRV_Cross_GLSL_Release}",
-			"%{Library.SPIRV_Reflect_Release}",
 			"%{Library.SPIRV_Cross_Reflect_Release}",
+			"%{Library.Assimp_Release}"
 		}
 
 
@@ -122,6 +122,6 @@ project "Kaidel"
 			"%{Library.ShaderC_Release}",
 			"%{Library.SPIRV_Cross_Release}",
 			"%{Library.SPIRV_Cross_GLSL_Release}",
-			"%{Library.SPIRV_Reflect_Release}",
 			"%{Library.SPIRV_Cross_Reflect_Release}",
+			"%{Library.Assimp_Release}"
 		}

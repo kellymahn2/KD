@@ -290,7 +290,7 @@ namespace Kaidel {
 		RenderCommand::BindComputePipeline(s_Data->LightCullPipeline);
 		s_Data->LightCullPipelinePack->Bind();
 		RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("LightCull"), 0,
-			view, lights.size());
+			view, (uint32_t)lights.size());
 		RenderCommand::Dispatch(1, 1, 6);
 	}
 	
