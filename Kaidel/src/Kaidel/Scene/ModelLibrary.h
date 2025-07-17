@@ -34,9 +34,9 @@ namespace Kaidel {
 		static Ref<Model> LoadModel(const Path& path);
 		static Ref<Model> GetModel(const Path& path);
 		
-		static Ref<Model> GetBaseCube();
-		static Ref<Model> GetBaseSphere();
-		static Ref<Model> GetBaseCylinder();
+		static Ref<Mesh> GetBaseCube();
+		static Ref<Mesh> GetBaseSphere();
+		static Ref<Mesh> GetBaseCylinder();
 
 		static bool IsLoaded(const Path& path);
 	private:
@@ -47,8 +47,12 @@ namespace Kaidel {
 		static Ref<Model> LoadFromCache(const Path& path);
 		static Ref<Model> LoadFromFile(const Path& path);
 
-		static void ProcessNode(Ref<Model> model, const aiScene* scene, const aiNode* node, std::ostream& cache);
-		static Ref<Mesh> ProcessMesh(Ref<Model> model, const aiScene* scene, const aiMesh* mesh, std::ostream& cache);
-		static Ref<Material> ProcessMaterial(Ref<Model> model, const aiScene* scene, const aiMesh* mesh, const aiMaterial* material, std::ostream& cache);
+		static void ProcessNode(Ref<Model> model, const aiScene* scene, const aiNode* node, MeshTree& outTree);
+		static Ref<Mesh> ProcessMesh(Ref<Model> model, const aiScene* scene, const aiMesh* mesh);
+		static Ref<Material> ProcessMaterial(Ref<Model> model, const aiScene* scene, const aiMesh* mesh, const aiMaterial* material);
+
+		static std::vector<MeshVertex> ProcessVertices(const aiMesh* mesh);
+		static std::vector<SkinnedMeshVertex> ProcessSkinnedVertices(const aiMesh* mesh);
+		static std::vector<uint16_t> ProcessIndices(const aiMesh* mesh);
 	};
 }

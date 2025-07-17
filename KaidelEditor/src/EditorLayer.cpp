@@ -181,9 +181,19 @@ namespace Kaidel {
 			dlc.FadeStart = 1.0f;
 		}
 
+		//{
+		//	Entity parent = m_ActiveScene->CreateCube("Parent");
+		//	Entity child = m_ActiveScene->CreateCube("Child");
+		//
+		//	parent.AddChild(child.GetUUID());
+		//	child.AddParent(parent.GetUUID());
+		//}
 		{
-			e = m_ActiveScene->CreateCube("Cube");
+			Ref<Model> model = ModelLibrary::LoadModel("assets/models/Erika Archer/untitled.gltf");
+		
+			m_ActiveScene->CreateModel(model).GetComponent<TransformComponent>().Scale = glm::vec3(0.17f);
 		}
+
 		//{
 		//	Entity e = m_ActiveScene->CreateEntity("Text");
 		//	auto& tc = e.AddComponent<TextComponent>();
@@ -196,6 +206,8 @@ namespace Kaidel {
 		//	auto& src = e.AddComponent<SpriteRendererComponent>();
 		//	src.SpriteTexture = TextureLibrary::Load("assets/textures/Checkerboard.png",ImageLayout::ShaderReadOnlyOptimal,Format::RGBA8SRGB);
 		//}
+
+
 
 
 	}
@@ -572,7 +584,7 @@ namespace Kaidel {
 			auto gizmoCamera = GetCurrentCameraViewProjection();
 			// Entity transform
 			auto& tc = selectedEntity.GetComponent<TransformComponent>();
-			glm::mat4 transform = tc.GetTransform();
+			glm::mat4 transform = tc.GlobalTransform;
 
 			// Snapping
 			bool snap = Input::IsKeyDown(Key::LeftControl);

@@ -40,11 +40,14 @@ namespace Kaidel {
 			: Tag(tag) {}
 	};
 	glm::mat4 _GetTransform(const glm::vec3& pos, const glm::vec3&rot, const glm::vec3& scl);
+
 	struct TransformComponent
 	{
 		glm::vec3 Translation = { 0.0f, 0.0f, 0.0f };
 		glm::vec3 Rotation = { 0.0f, 0.0f, 0.0f };
 		glm::vec3 Scale = { 1.0f, 1.0f, 1.0f };
+		
+		glm::mat4 GlobalTransform = glm::mat4(1.0f);
 
 		TransformComponent() = default;
 		TransformComponent(const TransformComponent&) = default;
@@ -117,6 +120,19 @@ namespace Kaidel {
 		Ref<Model> UsedModel;
 		ModelComponent() = default;
 		ModelComponent(const ModelComponent&) = default;
+	};
+
+	struct MeshComponent {
+		Ref<Mesh> UsedMesh;
+		MeshComponent() = default;
+		MeshComponent(const MeshComponent&) = default;
+	};
+
+	struct SkinnedMeshComponent {
+		Ref<SkinnedMesh> UsedMesh;
+		UUID RootBone;
+		SkinnedMeshComponent() = default;
+		SkinnedMeshComponent(const SkinnedMeshComponent&) = default;
 	};
 
 	struct DirectionalLightComponent {

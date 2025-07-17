@@ -35,6 +35,8 @@
 #define SHADOW_MAP_SIZE 4096
 #define SHADOW_MAPPING
 
+
+
 namespace Kaidel {
 	struct DeferredPassData {
 		Ref<RenderPass> RenderPass;
@@ -140,6 +142,11 @@ namespace Kaidel {
 		PerFrameResource<DescriptorSetPack> Pack;
 	};
 #endif
+
+	struct BoneData {
+		Ref<ComputePipeline> Pipeline;
+	};
+
 	static struct Data {
 		Ref<VertexBuffer> CubeVertexBuffer;
 		Ref<IndexBuffer> CubeIndexBuffer;
@@ -175,6 +182,7 @@ namespace Kaidel {
 		SpriteData Sprites;
 		TextData Texts;
 		LineData Lines;
+		BoneData Bones;
 
 		ShadowData Shadows;
 		Ref<Sampler> GlobalSampler;
@@ -669,9 +677,9 @@ namespace Kaidel {
 				region.UV1 = { 1,1 };
 
 				if (src.SpriteTexture)
-					AddSpriteToBatch(tc.GetTransform(), glm::vec4(1.0f), src.SpriteTexture, region);
+					AddSpriteToBatch(tc.GlobalTransform, glm::vec4(1.0f), src.SpriteTexture, region);
 				else
-					AddSpriteToBatch(tc.GetTransform(), glm::vec4(1.0f), RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f)), region);
+					AddSpriteToBatch(tc.GlobalTransform, glm::vec4(1.0f), RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f)), region);
 			}
 
 			if (sprites.VertexCount) {
@@ -880,53 +888,105 @@ namespace Kaidel {
 		RenderCommand::SetScissor(s_Data->Width, s_Data->Height, 0, 0);
 
 		{
-			auto view = sceneReg.view<TransformComponent, ModelComponent>();
+			auto view = sceneReg.view<TransformComponent, MeshComponent>();
 			for (auto& e : view) {
-				auto& [tc,mc] = view.get(e);
+				auto& [tc, smc] = view.get(e);
 
-				if (!mc.UsedModel)
+				if (!smc.UsedMesh)
 					continue;
-				
-				glm::mat4 model = tc.GetTransform();
 
-				for (auto& mesh : mc.UsedModel->GetMeshes()) {
-					Ref<VertexBuffer> vb = mesh->GetVertexBuffer();
-					Ref<IndexBuffer> ib = mesh->GetIndexBuffer();
-					Ref<Material> mat = mesh->GetDefaultMaterial();
-					KD_CORE_ASSERT(mat);
-					
-					if (lastSetVertexBuffer != vb) {
-						RenderCommand::BindVertexBuffers({ vb }, { 0 });
-						lastSetVertexBuffer = vb;
-					}
-					if (lastSetIndexBuffer != ib) {
-						RenderCommand::BindIndexBuffer(ib, 0);
-						lastSetIndexBuffer = ib;
-					}
-					
-					if (!lastSetMaterial) {
-						mat->BindValues();
+				glm::mat4 model = tc.GlobalTransform;
+
+				Ref<SkinnedMesh> mesh = smc.UsedMesh;
+
+				Ref<VertexBuffer> vb = mesh->GetVertexBuffer();
+				Ref<IndexBuffer> ib = mesh->GetIndexBuffer();
+				Ref<Material> mat = mesh->GetDefaultMaterial();
+				KD_CORE_ASSERT(mat);
+
+				if (lastSetVertexBuffer != vb) {
+					RenderCommand::BindVertexBuffers({ vb }, { 0 });
+					lastSetVertexBuffer = vb;
+				}
+				if (lastSetIndexBuffer != ib) {
+					RenderCommand::BindIndexBuffer(ib, 0);
+					lastSetIndexBuffer = ib;
+				}
+
+				if (!lastSetMaterial) {
+					mat->BindValues();
+					mat->BindPipeline();
+					mat->BindBaseValues(viewProj);
+					lastSetMaterial = mat;
+				}
+				else if (lastSetMaterial != mat) {
+					mat->BindValues();
+
+					//RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), mesh->GetDefaultMaterial()->GetTextureSet(), 1);
+
+					if (lastSetMaterial->GetPipeline() != mat->GetPipeline()) {
 						mat->BindPipeline();
 						mat->BindBaseValues(viewProj);
-						lastSetMaterial = mat;
 					}
-					else if (lastSetMaterial != mat) {
-						mat->BindValues();
-					
-						//RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), mesh->GetDefaultMaterial()->GetTextureSet(), 1);
-					
-						if (lastSetMaterial->GetPipeline() != mat->GetPipeline()) {
-							mat->BindPipeline();
-							mat->BindBaseValues(viewProj);
-						}
-					
-						lastSetMaterial = mat;
-					}
-					
-					lastSetMaterial->BindTransform(model);
-					
-					RenderCommand::DrawIndexed((uint32_t)mesh->GetIndexCount(), (uint32_t)mesh->GetVertexCount(), 1, 0, 0, 0);
+
+					lastSetMaterial = mat;
 				}
+
+				lastSetMaterial->BindTransform(model);
+
+				RenderCommand::DrawIndexed((uint32_t)mesh->GetIndexCount(), (uint32_t)mesh->GetVertexCount(), 1, 0, 0, 0);
+			}
+		}
+
+
+		{
+			auto view = sceneReg.view<TransformComponent, SkinnedMeshComponent>();
+			for (auto& e : view) {
+				auto& [tc,smc] = view.get(e);
+
+				if (!smc.UsedMesh)
+					continue;
+				
+				glm::mat4 model = tc.GlobalTransform;
+
+				Ref<SkinnedMesh> mesh = smc.UsedMesh;
+
+				Ref<VertexBuffer> vb = mesh->GetVertexBuffer();
+				Ref<IndexBuffer> ib = mesh->GetIndexBuffer();
+				Ref<Material> mat = mesh->GetDefaultMaterial();
+				KD_CORE_ASSERT(mat);
+				
+				if (lastSetVertexBuffer != vb) {
+					RenderCommand::BindVertexBuffers({ vb }, { 0 });
+					lastSetVertexBuffer = vb;
+				}
+				if (lastSetIndexBuffer != ib) {
+					RenderCommand::BindIndexBuffer(ib, 0);
+					lastSetIndexBuffer = ib;
+				}
+				
+				if (!lastSetMaterial) {
+					mat->BindValues();
+					mat->BindPipeline();
+					mat->BindBaseValues(viewProj);
+					lastSetMaterial = mat;
+				}
+				else if (lastSetMaterial != mat) {
+					mat->BindValues();
+				
+					//RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), mesh->GetDefaultMaterial()->GetTextureSet(), 1);
+				
+					if (lastSetMaterial->GetPipeline() != mat->GetPipeline()) {
+						mat->BindPipeline();
+						mat->BindBaseValues(viewProj);
+					}
+				
+					lastSetMaterial = mat;
+				}
+				
+				lastSetMaterial->BindTransform(model);
+				
+				RenderCommand::DrawIndexed((uint32_t)mesh->GetIndexCount(), (uint32_t)mesh->GetVertexCount(), 1, 0, 0, 0);
 			}
 		}
 		RenderCommand::EndRenderPass();
@@ -1173,7 +1233,7 @@ namespace Kaidel {
 				if (!mc.UsedModel)
 					continue;
 
-				glm::mat4 model = tc.GetTransform();
+				glm::mat4 model = tc.GlobalTransform;
 
 				for (auto& mesh : mc.UsedModel->GetMeshes()) {
 					Ref<VertexBuffer> vb = mesh->GetVertexBuffer();
@@ -1412,7 +1472,7 @@ namespace Kaidel {
 			auto& [transform, text] = view.get(e);
 			if (text.TextContent.empty() || !text.TextFont)
 				continue;
-			text.RenderableCharacters = AddStringToBatch(text.TextContent, text.TextFont, transform.GetTransform(), text.Color, text.BorderColor, text.BorderThickness, text.Kerning);
+			text.RenderableCharacters = AddStringToBatch(text.TextContent, text.TextFont, transform.GlobalTransform, text.Color, text.BorderColor, text.BorderThickness, text.Kerning);
 		}
 
 		if (texts.VertexCount == 0)
@@ -1543,6 +1603,85 @@ namespace Kaidel {
 			specs.Height != s_Data->Height;
 	}
 
+	static void CreateBonePassResources()
+	{
+		s_Data->Bones.Pipeline = ComputePipeline::Create(ShaderLibrary::LoadOrGetNamedShader("BonePass", "assets/_shaders/BonePass.glsl"));
+	}
+
+	static void CalculateBoneTransforms(Scene* scene, SkinTree& currBoneNode, Entity currBoneEntity, std::vector<glm::mat4>& boneTransforms)
+	{
+		if (!currBoneEntity)
+			return;
+
+		boneTransforms[currBoneNode.ID] = currBoneEntity.GetComponent<TransformComponent>().GlobalTransform * currBoneNode.BindMatrix;
+
+		if (!currBoneEntity.HasChildren())
+			return;
+
+		auto& pc = currBoneEntity.GetComponent<ParentComponent>();
+
+		uint32_t i = 0;
+		for (auto& childBoneNode : currBoneNode.Children)
+		{
+			Entity childBoneEntity = scene->GetEntity(pc.Children[i++]);
+
+			//for (auto& childID : pc.Children)
+			//{
+			//	Entity childEntity = scene->GetEntity(childID);
+			//
+			//	if (childBoneNode.Name == childEntity.GetComponent<TagComponent>().Tag)
+			//	{
+			//		childBoneEntity = childEntity;
+			//		break;
+			//	}
+			//}
+			
+			CalculateBoneTransforms(scene, childBoneNode, childBoneEntity, boneTransforms);
+		}
+	}
+
+	static void BonePass(Scene* scene, const SceneData& sceneData, entt::registry& sceneReg)
+	{
+		RenderCommand::BindComputePipeline(s_Data->Bones.Pipeline);
+		
+		{
+			auto view = sceneReg.view<TransformComponent, SkinnedMeshComponent>();
+			
+			for (auto& e : view)
+			{
+				auto& [tc, smc] = view.get(e);
+				
+				if(!smc.UsedMesh)
+					continue;
+				
+				Entity rootBone = scene->GetEntity(smc.RootBone);
+				if (!rootBone)
+					continue;
+
+				std::vector<glm::mat4>& boneTransforms = smc.UsedMesh->GetBoneTransforms();
+				
+				Ref<SkinTree> tree = smc.UsedMesh->GetSkinTree();
+
+				CalculateBoneTransforms(scene, *tree, rootBone, boneTransforms);
+
+				smc.UsedMesh->GetBoneTransformsBuffer()->SetData(boneTransforms.data(), boneTransforms.size() * sizeof(glm::mat4));
+
+				RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("BonePass"), smc.UsedMesh->GetSkinnedBufferSet(), 0);
+				RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("BonePass"), smc.UsedMesh->GetBoneTransformsSet(), 1);
+
+				uint64_t sizeX = smc.UsedMesh->GetVertexCount() / 64;
+				RenderCommand::Dispatch(sizeX + 1, 1, 1);
+
+				BufferMemoryBarrier barrier;
+				barrier.Buffer = smc.UsedMesh->GetVertexBuffer();
+				barrier.Src = AccessFlags_ShaderWrite;
+				barrier.Dst = AccessFlags_VertexAttribureRead;
+
+				RenderCommand::PipelineBarrier(PipelineStages_ComputeShader, PipelineStages_VertexInput, {}, { barrier }, {});
+			}
+		}
+	}
+
 	SceneRenderer::SceneRenderer(void* scene)
 		:m_Context(scene)
 	{
@@ -1593,6 +1732,9 @@ namespace Kaidel {
 			CreateLinePassResources();
 
 			CreateSpriteResources();
+
+			CreateBonePassResources();
+
 			Light l{};
 			l.Color = glm::vec4(1.0f, 0, 0, 1);
 			l.Position = glm::vec4(0,5,0.0f,0.0f);
@@ -1602,8 +1744,50 @@ namespace Kaidel {
 		}
 	}
 
-	//TODO: add depth to 2D.
+	static void CalculateTransformFromRoot(Entity entity, Scene* scene, const glm::mat4& parentTransform)
+	{
+		TransformComponent& tc = entity.GetComponent<TransformComponent>();
+		tc.GlobalTransform = parentTransform * tc.GetTransform();
 
+		if (entity.HasChildren())
+		{
+			const ParentComponent& pc = entity.GetComponent<ParentComponent>();
+
+			for (auto& childID : pc.Children)
+			{
+				Entity child = scene->GetEntity(childID);
+
+				if (child)
+					CalculateTransformFromRoot(child, scene, tc.GlobalTransform);
+			}
+		}
+	}
+
+
+	static void CalculateTransforms(Scene* scene, entt::registry& m_Registry)
+	{
+		auto view = m_Registry.view<TransformComponent>();
+
+		for (auto e : view)
+		{
+			Entity entity = { e, scene };
+
+			TagComponent& tc = entity.GetComponent<TagComponent>();
+
+			bool isRoot = !entity.HasComponent<ChildComponent>() || !scene->IsEntity(entity.GetComponent<ChildComponent>().Parent);
+
+			if (!isRoot)
+				continue;
+
+			CalculateTransformFromRoot(entity, scene, glm::mat4(1.0f));
+
+			//JobSystem::GetMainJobSystem().Execute([entity, scene]() { CalculateTransformFromRoot(entity, scene, glm::mat4(1.0f)); });
+		}
+
+		//JobSystem::GetMainJobSystem().Wait();
+	}
+
+	//TODO: add depth to 2D.
 	void SceneRenderer::Render(Ref<Texture2D> outputBuffer, const SceneData& sceneData)
 	{
 		Scene* scene = (Scene*)m_Context;
@@ -1627,7 +1811,12 @@ namespace Kaidel {
 		{
 			MakeClusters(invProj, zNear, zFar, sceneData.ScreenSize);
 			InsertClusterBarrier();
+
+			CalculateTransforms(scene, scene->m_Registry);
+
 			MakeLightGrids(view);
+
+			BonePass(scene, sceneData, scene->m_Registry);
 
 			DeferredPass(viewProj, scene->m_Registry);
 			InsertLightGridBarrier();
@@ -1640,7 +1829,6 @@ namespace Kaidel {
 			InsertScreenPassBarrier();
 		}
 
-		
 		TonemapPass();
 		InsertTonemapPassBarrier();
 

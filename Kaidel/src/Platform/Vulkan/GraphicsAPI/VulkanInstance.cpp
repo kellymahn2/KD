@@ -26,6 +26,7 @@ namespace Kaidel {
 		//Query API version
 		VK_ASSERT(vkEnumerateInstanceVersion(&version));
 
+		version = VK_MAKE_VERSION(1, 3, 280);
 
 		VkApplicationInfo appInfo{ VK_STRUCTURE_TYPE_APPLICATION_INFO };
 		appInfo.pEngineName = name.c_str();

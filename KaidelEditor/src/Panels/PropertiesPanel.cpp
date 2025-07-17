@@ -430,21 +430,16 @@ namespace Kaidel {
 
 		
 		ImGui::Text(std::to_string(entity.GetUUID().operator uint64_t()).c_str());
-		DrawComponent<TransformComponent>("Transform", entity, [&entity, scene = scene](auto& component)
+		DrawComponent<TransformComponent>("Transform", entity, [&entity, scene = scene](TransformComponent& component)
 			{
-				bool hasParent = entity.HasComponent<ChildComponent>();
-				glm::vec3 pos = component.Translation, rot = glm::degrees(component.Rotation);
-				if (hasParent) {
-					ImGui::Text("Pos:(%f,%f,%f)", pos.x, pos.y, pos.z);
-					auto& cc = entity.GetComponent<ChildComponent>();
-					pos = cc.LocalPosition;
-					rot = glm::degrees(cc.LocalRotation);
-				}
-				glm::vec3 orgPos = pos, orgRot = rot;
-				DrawVec3Control("Translation", pos);
-				DrawVec3Control("Rotation", rot);
+				glm::vec3 rotDeg = glm::degrees(component.Rotation);
+				
+				DrawVec3Control("Translation", component.Translation);
+				DrawVec3Control("Rotation", rotDeg);
 				DrawVec3Control("Scale", component.Scale, 1.0f);
-				MoveEntity(entity, scene, pos - orgPos, glm::radians(rot - orgRot));
+
+				component.Rotation = glm::radians(rotDeg);
+
 			}, false);
 
 
@@ -619,6 +614,18 @@ namespace Kaidel {
 				component.RecalculateFinalPoints();
 			}
 			});
+
+		DrawComponent<MeshComponent>("Mesh", entity, [entity, scene = scene](MeshComponent& component) {
+			bool b = component.UsedMesh->IsSkinned();
+			ImGui::Checkbox("IsSkinned", &b);
+		});
+
+		DrawComponent<SkinnedMeshComponent>("Skinned mesh", entity, [entity, scene = scene](SkinnedMeshComponent& component) {
+			bool b = component.UsedMesh->IsSkinned();
+			ImGui::Checkbox("IsSkinned", &b);
+			ImGui::Text("%llu", (uint64_t)component.RootBone);
+			ImGui::Text("%s", scene->GetEntity(component.RootBone).GetComponent<TagComponent>().Tag.c_str());
+		});
 
 		DrawComponent<DirectionalLightComponent>("Directional light", entity, [entity, scene = scene](DirectionalLightComponent& component) {
 			ImGui::ColorEdit3("Color", &component.Color.r);

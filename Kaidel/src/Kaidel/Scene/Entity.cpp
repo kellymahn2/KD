@@ -63,11 +63,10 @@ void Kaidel::TranslateEntity(Kaidel::Entity entity, Kaidel::Scene* scene, const 
 }
 
 void Kaidel::MoveEntity(Kaidel::Entity entity, Kaidel::Scene* scene, const glm::vec3& deltaT, const glm::vec3& deltaR) {
-	if (glm::dot(deltaR, deltaR)) {
-		RotateEntity(entity, scene, deltaR);
-	}
-	if (glm::dot(deltaT, deltaT)) {
-		TranslateEntity(entity, scene, deltaT);
-	}
-
+	//if (glm::dot(deltaR, deltaR)) {
+	//	RotateEntity(entity, scene, deltaR);
+	//}
+	//if (glm::dot(deltaT, deltaT)) {
+	//	TranslateEntity(entity, scene, deltaT);
+	//}
 }
