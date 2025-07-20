@@ -154,15 +154,15 @@ namespace Kaidel {
 				b2Body* body = (b2Body*)rb2d.RuntimeBody; 
 				const auto& position = body->GetPosition();
 
-				glm::vec3 deltaPos = -transform.Translation;
-				deltaPos.z = 0.0f;
-				deltaPos.x += position.x;
-				deltaPos.y += position.y;
-				glm::vec3 deltaRot = -transform.Rotation;
-				deltaRot.x = 0.0f;
-				deltaRot.y = 0.0f;
-				deltaRot.z += body->GetAngle();
-				MoveEntity(entity, this, deltaPos, deltaRot);
+				//glm::vec3 deltaPos = -transform.Translation;
+				//deltaPos.z = 0.0f;
+				//deltaPos.x += position.x;
+				//deltaPos.y += position.y;
+				//glm::vec3 deltaRot = -transform.Rotation;
+				//deltaRot.x = 0.0f;
+				//deltaRot.y = 0.0f;
+				//deltaRot.z += body->GetAngle();
+				//MoveEntity(entity, this, deltaPos, deltaRot);
 			}
 		}
 	}
@@ -209,6 +209,12 @@ namespace Kaidel {
 
 		}
 
+		if (curr->NodeAnimation)
+		{
+			auto& apc = entity.AddComponent<AnimationPlayerComponent>();
+			apc.Animation = curr->NodeAnimation;
+		}
+
 		for (auto& child : curr->Children)
 		{
 			Entity chEntity = CreateEntity();
@@ -225,7 +231,7 @@ namespace Kaidel {
 		{
 			Ref<SkinnedMesh> mesh = curr->NodeMesh;
 
-			entity.GetComponent<SkinnedMeshComponent>().RootBone = nameToEntity[mesh->GetSkinTree()->Name].GetUUID();
+			entity.GetComponent<SkinnedMeshComponent>().RootBone = nameToEntity[mesh->GetSkin()->Tree.Name].GetUUID();
 		}
 
 		uint32_t ch = 0;

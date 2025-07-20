@@ -7,6 +7,7 @@
 #include <imgui/misc/cpp/imgui_stdlib.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <inttypes.h>
 namespace Kaidel {
 
 
@@ -432,16 +433,38 @@ namespace Kaidel {
 		ImGui::Text(std::to_string(entity.GetUUID().operator uint64_t()).c_str());
 		DrawComponent<TransformComponent>("Transform", entity, [&entity, scene = scene](TransformComponent& component)
 			{
-				glm::vec3 rotDeg = glm::degrees(component.Rotation);
+				glm::vec3 rotDeg = glm::degrees(glm::eulerAngles(component.Rotation));
 				
 				DrawVec3Control("Translation", component.Translation);
 				DrawVec3Control("Rotation", rotDeg);
 				DrawVec3Control("Scale", component.Scale, 1.0f);
 
 				component.Rotation = glm::radians(rotDeg);
-
 			}, false);
 
+		DrawComponent<AnimationPlayerComponent>("Animation Player", entity, [&entity, scene = scene](AnimationPlayerComponent& component) 
+			{
+				{
+					bool x = component.State == AnimationPlayerComponent::PlayerState::Playing;
+					ImGui::Checkbox("Playing", &x);
+					if (x)
+						component.State = AnimationPlayerComponent::PlayerState::Playing;
+					else
+						component.State = AnimationPlayerComponent::PlayerState::Paused;
+				}
+
+				{
+					bool x = component.FinishAction == AnimationPlayerComponent::AnimationOnFinishAction::Repeat;
+					ImGui::Checkbox("Repeat", &x);
+					if (x)
+						component.FinishAction = AnimationPlayerComponent::AnimationOnFinishAction::Repeat;
+					else
+						component.FinishAction = AnimationPlayerComponent::AnimationOnFinishAction::None;
+				}
+
+				ImGui::DragFloat("Playback speed", &component.PlaybackSpeed, 0.05f, 0.0f, FLT_MAX);
+				ImGui::Text("%.3f", component.Time);
+			});
 
 
 		DrawComponent<CameraComponent>("Camera", entity, [](auto& component)
@@ -491,26 +514,6 @@ namespace Kaidel {
 				}
 
 			});
-
-		DrawComponent<AnimationPlayerComponent>("Animation Player", entity, [](AnimationPlayerComponent& component) {
-
-			const int stateCount = 3;
-			const char* states[stateCount] = { "Playing" ,"Paused","Stopped" };
-
-			const char* state = states[(int)component.State];
-
-			uint64_t combo = Combo("State", states, ARRAYSIZE(states), state);
-
-			if (combo != -1) {
-				switch ((AnimationPlayerComponent::PlayerState)combo)
-				{
-				case AnimationPlayerComponent::PlayerState::Stopped:component.Time = 0.0f; break;
-				}
-				component.State = (AnimationPlayerComponent::PlayerState)combo;
-			}
-
-		});
-
 
 		//Renderers
 		DrawComponent<SpriteRendererComponent>("Sprite Renderer", entity, [](auto& component)
@@ -618,6 +621,8 @@ namespace Kaidel {
 		DrawComponent<MeshComponent>("Mesh", entity, [entity, scene = scene](MeshComponent& component) {
 			bool b = component.UsedMesh->IsSkinned();
 			ImGui::Checkbox("IsSkinned", &b);
+			
+			ImGui::Text("%" PRIu64, (uint64_t)component.UsedMesh.Get());
 		});
 
 		DrawComponent<SkinnedMeshComponent>("Skinned mesh", entity, [entity, scene = scene](SkinnedMeshComponent& component) {

@@ -42,9 +42,30 @@ namespace Kaidel {
 		BuildNodeMaps(scene->mRootNode, 0);
 	}
 
-	std::unordered_map<const aiMesh*, Ref<SkinTree>> SkinResolver::ResolveSkinTrees()
+	static void FillOffsetsArray(const SkinTree& tree, std::vector<glm::mat4>& offsets)
 	{
-		std::unordered_map<const aiMesh*, Ref<SkinTree>> result;
+		offsets[tree.ID] = tree.BindMatrix;
+
+		for (auto& child : tree.Children)
+		{
+			FillOffsetsArray(child, offsets);
+		}
+	}
+
+	static uint64_t CalcBoneCount(const SkinTree& tree) {
+		uint64_t total = 0;
+
+		for (uint64_t i = 0; i < tree.Children.size(); ++i)
+		{
+			total += CalcBoneCount(tree.Children[i]);
+		}
+
+		return total + 1;
+	}
+
+	std::unordered_map<const aiMesh*, Ref<Skin>> SkinResolver::ResolveSkinTrees()
+	{
+		std::unordered_map<const aiMesh*, Ref<Skin>> result;
 
 		for (uint32_t i = 0; i < m_Scene->mNumMeshes; ++i) {
 			const aiMesh* mesh = m_Scene->mMeshes[i];
@@ -52,21 +73,42 @@ namespace Kaidel {
 			if (!mesh->HasBones())
 				continue;
 
-			Ref<SkinTree> skinTree = BuildSkinTree(mesh);
+			SkinTree skinTree = BuildSkinTree(mesh);
 
-			auto tree = std::find_if(m_Skins.begin(), m_Skins.end(), [skinTree](const Ref<SkinTree>& tree)
+			auto skin = std::find_if(m_Skins.begin(), m_Skins.end(), [skinTree](const Ref<Skin>& tree)
+			{
+				return Utils::IsSameTree(&skinTree, &tree->Tree);
+			});
+
+			if (skin == m_Skins.end()) {
+				Ref<Skin> skin = CreateRef<Skin>();
+				skin->Tree = std::move(skinTree);
+				
+				uint64_t boneCount = CalcBoneCount(skin->Tree);
+				skin->Offsets.resize(boneCount);
+				skin->BoneTransforms.resize(boneCount);
+
+				FillOffsetsArray(skin->Tree, skin->Offsets);
+
+				skin->OffsetBuffer = StorageBuffer::Create(skin->Offsets.data(), boneCount * sizeof(glm::mat4));
+				skin->BoneTransformsBuffer = StorageBuffer::Create(nullptr, boneCount * sizeof(glm::mat4));
 				{
-					return Utils::IsSameTree(skinTree.Get(), tree.Get());
-				});
-
-			if (tree == m_Skins.end()) {
-				m_Skins.push_back(skinTree);
-				result[mesh] = skinTree;
+					DescriptorSetLayoutSpecification specs(
+						{
+							{DescriptorType::StorageBuffer, ShaderStage_ComputeShader},
+							{DescriptorType::StorageBuffer, ShaderStage_ComputeShader}
+						}
+					);
+					skin->SkinSet = DescriptorSet::Create(specs);
+					skin->SkinSet->Update(skin->BoneTransformsBuffer, 0).Update(skin->OffsetBuffer, 1);
+				}
+				KD_CORE_INFO("Model: {}", (void*)skin->OffsetBuffer.Get());
+				m_Skins.push_back(skin);
+				result[mesh] = skin;
 			}
 			else {
-				result[mesh] = *tree;
+				result[mesh] = *skin;
 			}
-
 		}
 
 		return result;
@@ -82,7 +124,7 @@ namespace Kaidel {
 		}
 	}
 
-	Ref<SkinTree> SkinResolver::BuildSkinTree(const aiMesh* mesh)
+	SkinTree SkinResolver::BuildSkinTree(const aiMesh* mesh)
 	{
 		const aiNode* rootBone = FindRootBone(mesh);
 
@@ -96,9 +138,9 @@ namespace Kaidel {
 			nodeToBone[node] = bone;
 		}
 
-		Ref<SkinTree> tree = CreateRef<SkinTree>();
+		SkinTree tree;
 		uint32_t index = 0;
-		BuildSkinTree(mesh, rootBone, tree.Get(), nodeToBone, index);
+		BuildSkinTree(mesh, rootBone, &tree, nodeToBone, index);
 
 		return tree;
 	}
@@ -107,12 +149,13 @@ namespace Kaidel {
 		const aiMesh* mesh, const aiNode* currNode, SkinTree* outTree, 
 		const std::unordered_map<const aiNode*, const aiBone*>& nodeToBone, uint32_t& index)
 	{
-		const aiBone* bone = nodeToBone.at(currNode);
-
-		outTree->BindMatrix = glm::transpose(*(const glm::mat4*)&bone->mOffsetMatrix);
-		outTree->Name = bone->mName.C_Str();
-		outTree->ID = index;
-		++index;
+		if (auto it = nodeToBone.find(currNode); it != nodeToBone.end()) {
+			const aiBone* bone = it->second;
+			outTree->BindMatrix = glm::transpose(*(const glm::mat4*)&bone->mOffsetMatrix);
+			outTree->Name = bone->mName.C_Str();
+			outTree->ID = index;
+			++index;
+		}
 
 		if (currNode->mNumChildren)
 		{

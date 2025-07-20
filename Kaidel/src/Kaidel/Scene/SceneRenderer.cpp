@@ -235,7 +235,7 @@ namespace Kaidel {
 		s_Data->ClusterPipeline = ComputePipeline::Create(ShaderLibrary::LoadShader("Cluster", "assets/_shaders/ClusterComp.shader"));
 		for (auto& cluster : s_Data->Clusters) {
 			cluster =
-				StorageBuffer::Create(s_ClusterGridLength * sizeof(Cluster));
+				StorageBuffer::Create(nullptr, s_ClusterGridLength * sizeof(Cluster));
 		}
 
 		uint32_t i = 0;
@@ -278,7 +278,7 @@ namespace Kaidel {
 		s_Data->LightCullPipeline = ComputePipeline::Create(ShaderLibrary::LoadShader("LightCull", "assets/_shaders/ClusterCullComp.shader"));
 
 		for (auto& grid : s_Data->ClusterGrids) {
-			grid = StorageBuffer::Create(s_ClusterGridLength * sizeof(ClusterGrid));
+			grid = StorageBuffer::Create(nullptr, s_ClusterGridLength * sizeof(ClusterGrid));
 		}
 
 		uint32_t i = 0;
@@ -286,7 +286,7 @@ namespace Kaidel {
 			pack =
 				DescriptorSetPack(ShaderLibrary::GetNamedShader("LightCull"), 
 					{ {0,s_Data->ClusterPipelinePack.GetResources()[i].GetSet(0)} });
-			pack.GetSet(1)->Update(StorageBuffer::Create(MAX_LIGHT_COUNT * sizeof(Light)),0)
+			pack.GetSet(1)->Update(StorageBuffer::Create(nullptr, MAX_LIGHT_COUNT * sizeof(Light)),0)
 				.Update(s_Data->ClusterGrids.GetResources()[i],1);
 			++i;
 		}
@@ -947,7 +947,7 @@ namespace Kaidel {
 				if (!smc.UsedMesh)
 					continue;
 				
-				glm::mat4 model = tc.GlobalTransform;
+				glm::mat4 model = glm::mat4(1.0f);
 
 				Ref<SkinnedMesh> mesh = smc.UsedMesh;
 
@@ -1612,8 +1612,8 @@ namespace Kaidel {
 	{
 		if (!currBoneEntity)
 			return;
-
-		boneTransforms[currBoneNode.ID] = currBoneEntity.GetComponent<TransformComponent>().GlobalTransform * currBoneNode.BindMatrix;
+		boneTransforms[currBoneNode.ID] = currBoneEntity.GetComponent<TransformComponent>().GlobalTransform;
+		//boneTransforms[currBoneNode.ID] = glm::mat4(1.0f);
 
 		if (!currBoneEntity.HasChildren())
 			return;
@@ -1643,7 +1643,7 @@ namespace Kaidel {
 	static void BonePass(Scene* scene, const SceneData& sceneData, entt::registry& sceneReg)
 	{
 		RenderCommand::BindComputePipeline(s_Data->Bones.Pipeline);
-		
+
 		{
 			auto view = sceneReg.view<TransformComponent, SkinnedMeshComponent>();
 			
@@ -1658,16 +1658,61 @@ namespace Kaidel {
 				if (!rootBone)
 					continue;
 
-				std::vector<glm::mat4>& boneTransforms = smc.UsedMesh->GetBoneTransforms();
 				
-				Ref<SkinTree> tree = smc.UsedMesh->GetSkinTree();
+				Ref<Skin> skin = smc.UsedMesh->GetSkin();
 
-				CalculateBoneTransforms(scene, *tree, rootBone, boneTransforms);
+				std::vector<glm::mat4>& boneTransforms = skin->BoneTransforms;
 
-				smc.UsedMesh->GetBoneTransformsBuffer()->SetData(boneTransforms.data(), boneTransforms.size() * sizeof(glm::mat4));
+				if((uint64_t)skin->LastRoot != (uint64_t)smc.RootBone) 
+				{
+					//{
+					//	SCOPED_ACCU_TIMER("Bone transforms ST");
+					//	CalculateBoneTransforms(scene, skin->Tree, rootBone, boneTransforms);
+					//}
+					{
+						SCOPED_ACCU_TIMER("Bone transforms MT");
+						boneTransforms[skin->Tree.ID] = rootBone.GetComponent<TransformComponent>().GlobalTransform;
+
+						if (!rootBone.HasChildren())
+							return;
+
+						auto& pc = rootBone.GetComponent<ParentComponent>();
+
+						uint32_t i = 0;
+						for (auto& childBoneNode : skin->Tree.Children)
+						{
+							Entity childBoneEntity = scene->GetEntity(pc.Children[i++]);
+
+							//for (auto& childID : pc.Children)
+							//{
+							//	Entity childEntity = scene->GetEntity(childID);
+							//
+							//	if (childBoneNode.Name == childEntity.GetComponent<TagComponent>().Tag)
+							//	{
+							//		childBoneEntity = childEntity;
+							//		break;
+							//	}
+							//}
+
+							JobSystem::GetMainJobSystem().Execute(
+								[scene, 
+								&childBoneNode, 
+								childBoneEntity, 
+								&boneTransforms]() { 
+									CalculateBoneTransforms(scene, childBoneNode, childBoneEntity, boneTransforms); 
+								});
+						}
+
+						JobSystem::GetMainJobSystem().Wait();
+					}
+
+					skin->LastRoot = smc.RootBone;
+					skin->BoneTransformsBuffer->SetData(boneTransforms.data(), boneTransforms.size() * sizeof(glm::mat4));
+					Application::Get().SubmitToMainThread([skin]() {skin->LastRoot = UUID();});
+				}
 
 				RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("BonePass"), smc.UsedMesh->GetSkinnedBufferSet(), 0);
-				RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("BonePass"), smc.UsedMesh->GetBoneTransformsSet(), 1);
+				RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("BonePass"), skin->SkinSet, 1);
 
 				uint64_t sizeX = smc.UsedMesh->GetVertexCount() / 64;
 				RenderCommand::Dispatch(sizeX + 1, 1, 1);
@@ -1756,7 +1801,6 @@ namespace Kaidel {
 			for (auto& childID : pc.Children)
 			{
 				Entity child = scene->GetEntity(childID);
-
 				if (child)
 					CalculateTransformFromRoot(child, scene, tc.GlobalTransform);
 			}
@@ -1766,6 +1810,7 @@ namespace Kaidel {
 
 	static void CalculateTransforms(Scene* scene, entt::registry& m_Registry)
 	{
+		SCOPED_ACCU_TIMER("Calculate transforms");
 		auto view = m_Registry.view<TransformComponent>();
 
 		for (auto e : view)
@@ -1779,12 +1824,12 @@ namespace Kaidel {
 			if (!isRoot)
 				continue;
 
-			CalculateTransformFromRoot(entity, scene, glm::mat4(1.0f));
-
-			//JobSystem::GetMainJobSystem().Execute([entity, scene]() { CalculateTransformFromRoot(entity, scene, glm::mat4(1.0f)); });
+			{
+				JobSystem::GetMainJobSystem().Execute([entity, scene]() { CalculateTransformFromRoot(entity, scene, glm::mat4(1.0f)); });
+			}
 		}
 
-		//JobSystem::GetMainJobSystem().Wait();
+		JobSystem::GetMainJobSystem().Wait();
 	}
 
 	//TODO: add depth to 2D.
@@ -1835,7 +1880,7 @@ namespace Kaidel {
 		TextPass(sceneData, scene->m_Registry);
 		InsertTextPassBarrier();
 
-		LinePass(sceneData, scene->m_Registry);
+		//LinePass(sceneData, scene->m_Registry);
 
 		ResolveToOutput(outputBuffer);
 	}

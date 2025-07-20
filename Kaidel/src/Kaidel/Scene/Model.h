@@ -7,6 +7,8 @@
 #include "Kaidel/Renderer/GraphicsAPI/TextureLibrary.h"
 #include "Kaidel/Renderer/DescriptorSetPack.h"
 #include "Material.h"
+#include "Kaidel/Animation/Animation.h"
+#include "Kaidel/Core/UUID.h"
 
 #include <assimp/Importer.hpp>
 #include <assimp/mesh.h>
@@ -38,11 +40,22 @@ namespace Kaidel {
 		float BoneWeight[MaxBoneCount] = { 0 };
 	};
 
-	struct SkinTree : public IRCCounter<false> {
+	struct SkinTree {
 		glm::mat4 BindMatrix;
 		uint32_t ID;
 		std::string Name;
 		std::vector<SkinTree> Children;
+		bool IsDirty = true;
+	};
+
+	struct Skin : public IRCCounter<false> {
+		SkinTree Tree;
+		Ref<StorageBuffer> OffsetBuffer;
+		Ref<StorageBuffer> BoneTransformsBuffer;
+		std::vector<glm::mat4> Offsets;
+		std::vector<glm::mat4> BoneTransforms;
+		Ref<DescriptorSet> SkinSet;
+		UUID LastRoot;
 	};
 
 	extern Ref<RenderPass> GetDeferredPassRenderPass();
@@ -78,8 +91,8 @@ namespace Kaidel {
 
 	class SkinnedMesh : public Mesh {
 	public:
-		SkinnedMesh(const std::vector<SkinnedMeshVertex>& vertices, const std::vector<uint16_t>& indices, Ref<SkinTree> tree)
-			: m_SkinTree(tree)
+		SkinnedMesh(const std::vector<SkinnedMeshVertex>& vertices, const std::vector<uint16_t>& indices, Ref<Skin> skin)
+			: m_Skin(skin)
 		{
 			m_VertexBuffer = VertexBuffer::Create(nullptr, vertices.size() * sizeof(MeshVertex));
 			m_SkinnedBuffer = VertexBuffer::Create(vertices.data(), vertices.size() * sizeof(SkinnedMeshVertex));
@@ -87,7 +100,7 @@ namespace Kaidel {
 
 			m_VertexCount = vertices.size();
 			m_IndexCount = indices.size();
-			m_BoneCount = CalcBoneCount(*tree);
+			m_BoneCount = CalcBoneCount(skin->Tree);
 
 			{
 				DescriptorSetLayoutSpecification specs(
@@ -101,32 +114,13 @@ namespace Kaidel {
  				m_SkinnedBufferSet->Update(m_SkinnedBuffer, 0).Update(m_VertexBuffer, 1);
 			}
 
-			{
-				m_BoneTransformsBuffer = StorageBuffer::Create(m_BoneCount * sizeof(glm::mat4));
-			}
-
-			{
-				DescriptorSetLayoutSpecification specs(
-					{ {DescriptorType::StorageBuffer, ShaderStage_ComputeShader} }
-				);
-
-				m_BoneTransformsSet = DescriptorSet::Create(specs);
-
-				m_BoneTransformsSet->Update(m_BoneTransformsBuffer, 0);
-			}
-
-			m_BoneTransforms.resize(m_BoneCount, glm::mat4(1.0f));
 		}
 
 		virtual bool IsSkinned() const override { return true; }
 
-		Ref<SkinTree> GetSkinTree()const { return m_SkinTree; }
+		Ref<Skin> GetSkin()const { return m_Skin; }
 
 		uint64_t GetBoneCount() const { return m_BoneCount; }
-
-		std::vector<glm::mat4>& GetBoneTransforms() { return m_BoneTransforms; }
-		Ref<DescriptorSet> GetBoneTransformsSet() const { return m_BoneTransformsSet; }
-		Ref<StorageBuffer> GetBoneTransformsBuffer() const { return m_BoneTransformsBuffer; }
 
 		Ref<DescriptorSet> GetSkinnedBufferSet() const { return m_SkinnedBufferSet; }
 
@@ -145,19 +139,17 @@ namespace Kaidel {
 	private:
 		Ref<VertexBuffer> m_SkinnedBuffer;
 		Ref<DescriptorSet> m_SkinnedBufferSet;
-		Ref<SkinTree> m_SkinTree;
+		Ref<Skin> m_Skin;
 		uint64_t m_BoneCount = 0;
-		std::vector<glm::mat4> m_BoneTransforms;
-		Ref<DescriptorSet> m_BoneTransformsSet;
-		Ref<StorageBuffer> m_BoneTransformsBuffer;
 	};
 	
 	struct MeshTree {
 		glm::vec3 Position;
-		glm::vec3 Rotation;
+		glm::quat Rotation;
 		glm::vec3 Scale;
 
 		Ref<Mesh> NodeMesh;
+		Ref<AnimationTree> NodeAnimation;
 		std::string NodeName;
 		std::vector<Scope<MeshTree>> Children;
 	};
@@ -177,7 +169,7 @@ namespace Kaidel {
 		Path m_ModelDir;
 		Scope<MeshTree> m_Tree;
 		SkinTree m_SkinTree;
-
+		
 		friend class ModelLibrary;
 		friend class ModelLoader;
 	};

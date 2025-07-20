@@ -10,6 +10,6 @@ namespace Kaidel{
 		virtual BufferType GetBufferType()const { return BufferType::StorageBuffer; }
         virtual void SetData(const void* data, uint64_t size, uint64_t offset = 0) = 0;
 
-        static Ref<StorageBuffer> Create(uint64_t size);
+        static Ref<StorageBuffer> Create(const void* data, uint64_t size);
     };
 }

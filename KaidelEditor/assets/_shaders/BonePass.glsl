@@ -14,6 +14,9 @@ layout(set = 0, binding = 1, std430) buffer restrict writeonly DstVertexData{
 layout(set = 1, binding = 0, std430) buffer restrict readonly SkeletonData {
 	mat4 Data[];
 } BoneTransforms;
+layout(set = 1, binding = 1, std430) buffer restrict readonly OffsetsData {
+	mat4 Data[];
+} BoneOffsets;
 
 struct MeshVertex
 {
@@ -124,7 +127,7 @@ void main() {
 			if(vertex.BoneWeight[i] == 0.0)
 				continue;
 		
-			mat += vertex.BoneWeight[i] * BoneTransforms.Data[vertex.BoneID[i]];
+			mat += vertex.BoneWeight[i] * BoneTransforms.Data[vertex.BoneID[i]] * BoneOffsets.Data[vertex.BoneID[i]];
 		}
 	}
 

@@ -1,21 +1,24 @@
 #include "KDpch.h"
 #include "ModelLoader.h"
 #include "SkinResolver.h"
+#include "AnimationResolver.h"
 #include "Kaidel\Math\Math.h"
+
+#include <glm/gtx/matrix_decompose.hpp>
 
 namespace Kaidel {
 
 	Ref<Model> ModelLoader::Load(const Path& path)
 	{
 		Assimp::Importer importer;
+		importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
 
 		{
-			SCOPED_TIMER("Assimp ReadFile");
+			//SCOPED_TIMER("Assimp ReadFile");
 			m_Scene =
 				importer.ReadFile(path.string(),
 					aiProcess_Triangulate | aiProcess_OptimizeMeshes | aiProcess_CalcTangentSpace | aiProcess_FlipUVs | aiProcess_GlobalScale);
 		}
-
 		if (!m_Scene || m_Scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !m_Scene->mRootNode)
 		{
 			KD_CORE_ASSERT(importer.GetErrorString());
@@ -29,17 +32,28 @@ namespace Kaidel {
 
 		m_MeshToSkin = SkinResolver(m_Scene).ResolveSkinTrees();
 
+		m_NodeToAnim = AnimationResolver(m_Scene).ResolveAnimations();
+
 		ProcessNode(m_Scene->mRootNode, *m_Model->m_Tree);
 		return m_Model;
 	}
-
+	
 	void ModelLoader::ProcessNode(const aiNode* node, MeshTree& outTree)
 	{
 		outTree.NodeName = node->mName.C_Str();
 
-		glm::mat4 nodeTransform = glm::transpose((const glm::mat4&)node->mTransformation);
+		glm::mat4 nodeTransform = glm::transpose(*(const glm::mat4*)&node->mTransformation);
 
-		Math::DecomposeTransform(nodeTransform, outTree.Position, outTree.Rotation, outTree.Scale);
+		glm::vec3 skew;
+		glm::vec4 perspective;
+
+		glm::decompose(nodeTransform, outTree.Scale, outTree.Rotation, outTree.Position, skew, perspective);
+
+		if (auto it = m_NodeToAnim.find(node); it != m_NodeToAnim.end())
+		{
+			outTree.NodeAnimation = it->second;
+		}
+
 
 		for (uint32_t i = 0; i < node->mNumMeshes; ++i) {
 			const aiMesh* mesh = m_Scene->mMeshes[node->mMeshes[i]];
@@ -56,7 +70,7 @@ namespace Kaidel {
 	}
 	Kaidel::Ref<Kaidel::Mesh> ModelLoader::ProcessMesh(const aiMesh* mesh)
 	{
-		SCOPED_TIMER("ProcessMesh");
+		//SCOPED_TIMER("ProcessMesh");
 
 		if (mesh->HasBones())
 		{
@@ -71,7 +85,7 @@ namespace Kaidel {
 	}
 	Kaidel::Ref<Kaidel::Material> ModelLoader::ProcessMaterial(const aiMesh* mesh, const aiMaterial* material)
 	{
-		SCOPED_TIMER("ProcessMaterial");
+		//SCOPED_TIMER("ProcessMaterial");
 		Ref<Texture2D> albedo = {};
 		std::vector<std::pair<uint32_t, std::string>> texturePaths;
 		if (material->GetTextureCount(aiTextureType_DIFFUSE)) {
@@ -246,15 +260,15 @@ namespace Kaidel {
 			vertices[i] = vertex;
 		}
 
-		Ref<SkinTree> tree = m_MeshToSkin[mesh];
-		KD_CORE_ASSERT(tree);
+		Ref<Skin> skin = m_MeshToSkin[mesh];
+		KD_CORE_ASSERT(skin);
 
 		std::unordered_map<const aiBone*, SkinTree*> boneToSkin;
 
 		for (uint32_t i = 0; i < mesh->mNumBones; ++i) {
 			const aiBone* bone = mesh->mBones[i];
 
-			boneToSkin[bone] = FindBoneInTree(bone, tree.Get());
+			boneToSkin[bone] = FindBoneInTree(bone, &skin->Tree);
 		}
 
 		for (uint32_t i = 0; i < mesh->mNumBones; ++i) {
