@@ -78,9 +78,12 @@ namespace Kaidel {
 
 		m_Info = VK_BACKEND->CreateDescriptorSet(
 			std::initializer_list<std::pair<VkDescriptorType, VkShaderStageFlags>>(types.data(),types.data() + types.size()));
+		
 		m_Values.resize(types.size());
+
 		for (uint32_t i = 0; i < types.size(); ++i) {
 			m_Values[i].resize(1);
+			m_Values[i][0].Type = layout.Types[i].first;
 		}
 	}
 	
@@ -114,6 +117,7 @@ namespace Kaidel {
 		write.pBufferInfo = &bufferInfo;
 		switch (buffer->GetBufferType())
 		{
+		case BufferType::VertexBuffer :  write.descriptorType  =  VK_DESCRIPTOR_TYPE_STORAGE_BUFFER; break;
 		case BufferType::UniformBuffer: write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; break;
 		case BufferType::StorageBuffer: write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER; break;
 		}

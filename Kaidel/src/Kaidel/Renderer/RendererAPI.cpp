@@ -14,8 +14,8 @@
 namespace Kaidel {
 
 	RendererAPI::API RendererAPI::s_API = RendererAPI::API::Vulkan;
-	glm::mat4 _GetTransform(const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& scl) {
-		glm::mat4 rotation = glm::toMat4(glm::quat(rot));
+	glm::mat4 _GetTransform(const glm::vec3& pos, const glm::quat& rot, const glm::vec3& scl) {
+		glm::mat4 rotation = glm::toMat4(glm::normalize(rot));
 		/*switch (RendererAPI::GetAPI())
 		{
 		case RendererAPI::API::OpenGL: {*/

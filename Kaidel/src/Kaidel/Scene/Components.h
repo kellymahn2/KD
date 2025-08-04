@@ -2,6 +2,8 @@
 #include "SceneCamera.h"
 #include "Model.h"
 #include "Kaidel/Core/UUID.h"
+#include "Kaidel/Animation/Animation.h"
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -39,12 +41,15 @@ namespace Kaidel {
 		TagComponent(const std::string& tag)
 			: Tag(tag) {}
 	};
-	glm::mat4 _GetTransform(const glm::vec3& pos, const glm::vec3&rot, const glm::vec3& scl);
+	glm::mat4 _GetTransform(const glm::vec3& pos, const glm::quat& rot, const glm::vec3& scl);
+
 	struct TransformComponent
 	{
 		glm::vec3 Translation = { 0.0f, 0.0f, 0.0f };
-		glm::vec3 Rotation = { 0.0f, 0.0f, 0.0f };
+		glm::quat Rotation = glm::quat();
 		glm::vec3 Scale = { 1.0f, 1.0f, 1.0f };
+		
+		glm::mat4 GlobalTransform = glm::mat4(1.0f);
 
 		TransformComponent() = default;
 		TransformComponent(const TransformComponent&) = default;
@@ -119,6 +124,19 @@ namespace Kaidel {
 		ModelComponent(const ModelComponent&) = default;
 	};
 
+	struct MeshComponent {
+		Ref<Mesh> UsedMesh;
+		MeshComponent() = default;
+		MeshComponent(const MeshComponent&) = default;
+	};
+
+	struct SkinnedMeshComponent {
+		Ref<SkinnedMesh> UsedMesh;
+		UUID RootBone;
+		SkinnedMeshComponent() = default;
+		SkinnedMeshComponent(const SkinnedMeshComponent&) = default;
+	};
+
 	struct DirectionalLightComponent {
 		glm::vec3 Color = glm::vec3(1.0);
 		float MaxDistance = 1000.0f;
@@ -126,6 +144,7 @@ namespace Kaidel {
 		float SplitLambda = 0.95f;
 		float FadeStart = 1.0f;
 	};
+
 
 	struct CameraComponent
 	{
@@ -159,16 +178,25 @@ namespace Kaidel {
 		}
 	};
 
-
 	struct AnimationPlayerComponent {
+		enum class AnimationOnFinishAction {
+			None = 0,
+			Repeat
+		};
 		enum class PlayerState {
 			Playing,
-			Paused,
-			Stopped,
+			Paused
 		};
+		
 		float Time = 0.0f;
-		//Asset<Animation> Anim;
-		PlayerState State = PlayerState::Stopped;
+		
+		float PlaybackSpeed = 1.0f;
+		
+		PlayerState State = PlayerState::Paused;
+		AnimationOnFinishAction FinishAction = AnimationOnFinishAction::None;
+
+		Ref<AnimationTree> Animation;
+
 		AnimationPlayerComponent() = default;
 		AnimationPlayerComponent(const AnimationPlayerComponent&) = default;
 	};

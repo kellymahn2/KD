@@ -122,8 +122,8 @@ namespace Math {
 	{
 		using namespace Kaidel;
 		auto& otherTC = other.GetComponent<TransformComponent>();
-		DecomposeTransform((Rotate(origin.GetComponent<TransformComponent>().Translation, rotationVector)) * otherTC.GetTransform()
-			, otherTC.Translation, otherTC.Rotation, otherTC.Scale);
+		//DecomposeTransform((Rotate(origin.GetComponent<TransformComponent>().Translation, rotationVector)) * otherTC.GetTransform()
+		//	, otherTC.Translation, otherTC.Rotation, otherTC.Scale);
 
 	}
 

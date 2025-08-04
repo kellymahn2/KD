@@ -154,15 +154,15 @@ namespace Kaidel {
 				b2Body* body = (b2Body*)rb2d.RuntimeBody; 
 				const auto& position = body->GetPosition();
 
-				glm::vec3 deltaPos = -transform.Translation;
-				deltaPos.z = 0.0f;
-				deltaPos.x += position.x;
-				deltaPos.y += position.y;
-				glm::vec3 deltaRot = -transform.Rotation;
-				deltaRot.x = 0.0f;
-				deltaRot.y = 0.0f;
-				deltaRot.z += body->GetAngle();
-				MoveEntity(entity, this, deltaPos, deltaRot);
+				//glm::vec3 deltaPos = -transform.Translation;
+				//deltaPos.z = 0.0f;
+				//deltaPos.x += position.x;
+				//deltaPos.y += position.y;
+				//glm::vec3 deltaRot = -transform.Rotation;
+				//deltaRot.x = 0.0f;
+				//deltaRot.y = 0.0f;
+				//deltaRot.z += body->GetAngle();
+				//MoveEntity(entity, this, deltaPos, deltaRot);
 			}
 		}
 	}
@@ -187,6 +187,59 @@ namespace Kaidel {
 	void Scene::RenderScene()
 	{
 		
+	}
+
+	void Scene::CreateModelFromTree(const Scope<MeshTree>& curr, Entity entity, std::unordered_map<std::string, Entity>& nameToEntity)
+	{
+		entity.GetComponent<TagComponent>().Tag = curr->NodeName;
+		nameToEntity[curr->NodeName] = entity;
+
+		auto& tc = entity.GetComponent<TransformComponent>();
+
+		tc.Translation = curr->Position;
+		tc.Rotation = curr->Rotation;
+		tc.Scale = curr->Scale;
+
+		if (curr->NodeMesh)
+		{
+			if(curr->NodeMesh->IsSkinned())
+				entity.AddComponent<SkinnedMeshComponent>().UsedMesh = curr->NodeMesh;
+			else
+				entity.AddComponent<MeshComponent>().UsedMesh = curr->NodeMesh;
+
+		}
+
+		if (curr->NodeAnimation)
+		{
+			auto& apc = entity.AddComponent<AnimationPlayerComponent>();
+			apc.Animation = curr->NodeAnimation;
+		}
+
+		for (auto& child : curr->Children)
+		{
+			Entity chEntity = CreateEntity();
+			CreateModelFromTree(child, chEntity, nameToEntity);
+
+			chEntity.AddParent(entity.GetUUID());
+			entity.AddChild(chEntity.GetUUID());
+		}
+	}
+
+	void Scene::SetSkinnedMeshRootBones(const Scope<MeshTree>& curr, Entity entity, std::unordered_map<std::string, Entity>& nameToEntity)
+	{
+		if (curr->NodeMesh && curr->NodeMesh->IsSkinned())
+		{
+			Ref<SkinnedMesh> mesh = curr->NodeMesh;
+
+			entity.GetComponent<SkinnedMeshComponent>().RootBone = nameToEntity[mesh->GetSkin()->Tree.Name].GetUUID();
+		}
+
+		uint32_t ch = 0;
+		for (auto& child : curr->Children)
+		{
+			Entity chEntity = GetEntity(entity.GetComponent<ParentComponent>().Children[ch++]);
+			SetSkinnedMeshRootBones(child, chEntity, nameToEntity);
+		}
 	}
 
 	void Scene::DuplicateEntity(Entity& entity)
@@ -226,8 +279,21 @@ namespace Kaidel {
 
 	Entity Scene::CreateCube(const std::string& name, UUID uuid) {
 		Entity entity = CreateEntity(uuid, name);
-		auto& mc = entity.AddComponent<ModelComponent>();
-		mc.UsedModel = ModelLibrary::GetBaseCube();
+		auto& mc = entity.AddComponent<MeshComponent>();
+		mc.UsedMesh = ModelLibrary::GetBaseCube();
+		return entity;
+	}
+
+	Entity Scene::CreateModel(Ref<Model> model)
+	{
+		Entity entity = CreateEntity();
+
+		std::unordered_map<std::string, Entity> nameToEntity;
+
+		CreateModelFromTree(model->GetMeshTree(), entity, nameToEntity);
+
+		SetSkinnedMeshRootBones(model->GetMeshTree(), entity, nameToEntity);
+
 		return entity;
 	}
 
@@ -236,6 +302,11 @@ namespace Kaidel {
 		if (m_IDMap.find(id) != m_IDMap.end())
 			return { m_IDMap.at(id),this };
 		return Entity{};
+	}
+
+	bool Scene::IsEntity(UUID id)
+	{
+		return m_IDMap.find(id) != m_IDMap.end();
 	}
 
 	Entity Scene::FindEntityByName(std::string_view name)
@@ -427,6 +498,8 @@ namespace Kaidel {
 	DEF_COMPONENT_ADD(LineRendererComponent)
 	DEF_COMPONENT_ADD(AnimationPlayerComponent)
 	DEF_COMPONENT_ADD(ModelComponent)
+	DEF_COMPONENT_ADD(MeshComponent)
+	DEF_COMPONENT_ADD(SkinnedMeshComponent)
 	DEF_COMPONENT_ADD(DirectionalLightComponent)
 	DEF_COMPONENT_ADD(TextComponent)
 }

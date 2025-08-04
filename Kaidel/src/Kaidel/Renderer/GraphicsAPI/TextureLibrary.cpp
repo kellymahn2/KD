@@ -291,6 +291,9 @@ namespace Kaidel {
 		SCOPED_TIMER("Load");
 		if (auto t = Get(path); t)
 			return t;
+
+		KD_INFO("Loading texture {}", path);
+
 		Utils::ImageLoadResult res;
 		
 		res = Utils::LoadImage(path, format);

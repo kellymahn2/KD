@@ -5,6 +5,7 @@
 #include "Panels/ContentBrowserPanel.h"
 #include "Panels/PropertiesPanel.h"
 #include "Panels/ConsolePanel.h"
+#include "Panels/AnimationPanel.h"
 #include "Kaidel/Renderer/EditorCamera.h"
 #include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
 #include "Kaidel/Renderer/2D/Renderer2D.h"
@@ -89,7 +90,7 @@ namespace Kaidel {
 
 		bool m_ConsoleOpen = false;
 		EditorCamera m_EditorCamera;
-		float m_Near = .1f, m_Far = 250.0f;
+		float m_Near = .1f, m_Far = 1000.0f;
 		
 		bool m_ViewportFocused = false, m_ViewportHovered = false;
 
@@ -102,9 +103,9 @@ namespace Kaidel {
 
 		// Panels
 		SceneHierarchyPanel m_SceneHierarchyPanel;
-		ContentBrowserPanel m_ContentBrowserPanel;
+		//ContentBrowserPanel m_ContentBrowserPanel;
 		ConsolePanel m_ConsolePanel;
-		PropertiesPanel m_PropertiesPanel;
+		AnimationPanel m_AnimationPanel;
 
 
 		struct Icons {
@@ -120,8 +121,6 @@ namespace Kaidel {
 		};
 
 		SceneState m_SceneState = SceneState::Edit;
-
-		Ref<PanelContext> m_PanelContext;
 
 		RendererSettings m_RendererSettings = RendererAPI::GetSettings();
 

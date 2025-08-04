@@ -14,8 +14,8 @@ namespace Kaidel {
 		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:KD_CORE_INFO(pCallbackData->pMessage); break;
 		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:KD_CORE_WARN(pCallbackData->pMessage); break;
 		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-			std::cout << pCallbackData->pMessage << std::endl;
-			break;
+			KD_CORE_ERROR(pCallbackData->pMessage);
+			break; 
 		}
 		return VK_FALSE;
 	}
@@ -26,6 +26,7 @@ namespace Kaidel {
 		//Query API version
 		VK_ASSERT(vkEnumerateInstanceVersion(&version));
 
+		version = VK_MAKE_VERSION(1, 3, 280);
 
 		VkApplicationInfo appInfo{ VK_STRUCTURE_TYPE_APPLICATION_INFO };
 		appInfo.pEngineName = name.c_str();

@@ -559,7 +559,6 @@ namespace VulkanBackend {
 
 			//Reflect
 			{
-
 				SpvReflectShaderModule reflection{};
 				spvReflectCreateShaderModule(spirv.size() * sizeof(uint32_t), spirv.begin(), &reflection);
 

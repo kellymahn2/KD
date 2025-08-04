@@ -5,7 +5,7 @@
 namespace Kaidel{
     class VulkanStorageBuffer : public StorageBuffer{
     public:
-        VulkanStorageBuffer(uint64_t size);
+        VulkanStorageBuffer(const void* data, uint64_t size);
         ~VulkanStorageBuffer();
 		virtual RendererID GetBackendID()const override { return (RendererID)&m_Buffer; }
 

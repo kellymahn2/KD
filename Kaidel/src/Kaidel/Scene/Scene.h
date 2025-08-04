@@ -5,6 +5,7 @@
 #include "Kaidel/Renderer/GraphicsAPI/Framebuffer.h"
 #include "Kaidel/Core/UUID.h"
 #include "entt.hpp"
+#include "Model.h"
 class b2World;
 
 namespace Kaidel {
@@ -18,8 +19,11 @@ namespace Kaidel {
 		Entity CreateEntity(const std::string& name = std::string());
 		Entity CreateEntity(UUID uuid, const std::string& name = std::string());
 		Entity CreateCube(const std::string& name = "", UUID uuid = {});
+		Entity CreateModel(Ref<Model> model);
+
 
 		Entity GetEntity(UUID id);
+		bool IsEntity(UUID id);
 		Entity FindEntityByName(std::string_view name);
 		void DestroyEntity(Entity entity);
 
@@ -60,6 +64,9 @@ namespace Kaidel {
 		void OnPhysics2DStop();
 		void UpdateAnimations(float ts);
 		void RenderScene();
+		void CreateModelFromTree(const Scope<MeshTree>& curr, Entity entity, std::unordered_map<std::string, Entity>& nameToEntity);
+		void SetSkinnedMeshRootBones(const Scope<MeshTree>& curr, Entity entity, std::unordered_map<std::string, Entity>& nameToEntity);
+
 	private:
 
 		Entity GetMainDirectionalLight();

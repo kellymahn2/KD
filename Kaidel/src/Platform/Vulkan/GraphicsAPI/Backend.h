@@ -5,7 +5,7 @@
 #include <glad/vulkan.h>
 #include <spirv_cross/spirv_cross.hpp>
 #include <spirv_cross/spirv_reflect.hpp>
-#include <spirv-headers/spirv_reflect.h>
+#include <spirv-reflect.h>
 
 #include <vector>
 #include <unordered_map>

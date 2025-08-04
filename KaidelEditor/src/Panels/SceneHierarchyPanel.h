@@ -10,19 +10,9 @@ namespace Kaidel {
 	class SceneHierarchyPanel
 	{
 	public:
-		SceneHierarchyPanel() = default;
-		SceneHierarchyPanel(const Ref<Scene>& scene);
-
-		void SetContext(Ref<PanelContext> context) {
-			m_Context = context;
-		}
-
-		void OnImGuiRender();
-		void RegisterFieldRenderers();
+		static void OnImGuiRender(Ref<Scene> scene);
 	private:
-		void DrawEntityNode(Entity entity);
-	private:
-		Ref<PanelContext> m_Context;
+		static void DrawEntityNode(Entity entity, Ref<Scene> scene);
 	};
 
 }

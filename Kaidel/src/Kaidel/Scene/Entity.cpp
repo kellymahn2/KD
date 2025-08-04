@@ -13,7 +13,7 @@ namespace Kaidel {
 			return entity.GetComponent<TransformComponent>().GetTransform();
 
 		auto& origin = entity.GetParent().GetComponent<TransformComponent>();
-		return glm::inverse(Math::Rotate(origin.Translation,origin.Rotation))*entity.GetComponent<TransformComponent>().GetTransform();
+		//return glm::inverse(Math::Rotate(origin.Translation,origin.Rotation))*entity.GetComponent<TransformComponent>().GetTransform();
 	}
 	
 }
@@ -37,7 +37,7 @@ void Kaidel::RotateEntity(Kaidel::Entity entity, Kaidel::Scene* scene, const glm
 			//	/** glm::toMat4(glm::quat(delta)) */* glm::scale(glm::mat4(1.0f), tc.Scale)
 			//	, tc.Translation, tc.Rotation, tc.Scale);
 		}
-		tc.Rotation += delta;
+		//tc.Rotation += delta;
 	}
 }
 void Kaidel::TranslateEntity(Kaidel::Entity entity, Kaidel::Scene* scene, const glm::vec3& delta, Kaidel::Entity top) {
@@ -63,11 +63,10 @@ void Kaidel::TranslateEntity(Kaidel::Entity entity, Kaidel::Scene* scene, const 
 }
 
 void Kaidel::MoveEntity(Kaidel::Entity entity, Kaidel::Scene* scene, const glm::vec3& deltaT, const glm::vec3& deltaR) {
-	if (glm::dot(deltaR, deltaR)) {
-		RotateEntity(entity, scene, deltaR);
-	}
-	if (glm::dot(deltaT, deltaT)) {
-		TranslateEntity(entity, scene, deltaT);
-	}
-
+	//if (glm::dot(deltaR, deltaR)) {
+	//	RotateEntity(entity, scene, deltaR);
+	//}
+	//if (glm::dot(deltaT, deltaT)) {
+	//	TranslateEntity(entity, scene, deltaT);
+	//}
 }

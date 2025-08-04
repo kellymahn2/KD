@@ -6,5 +6,5 @@
 #include "Platform/Vulkan/GraphicsAPI/VulkanStorageBuffer.h"
 
 namespace Kaidel{
-    TMAKE(Ref<StorageBuffer>, StorageBuffer::Create,TPACK(uint64_t size),CreateRef<VulkanStorageBuffer>,TPACK(size));
+    TMAKE(Ref<StorageBuffer>, StorageBuffer::Create,TPACK(const void* data, uint64_t size),CreateRef<VulkanStorageBuffer>,TPACK(data, size));
 }

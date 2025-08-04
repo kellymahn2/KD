@@ -19,6 +19,7 @@
 
 #include "imguizmo/ImGuizmo.h"
 #include "Kaidel/Scene/SceneRenderer.h"
+#include "Kaidel/Animation/Animation.h"
 
 #include <forward_list>
 
@@ -27,7 +28,21 @@
 namespace Kaidel {
 	glm::vec4 _GetUVs();
 	Ref<Font> font;
+	Entity e;
 
+	float animationTime = 0.0f;
+
+	bool animationPlaying = false;
+
+	Ref<AnimationTree> anim;
+
+	float maxAnimationTime = 2.0f;
+
+	//Animations work.
+	//TODO: Add the ability to actually render the animation curve.
+	//TODO: Add the UI for animations.
+	//TODO: Add the ability to load animations from animation files.
+	//TODO: Add the ability to store/load animations into/from scene files.
 	EditorLayer::EditorLayer()
 		: Layer("EditorLayer")
 	{
@@ -108,7 +123,6 @@ namespace Kaidel {
 		m_ActiveScene = CreateRef<Scene>();
 		m_EditorScene = m_ActiveScene;
 		m_EditorCamera = EditorCamera(60.0f, 1.778f, m_Near, m_Far);
-		m_PanelContext = CreateRef<PanelContext>();
 		auto& commandLineArgs = Application::Get().GetCommandLineArgs();
 		if (commandLineArgs.Count > 1) {
 			auto projectFilePath = commandLineArgs[1];
@@ -118,10 +132,7 @@ namespace Kaidel {
 			NewProject();
 		}
 
-		m_PanelContext->Scene = m_ActiveScene;
-
-		m_SceneHierarchyPanel.SetContext(m_PanelContext);
-		m_PropertiesPanel.SetContext(m_PanelContext);
+		EditorContext::Init();
 		//m_ConsolePanel.SetContext(::Log::GetClientLogger());
 		/*m_ContentBrowserPanel.SetCurrentPath(Project::GetProjectDirectory());
 		m_ContentBrowserPanel.SetStartPath(Project::GetProjectDirectory());
@@ -142,7 +153,6 @@ namespace Kaidel {
 				return DescriptorSet::Create(specs);
 			});
 		}
-
 		{
 			Entity e = m_ActiveScene->CreateEntity("Light");
 			auto& tc = e.GetComponent<TransformComponent>();
@@ -154,22 +164,143 @@ namespace Kaidel {
 			dlc.SplitLambda = 0.95f;
 			dlc.FadeStart = 1.0f;
 		}
-		//{
-		//	Entity e = m_ActiveScene->CreateEntity("Text");
-		//	auto& tc = e.AddComponent<TextComponent>();
-		//	//auto x = ReadFile("E:/KD/Kaidel/src/Kaidel/Scene/SceneRenderer.cpp");
-		//	tc.TextContent = "Kaidel";
-		//	tc.TextFont = RendererGlobals::GetDefaultFont();
-		//}
-		//{
-		//	Entity e = m_ActiveScene->CreateEntity("Square2");
-		//	auto& src = e.AddComponent<SpriteRendererComponent>();
-		//	src.SpriteTexture = TextureLibrary::Load("assets/textures/Checkerboard.png",ImageLayout::ShaderReadOnlyOptimal,Format::RGBA8SRGB);
-		//}
+
+		{
+			Ref<Model> model = ModelLibrary::LoadModel("D:/KD/KaidelEditor/assets/models/Silly Dancing/untitled.gltf");
+			Entity entity = m_ActiveScene->CreateModel(model);
+
+			m_ActiveScene->GetEntity(entity.GetComponent<ParentComponent>().Children[1])
+				.GetComponent<AnimationPlayerComponent>().State = AnimationPlayerComponent::PlayerState::Playing;
+			m_ActiveScene->GetEntity(entity.GetComponent<ParentComponent>().Children[1])
+				.GetComponent<AnimationPlayerComponent>().FinishAction = AnimationPlayerComponent::AnimationOnFinishAction::Repeat;
+		}
+		{
+			Ref<Model> model = ModelLibrary::LoadModel("D:/KD/KaidelEditor/assets/models/Erika Archer Walking/untitled.gltf");
+			Entity entity = m_ActiveScene->CreateModel(model);
+
+			m_ActiveScene->GetEntity(entity.GetComponent<ParentComponent>().Children[4])
+				.GetComponent<AnimationPlayerComponent>().State = AnimationPlayerComponent::PlayerState::Playing;
+			m_ActiveScene->GetEntity(entity.GetComponent<ParentComponent>().Children[4])
+				.GetComponent<AnimationPlayerComponent>().FinishAction = AnimationPlayerComponent::AnimationOnFinishAction::Repeat;
+
+
+			entity.GetComponent<TransformComponent>().Translation = glm::vec3(5.0f, 0.0f, 0.0f);
+		}
 	}
 
 	void EditorLayer::OnDetach()
 	{
+		EditorContext::Shutdown();
+	}
+
+	size_t FindFrameIndex(const std::vector<AnimationFrame>& frames, float time) {
+		for (int index = 0; index < frames.size() - 1; ++index)
+		{
+			if (time < frames[index + 1].Time)
+				return index;
+		}
+		return frames.size() - 1;
+		KD_ASSERT(false);
+	}
+
+	void ApplyTrackToEntity(float time, const Scope<AnimationTrack>& track, Entity entity)
+	{
+		auto& tc = entity.GetComponent<TransformComponent>();
+
+		if (track->Frames.empty())
+			return;
+
+		uint32_t frame = FindFrameIndex(track->Frames, time);
+
+		switch (track->ValueType)
+		{
+		case Kaidel::AnimationValueType::Position:
+		{
+			if (frame == track->Frames.size() - 1)
+			{
+				tc.Translation = track->Frames.back().Position.Target;
+			}
+			else
+			{
+				float t = (time - track->Frames[frame].Time) / (track->Frames[frame + 1].Time - track->Frames[frame].Time);
+				tc.Translation = glm::mix(track->Frames[frame].Position.Target, track->Frames[frame + 1].Position.Target, t);
+			}
+		} break;
+		case Kaidel::AnimationValueType::Rotation:
+		{
+			
+			if (frame == track->Frames.size() - 1)
+			{
+				tc.Rotation = track->Frames.back().Rotation.Target;
+			}
+			else
+			{
+				float t = (time - track->Frames[frame].Time) / (track->Frames[frame + 1].Time - track->Frames[frame].Time);
+				tc.Rotation = glm::normalize(glm::slerp(track->Frames[frame].Rotation.Target, track->Frames[frame + 1].Rotation.Target, t));
+			}
+		} break;
+		case Kaidel::AnimationValueType::Scale:
+		{
+			//if (frame == track->Frames.size() - 1)
+			//{
+			//	tc.Scale = track->Frames.back().Scale.Target;
+			//}
+			//else
+			//{
+			//	float t = (time - track->Frames[frame].Time) / (track->Frames[frame + 1].Time - track->Frames[frame].Time);
+			//	tc.Scale = glm::mix(track->Frames[frame].Scale.Target, track->Frames[frame + 1].Scale.Target, t);
+			//}
+		} break;
+		}
+	}
+
+	void UpdateAnimationRecursive(float time, AnimationTree::AnimationTreeNode& currNode, Entity currEntity, Scene* scene)
+	{
+		for (uint32_t i = 0; i < AnimationValueTypeCount; ++i) 
+		{
+			if (!currNode.Tracks[i])
+				continue;
+
+			ApplyTrackToEntity(time, currNode.Tracks[i], currEntity);
+		}
+
+		if (currNode.Children.empty())
+		{
+			return;
+		}
+
+		if (currEntity.HasComponent<ParentComponent>()) 
+		{
+			auto& pc = currEntity.GetComponent<ParentComponent>();
+
+			uint32_t entitiesUpdated = 0;
+
+			for (auto& childID : pc.Children)
+			{
+				Entity childEntity = scene->GetEntity(childID);
+
+				auto it = currNode.Children.find(childEntity.GetComponent<TagComponent>().Tag);
+				
+				if (it != currNode.Children.end())
+				{
+					UpdateAnimationRecursive(time, it->second, childEntity, scene);
+					++entitiesUpdated;
+
+					//Break early when all entities have updated.
+					if (entitiesUpdated == currNode.Children.size())
+					{
+						break;
+					}
+				}
+			}
+
+			KD_CORE_ASSERT(entitiesUpdated == currNode.Children.size());
+		}
+	}
+
+	void UpdateAnimation(float time, AnimationTree& tree, Entity root, Scene* scene)
+	{
+		UpdateAnimationRecursive(time, tree.RootNode, root, scene);
 	}
 
 	void EditorLayer::OnUpdate(Timestep ts)
@@ -212,6 +343,33 @@ namespace Kaidel {
 				if (currentProjectConfig.TimeSinceLastProjectAutoSave >= currentProjectConfig.ProjectAutoSaveTimer) {
 					SaveProject();
 					currentProjectConfig.TimeSinceLastProjectAutoSave = 0.0f;
+				}
+			}
+			
+			{
+				auto view = m_ActiveScene->m_Registry.view<AnimationPlayerComponent>();
+
+				for (auto e : view)
+				{
+					auto& [apc] = view.get(e);
+
+					if (apc.Animation && apc.PlaybackSpeed != 0.0f && apc.State != AnimationPlayerComponent::PlayerState::Paused) 
+					{
+						UpdateAnimation(apc.Time, *apc.Animation, Entity(e, m_ActiveScene.Get()), m_ActiveScene.Get());
+
+						apc.Time += ts.GetSeconds() * apc.PlaybackSpeed;
+
+						if (apc.Time >= apc.Animation->Duration)
+						{
+							switch (apc.FinishAction)
+							{
+							case AnimationPlayerComponent::AnimationOnFinishAction::None: apc.State = AnimationPlayerComponent::PlayerState::Paused; break;
+							case AnimationPlayerComponent::AnimationOnFinishAction::Repeat: apc.State = AnimationPlayerComponent::PlayerState::Playing; break;
+							}
+
+							apc.Time = 0.0f;
+						}
+					}
 				}
 			}
 
@@ -290,7 +448,7 @@ namespace Kaidel {
 					// which we can't undo at the moment without finer window depth/z control.
 					//ImGui::MenuItem("Fullscreen", NULL, &opt_fullscreen_persistant);1
 					if (ImGui::MenuItem("Duplicate", "Ctrl+D"))
-						m_ActiveScene->DuplicateEntity(m_PanelContext->SelectedEntity());
+						m_ActiveScene->DuplicateEntity(EditorContext::SelectedEntity());
 					if (ImGui::MenuItem("New", "Ctrl+N"))
 						NewScene();
 
@@ -324,21 +482,15 @@ namespace Kaidel {
 					ImGui::EndMenu();
 				}
 
-
-
-
-
-
-
 				ImGui::EndMenuBar();
 			}
 
 
-			m_SceneHierarchyPanel.OnImGuiRender();
+			m_SceneHierarchyPanel.OnImGuiRender(m_ActiveScene);
 			//m_ConsolePanel.OnImGuiRender();
 			//m_ContentBrowserPanel.OnImGuiRender();
-			//m_AnimationPanel.OnImGuiRender();
-			m_PropertiesPanel.OnImGuiRender();
+			m_AnimationPanel.OnImGuiRender();
+			PropertiesPanel::OnImGuiRender();
 
 			ShowDebugWindow();
 			ShowViewport();
@@ -428,14 +580,12 @@ namespace Kaidel {
 		m_RuntimeScene = Scene::Copy(m_EditorScene);
 		m_RuntimeScene->OnRuntimeStart();
 		m_ActiveScene = m_RuntimeScene;
-		m_PanelContext->Scene = m_ActiveScene;
 	}
 	void EditorLayer::OnSceneStop() {
 		m_SceneState = SceneState::Edit;
 		m_ActiveScene->OnRuntimeStop();
 		m_RuntimeScene = nullptr;
 		m_ActiveScene = m_EditorScene;
-		m_PanelContext->Scene = m_ActiveScene;
 	}
 
 	void EditorLayer::OnSceneSimulateStart() {
@@ -447,7 +597,6 @@ namespace Kaidel {
 		m_SimulationScene = Scene::Copy(m_EditorScene);
 		m_SimulationScene->OnSimulationStart();
 		m_ActiveScene = m_SimulationScene;
-		m_PanelContext->Scene = m_ActiveScene;
 	}
 	void EditorLayer::OnSceneSimulateStop() {
 		m_SceneState = SceneState::Edit;
@@ -473,27 +622,27 @@ namespace Kaidel {
 	}
 
 	void EditorLayer::MoveChildren(Entity curr, const glm::vec3& deltaTranslation, const glm::vec3& deltaRotation, Entity parent) {
-		auto& tc = curr.GetComponent<TransformComponent>();
-		if (curr.HasComponent<ParentComponent>()) {
-			for (auto& child : curr.GetComponent<ParentComponent>().Children) {
-				auto entity = m_ActiveScene->GetEntity(child);
-				MoveChildren(entity, deltaTranslation, deltaRotation, parent ? parent : curr);
-			}
-		}
-		if (parent && (deltaRotation.x || deltaRotation.y || deltaRotation.z)) {
-			Math::Rotate(curr, parent, deltaRotation);
-		}
-		else {
-			if (parent)
-				tc.Rotation += deltaRotation;
-		}
-		tc.Translation += deltaTranslation;
+		//auto& tc = curr.GetComponent<TransformComponent>();
+		//if (curr.HasComponent<ParentComponent>()) {
+		//	for (auto& child : curr.GetComponent<ParentComponent>().Children) {
+		//		auto entity = m_ActiveScene->GetEntity(child);
+		//		MoveChildren(entity, deltaTranslation, deltaRotation, parent ? parent : curr);
+		//	}
+		//}
+		//if (parent && (deltaRotation.x || deltaRotation.y || deltaRotation.z)) {
+		//	Math::Rotate(curr, parent, deltaRotation);
+		//}
+		//else {
+		//	if (parent)
+		//		tc.Rotation += deltaRotation;
+		//}
+		//tc.Translation += deltaTranslation;
 	}
 
 	void EditorLayer::DrawGizmos()
 	{
 
-		Entity selectedEntity = m_PanelContext->SelectedEntity();
+		Entity selectedEntity = EditorContext::SelectedEntity();
 		if (selectedEntity && m_GizmoType != -1)
 		{
 			ImGuizmo::SetOrthographic(false);
@@ -507,7 +656,7 @@ namespace Kaidel {
 			auto gizmoCamera = GetCurrentCameraViewProjection();
 			// Entity transform
 			auto& tc = selectedEntity.GetComponent<TransformComponent>();
-			glm::mat4 transform = tc.GetTransform();
+			glm::mat4 transform = tc.GlobalTransform;
 
 			// Snapping
 			bool snap = Input::IsKeyDown(Key::LeftControl);
@@ -526,19 +675,19 @@ namespace Kaidel {
 			{
 				glm::vec3 translation, rotation, scale;
 				Math::DecomposeTransform(transform, translation, rotation, scale);
-				glm::vec3 deltaTranslation = translation - tc.Translation;
-				glm::vec3 deltaRotation = rotation - tc.Rotation;
-				for (int i = 0; i < 3; ++i) {
-					if (glm::epsilonEqual(deltaRotation[i], 0.0f, glm::epsilon<float>())) {
-						deltaRotation[i] = 0.0f;
-					}
-				}
-				for (int i = 0; i < 3; ++i) {
-					if (glm::epsilonEqual(deltaTranslation[i], 0.0f, glm::epsilon<float>())) {
-						deltaTranslation[i] = 0.0f;
-					}
-				}
-				MoveEntity(selectedEntity, m_ActiveScene.Get(), deltaTranslation, deltaRotation);
+				//glm::vec3 deltaTranslation = translation - tc.Translation;
+				//glm::vec3 deltaRotation = rotation - tc.Rotation;
+				//for (int i = 0; i < 3; ++i) {
+				//	if (glm::epsilonEqual(deltaRotation[i], 0.0f, glm::epsilon<float>())) {
+				//		deltaRotation[i] = 0.0f;
+				//	}
+				//}
+				//for (int i = 0; i < 3; ++i) {
+				//	if (glm::epsilonEqual(deltaTranslation[i], 0.0f, glm::epsilon<float>())) {
+				//		deltaTranslation[i] = 0.0f;
+				//	}
+				//}
+				//MoveEntity(selectedEntity, m_ActiveScene.Get(), deltaTranslation, deltaRotation);
 				tc.Scale = scale;
 			}
 		}
@@ -580,35 +729,32 @@ namespace Kaidel {
 		ImGui::Text("Gizmo Mode : %d", m_GizmoType);
 		//auto stats = Renderer2D::GetStats();
 		ImGui::Text("Frame Rate: %.3f", ImGui::GetIO().Framerate);
-		for (const auto& [name, data] : AccumulativeTimer::GetTimers()) {
+		ImGui::Text("Frame Time: %.3f", 1.0f / ImGui::GetIO().Framerate);
+
+		static bool stopTimers = false;
+		static std::unordered_map<std::string, uint64_t> stoppedTimers;
+		if (ImGui::Button(stopTimers ? "Start timers" : "Stop timers"))
+		{
+			stopTimers = !stopTimers;
+			if (stopTimers)
+			{
+				stoppedTimers = AccumulativeTimer::GetTimers();
+			}
+		}
+
+		for (const auto& [name, data] : stopTimers ? stoppedTimers : AccumulativeTimer::GetTimers()) {
 			float ns = (float)data;
 			float ms = (float)ns * 1e-6f;
 			float s = (float)ns * 1e-9f;
 			ImGui::TextWrapped("%s Took :(%.3f ns,%.3f ms,%.3f s)", name.c_str(), ns, ms, s);
 		}
 		
-		if (ImGui::Button("x2")) {
-			samples = TextureSamples::x2;
-		}
-		if (ImGui::Button("x4")) {
-			samples = TextureSamples::x4;
-		}
-		if (ImGui::Button("x8")) {
-			samples = TextureSamples::x8;
-		}
-		if (ImGui::Button("x16")) {
-			samples = TextureSamples::x16;
-		}
-
-		ImGui::Text("Current samples: %d", (int)samples);
-		ImGui::InputInt("Show debug shadows", &ShowDebugShadow);
-
 		ImGui::Text("UI Vertex Count: %d", ImGui::GetIO().MetricsRenderVertices);
-		static int split = 0;
-
-		ImGui::InputInt("Split", &split);
 		
-		split = std::clamp(split, 0, 3);
+		ImGui::Text("Current animation time: %.3f", animationTime);
+		if (ImGui::Button(!animationPlaying ? "Animation play" : "Animation Stop")) {
+			animationPlaying = !animationPlaying;
+		}
 
 		//Ref<Texture2D> t = *(DepthTexture[split]);
 		
@@ -835,7 +981,7 @@ namespace Kaidel {
 			case Key::D:
 			{
 				if (control&&!shift)
-					m_ActiveScene->DuplicateEntity(m_PanelContext->SelectedEntity());
+					m_ActiveScene->DuplicateEntity(EditorContext::SelectedEntity());
 				else if (control&&shift)
 					m_Debug = !m_Debug;
 				break;
@@ -917,7 +1063,6 @@ namespace Kaidel {
 	{
 		m_ActiveScene = CreateRef<Scene>();
 		m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
-		m_PanelContext->Scene = m_ActiveScene;
 	}
 
 	void EditorLayer::OpenScene()
@@ -946,7 +1091,6 @@ namespace Kaidel {
 		if (serializer.Deserialize(path.string())) {
 			m_EditorScene = newScene;
 
-			m_PanelContext->Scene = m_EditorScene;
 			m_ActiveScene = m_EditorScene;
 		}
 	}
