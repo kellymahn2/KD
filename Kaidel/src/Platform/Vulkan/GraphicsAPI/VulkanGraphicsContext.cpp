@@ -126,7 +126,9 @@ namespace Kaidel {
 
 		#pragma endregion
 
-		m_MaxFramesInFlight = std::min(m_Swapchain.ImageCount,2U);
+		m_MaxFramesInFlight = std::min(m_Swapchain.ImageCount,3U);
+		m_MaxFramesInFlight = m_Swapchain.ImageCount;
+		KD_INFO("Frames in flight: {}", m_MaxFramesInFlight);
 
 		/*m_FramesData.resize(m_MaxFramesInFlight);
 		

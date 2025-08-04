@@ -891,18 +891,15 @@ namespace Kaidel {
 			auto view = sceneReg.view<TransformComponent, MeshComponent>();
 			for (auto& e : view) {
 				auto& [tc, smc] = view.get(e);
-
+		
 				if (!smc.UsedMesh)
 					continue;
-
+		
 				glm::mat4 model = tc.GlobalTransform;
-
-				Ref<SkinnedMesh> mesh = smc.UsedMesh;
-
+		
+				Ref<Mesh> mesh = smc.UsedMesh;
 				Ref<VertexBuffer> vb = mesh->GetVertexBuffer();
 				Ref<IndexBuffer> ib = mesh->GetIndexBuffer();
-				Ref<Material> mat = mesh->GetDefaultMaterial();
-				KD_CORE_ASSERT(mat);
 
 				if (lastSetVertexBuffer != vb) {
 					RenderCommand::BindVertexBuffers({ vb }, { 0 });
@@ -913,48 +910,57 @@ namespace Kaidel {
 					lastSetIndexBuffer = ib;
 				}
 
-				if (!lastSetMaterial) {
-					mat->BindValues();
-					mat->BindPipeline();
-					mat->BindBaseValues(viewProj);
-					lastSetMaterial = mat;
-				}
-				else if (lastSetMaterial != mat) {
-					mat->BindValues();
+				for (auto& submesh : mesh->GetSubmeshes())
+				{
+					Ref<Material> mat = submesh.DefaultMaterial;
+					KD_CORE_ASSERT(mat);
 
-					//RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), mesh->GetDefaultMaterial()->GetTextureSet(), 1);
-
-					if (lastSetMaterial->GetPipeline() != mat->GetPipeline()) {
+					if (!lastSetMaterial) {
+						mat->BindValues();
 						mat->BindPipeline();
 						mat->BindBaseValues(viewProj);
+						lastSetMaterial = mat;
+					}
+					else if (lastSetMaterial != mat) {
+						mat->BindValues();
+
+						//RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), mesh->GetDefaultMaterial()->GetTextureSet(), 1);
+
+						if (lastSetMaterial->GetPipeline() != mat->GetPipeline()) {
+							mat->BindPipeline();
+							mat->BindBaseValues(viewProj);
+						}
+
+						lastSetMaterial = mat;
 					}
 
-					lastSetMaterial = mat;
+					lastSetMaterial->BindTransform(model);
+
+					RenderCommand::DrawIndexed(
+						submesh.IndexOffset, 
+						submesh.VertexCount, 
+						1, 
+						submesh.IndexOffset, 
+						submesh.VertexOffset, 
+						0);
 				}
-
-				lastSetMaterial->BindTransform(model);
-
-				RenderCommand::DrawIndexed((uint32_t)mesh->GetIndexCount(), (uint32_t)mesh->GetVertexCount(), 1, 0, 0, 0);
 			}
 		}
-
-
+		
+		
 		{
 			auto view = sceneReg.view<TransformComponent, SkinnedMeshComponent>();
 			for (auto& e : view) {
 				auto& [tc,smc] = view.get(e);
-
+		
 				if (!smc.UsedMesh)
 					continue;
 				
 				glm::mat4 model = glm::mat4(1.0f);
-
+		
 				Ref<SkinnedMesh> mesh = smc.UsedMesh;
-
 				Ref<VertexBuffer> vb = mesh->GetVertexBuffer();
 				Ref<IndexBuffer> ib = mesh->GetIndexBuffer();
-				Ref<Material> mat = mesh->GetDefaultMaterial();
-				KD_CORE_ASSERT(mat);
 				
 				if (lastSetVertexBuffer != vb) {
 					RenderCommand::BindVertexBuffers({ vb }, { 0 });
@@ -965,28 +971,40 @@ namespace Kaidel {
 					lastSetIndexBuffer = ib;
 				}
 				
-				if (!lastSetMaterial) {
-					mat->BindValues();
-					mat->BindPipeline();
-					mat->BindBaseValues(viewProj);
-					lastSetMaterial = mat;
-				}
-				else if (lastSetMaterial != mat) {
-					mat->BindValues();
-				
-					//RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), mesh->GetDefaultMaterial()->GetTextureSet(), 1);
-				
-					if (lastSetMaterial->GetPipeline() != mat->GetPipeline()) {
+				for (auto& submesh : mesh->GetSubmeshes())
+				{
+					Ref<Material> mat = submesh.DefaultMaterial;
+					KD_CORE_ASSERT(mat);
+
+					if (!lastSetMaterial) {
+						mat->BindValues();
 						mat->BindPipeline();
 						mat->BindBaseValues(viewProj);
+						lastSetMaterial = mat;
 					}
-				
-					lastSetMaterial = mat;
+					else if (lastSetMaterial != mat) {
+						mat->BindValues();
+
+						//RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), mesh->GetDefaultMaterial()->GetTextureSet(), 1);
+
+						if (lastSetMaterial->GetPipeline() != mat->GetPipeline()) {
+							mat->BindPipeline();
+							mat->BindBaseValues(viewProj);
+						}
+
+						lastSetMaterial = mat;
+					}
+
+					lastSetMaterial->BindTransform(model);
+
+					RenderCommand::DrawIndexed(
+						submesh.IndexCount,
+						submesh.VertexCount,
+						1,
+						submesh.IndexOffset,
+						0,
+						0);
 				}
-				
-				lastSetMaterial->BindTransform(model);
-				
-				RenderCommand::DrawIndexed((uint32_t)mesh->GetIndexCount(), (uint32_t)mesh->GetVertexCount(), 1, 0, 0, 0);
 			}
 		}
 		RenderCommand::EndRenderPass();

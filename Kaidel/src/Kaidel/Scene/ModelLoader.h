@@ -15,14 +15,15 @@ namespace Kaidel {
 		const aiScene* m_Scene;
 		std::unordered_map<const aiMesh*, Ref<Skin>> m_MeshToSkin;
 		std::unordered_map<const aiNode*, Ref<AnimationTree>> m_NodeToAnim;
+		
+		const aiMesh* GetMesh(uint32_t index);
 
 		void ProcessNode(const aiNode* node, MeshTree& outTree);
-		Ref<Mesh> ProcessMesh(const aiMesh* mesh);
+		Ref<Mesh> ProcessMesh(const uint32_t* meshes, uint32_t meshCount);
 		Ref<Material> ProcessMaterial(const aiMesh* mesh, const aiMaterial* material);
-		Ref<AnimationTree> ProcessAnimation(const aiAnimation* animation);
 
-		std::vector<MeshVertex> ProcessVertices(const aiMesh* mesh);
-		std::vector<SkinnedMeshVertex> ProcessSkinnedVertices(const aiMesh* mesh);
-		std::vector<uint16_t> ProcessIndices(const aiMesh* mesh);
+		void ProcessVertices(const aiMesh* mesh, std::vector<MeshVertex>& output);
+		void ProcessSkinnedVertices(const aiMesh* mesh, std::vector<SkinnedMeshVertex>& output);
+		void ProcessIndices(const aiMesh* mesh, uint32_t offset, std::vector<uint16_t>& indices);
 	};
 }

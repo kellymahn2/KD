@@ -1,6 +1,7 @@
 #include "SceneHierarchyPanel.h"
-#include "UI/UIHelper.h"
 #include "PropertiesPanel.h"
+#include "EditorContext.h"
+#include "UI/UIHelper.h"
 #include "Kaidel/Math/Math.h"
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
@@ -11,51 +12,34 @@
 #include <cstring>
 #include <sstream>
 #include "Kaidel/Scripting/ScriptEngine.h"
-/* The Microsoft C++ compiler is non-compliant with the C++ standard and needs
- * the following definition to disable a security warning on std::strncpy().
- */
-#ifdef _MSVC_LANG
-  #define _CRT_SECURE_NO_WARNINGS
-#endif
+
+
 namespace Kaidel {
-
-
-	void SceneHierarchyPanel::RegisterFieldRenderers() {
-
-	}
-	SceneHierarchyPanel::SceneHierarchyPanel(const Ref<Scene>& context)
+	
+	void SceneHierarchyPanel::OnImGuiRender(Ref<Scene> scene)
 	{
-	}
-
-
-
-	void SceneHierarchyPanel::OnImGuiRender()
-	{
-
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0,0 });
 		ImGui::Begin("Scene Hierarchy",nullptr,ImGuiWindowFlags_NoNavInputs);
-		m_Context->Scene->m_Registry.each([&](auto entityID)
+		scene->m_Registry.each([&](auto entityID)
 			{
-				Entity entity{entityID ,m_Context->Scene.Get() };
+				Entity entity{entityID , scene.Get() };
 				if (entity.HasComponent<ChildComponent>())
 					return;
-				DrawEntityNode(entity);
+				DrawEntityNode(entity, scene);
 		});
 
-		if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered() && m_Context->SelectedEntity()) {
-
-			m_Context->Type = SelectedType::Entity;
-			m_Context->_SelectedEntity = {};
+		if (ImGui::IsMouseClicked(0) && ImGui::IsWindowHovered() && EditorContext::SelectedEntity()) {
+			EditorContext::SelectedEntity({});
 		}
 
 		// Right-click on blank space
 		if (ImGui::BeginPopupContextWindow(0, 1|ImGuiPopupFlags_NoOpenOverItems|ImGuiPopupFlags_NoOpenOverExistingPopup))
 		{
 			if (ImGui::MenuItem("Create Empty Entity"))
-				m_Context->Scene->CreateEntity("Empty Entity");
+				scene->CreateEntity("Empty Entity");
 			if (ImGui::BeginMenu("New")) {
 				if (ImGui::MenuItem("Cube")) {
-					m_Context->Scene->CreateCube("Cube");
+					scene->CreateCube("Cube");
 				}
 				ImGui::EndMenu();
 			}
@@ -67,13 +51,13 @@ namespace Kaidel {
 		ImGui::PopStyleVar();
 	}
 
-	void SceneHierarchyPanel::DrawEntityNode(Entity entity)
+	void SceneHierarchyPanel::DrawEntityNode(Entity entity, Ref<Scene> scene)
 	{
 
 		Styler styler;
 
 		auto& tag = entity.GetComponent<TagComponent>().Tag;
-		auto currContext = m_Context->SelectedEntity();
+		auto currContext = EditorContext::SelectedEntity();
 		styler.PushColor(ImGuiCol_HeaderHovered, { 0,0,0,0 });
 		styler.PushColor(ImGuiCol_HeaderActive, { 0,0,0,0 });
 		styler.PushColor(ImGuiCol_Header, { 0,0,0,0 });
@@ -105,10 +89,10 @@ namespace Kaidel {
 
 					entity.AddChild(childEntityID);
 
-					auto childEntity = m_Context->Scene->GetEntity(childEntityID);
+					auto childEntity = scene->GetEntity(childEntityID);
 					if (childEntity.HasComponent<ChildComponent>()) {
 						auto& cc = childEntity.GetComponent<ChildComponent>();
-						auto oldParent = m_Context->Scene->GetEntity(cc.Parent);
+						auto oldParent = scene->GetEntity(cc.Parent);
 						auto& oldpc = oldParent.GetComponent<ParentComponent>();
 						auto it = std::find(oldpc.Children.begin(), oldpc.Children.end(), childEntityID);
 						if (it != oldpc.Children.end())
@@ -124,12 +108,11 @@ namespace Kaidel {
 
 			if (ImGui::IsItemClicked())
 			{
-				m_Context->Type = SelectedType::Entity;
-				m_Context->_SelectedEntity = entity;
+				EditorContext::SelectedEntity(entity);
 			}
 			if (opened) {
 				for (auto& child : entity.GetComponent<ParentComponent>().Children) {
-					DrawEntityNode(m_Context->Scene->GetEntity(child));
+					DrawEntityNode(scene->GetEntity(child), scene);
 				}
 				ImGui::TreePop();
 			}
@@ -156,10 +139,10 @@ namespace Kaidel {
 
 					entity.AddChild(childEntityID);
 
-					auto childEntity = m_Context->Scene->GetEntity(childEntityID);
+					auto childEntity = scene->GetEntity(childEntityID);
 					if (childEntity.HasComponent<ChildComponent>()) {
 						auto& cc = childEntity.GetComponent<ChildComponent>();
-						auto oldParent = m_Context->Scene->GetEntity(cc.Parent);
+						auto oldParent = scene->GetEntity(cc.Parent);
 						auto& oldpc = oldParent.GetComponent<ParentComponent>();
 						auto it = std::find(oldpc.Children.begin(), oldpc.Children.end(), childEntityID);
 						if (it != oldpc.Children.end())
@@ -173,8 +156,7 @@ namespace Kaidel {
 				}
 			}
 			if (ImGui::IsItemClicked()) {
-				m_Context->Type = SelectedType::Entity;
-				m_Context->_SelectedEntity = entity;
+				EditorContext::SelectedEntity(entity);
 			}
 			
 			ImGui::PopID();
@@ -185,14 +167,12 @@ namespace Kaidel {
 		
 		if (entityDeleted)
 		{
-			m_Context->Scene->DestroyEntity(entity);
-			if (m_Context->SelectedEntity() == entity)
+			scene->DestroyEntity(entity);
+
+			if (EditorContext::SelectedEntity() == entity)
 			{
-				m_Context->Type = SelectedType::Entity;
-				m_Context->_SelectedEntity = {};
+				EditorContext::SelectedEntity({});
 			}
 		}
 	}
-	
-	
 }

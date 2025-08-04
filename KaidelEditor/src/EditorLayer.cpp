@@ -123,7 +123,6 @@ namespace Kaidel {
 		m_ActiveScene = CreateRef<Scene>();
 		m_EditorScene = m_ActiveScene;
 		m_EditorCamera = EditorCamera(60.0f, 1.778f, m_Near, m_Far);
-		m_PanelContext = CreateRef<PanelContext>();
 		auto& commandLineArgs = Application::Get().GetCommandLineArgs();
 		if (commandLineArgs.Count > 1) {
 			auto projectFilePath = commandLineArgs[1];
@@ -133,10 +132,7 @@ namespace Kaidel {
 			NewProject();
 		}
 
-		m_PanelContext->Scene = m_ActiveScene;
-
-		m_SceneHierarchyPanel.SetContext(m_PanelContext);
-		m_PropertiesPanel.SetContext(m_PanelContext);
+		EditorContext::Init();
 		//m_ConsolePanel.SetContext(::Log::GetClientLogger());
 		/*m_ContentBrowserPanel.SetCurrentPath(Project::GetProjectDirectory());
 		m_ContentBrowserPanel.SetStartPath(Project::GetProjectDirectory());
@@ -157,7 +153,6 @@ namespace Kaidel {
 				return DescriptorSet::Create(specs);
 			});
 		}
-
 		{
 			Entity e = m_ActiveScene->CreateEntity("Light");
 			auto& tc = e.GetComponent<TransformComponent>();
@@ -170,20 +165,32 @@ namespace Kaidel {
 			dlc.FadeStart = 1.0f;
 		}
 
-		for(uint32_t j = 0; j < 10; ++j)
-		{
-			for (uint32_t i = 0; i < 10; ++i)
-			{
-				Ref<Model> model = ModelLibrary::LoadModel("D:/KD/KaidelEditor/assets/models/Erika Archer Walking/untitled.gltf");
-				Entity entity = m_ActiveScene->CreateModel(model);
+		{
+			Ref<Model> model = ModelLibrary::LoadModel("D:/KD/KaidelEditor/assets/models/Silly Dancing/untitled.gltf");
+			Entity entity = m_ActiveScene->CreateModel(model);
 
-				entity.GetComponent<TransformComponent>().Translation = glm::vec3((float)i + 8.0f, (float)j + 15.0f, 0.0f);
-			}
+			m_ActiveScene->GetEntity(entity.GetComponent<ParentComponent>().Children[1])
+				.GetComponent<AnimationPlayerComponent>().State = AnimationPlayerComponent::PlayerState::Playing;
+			m_ActiveScene->GetEntity(entity.GetComponent<ParentComponent>().Children[1])
+				.GetComponent<AnimationPlayerComponent>().FinishAction = AnimationPlayerComponent::AnimationOnFinishAction::Repeat;
+		}
+		{
+			Ref<Model> model = ModelLibrary::LoadModel("D:/KD/KaidelEditor/assets/models/Erika Archer Walking/untitled.gltf");
+			Entity entity = m_ActiveScene->CreateModel(model);
+
+			m_ActiveScene->GetEntity(entity.GetComponent<ParentComponent>().Children[4])
+				.GetComponent<AnimationPlayerComponent>().State = AnimationPlayerComponent::PlayerState::Playing;
+			m_ActiveScene->GetEntity(entity.GetComponent<ParentComponent>().Children[4])
+				.GetComponent<AnimationPlayerComponent>().FinishAction = AnimationPlayerComponent::AnimationOnFinishAction::Repeat;
+
+
+			entity.GetComponent<TransformComponent>().Translation = glm::vec3(5.0f, 0.0f, 0.0f);
 		}
 	}
 
 	void EditorLayer::OnDetach()
 	{
+		EditorContext::Shutdown();
 	}
 
 	size_t FindFrameIndex(const std::vector<AnimationFrame>& frames, float time) {
@@ -192,13 +199,15 @@ namespace Kaidel {
 			if (time < frames[index + 1].Time)
 				return index;
 		}
+		return frames.size() - 1;
+		KD_ASSERT(false);
 	}
 
 	void ApplyTrackToEntity(float time, const Scope<AnimationTrack>& track, Entity entity)
 	{
 		auto& tc = entity.GetComponent<TransformComponent>();
 
-		if (track->Frames.size() < 2)
+		if (track->Frames.empty())
 			return;
 
 		uint32_t frame = FindFrameIndex(track->Frames, time);
@@ -219,7 +228,7 @@ namespace Kaidel {
 		} break;
 		case Kaidel::AnimationValueType::Rotation:
 		{
-			KD_INFO("{}", frame);
+			
 			if (frame == track->Frames.size() - 1)
 			{
 				tc.Rotation = track->Frames.back().Rotation.Target;
@@ -439,7 +448,7 @@ namespace Kaidel {
 					// which we can't undo at the moment without finer window depth/z control.
 					//ImGui::MenuItem("Fullscreen", NULL, &opt_fullscreen_persistant);1
 					if (ImGui::MenuItem("Duplicate", "Ctrl+D"))
-						m_ActiveScene->DuplicateEntity(m_PanelContext->SelectedEntity());
+						m_ActiveScene->DuplicateEntity(EditorContext::SelectedEntity());
 					if (ImGui::MenuItem("New", "Ctrl+N"))
 						NewScene();
 
@@ -473,21 +482,15 @@ namespace Kaidel {
 					ImGui::EndMenu();
 				}
 
-
-
-
-
-
-
 				ImGui::EndMenuBar();
 			}
 
 
-			m_SceneHierarchyPanel.OnImGuiRender();
+			m_SceneHierarchyPanel.OnImGuiRender(m_ActiveScene);
 			//m_ConsolePanel.OnImGuiRender();
 			//m_ContentBrowserPanel.OnImGuiRender();
-			//m_AnimationPanel.OnImGuiRender();
-			m_PropertiesPanel.OnImGuiRender();
+			m_AnimationPanel.OnImGuiRender();
+			PropertiesPanel::OnImGuiRender();
 
 			ShowDebugWindow();
 			ShowViewport();
@@ -577,14 +580,12 @@ namespace Kaidel {
 		m_RuntimeScene = Scene::Copy(m_EditorScene);
 		m_RuntimeScene->OnRuntimeStart();
 		m_ActiveScene = m_RuntimeScene;
-		m_PanelContext->Scene = m_ActiveScene;
 	}
 	void EditorLayer::OnSceneStop() {
 		m_SceneState = SceneState::Edit;
 		m_ActiveScene->OnRuntimeStop();
 		m_RuntimeScene = nullptr;
 		m_ActiveScene = m_EditorScene;
-		m_PanelContext->Scene = m_ActiveScene;
 	}
 
 	void EditorLayer::OnSceneSimulateStart() {
@@ -596,7 +597,6 @@ namespace Kaidel {
 		m_SimulationScene = Scene::Copy(m_EditorScene);
 		m_SimulationScene->OnSimulationStart();
 		m_ActiveScene = m_SimulationScene;
-		m_PanelContext->Scene = m_ActiveScene;
 	}
 	void EditorLayer::OnSceneSimulateStop() {
 		m_SceneState = SceneState::Edit;
@@ -642,7 +642,7 @@ namespace Kaidel {
 	void EditorLayer::DrawGizmos()
 	{
 
-		Entity selectedEntity = m_PanelContext->SelectedEntity();
+		Entity selectedEntity = EditorContext::SelectedEntity();
 		if (selectedEntity && m_GizmoType != -1)
 		{
 			ImGuizmo::SetOrthographic(false);
@@ -981,7 +981,7 @@ namespace Kaidel {
 			case Key::D:
 			{
 				if (control&&!shift)
-					m_ActiveScene->DuplicateEntity(m_PanelContext->SelectedEntity());
+					m_ActiveScene->DuplicateEntity(EditorContext::SelectedEntity());
 				else if (control&&shift)
 					m_Debug = !m_Debug;
 				break;
@@ -1063,7 +1063,6 @@ namespace Kaidel {
 	{
 		m_ActiveScene = CreateRef<Scene>();
 		m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
-		m_PanelContext->Scene = m_ActiveScene;
 	}
 
 	void EditorLayer::OpenScene()
@@ -1092,7 +1091,6 @@ namespace Kaidel {
 		if (serializer.Deserialize(path.string())) {
 			m_EditorScene = newScene;
 
-			m_PanelContext->Scene = m_EditorScene;
 			m_ActiveScene = m_EditorScene;
 		}
 	}

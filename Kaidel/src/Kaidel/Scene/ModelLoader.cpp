@@ -14,10 +14,15 @@ namespace Kaidel {
 		importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
 
 		{
+			
 			//SCOPED_TIMER("Assimp ReadFile");
 			m_Scene =
 				importer.ReadFile(path.string(),
-					aiProcess_Triangulate | aiProcess_OptimizeMeshes | aiProcess_CalcTangentSpace | aiProcess_FlipUVs | aiProcess_GlobalScale);
+					aiProcess_Triangulate | 
+					aiProcess_OptimizeMeshes | 
+					aiProcess_CalcTangentSpace | 
+					aiProcess_FlipUVs |
+					aiProcess_GlobalScale);
 		}
 		if (!m_Scene || m_Scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !m_Scene->mRootNode)
 		{
@@ -38,6 +43,11 @@ namespace Kaidel {
 		return m_Model;
 	}
 	
+	const aiMesh* ModelLoader::GetMesh(uint32_t index)
+	{
+		return m_Scene->mMeshes[index];
+	}
+
 	void ModelLoader::ProcessNode(const aiNode* node, MeshTree& outTree)
 	{
 		outTree.NodeName = node->mName.C_Str();
@@ -54,12 +64,8 @@ namespace Kaidel {
 			outTree.NodeAnimation = it->second;
 		}
 
-
-		for (uint32_t i = 0; i < node->mNumMeshes; ++i) {
-			const aiMesh* mesh = m_Scene->mMeshes[node->mMeshes[i]];
-			outTree.NodeMesh = ProcessMesh(mesh);
-			//Take only the first mesh in node (usually only one mesh exists in each node, if any.)
-			break;
+		if(node->mNumMeshes){
+			outTree.NodeMesh = ProcessMesh(node->mMeshes, node->mNumMeshes);
 		}
 
 		for (uint32_t i = 0; i < node->mNumChildren; ++i) {
@@ -68,26 +74,128 @@ namespace Kaidel {
 			ProcessNode(child, *outTree.Children.back());
 		}
 	}
-	Kaidel::Ref<Kaidel::Mesh> ModelLoader::ProcessMesh(const aiMesh* mesh)
+
+	Ref<Mesh> ModelLoader::ProcessMesh(const uint32_t* meshes, uint32_t meshCount)
 	{
-		//SCOPED_TIMER("ProcessMesh");
-
-		if (mesh->HasBones())
+		if (GetMesh(meshes[0])->HasBones())
 		{
-			Ref<SkinnedMesh> m = CreateRef<SkinnedMesh>(ProcessSkinnedVertices(mesh), ProcessIndices(mesh), m_MeshToSkin[mesh]);
-			m->SetDefaultMaterial(ProcessMaterial(mesh, m_Scene->mMaterials[mesh->mMaterialIndex]));
-			return m;
-		}
+			std::vector<SkinnedMeshVertex> vertices;
+			std::vector<uint16_t> indices;
+			std::vector<Submesh> submeshes;
 
-		Ref<Mesh> m = CreateRef<Mesh>(ProcessVertices(mesh), ProcessIndices(mesh));
-		m->SetDefaultMaterial(ProcessMaterial(mesh, m_Scene->mMaterials[mesh->mMaterialIndex]));
-		return m;
+			Ref<Skin> skin = m_MeshToSkin[GetMesh(meshes[0])];
+
+			for (uint32_t i = 0; i < meshCount; ++i)
+			{
+				const aiMesh* mesh = GetMesh(meshes[i]);
+				
+				KD_CORE_ASSERT(mesh->HasBones(), "All submeshes should have bones.");
+				KD_CORE_ASSERT(m_MeshToSkin[mesh] == skin, "All submeshes should use the same skin");
+				
+				uint32_t vertexOffset = vertices.size();
+				ProcessSkinnedVertices(mesh, vertices);
+				uint32_t vertexCount = vertices.size() - vertexOffset;
+
+				uint32_t indexOffset = indices.size();
+				ProcessIndices(mesh, vertexOffset, indices);
+				uint32_t indexCount = indices.size() - indexOffset;
+				
+				Submesh submesh;
+				submesh.VertexCount = vertexCount;
+				submesh.VertexOffset = vertexOffset;
+				submesh.IndexCount = indexCount;
+				submesh.IndexOffset = indexOffset;
+				submesh.DefaultMaterial = ProcessMaterial(mesh, m_Scene->mMaterials[mesh->mMaterialIndex]);
+
+				submeshes.push_back(submesh);
+			}
+
+			return CreateRef<SkinnedMesh>(vertices, indices, submeshes, skin);
+		}
+		else
+		{
+			std::vector<MeshVertex> vertices;
+			std::vector<uint16_t> indices;
+			std::vector<Submesh> submeshes;
+
+			for (uint32_t i = 0; i < meshCount; ++i)
+			{
+				const aiMesh* mesh = GetMesh(meshes[i]);
+
+				uint32_t vertexOffset = vertices.size();
+				ProcessVertices(mesh, vertices);
+				uint32_t vertexCount = vertices.size() - vertexOffset;
+
+				uint32_t indexOffset = indices.size();
+				ProcessIndices(mesh, vertexOffset, indices);
+				uint32_t indexCount = indices.size() - indexOffset;
+
+				Submesh submesh;
+				submesh.VertexCount = vertexCount;
+				submesh.VertexOffset = vertexOffset;
+				submesh.IndexCount = indexCount;
+				submesh.IndexOffset = indexOffset;
+				submesh.DefaultMaterial = ProcessMaterial(mesh, m_Scene->mMaterials[mesh->mMaterialIndex]);
+
+				submeshes.push_back(submesh);
+			}
+
+			return CreateRef<Mesh>(vertices, indices, submeshes);
+		}
 	}
-	Kaidel::Ref<Kaidel::Material> ModelLoader::ProcessMaterial(const aiMesh* mesh, const aiMaterial* material)
+
+	Ref<Material> ModelLoader::ProcessMaterial(const aiMesh* mesh, const aiMaterial* material)
 	{
 		//SCOPED_TIMER("ProcessMaterial");
 		Ref<Texture2D> albedo = {};
 		std::vector<std::pair<uint32_t, std::string>> texturePaths;
+
+		static const char* names[] =
+		{
+			"aiTextureType_NONE",
+			"aiTextureType_DIFFUSE",
+			"aiTextureType_SPECULAR",
+			"aiTextureType_AMBIENT",
+			"aiTextureType_EMISSIVE",
+			"aiTextureType_HEIGHT",
+			"aiTextureType_NORMALS",
+			"aiTextureType_SHININESS",
+			"aiTextureType_OPACITY",
+			"aiTextureType_DISPLACEMENT",
+			"aiTextureType_LIGHTMAP",
+			"aiTextureType_REFLECTION",
+			"aiTextureType_BASE_COLOR",
+			"aiTextureType_NORMAL_CAMERA",
+			"aiTextureType_EMISSION_COLOR",
+			"aiTextureType_METALNESS",
+			"aiTextureType_DIFFUSE_ROUGHNESS",
+			"aiTextureType_AMBIENT_OCCLUSION",
+			"aiTextureType_UNKNOWN",
+			"aiTextureType_SHEEN",
+			"aiTextureType_CLEARCOAT",
+			"aiTextureType_TRANSMISSION",
+			"aiTextureType_MAYA_BASE",
+			"aiTextureType_MAYA_SPECULAR",
+			"aiTextureType_MAYA_SPECULAR_COLOR",
+			"aiTextureType_MAYA_SPECULAR_ROUGHNESS",
+			"aiTextureType_ANISOTROPY",
+			"aiTextureType_GLTF_METALLIC_ROUGHNESS"
+		};
+
+
+		for (uint32_t i = 0; i <= aiTextureType_GLTF_METALLIC_ROUGHNESS; ++i)
+		{
+			if (material->GetTextureCount((aiTextureType)i))
+			{
+				aiString texturePath;
+				KD_CORE_ASSERT(material->GetTexture((aiTextureType)i, 0, &texturePath) == aiReturn_SUCCESS);
+				KD_CORE_ASSERT(texturePath.length);
+				KD_INFO(
+					"material {}, on mesh {}, has {} texture at {}", 
+					material->GetName().C_Str(), mesh->mName.C_Str(), names[i], texturePath.C_Str());
+			}
+		}
+
 		if (material->GetTextureCount(aiTextureType_DIFFUSE)) {
 			aiString texturePath;
 			KD_CORE_ASSERT(material->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath) == aiReturn_SUCCESS);
@@ -104,9 +212,9 @@ namespace Kaidel {
 		}
 
 		Ref<Texture2D> metallic = {};
-		if (material->GetTextureCount(aiTextureType_UNKNOWN)) {
+		if (material->GetTextureCount(aiTextureType_GLTF_METALLIC_ROUGHNESS)) {
 			aiString texturePath;
-			KD_CORE_ASSERT(material->GetTexture(aiTextureType_UNKNOWN, 0, &texturePath) == aiReturn_SUCCESS);
+			KD_CORE_ASSERT(material->GetTexture(aiTextureType_GLTF_METALLIC_ROUGHNESS, 0, &texturePath) == aiReturn_SUCCESS);
 			KD_CORE_ASSERT(texturePath.length);
 
 			std::string pathStr = texturePath.C_Str();
@@ -120,9 +228,9 @@ namespace Kaidel {
 		}
 
 		Ref<Texture2D> roughness = {};
-		if (material->GetTextureCount(aiTextureType_UNKNOWN)) {
+		if (material->GetTextureCount(aiTextureType_GLTF_METALLIC_ROUGHNESS)) {
 			aiString texturePath;
-			KD_CORE_ASSERT(material->GetTexture(aiTextureType_UNKNOWN, 0, &texturePath) == aiReturn_SUCCESS);
+			KD_CORE_ASSERT(material->GetTexture(aiTextureType_GLTF_METALLIC_ROUGHNESS, 0, &texturePath) == aiReturn_SUCCESS);
 			KD_CORE_ASSERT(texturePath.length);
 
 			std::string pathStr = texturePath.C_Str();
@@ -159,9 +267,8 @@ namespace Kaidel {
 		return mat;
 	}
 
-	std::vector<MeshVertex> ModelLoader::ProcessVertices(const aiMesh* mesh)
+	void ModelLoader::ProcessVertices(const aiMesh* mesh, std::vector<MeshVertex>& output)
 	{
-		std::vector<MeshVertex> vertices(mesh->mNumVertices, MeshVertex());
 
 		for (uint32_t i = 0; i < mesh->mNumVertices; ++i) {
 			MeshVertex vertex{};
@@ -197,10 +304,8 @@ namespace Kaidel {
 				vertex.TexCoords = glm::vec2(0, 0);
 			}
 
-			vertices[i] = vertex;
+			output.push_back(vertex);
 		}
-
-		return vertices;
 	}
 
 	static SkinTree* FindBoneInTree(const aiBone* bone, SkinTree* tree)
@@ -219,10 +324,9 @@ namespace Kaidel {
 		return nullptr;
 	}
 
-	std::vector<SkinnedMeshVertex> ModelLoader::ProcessSkinnedVertices(const aiMesh* mesh)
+	void ModelLoader::ProcessSkinnedVertices(const aiMesh* mesh, std::vector<SkinnedMeshVertex>& output)
 	{
-		std::vector<SkinnedMeshVertex> vertices(mesh->mNumVertices, SkinnedMeshVertex());
-
+		uint32_t offset = output.size();
 		for (uint32_t i = 0; i < mesh->mNumVertices; ++i) {
 			SkinnedMeshVertex vertex{};
 			glm::vec3 vector{};
@@ -257,7 +361,7 @@ namespace Kaidel {
 				vertex.TexCoords = glm::vec2(0, 0);
 			}
 
-			vertices[i] = vertex;
+			output.push_back(vertex);
 		}
 
 		Ref<Skin> skin = m_MeshToSkin[mesh];
@@ -280,7 +384,7 @@ namespace Kaidel {
 				if (weight.mWeight == 0.0f)
 					continue;
 				
-				SkinnedMeshVertex& vertex = vertices[weight.mVertexId];
+				SkinnedMeshVertex& vertex = output[weight.mVertexId + offset];
 
 				uint32_t k = 0;
 				for (; k < MaxBoneCount; ++k)
@@ -298,22 +402,16 @@ namespace Kaidel {
 				}
 			}
 		}
-
-		return vertices;
 	}
 
-	std::vector<uint16_t> ModelLoader::ProcessIndices(const aiMesh* mesh)
+	void ModelLoader::ProcessIndices(const aiMesh* mesh, uint32_t offset, std::vector<uint16_t>& indices)
 	{
-		std::vector<uint16_t> indices;
-
 		for (uint32_t i = 0; i < mesh->mNumFaces; ++i) {
 			aiFace face = mesh->mFaces[i];
 			for (uint32_t j = 0; j < face.mNumIndices; ++j) {
-				indices.push_back(face.mIndices[j]);
+				indices.push_back(face.mIndices[j] + offset);
 			}
 		}
-
-		return indices;
 	}
 
 }

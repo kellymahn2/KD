@@ -69,7 +69,7 @@ namespace Kaidel {
 
 		for (uint32_t i = 0; i < m_Scene->mNumMeshes; ++i) {
 			const aiMesh* mesh = m_Scene->mMeshes[i];
-
+			result[mesh] = {};
 			if (!mesh->HasBones())
 				continue;
 

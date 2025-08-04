@@ -58,6 +58,15 @@ namespace Kaidel {
 		UUID LastRoot;
 	};
 
+	struct Submesh 
+	{
+		uint32_t VertexOffset;
+		uint32_t IndexOffset;
+		uint32_t VertexCount;
+		uint32_t IndexCount;
+		Ref<Material> DefaultMaterial;
+	};
+
 	extern Ref<RenderPass> GetDeferredPassRenderPass();
 
 	class Mesh : public IRCCounter<false> {
@@ -65,8 +74,8 @@ namespace Kaidel {
 		Mesh() = default;
 		virtual ~Mesh() = default;
 
-		Mesh(const std::vector<MeshVertex>& vertices, const std::vector<uint16_t>& indices)
-			:m_VertexCount(vertices.size()), m_IndexCount(indices.size())
+		Mesh(const std::vector<MeshVertex>& vertices, const std::vector<uint16_t>& indices, const std::vector<Submesh>& subMeshes)
+			:m_VertexCount(vertices.size()), m_IndexCount(indices.size()), m_Submeshes(subMeshes)
 		{
 			m_VertexBuffer = VertexBuffer::Create(vertices.data(), vertices.size() * sizeof(MeshVertex));
 			m_IndexBuffer = IndexBuffer::Create(indices.data(), indices.size() * sizeof(uint16_t), IndexType::Uint16);
@@ -74,24 +83,27 @@ namespace Kaidel {
 
 		Ref<VertexBuffer> GetVertexBuffer()const { return m_VertexBuffer; }
 		Ref<IndexBuffer> GetIndexBuffer()const { return m_IndexBuffer; }
-		Ref<Material> GetDefaultMaterial()const { return m_DefaultMaterial; }
-		void SetDefaultMaterial(Ref<Material> mat) { m_DefaultMaterial = mat; }
 
 		uint64_t GetVertexCount()const { return m_VertexCount; }
 		uint64_t GetIndexCount()const { return m_IndexCount; }
+		const std::vector<Submesh> GetSubmeshes() const { return m_Submeshes; }
 
 		virtual bool IsSkinned() const { return false; }
+
+
 
 	protected:
 		Ref<VertexBuffer> m_VertexBuffer;
 		Ref<IndexBuffer> m_IndexBuffer;
-		Ref<Material> m_DefaultMaterial;
+		std::vector<Submesh> m_Submeshes;
 		uint64_t m_VertexCount = 0, m_IndexCount = 0;
 	};
 
 	class SkinnedMesh : public Mesh {
 	public:
-		SkinnedMesh(const std::vector<SkinnedMeshVertex>& vertices, const std::vector<uint16_t>& indices, Ref<Skin> skin)
+		SkinnedMesh(
+			const std::vector<SkinnedMeshVertex>& vertices, const std::vector<uint16_t>& indices, 
+			const std::vector<Submesh>& subMeshes, Ref<Skin> skin)
 			: m_Skin(skin)
 		{
 			m_VertexBuffer = VertexBuffer::Create(nullptr, vertices.size() * sizeof(MeshVertex));
@@ -101,6 +113,8 @@ namespace Kaidel {
 			m_VertexCount = vertices.size();
 			m_IndexCount = indices.size();
 			m_BoneCount = CalcBoneCount(skin->Tree);
+
+			m_Submeshes = subMeshes;
 
 			{
 				DescriptorSetLayoutSpecification specs(

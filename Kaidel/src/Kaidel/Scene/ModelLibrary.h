@@ -44,15 +44,6 @@ namespace Kaidel {
 
 		static Path GetCachePath(const Path& path);
 
-		static Ref<Model> LoadFromCache(const Path& path);
 		static Ref<Model> LoadFromFile(const Path& path);
-
-		static void ProcessNode(Ref<Model> model, const aiScene* scene, const aiNode* node, MeshTree& outTree);
-		static Ref<Mesh> ProcessMesh(Ref<Model> model, const aiScene* scene, const aiMesh* mesh);
-		static Ref<Material> ProcessMaterial(Ref<Model> model, const aiScene* scene, const aiMesh* mesh, const aiMaterial* material);
-
-		static std::vector<MeshVertex> ProcessVertices(const aiMesh* mesh);
-		static std::vector<SkinnedMeshVertex> ProcessSkinnedVertices(const aiMesh* mesh);
-		static std::vector<uint16_t> ProcessIndices(const aiMesh* mesh);
 	};
 }
