@@ -64,6 +64,8 @@ namespace Kaidel {
 
 		void SubmitToMainThread(const std::function<void()>& func);
 		void ExecuteMainThreadQueue();
+
+		uint64_t GetCurrentFrameNumber()const { return m_FrameNumber; }
 	private:
 		void OnUpdate();
 
@@ -83,6 +85,7 @@ namespace Kaidel {
 		float m_LastFrameTime = 0.0f;
 		std::mutex m_AppThreadQueueMutex;
 		std::vector<std::function<void()>>m_AppThreadQueue;
+		uint64_t m_FrameNumber = 0;
 	private:
 		static Application* s_Instance;
 		friend int ::main(int argc, char** argv);

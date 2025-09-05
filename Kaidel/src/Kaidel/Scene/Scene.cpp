@@ -202,11 +202,28 @@ namespace Kaidel {
 
 		if (curr->NodeMesh)
 		{
-			if(curr->NodeMesh->IsSkinned())
-				entity.AddComponent<SkinnedMeshComponent>().UsedMesh = curr->NodeMesh;
-			else
-				entity.AddComponent<MeshComponent>().UsedMesh = curr->NodeMesh;
+			if (curr->NodeMesh->IsSkinned())
+			{
+				auto& smc = entity.AddComponent<SkinnedMeshComponent>();
+				smc.UsedMesh = curr->NodeMesh;
 
+				for (auto& submesh : curr->NodeMesh->GetSubmeshes())
+				{
+					smc.UsedMaterial.push_back(submesh.DefaultMaterial);
+				}
+				smc.VisibilityResults.resize(curr->NodeMesh->GetSubmeshes().size(), false);
+			}
+			else
+			{
+				auto& mc = entity.AddComponent<MeshComponent>();
+				mc.UsedMesh = curr->NodeMesh;
+
+				for (auto& submesh : curr->NodeMesh->GetSubmeshes())
+				{
+					mc.UsedMaterial.push_back(submesh.DefaultMaterial);
+				}
+				mc.VisibilityResults.resize(curr->NodeMesh->GetSubmeshes().size(), false);
+			}
 		}
 
 		if (curr->NodeAnimation)
@@ -281,6 +298,7 @@ namespace Kaidel {
 		Entity entity = CreateEntity(uuid, name);
 		auto& mc = entity.AddComponent<MeshComponent>();
 		mc.UsedMesh = ModelLibrary::GetBaseCube();
+		mc.UsedMaterial.push_back(mc.UsedMesh->GetSubmeshes()[0].DefaultMaterial);
 		return entity;
 	}
 

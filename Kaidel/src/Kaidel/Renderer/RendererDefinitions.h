@@ -337,7 +337,14 @@ namespace Kaidel {
 		ShaderStage_GeometryShader = BIT(2),
 		ShaderStage_TessellationControlShader = BIT(3),
 		ShaderStage_TessellationEvaluationShader = BIT(4),
-		ShaderStage_ComputeShader = BIT(5)
+		ShaderStage_ComputeShader = BIT(5),
+		ShaderStage_AllGraphics =
+		ShaderStage_VertexShader |
+		ShaderStage_FragmentShader |
+		ShaderStage_GeometryShader |
+		ShaderStage_TessellationControlShader |
+		ShaderStage_TessellationEvaluationShader,
+		ShaderStage_All = ShaderStage_AllGraphics | ShaderStage_ComputeShader,
 	};
 
 	typedef int ShaderStages;
@@ -596,7 +603,217 @@ namespace Kaidel {
 			return CalculateChannelSize(format) * CalculateChannelCount(format);
 		}
 
+		static AccessFlags LayoutToAccessFlags(ImageLayout layout)
+		{
+			using IL = ImageLayout;
+			AccessFlags flags = AccessFlags_None;
 
+			switch (layout)
+			{
+			case IL::None:
+				flags = AccessFlags_None;
+				break;
+
+			case IL::General:
+				// General usage may include reads and writes
+				flags = static_cast<AccessFlags>(AccessFlags_MemoryRead | AccessFlags_MemoryWrite);
+				break;
+
+			case IL::ColorAttachmentOptimal:
+				flags = static_cast<AccessFlags>(AccessFlags_ColorAttachmentRead | AccessFlags_ColorAttachmentWrite);
+				break;
+
+			case IL::DepthStencilAttachmentOptimal:
+				flags = static_cast<AccessFlags>(AccessFlags_DepthStencilRead | AccessFlags_DepthStencilWrite);
+				break;
+
+			case IL::DepthStencilReadOnlyOptimal:
+				flags = AccessFlags_DepthStencilRead;
+				break;
+
+			case IL::ShaderReadOnlyOptimal:
+				flags = AccessFlags_ShaderRead;
+				break;
+
+			case IL::TransferSrcOptimal:
+				flags = AccessFlags_TransferRead;
+				break;
+
+			case IL::TransferDstOptimal:
+				flags = AccessFlags_TransferWrite;
+				break;
+
+			case IL::DepthReadOnlyStencilAttachmentOptimal:
+				flags = static_cast<AccessFlags>(AccessFlags_DepthStencilRead);
+				break;
+
+			case IL::DepthAttachmentStencilReadOnlyOptimal:
+				// Depth write + stencil read typically; approximate as read+maybe write if needed
+				flags = static_cast<AccessFlags>(AccessFlags_DepthStencilRead);
+				break;
+
+			case IL::DepthAttachmentOptimal:
+				flags = static_cast<AccessFlags>(AccessFlags_DepthStencilRead | AccessFlags_DepthStencilWrite);
+				break;
+
+			case IL::DepthReadOnlyOptimal:
+				flags = AccessFlags_DepthStencilRead;
+				break;
+
+			case IL::StencilAttachmentOptimal:
+				flags = static_cast<AccessFlags>(AccessFlags_ColorAttachmentRead); // not exact; adjust if you have separate stencil bits
+				break;
+
+			case IL::StencilReadOnlyOptimal:
+				flags = AccessFlags_ShaderRead; // or DepthStencilRead depending on usage
+				break;
+
+			case IL::ReadOnlyOptimal:
+				flags = static_cast<AccessFlags>(AccessFlags_ShaderRead | AccessFlags_DepthStencilRead);
+				break;
+
+			case IL::AttachmentOptimal:
+				// Generic target; allow color and depth/stencil reads
+				flags = static_cast<AccessFlags>(
+					AccessFlags_ColorAttachmentRead | AccessFlags_ColorAttachmentWrite |
+					AccessFlags_DepthStencilRead | AccessFlags_DepthStencilWrite
+					);
+				break;
+
+			case IL::PresentSrcKhr:
+				// Presented images are read by the present operation; treat as read
+				flags = AccessFlags_MemoryRead;
+				break;
+
+			default:
+				flags = AccessFlags_None;
+				break;
+			}
+
+			return flags;
+		}
+
+		static PipelineStages LayoutToPipelineStages(ImageLayout layout)
+		{
+			using IL = ImageLayout;
+			// Start with none
+			PipelineStages stages = 0;
+
+			switch (layout)
+			{
+			case IL::None:
+				stages = PipelineStages_None;
+				break;
+
+			case IL::General:
+				// General usage: broad involvement, typically all graphics stages up to bottom
+				stages = static_cast<uint32_t>(PipelineStages_TopOfPipe |
+					PipelineStages_DrawIndirect |
+					PipelineStages_VertexInput |
+					PipelineStages_VertexShader |
+					PipelineStages_TesselationControlShader |
+					PipelineStages_TesselationEvaluationShader |
+					PipelineStages_GeometryShader |
+					PipelineStages_FragmentShader |
+					PipelineStages_EarlyFragmentTests |
+					PipelineStages_LateFragmentTests |
+					PipelineStages_ColorAttachmentOutput |
+					PipelineStages_BottomOfPipe);
+				break;
+
+			case IL::ColorAttachmentOptimal:
+				stages = static_cast<uint32_t>(PipelineStages_ColorAttachmentOutput);
+				break;
+
+			case IL::DepthStencilAttachmentOptimal:
+				// Depth/stencil operations feed through fragment tests and possibly color output
+				stages = static_cast<uint32_t>(PipelineStages_EarlyFragmentTests |
+					PipelineStages_LateFragmentTests |
+					PipelineStages_ColorAttachmentOutput);
+				break;
+
+			case IL::DepthStencilReadOnlyOptimal:
+				stages = static_cast<uint32_t>(PipelineStages_EarlyFragmentTests |
+					PipelineStages_LateFragmentTests);
+				break;
+
+			case IL::ShaderReadOnlyOptimal:
+				stages = static_cast<uint32_t>(PipelineStages_VertexShader |
+					PipelineStages_TesselationControlShader |
+					PipelineStages_TesselationEvaluationShader |
+					PipelineStages_GeometryShader |
+					PipelineStages_FragmentShader);
+				break;
+
+			case IL::TransferSrcOptimal:
+			case IL::TransferDstOptimal:
+				stages = static_cast<uint32_t>(PipelineStages_Transfer);
+				if (layout == IL::TransferSrcOptimal) {
+					// Reads occur during transfer stage
+					stages |= PipelineStages_TopOfPipe; // often paired with memory ops
+				}
+				break;
+
+			case IL::DepthReadOnlyStencilAttachmentOptimal:
+				stages = static_cast<uint32_t>(PipelineStages_EarlyFragmentTests |
+					PipelineStages_LateFragmentTests);
+				break;
+
+			case IL::DepthAttachmentStencilReadOnlyOptimal:
+				stages = static_cast<uint32_t>(PipelineStages_EarlyFragmentTests |
+					PipelineStages_LateFragmentTests);
+				break;
+
+			case IL::DepthAttachmentOptimal:
+				stages = static_cast<uint32_t>(PipelineStages_EarlyFragmentTests |
+					PipelineStages_LateFragmentTests |
+					PipelineStages_ColorAttachmentOutput);
+				break;
+
+			case IL::DepthReadOnlyOptimal:
+				stages = static_cast<uint32_t>(PipelineStages_EarlyFragmentTests |
+					PipelineStages_LateFragmentTests);
+				break;
+
+			case IL::StencilAttachmentOptimal:
+				// Treat as part of fragment processing
+				stages = static_cast<uint32_t>(PipelineStages_FragmentShader |
+					PipelineStages_EarlyFragmentTests |
+					PipelineStages_LateFragmentTests);
+				break;
+
+			case IL::StencilReadOnlyOptimal:
+				stages = static_cast<uint32_t>(PipelineStages_FragmentShader);
+				break;
+
+			case IL::ReadOnlyOptimal:
+				// Read-only may touch fragment shader reads and depth/stencil reads
+				stages = static_cast<uint32_t>(PipelineStages_FragmentShader |
+					PipelineStages_EarlyFragmentTests |
+					PipelineStages_LateFragmentTests);
+				break;
+
+			case IL::AttachmentOptimal:
+				// Generic target: cover fragment and color output
+				stages = static_cast<uint32_t>(PipelineStages_ColorAttachmentOutput |
+					PipelineStages_FragmentShader |
+					PipelineStages_EarlyFragmentTests |
+					PipelineStages_LateFragmentTests);
+				break;
+
+			case IL::PresentSrcKhr:
+				// Present is after rendering; often considered outside the traditional pipeline
+				stages = PipelineStages_BottomOfPipe;
+				break;
+
+			default:
+				stages = PipelineStages_None;
+				break;
+			}
+
+			return stages;
+		}
 	}
-
 }
+
+

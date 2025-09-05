@@ -2,10 +2,6 @@
 
 namespace Kaidel {
 
-	ImVec2 operator + (const ImVec2& lhs, const ImVec2& rhs) {
-		return { lhs.x + rhs.x,lhs.y + rhs.y };
-	}
-
 	uint64_t Combo(const char* name, const char* strings[], uint64_t stringCount, const char*& current) {
 		if (ImGui::BeginCombo(name, current))
 		{
@@ -15,7 +11,7 @@ namespace Kaidel {
 				if (ImGui::Selectable(strings[i], isSelected))
 				{
 					ImGui::EndCombo();
-					current = strings[i];
+					//current = strings[i];
 					return i;
 				}
 
@@ -51,16 +47,13 @@ namespace Kaidel {
 		if (!ItemAdd(bb, id))
 			return false;
 
-		if (g.LastItemData.InFlags & ImGuiItemFlags_ButtonRepeat)
-			flags |= ImGuiButtonFlags_Repeat;
-
 		bool hovered, held;
 		bool pressed = ButtonBehavior(bb, id, &hovered, &held, flags);
 
 		// Render
 		const ImU32 col = GetColorU32((held && hovered) ? ImGuiCol_ButtonActive : hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Button);
-		RenderNavHighlight(bb, id);
-		//RenderFrame(bb.Min, bb.Max, col, true, style.FrameRounding);
+		RenderNavCursor(bb, id);
+		RenderFrame(bb.Min, bb.Max, col, true, style.FrameRounding);
 
 		window->DrawList->AddRectFilled(bb.Min, bb.Max, col, style.FrameRounding, drawFlags);
 		const float border_size = g.Style.FrameBorderSize;
@@ -109,29 +102,32 @@ namespace Kaidel {
 		if (format == NULL)
 			format = DataTypeGetInfo(data_type)->PrintFmt;
 
-		const bool hovered = ItemHoverable(frame_bb, id);
+		const bool hovered = ItemHoverable(frame_bb, id, g.LastItemData.ItemFlags);
 		bool temp_input_is_active = temp_input_allowed && TempInputIsActive(id);
 		if (!temp_input_is_active)
 		{
-			// Tabbing or CTRL-clicking on Drag turns it into an InputText
-			const bool input_requested_by_tabbing = temp_input_allowed && (g.LastItemData.StatusFlags & ImGuiItemStatusFlags_FocusedByTabbing) != 0;
-			const bool clicked = hovered && IsMouseClicked(0, id);
+			// Tabbing or CTRL+click on Drag turns it into an InputText
+			const bool clicked = hovered && IsMouseClicked(0, ImGuiInputFlags_None, id);
 			const bool double_clicked = (hovered && g.IO.MouseClickedCount[0] == 2 && TestKeyOwner(ImGuiKey_MouseLeft, id));
-			const bool make_active = (input_requested_by_tabbing || clicked || double_clicked || g.NavActivateId == id || g.NavActivateInputId == id);
+			const bool make_active = (clicked || double_clicked || g.NavActivateId == id);
 			if (make_active && (clicked || double_clicked))
 				SetKeyOwner(ImGuiKey_MouseLeft, id);
 			if (make_active && temp_input_allowed)
-				if (input_requested_by_tabbing || (clicked && g.IO.KeyCtrl) || double_clicked || g.NavActivateInputId == id)
+				if ((clicked && g.IO.KeyCtrl) || double_clicked || (g.NavActivateId == id && (g.NavActivateFlags & ImGuiActivateFlags_PreferInput)))
 					temp_input_is_active = true;
 
 			// (Optional) simple click (without moving) turns Drag into an InputText
 			if (g.IO.ConfigDragClickToInputText && temp_input_allowed && !temp_input_is_active)
-				if (g.ActiveId == id && hovered && g.IO.MouseReleased[0] && !IsMouseDragPastThreshold(0, g.IO.MouseDragThreshold * .5f))
+				if (g.ActiveId == id && hovered && g.IO.MouseReleased[0] && !IsMouseDragPastThreshold(0, g.IO.MouseDragThreshold * 0.5f))
 				{
-					g.NavActivateId = g.NavActivateInputId = id;
+					g.NavActivateId = id;
 					g.NavActivateFlags = ImGuiActivateFlags_PreferInput;
 					temp_input_is_active = true;
 				}
+
+			// Store initial value (not used by main lib but available as a convenience but some mods e.g. to revert)
+			if (make_active)
+				memcpy(&g.ActiveIdValueOnActivation, p_data, DataTypeGetInfo(data_type)->Size);
 
 			if (make_active && !temp_input_is_active)
 			{
@@ -201,7 +197,7 @@ namespace Kaidel {
 		ImGui::NextColumn();
 		ImGui::PushMultiItemsWidths(3, ImGui::CalcItemWidth());
 
-		float lineHeight = GImGui->Font->FontSize + GImGui->Style.FramePadding.y * 2.0f;
+		float lineHeight = GImGui->Font->LegacySize + GImGui->Style.FramePadding.y * 2.0f;
 		ImVec2 buttonSize = { lineHeight + 2.0f, lineHeight };
 		static auto controlLambda = [&](float* v, const char* buttonText, const char* dragText, const ImVec4* buttonColors) {
 			ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f);
@@ -249,7 +245,7 @@ namespace Kaidel {
 		ImGui::NextColumn();
 		ImGui::PushMultiItemsWidths(4, ImGui::CalcItemWidth());
 
-		float lineHeight = GImGui->Font->FontSize + GImGui->Style.FramePadding.y * 2.0f;
+		float lineHeight = GImGui->Font->LegacySize + GImGui->Style.FramePadding.y * 2.0f;
 		ImVec2 buttonSize = { lineHeight + 2.0f, lineHeight };
 		static auto controlLambda = [&](float* v, const char* buttonText, const char* dragText, const ImVec4* buttonColors, float resetValue) {
 			ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f);

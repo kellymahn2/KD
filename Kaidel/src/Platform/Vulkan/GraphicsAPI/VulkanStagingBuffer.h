@@ -19,6 +19,7 @@ namespace Kaidel {
 
 	class VulkanStagingBuffer {
 	public:
+
 		VulkanStagingBuffer(uint64_t size);
 		~VulkanStagingBuffer();
 		bool HasUnusedSpace(uint64_t dataSize);
@@ -26,8 +27,14 @@ namespace Kaidel {
 		void AddCopyOperation(
 			VkCommandBuffer commandBuffer, VkBuffer buffer, const void* data, uint64_t dataSize, VkAccessFlags access, VkPipelineStageFlags stageFlags);
 
-		void Reset();
+		uint8_t* Reserve(uint64_t dataSize);
 
+		void UploadReserved(
+			VkCommandBuffer commandBuffer, VkBuffer buffer, 
+			const uint8_t* reservedStart, uint64_t dataSize, 
+			VkAccessFlags access, VkPipelineStageFlags stageFlags);
+
+		void Reset();
 	private:
 		struct CopyContext {
 			VkBuffer DstBuffer;
@@ -43,6 +50,7 @@ namespace Kaidel {
 		uint8_t* m_MappedBufferBegin = nullptr;
 		uint8_t* m_MappedBufferCurrent = nullptr;
 		uint8_t* m_MappedBufferEnd = nullptr;
+		uint64_t m_BatchSize = 0;
 	};
 
 

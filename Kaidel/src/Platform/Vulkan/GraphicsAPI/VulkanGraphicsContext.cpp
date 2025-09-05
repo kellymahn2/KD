@@ -101,9 +101,21 @@ namespace Kaidel {
 		VkPhysicalDeviceFeatures features{};
 		features.geometryShader = true;
 		features.tessellationShader = true;
+		features.depthClamp = true;
+
+		VkPhysicalDeviceDescriptorIndexingFeatures indexingFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES };
+		indexingFeatures.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
+		indexingFeatures.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE;
+		indexingFeatures.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;
+		indexingFeatures.descriptorBindingStorageTexelBufferUpdateAfterBind = VK_TRUE;
+		indexingFeatures.descriptorBindingUniformBufferUpdateAfterBind = VK_TRUE;
+		indexingFeatures.descriptorBindingUniformTexelBufferUpdateAfterBind = VK_TRUE;
+		indexingFeatures.pNext = &feature;
+
 		VkPhysicalDeviceSynchronization2Features sync2Feature{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES };
 		sync2Feature.synchronization2 = VK_TRUE;
-		sync2Feature.pNext = &feature;
+		sync2Feature.pNext = &indexingFeatures;
+
 		m_LogicalDevice = CreateScope<VulkanLogicalDevice>(*m_PhysicalDevice, std::vector<const char*>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME },
 																layers, features, &sync2Feature);
 
@@ -119,15 +131,14 @@ namespace Kaidel {
 			VulkanBackend::SurfaceInfo info{};
 			info.Width = 1280;
 			info.Height = 720;
-			info.PresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+			info.PresentMode = VK_PRESENT_MODE_FIFO_KHR;
 			info.Surface = m_Surface->GetSurface();
 			m_Swapchain = m_Backend->CreateSwapchain(info, GetGraphicsQueue().Queue, m_GlobalCommandPool, 4);
 		}
 
 		#pragma endregion
 
-		m_MaxFramesInFlight = std::min(m_Swapchain.ImageCount,3U);
-		m_MaxFramesInFlight = m_Swapchain.ImageCount;
+		m_MaxFramesInFlight = std::min(m_Swapchain.ImageCount,2U);
 		KD_INFO("Frames in flight: {}", m_MaxFramesInFlight);
 
 		/*m_FramesData.resize(m_MaxFramesInFlight);
@@ -182,7 +193,7 @@ namespace Kaidel {
 		}
 		
 		*/
-		m_Stager = CreateScope<VulkanBufferStager>(500 * 1024 * 1024, 4);
+		m_Stager = CreateScope<VulkanBufferStager>(50 * 1024 * 1024, 4);
 	}
 
 	VkDescriptorSetLayout VulkanGraphicsContext::GetSingleDescriptorSetLayout(VkDescriptorType type, VkShaderStageFlags flags)
@@ -220,11 +231,24 @@ namespace Kaidel {
 	void VulkanGraphicsContext::AcquireImage()
 	{
 		auto& frame = m_Swapchain.Frames[m_CurrentFrameNumber];
-		m_Backend->FenceWait(frame.InFlightFence);
-		//std::unique_lock<std::mutex> lock(*frame.TaskSyncMutex);
+		{
+			//SCOPED_ACCU_TIMER("AcquireImage::FenceWait");
+			m_Backend->FenceWait(frame.InFlightFence);
+		}
+		
+		while (!frame.DeferredDeletes.empty())
+		{
+			auto& deleter = frame.DeferredDeletes.front();
+			deleter();
+			frame.DeferredDeletes.pop();
+		}
 
-		VK_ASSERT(vkAcquireNextImageKHR(m_LogicalDevice->GetDevice(), m_Swapchain.Swapchain, UINT64_MAX, frame.ImageAvailable
-			, VK_NULL_HANDLE, &m_Swapchain.ImageIndex));
+		{
+			//SCOPED_ACCU_TIMER("AcquireImage::vkAcquireNextImageKHR");
+
+			VK_ASSERT(vkAcquireNextImageKHR(m_LogicalDevice->GetDevice(), m_Swapchain.Swapchain, UINT64_MAX, frame.ImageAvailable
+				, VK_NULL_HANDLE, &m_Swapchain.ImageIndex));
+		}
 
 		m_Backend->CommandBufferBegin(m_Swapchain.Frames[m_CurrentFrameNumber].MainCommandBuffer);
 		
@@ -234,11 +258,12 @@ namespace Kaidel {
 	void VulkanGraphicsContext::PresentImage()
 	{
 		VkCommandBuffer commandBuffer = m_Swapchain.Frames[m_CurrentFrameNumber].MainCommandBuffer;
+
 		m_Backend->CommandBufferEnd(commandBuffer);
 
 		auto& frame = m_Swapchain.Frames[m_CurrentFrameNumber];
 		VkSemaphore waitSemaphores[] = { frame.ImageAvailable };
-		VkSemaphore signalSemaphores[] = { frame.RenderFinished };
+		VkSemaphore signalSemaphores[] = { m_Swapchain.Frames[m_Swapchain.ImageIndex].RenderFinished};
 		VkCommandBuffer commandBuffers[] = { commandBuffer };
 		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 
@@ -272,7 +297,7 @@ namespace Kaidel {
 			info.Surface = m_Surface->GetSurface();
 			info.Width = m_Window->GetWidth();
 			info.Height = m_Window->GetHeight();
-			info.PresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+			info.PresentMode = VK_PRESENT_MODE_FIFO_KHR;
 			m_Swapchain = m_Backend->CreateSwapchain(info, GetPresentQueue().Queue, m_GlobalCommandPool, 4);
 			//m_Swapchain->Resize(m_Window->GetWidth(), m_Window->GetHeight());
 		}
@@ -302,8 +327,9 @@ namespace Kaidel {
 		info.QueueFamily = graphicsQueue.FamilyIndex;
 		info.Subpass = 0;
 		info.DescriptorPool = m_ImGuiDescriptorPool;
+		info.RenderPass = m_Swapchain.RenderPass;
 
-		ImGui_ImplVulkan_Init(&info, m_Swapchain.RenderPass);
+		ImGui_ImplVulkan_Init(&info);
 
 		LoadImGuiFonts();
 	}
@@ -370,18 +396,6 @@ namespace Kaidel {
 
 	void VulkanGraphicsContext::LoadImGuiFonts()const
 	{
-		// Use any command queue
-		VkCommandBuffer cb = m_Backend->CreateCommandBuffer(m_GlobalCommandPool);
-		m_Backend->CommandBufferBegin(cb);
-
-		ImGui_ImplVulkan_CreateFontsTexture(cb);
-
-		m_Backend->CommandBufferEnd(cb);
-
-		m_Backend->SubmitCommandBuffers(GetGraphicsQueue().Queue, { cb },m_SingleSubmitFence);
-		m_Backend->FenceWait(m_SingleSubmitFence);
-		m_Backend->DestroyCommandBuffer(cb, m_GlobalCommandPool);
-		ImGui_ImplVulkan_DestroyFontUploadObjects();
 	}
 
 }

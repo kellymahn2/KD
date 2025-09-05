@@ -52,7 +52,6 @@ namespace Kaidel {
 		void OnSceneSimulateStop();
 
 		void UI_Toolbar();
-		void MoveChildren(Entity curr, const glm::vec3& deltaTranslation, const glm::vec3& deltaRotation,Entity parent = {});
 		void DrawGizmos();
 		void DrawSelectedEntityOutline(Entity selectedEntity);
 
@@ -70,7 +69,6 @@ namespace Kaidel {
 
 
 	private:
-		
 		Console m_DebugConsole;
 		PerFrameResource<Ref<Texture2D>> m_OutputTextures;
 		PerFrameResource<Ref<DescriptorSet>> m_OutputDescriptorSet;
@@ -97,7 +95,6 @@ namespace Kaidel {
 
 		glm::vec2 m_ViewportSize = { 0.0f, 0.0f };
 		glm::vec2 m_ViewportBounds[2];
-
 
 		int m_GizmoType = -1;
 

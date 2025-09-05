@@ -1,5 +1,6 @@
 #include "KDpch.h"
 #include "Backend.h"
+#include "VulkanGraphicsContext.h"
 
 bool operator==(const VkDescriptorPoolSize& lhs, const VkDescriptorPoolSize& rhs) {
 	return lhs.descriptorCount == rhs.descriptorCount && lhs.type == rhs.type;
@@ -462,10 +463,18 @@ namespace VulkanBackend {
 	
 	void Backend::DestroyTexture(InOut<TextureInfo> texture)
 	{
-		vkDestroyImageView(m_Device, texture.View, nullptr);
+		VK_CONTEXT.SubmitDeferredDelete([device = m_Device, view = texture.View]() {
+			vkDestroyImageView(device, view, nullptr);
+		});
+
 		if (texture.Allocation) 
 		{
-			vmaDestroyImage(m_Allocator, texture.ViewInfo.image, texture.Allocation);
+			VkImage image = texture.ViewInfo.image;
+			VmaAllocation allocation = texture.Allocation;
+			VK_CONTEXT.SubmitDeferredDelete(
+				[allocator=  m_Allocator, image, allocation]() {
+				vmaDestroyImage(allocator, image, allocation);
+			});
 		}
 	}
 
@@ -496,7 +505,9 @@ namespace VulkanBackend {
 
 	void Backend::DestroySampler(VkSampler sampler)
 	{
-		vkDestroySampler(m_Device, sampler, nullptr);
+		VK_CONTEXT.SubmitDeferredDelete([device = m_Device, sampler]() {
+			vkDestroySampler(device, sampler, nullptr);
+		});
 	}
 	
 	VkFramebuffer Backend::CreateFramebuffer(VkRenderPass renderPass, const std::vector<const TextureInfo*>& attachments, uint32_t width, uint32_t height, uint32_t layers)
@@ -523,7 +534,9 @@ namespace VulkanBackend {
 
 	void Backend::DestroyFramebuffer(VkFramebuffer framebuffer)
 	{
-		vkDestroyFramebuffer(m_Device, framebuffer, nullptr);
+		VK_CONTEXT.SubmitDeferredDelete([device = m_Device, framebuffer]() {
+			vkDestroyFramebuffer(device, framebuffer, nullptr);
+		});
 	}
 
 	void Backend::ReflectDescriptor(ShaderReflection& reflection, const spirv_cross::CompilerReflection& compilerReflection,
@@ -541,6 +554,7 @@ namespace VulkanBackend {
 		}
 	}
 	
+
 	ShaderInfo Backend::CreateShader(const std::unordered_map<VkShaderStageFlagBits, std::initializer_list<uint32_t>>& spirvs)
 	{
 		std::unordered_map<VkShaderStageFlagBits, VkPipelineShaderStageCreateInfo> stages{};
@@ -562,6 +576,22 @@ namespace VulkanBackend {
 				SpvReflectShaderModule reflection{};
 				spvReflectCreateShaderModule(spirv.size() * sizeof(uint32_t), spirv.begin(), &reflection);
 
+				if ((stage & VK_SHADER_STAGE_VERTEX_BIT) && reflection.input_variable_count)
+				{
+					for (uint32_t i = 0; i < reflection.input_variable_count; ++i)
+					{
+						const SpvReflectInterfaceVariable* variable = reflection.input_variables[i];
+						
+						if (variable->built_in != -1)
+							continue;
+
+						VertexShaderInputReflection input;
+						input.Location = variable->location;
+						input.Name = variable->name;
+						shaderReflection.Inputs[variable->location] = input;
+					}
+				}
+
 				uint32_t bindingCount = 0;
 				spvReflectEnumerateDescriptorBindings(&reflection, &bindingCount, nullptr);
 
@@ -582,7 +612,7 @@ namespace VulkanBackend {
 						case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER: type = VK_DESCRIPTOR_TYPE_SAMPLER; break;
 						case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; break;
 						case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE: type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE; break;
-						case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE: type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE; break;
+						case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE: type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; break;
 						case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER: type = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER; break;
 						case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER: type = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER; break;
 						case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER: type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; break;
@@ -623,7 +653,7 @@ namespace VulkanBackend {
 			stageInfo.module = module;
 			stageInfo.pName = "main";
 			stageInfo.stage = stage;
-
+			
 			stages[stage] = stageInfo;
 		}
 
@@ -641,15 +671,16 @@ namespace VulkanBackend {
 				setBinding.binding = binding.Binding;
 				setBinding.descriptorCount = binding.Count;
 				setBinding.descriptorType = binding.Type;
-				setBinding.stageFlags = binding.ShaderStages;
+				setBinding.stageFlags = VK_SHADER_STAGE_ALL;
 				setBindings[bindingIndex] = setBinding;
+
 			}
+
 
 			VkDescriptorSetLayoutCreateInfo layoutInfo{};
 			layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 			layoutInfo.pBindings = setBindings.data();
 			layoutInfo.bindingCount = (uint32_t)setBindings.size();
-
 
 			VkDescriptorSetLayout layout{};
 			vkCreateDescriptorSetLayout(m_Device, &layoutInfo, nullptr, &layout);
@@ -666,7 +697,6 @@ namespace VulkanBackend {
 		layoutInfo.setLayoutCount = (uint32_t)setLayouts.size();
 		layoutInfo.pPushConstantRanges = pushConstantStages != 0 ? &range : nullptr;
 		layoutInfo.pushConstantRangeCount = pushConstantStages != 0;
-
 
 		VkPipelineLayout layout{};
 
@@ -685,14 +715,52 @@ namespace VulkanBackend {
 	{
 		for (uint32_t i = 0; i < shader.DescriptorSetLayouts.size(); ++i)
 		{
-			vkDestroyDescriptorSetLayout(m_Device, shader.DescriptorSetLayouts[i], nullptr);
+			VK_CONTEXT.SubmitDeferredDelete([device = m_Device, layout = shader.DescriptorSetLayouts[i]]() {
+				vkDestroyDescriptorSetLayout(device, layout , nullptr);
+			});
 		}
 		
-		vkDestroyPipelineLayout(m_Device, shader.Layout, nullptr);
+		VK_CONTEXT.SubmitDeferredDelete([device = m_Device, layout = shader.Layout]() {
+			vkDestroyPipelineLayout(device, layout, nullptr);
+		});
 
 		for (auto& [stage, moduleInfo] : shader.VkStageInfos)
 		{
-			vkDestroyShaderModule(m_Device, moduleInfo.module, nullptr);
+			VK_CONTEXT.SubmitDeferredDelete([device = m_Device, module = moduleInfo.module]() {
+				vkDestroyShaderModule(device, module, nullptr);
+			});
+		}
+	}
+
+
+	void Backend::UpdateShaderModules(
+		const std::unordered_map<VkShaderStageFlagBits, std::initializer_list<uint32_t>>& spirvs,
+		InOut<ShaderInfo> shader)
+	{
+		for (auto& [stage, moduleInfo] : shader.VkStageInfos)
+		{
+			VK_CONTEXT.SubmitDeferredDelete([device = m_Device, module = moduleInfo.module]() {
+				vkDestroyShaderModule(device, module, nullptr);
+			});
+		}
+
+		shader.VkStageInfos.clear();
+
+		for (auto& [stage, spirv] : spirvs)
+		{
+			VkShaderModuleCreateInfo moduleInfo{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+			moduleInfo.pCode = spirv.begin();
+			moduleInfo.codeSize = (uint32_t)(spirv.size() * sizeof(uint32_t));
+
+			VkShaderModule module{};
+			vkCreateShaderModule(m_Device, &moduleInfo, nullptr, &module);
+
+			VkPipelineShaderStageCreateInfo stageInfo{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+			stageInfo.module = module;
+			stageInfo.pName = "main";
+			stageInfo.stage = stage;
+
+			shader.VkStageInfos[stage] = stageInfo;
 		}
 	}
 
@@ -753,7 +821,9 @@ namespace VulkanBackend {
 
 	void Backend::DestroyGraphicsPipeline(VkPipeline pipeline)
 	{
-		vkDestroyPipeline(m_Device, pipeline, nullptr);
+		VK_CONTEXT.SubmitDeferredDelete([device = m_Device, pipeline]() {
+			vkDestroyPipeline(device, pipeline, nullptr);
+		});
 	}
 
 	VkPipeline Backend::CreateComputePipeline(In<ShaderInfo> shader) {
@@ -768,7 +838,9 @@ namespace VulkanBackend {
 	}
 	
 	void Backend::DestroyComputePipeline(VkPipeline pipeline) {
-		vkDestroyPipeline(m_Device, pipeline, nullptr);
+		VK_CONTEXT.SubmitDeferredDelete([device = m_Device, pipeline]() {
+			vkDestroyPipeline(device, pipeline, nullptr);
+		});
 	}
 
 	VkAttachmentReference2 Backend::ToAttachmentReference(const AttachmentReference& ref)
@@ -824,7 +896,9 @@ namespace VulkanBackend {
 
 	void Backend::DestroyBuffer(InOut<BufferInfo> buffer)
 	{
-		vmaDestroyBuffer(m_Allocator, buffer.Buffer, buffer.Allocation);
+		VK_CONTEXT.SubmitDeferredDelete([allocator = m_Allocator, buffer = buffer.Buffer, allocation = buffer.Allocation]() {
+			vmaDestroyBuffer(allocator, buffer, allocation);
+		});
 	}
 
 	uint8_t* Backend::BufferMap(In<BufferInfo> buffer)
@@ -1006,7 +1080,9 @@ namespace VulkanBackend {
 
 	void Backend::DestroyRenderPass(VkRenderPass renderPass)
 	{
-		vkDestroyRenderPass(m_Device, renderPass, nullptr);
+		VK_CONTEXT.SubmitDeferredDelete([device = m_Device, renderPass]() {
+			vkDestroyRenderPass(device, renderPass, nullptr);
+		});
 	}
 
 	VkDescriptorPool Backend::CreateDescriptorPool(const std::unordered_map<VkDescriptorType, VkDescriptorPoolSize>& sizes, uint32_t maxSets)
@@ -1022,7 +1098,7 @@ namespace VulkanBackend {
 				poolSize.descriptorCount = size.descriptorCount * maxSets;
 			}
 		}
-
+		
 		VkDescriptorPoolCreateInfo poolInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
 		poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 		poolInfo.maxSets = maxSets;
@@ -1040,93 +1116,11 @@ namespace VulkanBackend {
 		vkDestroyDescriptorPool(m_Device, pool, nullptr);
 	}
 
-	DescriptorSetInfo Backend::CreateDescriptorSet(std::vector<VkWriteDescriptorSet>& writes, In<ShaderInfo> shader, uint32_t setIndex)
-	{
-		VkDescriptorSetLayout layout = shader.DescriptorSetLayouts[setIndex];
-
-		std::unordered_map<VkDescriptorType, VkDescriptorPoolSize> sizes;
-		ValuesToSizes(writes, sizes);
-
-		VkDescriptorPool pool = FindOrCreatePool(sizes).Pool;
-
-		VkDescriptorSetAllocateInfo setInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-		setInfo.descriptorPool = pool;
-		setInfo.descriptorSetCount = 1;
-		setInfo.pSetLayouts = &layout;
-		
-		VkDescriptorSet set{};
-		vkAllocateDescriptorSets(m_Device, &setInfo, &set);
-		
-		for (uint32_t i = 0; i < writes.size(); i++)
-		{
-			writes[i].dstSet = set;
-		}
-
-		vkUpdateDescriptorSets(m_Device, (uint32_t)writes.size(), writes.data(), 0, nullptr);
-
-		DescriptorSetInfo info{};
-		info.Set = set;
-		info.Pool = pool; 
-		return info;
-	}
-
-	DescriptorSetInfo Backend::CreateDescriptorSet(std::vector<VkWriteDescriptorSet>& writes, const std::vector<VkShaderStageFlags>& flags)
-	{
-		VkDescriptorSetLayout layout{};
-		{
-			std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
-
-			for (uint32_t i = 0; i < writes.size(); ++i)
-			{
-				VkDescriptorSetLayoutBinding layoutBinding{};
-				layoutBinding.binding = i;
-				layoutBinding.descriptorCount = 1;
-				layoutBinding.descriptorType = writes[i].descriptorType;
-				layoutBinding.stageFlags = flags[i];
-
-				layoutBindings.push_back(layoutBinding);
-			}
-
-			VkDescriptorSetLayoutCreateInfo layoutInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-			layoutInfo.pBindings = layoutBindings.data();
-			layoutInfo.bindingCount = (uint32_t)layoutBindings.size();
-
-			vkCreateDescriptorSetLayout(m_Device, &layoutInfo, nullptr, &layout);
-		}
-
-		std::unordered_map<VkDescriptorType, VkDescriptorPoolSize> sizes;
-		ValuesToSizes(writes, sizes);
-
-		VkDescriptorPool pool = FindOrCreatePool(sizes).Pool;
-
-		VkDescriptorSetAllocateInfo setInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-		setInfo.descriptorPool = pool;
-		setInfo.descriptorSetCount = 1;
-		setInfo.pSetLayouts = &layout;
-
-		VkDescriptorSet set{};
-		vkAllocateDescriptorSets(m_Device, &setInfo, &set);
-
-		for (uint32_t i = 0; i < writes.size(); i++)
-		{
-			writes[i].dstSet = set;
-		}
-
-		vkUpdateDescriptorSets(m_Device, (uint32_t)writes.size(), writes.data(), 0, nullptr);
-
-		DescriptorSetInfo info{};
-		info.Set = set;
-		info.Pool = pool;
-		info.Layout = layout;
-		return info;
-	}
-
 	DescriptorSetInfo Backend::CreateDescriptorSet(std::initializer_list<std::pair<VkDescriptorType,VkShaderStageFlags>> types)
 	{
 		std::unordered_map<VkDescriptorType, VkDescriptorPoolSize> sizes;
 
 		std::vector<VkDescriptorSetLayoutBinding> bindings;
-
 		for (auto& [type, flags] : types) {
 			sizes[type].type = type;
 			++sizes[type].descriptorCount;
@@ -1135,7 +1129,7 @@ namespace VulkanBackend {
 			binding.binding = (uint32_t)bindings.size();
 			binding.descriptorCount = 1;
 			binding.descriptorType = type;
-			binding.stageFlags = flags;
+			binding.stageFlags = VK_SHADER_STAGE_ALL;
 			bindings.push_back(binding);
 		}
 
@@ -1198,11 +1192,18 @@ namespace VulkanBackend {
 	
 	void Backend::DestroyDescriptorSet(InOut<DescriptorSetInfo> set)
 	{
-		vkFreeDescriptorSets(m_Device, set.Pool, 1, &set.Set);
-
 		if (set.Layout)
 		{
-			vkDestroyDescriptorSetLayout(m_Device, set.Layout, nullptr);
+			VK_CONTEXT.SubmitDeferredDelete([device = m_Device, layout = set.Layout, pool = set.Pool, set = set.Set]() {
+				vkDestroyDescriptorSetLayout(device, layout, nullptr);
+				vkFreeDescriptorSets(device, pool, 1, &set);
+			});
+		}
+		else
+		{
+			VK_CONTEXT.SubmitDeferredDelete([device = m_Device, pool = set.Pool, set = set.Set]() {
+				vkFreeDescriptorSets(device, pool, 1, &set);
+			});
 		}
 	}
 

@@ -70,8 +70,7 @@ namespace Kaidel {
 #define EXPAND(arg) arg
 #define MAKE(arg1,arg2) EXPAND(arg1) ## EXPAND(arg2)
 
-
-#define SCOPED_ACCU_TIMER(name) ::Kaidel::ScopedAccumulativeTimer timer = ::Kaidel::ScopedAccumulativeTimer{#name};
+#define SCOPED_ACCU_TIMER(name) ::Kaidel::ScopedAccumulativeTimer MAKE(t, __LINE__) = ::Kaidel::ScopedAccumulativeTimer(std::string(name));
 #define NEW_SCOPED_TIMER(name) SCOPED_TIMER(name); MAKE(_Timer,__LINE__).Reset();
 
 #define SCOPED_TIMER(name) ::Kaidel::ScopedTimer timer(name);

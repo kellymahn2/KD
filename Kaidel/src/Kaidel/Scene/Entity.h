@@ -87,6 +87,10 @@ namespace Kaidel {
 		Entity GetParent() {
 			return m_Scene->GetEntity(GetComponent<ChildComponent>().Parent);
 		}
+
+		bool HasParent() {
+			return HasComponent<ChildComponent>() && GetParent();
+		}
 		bool HasChildren() {
 			return HasComponent<ParentComponent>() && !GetComponent<ParentComponent>().Children.empty();
 		}

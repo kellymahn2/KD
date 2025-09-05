@@ -25,7 +25,6 @@ namespace Kaidel {
 		void DeviceWaitIdle()override;
 		void Shutdown() override;
 
-		void Submit(std::function<void()>&& func) override;
 
 		virtual void BeginRenderPass(Ref<RenderPass> renderPass, Ref<Framebuffer> framebuffer,
 			std::initializer_list<AttachmentClearValue> clearValues)override;
@@ -76,10 +75,19 @@ namespace Kaidel {
 			std::initializer_list<BufferMemoryBarrier> bufferBarriers,
 			std::initializer_list<ImageMemoryBarrier> textureBarriers)override;
 
+
+		virtual void Submit(std::function<void() >&& func) override;
+
+
+		virtual void GenerateMips(const Ref<Texture> texture) override;
+
 	private:
 		static inline std::vector<VkBuffer> m_CurrentBoundBuffers = { 32 , 0 };
 		static inline std::vector<VkDeviceSize> m_CurrentBoundBufferOffsets = std::vector<VkDeviceSize>(32, VkDeviceSize(0));
+		static inline VkBuffer m_CurrentIndexBuffer = 0;
 		static inline std::vector<VkDescriptorSet> m_DescriptorSets = { 32,VK_NULL_HANDLE };
+
+		VkCommandBuffer m_OverrideCommandBuffer = VK_NULL_HANDLE;
 
 		Ref<GraphicsPipeline> m_CurrentBoundPipeline = {};
 		RenderPassInstance m_RenderPassInstance{};

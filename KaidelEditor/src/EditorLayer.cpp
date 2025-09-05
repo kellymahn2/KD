@@ -1,5 +1,6 @@
 #include "EditorLayer.h"
 
+#include "Kaidel/Core/DebugUtils.h"
 #include "Kaidel/Math/Math.h"
 #include "Kaidel/Core/Timer.h"
 #include <imgui/imgui.h>
@@ -22,7 +23,7 @@
 #include "Kaidel/Animation/Animation.h"
 
 #include <forward_list>
-
+#include <inttypes.h>
 #include <random>
 
 namespace Kaidel {
@@ -82,16 +83,16 @@ namespace Kaidel {
 			m_OutputSampler = Sampler::Create(params);
 		}
 		
-		m_Icons.IconPlay = EditorIcon("Resources/Icons/PlayButton.png",m_OutputSampler);
-		KD_INFO("Loaded Play Button");
-		m_Icons.IconPause = EditorIcon("Resources/Icons/PauseButton.png", m_OutputSampler);
-		KD_INFO("Loaded Pause Button");
-		m_Icons.IconSimulateStart = EditorIcon("Resources/Icons/SimulateButtonStart.png", m_OutputSampler);
-		KD_INFO("Loaded Simulation Play Button");
-		m_Icons.IconSimulateStop = EditorIcon("Resources/Icons/SimulateButtonStop.png", m_OutputSampler);
-		KD_INFO("Loaded Simulation Stop Button");
-		m_Icons.IconStop = EditorIcon("Resources/Icons/StopButton.png", m_OutputSampler);
-		KD_INFO("Loaded Stop Button");
+		//m_Icons.IconPlay = EditorIcon("Resources/Icons/PlayButton.png",m_OutputSampler);
+		//KD_INFO("Loaded Play Button");
+		//m_Icons.IconPause = EditorIcon("Resources/Icons/PauseButton.png", m_OutputSampler);
+		//KD_INFO("Loaded Pause Button");
+		//m_Icons.IconSimulateStart = EditorIcon("Resources/Icons/SimulateButtonStart.png", m_OutputSampler);
+		//KD_INFO("Loaded Simulation Play Button");
+		//m_Icons.IconSimulateStop = EditorIcon("Resources/Icons/SimulateButtonStop.png", m_OutputSampler);
+		//KD_INFO("Loaded Simulation Stop Button");
+		//m_Icons.IconStop = EditorIcon("Resources/Icons/StopButton.png", m_OutputSampler);
+		//KD_INFO("Loaded Stop Button");
 
 		{
 			RenderPassSpecification specs{};
@@ -156,8 +157,7 @@ namespace Kaidel {
 		{
 			Entity e = m_ActiveScene->CreateEntity("Light");
 			auto& tc = e.GetComponent<TransformComponent>();
-			tc.Rotation.x = -glm::pi<float>() / 2.0f;
-			tc.Rotation.z = glm::pi<float>() / 2.0f;
+			tc.Rotation = glm::quat(glm::vec3(-glm::pi<float>() / 2.0f, 0.0f, 0.0f));
 			auto& dlc = e.AddComponent<DirectionalLightComponent>();
 			dlc.Color = glm::vec3(1.0);
 			dlc.MaxDistance = m_Far;
@@ -165,27 +165,43 @@ namespace Kaidel {
 			dlc.FadeStart = 1.0f;
 		}
 
-		{
-			Ref<Model> model = ModelLibrary::LoadModel("D:/KD/KaidelEditor/assets/models/Silly Dancing/untitled.gltf");
-			Entity entity = m_ActiveScene->CreateModel(model);
-
-			m_ActiveScene->GetEntity(entity.GetComponent<ParentComponent>().Children[1])
-				.GetComponent<AnimationPlayerComponent>().State = AnimationPlayerComponent::PlayerState::Playing;
-			m_ActiveScene->GetEntity(entity.GetComponent<ParentComponent>().Children[1])
-				.GetComponent<AnimationPlayerComponent>().FinishAction = AnimationPlayerComponent::AnimationOnFinishAction::Repeat;
+		{		
+			Ref<Model> model = ModelLibrary::LoadModel("assets/models/Silly Dancing/untitled.gltf");
+			m_ActiveScene->CreateModel(model);
 		}
-		{
-			Ref<Model> model = ModelLibrary::LoadModel("D:/KD/KaidelEditor/assets/models/Erika Archer Walking/untitled.gltf");
-			Entity entity = m_ActiveScene->CreateModel(model);
+		
+		
+		/*{
+			Entity parent = m_ActiveScene->CreateEntity("Parent");
 
-			m_ActiveScene->GetEntity(entity.GetComponent<ParentComponent>().Children[4])
-				.GetComponent<AnimationPlayerComponent>().State = AnimationPlayerComponent::PlayerState::Playing;
-			m_ActiveScene->GetEntity(entity.GetComponent<ParentComponent>().Children[4])
-				.GetComponent<AnimationPlayerComponent>().FinishAction = AnimationPlayerComponent::AnimationOnFinishAction::Repeat;
+			{
+				auto& mc = parent.AddComponent<MeshComponent>();
+				mc.UsedMesh = ModelLibrary::GetBaseSphere();
+				mc.UsedMaterial.push_back(mc.UsedMesh->GetSubmeshes()[0].DefaultMaterial);
+				mc.VisibilityResults.resize(1, false);
+			}
 
+			Entity child = m_ActiveScene->CreateEntity("Child");
 
-			entity.GetComponent<TransformComponent>().Translation = glm::vec3(5.0f, 0.0f, 0.0f);
-		}
+			child.AddParent(parent.GetUUID());
+			parent.AddChild(child.GetUUID());
+
+			{
+				auto& mc = child.AddComponent<MeshComponent>();
+				mc.UsedMesh = ModelLibrary::GetBaseSphere();
+				mc.UsedMaterial.push_back(mc.UsedMesh->GetSubmeshes()[0].DefaultMaterial);
+				mc.VisibilityResults.resize(1, false);
+			}
+		}*/
+
+		/*{
+			auto& mc = m_ActiveScene->CreateEntity("Sphere").AddComponent<MeshComponent>();
+			mc.UsedMesh = ModelLibrary::GetBaseSphere();
+			mc.UsedMaterial.push_back(mc.UsedMesh->GetSubmeshes()[0].DefaultMaterial);
+			mc.VisibilityResults.resize(1, false);
+		}*/
+
+		RendererGlobals::LoadEnvironmentMap("assets/skybox/brown_photostudio_02_4k.hdr");
 	}
 
 	void EditorLayer::OnDetach()
@@ -309,7 +325,7 @@ namespace Kaidel {
 		HandleViewportResize();
 		// Update
 		if (m_SceneState == SceneState::Edit)
-			m_EditorCamera.OnUpdate(ts);
+			m_EditorCamera.OnUpdate(ts, m_ViewportHovered, m_ViewportHovered, m_ViewportHovered, m_ViewportHovered);
 
 		// Render
 		{
@@ -331,10 +347,10 @@ namespace Kaidel {
 			data.zNear = m_Near;
 			data.zFar = m_Far;
 			data.ScreenSize = { m_ViewportSize.x,m_ViewportSize.y };
-			data.CameraPos = m_EditorCamera.GetPosition();
+			data.CameraPos = glm::vec4(m_EditorCamera.GetPosition(), 1.0f);
 			data.FOV = m_EditorCamera.GetFOV();
 			data.AspectRatio = m_EditorCamera.GetAspectRatio();
-			renderer.Render(*m_OutputTextures,data);
+			renderer.Render(m_OutputTextures,data);
 
 			// Project Auto Save
 			auto& currentProjectConfig = Project::GetActive()->GetConfig();
@@ -494,8 +510,53 @@ namespace Kaidel {
 
 			ShowDebugWindow();
 			ShowViewport();
-			UI_Toolbar();
+			//UI_Toolbar();
 			ImGui::End();
+
+			if (ImGui::Begin("Shaders"))
+			{
+				ImGui::Columns(2);
+				std::vector<std::pair<Path, Ref<Shader>>> shaders(ShaderLibrary::GetAllShaders().begin(), ShaderLibrary::GetAllShaders().end());
+				std::sort(shaders.begin(), shaders.end(), [](const auto& a1, const auto& a2) {
+					return std::less<Path>()(a1.first, a2.first);
+					});
+
+				float maxWidth = 0.0f;
+				for (auto& [path, shader] : shaders)
+				{
+					maxWidth = std::max(maxWidth, ImGui::CalcTextSize(path.string().c_str()).x);
+				}
+				if (!shaders.empty())
+				{
+					ImGui::SetColumnWidth(0, maxWidth + 20.0f);
+				}
+
+				for (auto& [path, shader] : shaders)
+				{
+					bool changed = ShaderLibrary::GetTimeAtLoad(path) != FileSystem::last_write_time(path).time_since_epoch().count();
+
+					if (changed)
+						ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+
+					ImGui::PushID(shader.Get());
+					ImGui::Text(path.string().c_str());
+					ImGui::NextColumn();
+					if (ImGui::Button("Recreate"))
+					{
+						ShaderLibrary::UpdateShader(path);
+					}
+					ImGui::NextColumn();
+					ImGui::PopID();
+
+					if (changed)
+						ImGui::PopStyleColor();
+
+				}
+				ImGui::Columns(1);
+			}
+			ImGui::End();
+
+			
 			//if (m_ConsoleOpen) {
 			//	ImGui::Begin("Debug Console", &m_ConsoleOpen, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoNavFocus);
 			//	static bool core = true;
@@ -621,24 +682,6 @@ namespace Kaidel {
 			return { glm::mat4(1.0f),glm::mat4(1.0f) };
 	}
 
-	void EditorLayer::MoveChildren(Entity curr, const glm::vec3& deltaTranslation, const glm::vec3& deltaRotation, Entity parent) {
-		//auto& tc = curr.GetComponent<TransformComponent>();
-		//if (curr.HasComponent<ParentComponent>()) {
-		//	for (auto& child : curr.GetComponent<ParentComponent>().Children) {
-		//		auto entity = m_ActiveScene->GetEntity(child);
-		//		MoveChildren(entity, deltaTranslation, deltaRotation, parent ? parent : curr);
-		//	}
-		//}
-		//if (parent && (deltaRotation.x || deltaRotation.y || deltaRotation.z)) {
-		//	Math::Rotate(curr, parent, deltaRotation);
-		//}
-		//else {
-		//	if (parent)
-		//		tc.Rotation += deltaRotation;
-		//}
-		//tc.Translation += deltaTranslation;
-	}
-
 	void EditorLayer::DrawGizmos()
 	{
 
@@ -675,19 +718,6 @@ namespace Kaidel {
 			{
 				glm::vec3 translation, rotation, scale;
 				Math::DecomposeTransform(transform, translation, rotation, scale);
-				//glm::vec3 deltaTranslation = translation - tc.Translation;
-				//glm::vec3 deltaRotation = rotation - tc.Rotation;
-				//for (int i = 0; i < 3; ++i) {
-				//	if (glm::epsilonEqual(deltaRotation[i], 0.0f, glm::epsilon<float>())) {
-				//		deltaRotation[i] = 0.0f;
-				//	}
-				//}
-				//for (int i = 0; i < 3; ++i) {
-				//	if (glm::epsilonEqual(deltaTranslation[i], 0.0f, glm::epsilon<float>())) {
-				//		deltaTranslation[i] = 0.0f;
-				//	}
-				//}
-				//MoveEntity(selectedEntity, m_ActiveScene.Get(), deltaTranslation, deltaRotation);
 				tc.Scale = scale;
 			}
 		}
@@ -724,6 +754,39 @@ namespace Kaidel {
 		ImGui::Begin("Styler");
 		ImGui::ShowStyleEditor();
 		ImGui::End();
+
+		if (ImGui::Begin("Debug textures"))
+		{
+			for (auto& [name, texture] : DebugUtils::GetDebugTextures())
+			{
+				DescriptorSetLayoutSpecification specs({ {DescriptorType::SamplerWithTexture, ShaderStage_FragmentShader} });
+				Ref<DescriptorSet> set = DescriptorSet::Create(specs);
+
+				if (texture->GetTextureSpecification().Layout != ImageLayout::ShaderReadOnlyOptimal)
+				{
+					ImageMemoryBarrier barrier(
+						texture, ImageLayout::ShaderReadOnlyOptimal, Utils::LayoutToAccessFlags(texture->GetTextureSpecification().Layout),
+						AccessFlags_ShaderRead
+					);
+
+					RenderCommand::PipelineBarrier(
+						Utils::LayoutToPipelineStages(texture->GetTextureSpecification().Layout),
+						PipelineStages_FragmentShader, {}, {}, {barrier});
+				}
+
+				set->Update(texture, RendererGlobals::GetSamler(SamplerFilter::Linear, SamplerMipMapMode::Linear), ImageLayout::ShaderReadOnlyOptimal, 0);
+
+				ImGui::Text(name.c_str());
+				ImGui::SameLine();
+				ImGui::Image((ImTextureID)set->GetSetID(), ImVec2(240, 240));
+			}
+		}
+
+		DebugUtils::Reset();
+
+		ImGui::End();
+
+
 		ImGui::Begin("Stats");
 
 		ImGui::Text("Gizmo Mode : %d", m_GizmoType);
@@ -731,6 +794,12 @@ namespace Kaidel {
 		ImGui::Text("Frame Rate: %.3f", ImGui::GetIO().Framerate);
 		ImGui::Text("Frame Time: %.3f", 1.0f / ImGui::GetIO().Framerate);
 
+		ImGui::Text("Draw calls: %" PRIu64, Renderer3D::GetStats().DrawCalls);
+		ImGui::Text("Instance count: %" PRIu64, Renderer3D::GetStats().InstanceCount);
+		ImGui::Text("Index count: %" PRIu64, Renderer3D::GetStats().IndexCount);
+		ImGui::Text("Vertex count: %" PRIu64, Renderer3D::GetStats().VertexCount);
+
+		ImGui::Begin("Timers");
 		static bool stopTimers = false;
 		static std::unordered_map<std::string, uint64_t> stoppedTimers;
 		if (ImGui::Button(stopTimers ? "Start timers" : "Stop timers"))
@@ -742,13 +811,40 @@ namespace Kaidel {
 			}
 		}
 
-		for (const auto& [name, data] : stopTimers ? stoppedTimers : AccumulativeTimer::GetTimers()) {
-			float ns = (float)data;
-			float ms = (float)ns * 1e-6f;
-			float s = (float)ns * 1e-9f;
-			ImGui::TextWrapped("%s Took :(%.3f ns,%.3f ms,%.3f s)", name.c_str(), ns, ms, s);
+		if (ImGui::BeginTable("##Timers", 4, ImGuiTableFlags_ScrollY, ImVec2(0.0f, 200.0f)))
+		{
+			ImGui::TableSetupColumn("Name");
+			ImGui::TableSetupColumn("ns");
+			ImGui::TableSetupColumn("ms");
+			ImGui::TableSetupColumn("s");
+			ImGui::TableHeadersRow();
+			
+			for (const auto& [name, data] : stopTimers ? stoppedTimers : AccumulativeTimer::GetTimers()) {
+				ImGui::TableNextColumn();
+
+				ImGui::Text(name.c_str());
+
+				float ns = (float)data;
+				float ms = (float)ns * 1e-6f;
+				float s = (float)ns * 1e-9f;
+
+				ImGui::TableNextColumn();
+				ImGui::Text("%.3f", ns);
+				
+				ImGui::TableNextColumn();
+				ImGui::Text("%.4f", ms);
+				
+				ImGui::TableNextColumn();
+				ImGui::Text("%.5f", s);
+			}
+
+
+			ImGui::EndTable();
 		}
+
 		
+		ImGui::End();
+
 		ImGui::Text("UI Vertex Count: %d", ImGui::GetIO().MetricsRenderVertices);
 		
 		ImGui::Text("Current animation time: %.3f", animationTime);
@@ -803,17 +899,17 @@ namespace Kaidel {
 
 		glm::vec4 uvs = _GetUVs();
 		Ref<DescriptorSet> ds = *m_OutputDescriptorSet;
-		ImGui::Image(reinterpret_cast<ImTextureID>(ds->GetSetID()), ImVec2{m_ViewportSize.x,m_ViewportSize.y});
+		ImGui::Image(static_cast<ImTextureID>(ds->GetSetID()), ImVec2{m_ViewportSize.x,m_ViewportSize.y});
 		
 		//ImGui::Text("Hello");
 		
-		if (ImGui::BeginDragDropTarget()) {
+		/*if (ImGui::BeginDragDropTarget()) {
 			if (auto payload = ImGui::AcceptDragDropPayload("CONTENT_BROWSER_ITEM")) {
 				const wchar_t* path = (const wchar_t*)payload->Data;
 				OpenScene(path);
 			}
 			ImGui::EndDragDropTarget();
-		}
+		}*/
 		// Gizmos
 		DrawGizmos();
 
@@ -928,7 +1024,7 @@ namespace Kaidel {
 			//		OnSceneSimulateStart();
 			//}
 		}
-
+		ImGui::Text("H");
 		ImGui::End();
 		ImGui::PopStyleVar(3);
 		ImGui::PopStyleColor(3);

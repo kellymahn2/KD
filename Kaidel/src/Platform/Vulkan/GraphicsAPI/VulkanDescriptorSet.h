@@ -60,5 +60,6 @@ namespace Kaidel {
 		DescriptorSetSpecification m_Specification;
 		std::vector<std::vector<DescriptorValues>> m_Values;
 		std::unordered_map<std::string, uint32_t> m_NamesToBindings;
+		std::vector<VkDescriptorType> m_DescriptorTypes;
 	};
 }

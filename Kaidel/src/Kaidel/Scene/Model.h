@@ -20,6 +20,82 @@ namespace Kaidel {
 
 	static const constexpr uint32_t MaxBoneCount = 4;
 
+	struct AABB {
+		glm::vec3 Min;
+		glm::vec3 Max;
+
+		AABB(const AABB& aabb)
+		{
+			Min = aabb.Min;
+			Max = aabb.Max;
+		}
+			
+
+		AABB()
+			: Min(glm::vec3(std::numeric_limits<float>::infinity())),
+			Max(glm::vec3(-std::numeric_limits<float>::infinity()))
+		{}
+
+		AABB(const glm::vec3& minPoint, const glm::vec3& maxPoint)
+			: Min(minPoint), Max(maxPoint)
+		{}
+
+		void Merge(const AABB& aabb) 
+		{
+			if (!std::isfinite(Min.x) || !std::isfinite(Min.y) || !std::isfinite(Min.z) ||
+				!std::isfinite(Max.x) || !std::isfinite(Max.y) || !std::isfinite(Max.z)) 
+			{
+				Min = aabb.Min;
+				Max = aabb.Max;
+				return;
+			}
+
+			Min = glm::min(Min, aabb.Min);
+			Max = glm::max(Max, aabb.Max);
+		}
+
+		void Merge(const glm::vec3& point) 
+		{
+			Min = glm::min(Min, point);
+			Max = glm::max(Max, point);
+		}
+
+		AABB Transform(const glm::mat4& M) const
+		{
+			if (!std::isfinite(Min.x) || !std::isfinite(Min.y) || !std::isfinite(Min.z) ||
+				!std::isfinite(Max.x) || !std::isfinite(Max.y) || !std::isfinite(Max.z))
+			{
+				return AABB();
+			}
+
+			glm::vec3 corners[8] = {
+				glm::vec3(Min.x, Min.y, Min.z),
+				glm::vec3(Max.x, Min.y, Min.z),
+				glm::vec3(Min.x, Max.y, Min.z),
+				glm::vec3(Max.x, Max.y, Min.z),
+				glm::vec3(Min.x, Min.y, Max.z),
+				glm::vec3(Max.x, Min.y, Max.z),
+				glm::vec3(Min.x, Max.y, Max.z),
+				glm::vec3(Max.x, Max.y, Max.z)
+			};
+
+			glm::vec3 newMin(std::numeric_limits<float>::infinity());
+			glm::vec3 newMax(-std::numeric_limits<float>::infinity());
+
+			for (int i = 0; i < 8; ++i) {
+				glm::vec4 p = M * glm::vec4(corners[i], 1.0f);
+				p /= p.w;
+				
+				glm::vec3 tp = glm::vec3(p);
+
+				newMin = glm::min(newMin, tp);
+				newMax = glm::max(newMax, tp);
+			}
+
+			return AABB(newMin, newMax);
+		}
+	};
+
 	struct MeshVertex
 	{
 		glm::vec3 Position;
@@ -41,6 +117,7 @@ namespace Kaidel {
 	};
 
 	struct SkinTree {
+		AABB BoundingBox;
 		glm::mat4 BindMatrix;
 		uint32_t ID;
 		std::string Name;
@@ -58,8 +135,11 @@ namespace Kaidel {
 		UUID LastRoot;
 	};
 
+	
+
 	struct Submesh 
 	{
+		AABB BoundingBox;
 		uint32_t VertexOffset;
 		uint32_t IndexOffset;
 		uint32_t VertexCount;
@@ -69,16 +149,39 @@ namespace Kaidel {
 
 	extern Ref<RenderPass> GetDeferredPassRenderPass();
 
+	struct MeshInitializer {
+		const void* Vertices;
+		uint64_t VertexCount;
+		uint64_t VertexSize;
+		const void* Indices;
+		uint64_t IndexCount;
+		IndexType IndexFormat;
+
+		const void* ShadowVertices;
+		uint64_t ShadowVertexCount;
+		uint64_t ShadowVertexSize;
+		const void* ShadowIndices;
+		uint64_t ShadowIndexCount;
+		IndexType ShadowIndexFormat;
+		
+		std::vector<Submesh> Submeshes;
+	};
+
 	class Mesh : public IRCCounter<false> {
 	public:
 		Mesh() = default;
 		virtual ~Mesh() = default;
 
-		Mesh(const std::vector<MeshVertex>& vertices, const std::vector<uint16_t>& indices, const std::vector<Submesh>& subMeshes)
-			:m_VertexCount(vertices.size()), m_IndexCount(indices.size()), m_Submeshes(subMeshes)
+		Mesh(const MeshInitializer& initializer)
+			:m_VertexCount(initializer.VertexCount), m_IndexCount(initializer.IndexCount), m_Submeshes(initializer.Submeshes)
 		{
-			m_VertexBuffer = VertexBuffer::Create(vertices.data(), vertices.size() * sizeof(MeshVertex));
-			m_IndexBuffer = IndexBuffer::Create(indices.data(), indices.size() * sizeof(uint16_t), IndexType::Uint16);
+			m_VertexBuffer = VertexBuffer::Create(initializer.Vertices, initializer.VertexCount * initializer.VertexSize);
+
+			uint64_t indexSize = initializer.IndexCount * (uint64_t)initializer.IndexFormat * 2;
+
+			m_IndexBuffer = 
+				IndexBuffer::Create(initializer.Indices, indexSize, initializer.IndexFormat);
+			
 		}
 
 		Ref<VertexBuffer> GetVertexBuffer()const { return m_VertexBuffer; }
@@ -86,35 +189,45 @@ namespace Kaidel {
 
 		uint64_t GetVertexCount()const { return m_VertexCount; }
 		uint64_t GetIndexCount()const { return m_IndexCount; }
-		const std::vector<Submesh> GetSubmeshes() const { return m_Submeshes; }
+		std::vector<Submesh>& GetSubmeshes() { return m_Submeshes; }
 
 		virtual bool IsSkinned() const { return false; }
 
+		const AABB& GetBoundingBox() const { return m_BoundingBox; }
+
+		void SetBoundingBox(const AABB& boundingBox) { m_BoundingBox = boundingBox; }
 
 
 	protected:
+		AABB m_BoundingBox;
 		Ref<VertexBuffer> m_VertexBuffer;
 		Ref<IndexBuffer> m_IndexBuffer;
+		Ref<VertexBuffer> m_ShadowVertexBuffer;
+		Ref<IndexBuffer> m_ShadowIndexBuffer;
 		std::vector<Submesh> m_Submeshes;
 		uint64_t m_VertexCount = 0, m_IndexCount = 0;
 	};
 
 	class SkinnedMesh : public Mesh {
 	public:
-		SkinnedMesh(
-			const std::vector<SkinnedMeshVertex>& vertices, const std::vector<uint16_t>& indices, 
-			const std::vector<Submesh>& subMeshes, Ref<Skin> skin)
+		SkinnedMesh(MeshInitializer initializer, Ref<Skin> skin)
 			: m_Skin(skin)
 		{
-			m_VertexBuffer = VertexBuffer::Create(nullptr, vertices.size() * sizeof(MeshVertex));
-			m_SkinnedBuffer = VertexBuffer::Create(vertices.data(), vertices.size() * sizeof(SkinnedMeshVertex));
-			m_IndexBuffer = IndexBuffer::Create(indices.data(), indices.size() * sizeof(uint16_t), IndexType::Uint16);
+			
+			m_VertexBuffer = VertexBuffer::Create(nullptr, initializer.VertexCount * sizeof(MeshVertex));
 
-			m_VertexCount = vertices.size();
-			m_IndexCount = indices.size();
+			uint64_t indexSize = initializer.IndexCount * (uint64_t)initializer.IndexFormat * 2;
+
+			m_IndexBuffer = 
+				IndexBuffer::Create(initializer.Indices, indexSize, initializer.IndexFormat);
+
+			m_SkinnedBuffer = VertexBuffer::Create(initializer.Vertices, initializer.VertexCount * sizeof(SkinnedMeshVertex));
+
+			m_VertexCount = initializer.VertexCount;
+			m_IndexCount = initializer.IndexCount;
 			m_BoneCount = CalcBoneCount(skin->Tree);
 
-			m_Submeshes = subMeshes;
+			m_Submeshes = initializer.Submeshes;
 
 			{
 				DescriptorSetLayoutSpecification specs(

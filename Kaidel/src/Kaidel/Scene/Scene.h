@@ -41,6 +41,8 @@ namespace Kaidel {
 		void OnUpdateSimulation(Timestep ts, EditorCamera& camera);
 		void OnViewportResize(uint32_t width, uint32_t height);
 
+		entt::registry& GetRegistry() { return m_Registry; }
+
 		Entity GetPrimaryCameraEntity();
 		
 		static Ref<Scene> Copy(const Ref<Scene>& rhs);

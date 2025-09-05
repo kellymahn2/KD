@@ -22,4 +22,5 @@ namespace Kaidel {
 
 		VK_CONTEXT.GetBufferStager().StageUniformBuffer(VK_CONTEXT.GetCurrentCommandBuffer(), buffer.Buffer, data, size);
 	}
+
 }

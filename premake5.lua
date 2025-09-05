@@ -32,6 +32,7 @@ group "Dependencies"
 	include "Kaidel/vendor/imgui"
 	include "Kaidel/vendor/msdf-atlas-gen"
 	include "Kaidel/vendor/yaml-cpp"
+	include "Kaidel/vendor/meshoptimizer"
 group ""
 
 group "Core"

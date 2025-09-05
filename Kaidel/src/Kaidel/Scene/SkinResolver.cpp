@@ -154,6 +154,17 @@ namespace Kaidel {
 			outTree->BindMatrix = glm::transpose(*(const glm::mat4*)&bone->mOffsetMatrix);
 			outTree->Name = bone->mName.C_Str();
 			outTree->ID = index;
+
+			AABB aabb;
+
+			for (uint32_t i = 0; i < bone->mNumWeights; ++i)
+			{
+				const aiVertexWeight& weight = bone->mWeights[i];
+				const glm::vec3& pos = (const glm::vec3&)mesh->mVertices[weight.mVertexId];
+				aabb.Merge(pos);
+			}
+			outTree->BoundingBox = aabb;
+
 			++index;
 		}
 

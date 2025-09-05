@@ -1,4 +1,4 @@
-#type comp
+#ifdef comp
 #version 460 core
 
 layout(local_size_x = 16, local_size_y = 9,local_size_z = 4) in;

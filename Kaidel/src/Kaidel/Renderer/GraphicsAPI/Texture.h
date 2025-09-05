@@ -18,15 +18,16 @@ namespace Kaidel {
 		uint32_t Height = 1;
 		uint32_t Depth = 1;
 		uint32_t Layers = 1;
+		bool Mipped = true;
 		uint32_t Mips = 1;
 		const ImageType Type = ImageType::_2D;
 		TextureSamples Samples = TextureSamples::x1;
 		TextureSwizzle Swizzles[4] = { TextureSwizzle::Red,TextureSwizzle::Green,TextureSwizzle::Blue,TextureSwizzle::Alpha };
-		bool IsCube = false;
+		const bool IsCube = false;
 		bool IsCpuReadable = false;
 
-		TextureSpecification(ImageType type)
-			:Type(type) 
+		TextureSpecification(ImageType type, bool isCube = false)
+			:Type(type), IsCube(isCube)
 		{}
 
 		TextureSpecification() = delete;
@@ -68,6 +69,22 @@ namespace Kaidel {
 		
 		static Ref<TextureLayered> Create(const TextureLayeredSpecification& specs);
 	};
+
+	struct TextureCubeSpecification : TextureSpecification {
+		TextureCubeSpecification()
+			: TextureSpecification(ImageType::_2D, true)
+		{
+		}
+	};
+
+	class TextureCube : public Texture
+	{
+	public:
+		virtual ~TextureCube() = default;
+
+		static Ref<TextureCube> Create(const TextureCubeSpecification& specs);
+	};
+
 
 	class FramebufferTexture : public Texture {
 	public:

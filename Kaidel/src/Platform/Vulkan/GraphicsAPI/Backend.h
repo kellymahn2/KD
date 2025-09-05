@@ -42,6 +42,7 @@ namespace VulkanBackend
 			VkFence InFlightFence;
 			VkSemaphore ImageAvailable;
 			VkSemaphore RenderFinished;
+			std::queue<std::function<void()>> DeferredDeletes;
 		};
 		VkSwapchainKHR Swapchain = VK_NULL_HANDLE;
 		SurfaceInfo Surface;
@@ -126,8 +127,14 @@ namespace VulkanBackend
 		std::unordered_map<std::string, uint32_t> NameToBinding;
 	};
 
+	struct VertexShaderInputReflection {
+		std::string Name;
+		uint32_t Location;
+	};
+
 	struct ShaderReflection 
 	{
+		std::unordered_map<uint32_t, VertexShaderInputReflection> Inputs;
 		std::unordered_map<uint32_t, DescriptorSetReflection> Sets;
 		uint32_t PushConstantSize;
 
@@ -386,6 +393,9 @@ namespace VulkanBackend
 		//Shader
 		ShaderInfo CreateShader(const std::unordered_map<VkShaderStageFlagBits, std::initializer_list<uint32_t>>& spirvs);
 		void DestroyShader(InOut<ShaderInfo> shader);
+		void UpdateShaderModules(
+			const std::unordered_map<VkShaderStageFlagBits, std::initializer_list<uint32_t>>& spirvs,
+			InOut<ShaderInfo> shader);
 
 		//Pipeline
 		VkPipeline CreateGraphicsPipeline(In<ShaderInfo> shaders,
@@ -414,8 +424,6 @@ namespace VulkanBackend
 		void DestroyDescriptorPool(VkDescriptorPool pool);
 
 		//Descriptor Set
-		DescriptorSetInfo CreateDescriptorSet(std::vector<VkWriteDescriptorSet>& values, In<ShaderInfo> shader, uint32_t setIndex);
-		DescriptorSetInfo CreateDescriptorSet(std::vector<VkWriteDescriptorSet>& values, const std::vector<VkShaderStageFlags>& flags);
 		DescriptorSetInfo CreateDescriptorSet(std::initializer_list<std::pair<VkDescriptorType, VkShaderStageFlags>> types);
 		DescriptorSetInfo CreateDescriptorSet(In<ShaderInfo> shader, uint32_t setIndex);
 		void UpdateDescriptorSet(In<DescriptorSetInfo> info, const std::vector<VkWriteDescriptorSet>& writes);

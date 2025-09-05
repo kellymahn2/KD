@@ -172,8 +172,6 @@ namespace Kaidel {
 		bool m_Active = false;
 	};
 
-	ImVec2 operator + (const ImVec2& lhs, const ImVec2& rhs);
-
 	uint64_t Combo(const char* name, const char* strings[], uint64_t stringCount, const char*& current);
 	
 	bool ButtonEx(const char* label, const ImVec2& size_arg = { 0,0 },

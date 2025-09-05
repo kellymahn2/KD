@@ -68,7 +68,7 @@ namespace Kaidel {
 		m_Data.wakeCondition.notify_one(); // wake one thread
 	}
 
-	void JobSystem::Dispatch(uint32_t jobCount, uint32_t groupSize, const std::function<void(JobDispatchArgs)>& job)
+	void JobSystem::Dispatch(uint32_t jobCount, uint32_t groupSize, const std::function<void(JobDispatchArgs)>& job, uint32_t sharedMemorySize)
 	{
 
 		if (jobCount == 0 || groupSize == 0)
@@ -85,22 +85,33 @@ namespace Kaidel {
 		for (uint32_t groupIndex = 0; groupIndex < groupCount; ++groupIndex)
 		{
 			// For each group, generate one real job:
-			auto& jobGroup = [jobCount, groupSize, job, groupIndex]() {
+			auto& jobGroup = [jobCount, groupSize, job, groupIndex, sharedMemorySize]() {
 
 				// Calculate the current group's offset into the jobs:
 				const uint32_t groupJobOffset = groupIndex * groupSize;
 				const uint32_t groupJobEnd = std::min(groupJobOffset + groupSize, jobCount);
 
 				JobDispatchArgs args;
-				args.groupIndex = groupIndex;
-
+				args.GroupID = groupIndex;
+				if (sharedMemorySize)
+				{
+					args.SharedMemory = ALLOCA(sharedMemorySize);
+					memset(args.SharedMemory, 0, sharedMemorySize);
+				}
+				else
+				{
+					args.SharedMemory = nullptr;
+				}
 				// Inside the group, loop through all job indices and execute job for each index:
 				for (uint32_t i = groupJobOffset; i < groupJobEnd; ++i)
 				{
-					args.jobIndex = i;
+					args.GlobalID = i;
+					args.LocalID = i - groupJobOffset;
+					args.FirstJobInGroup = (i == groupJobOffset);
+					args.LastJobInGroup = (i == groupJobEnd - 1);
 					job(args);
 				}
-				};
+			};
 
 			// Try to push a new job until it is pushed successfully:
 			while (!m_Data.jobPool.push_back(jobGroup)) { poll(); }

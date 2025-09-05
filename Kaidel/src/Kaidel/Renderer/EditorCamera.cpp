@@ -31,7 +31,8 @@ namespace Kaidel {
 		m_Position = CalculatePosition();
 
 		glm::quat orientation = GetOrientation();
-		m_ViewMatrix = glm::translate(glm::mat4(1.0f), m_Position) * glm::toMat4(orientation);
+		m_ViewMatrix = glm::translate(glm::mat4(1.0f), m_Position) *
+			glm::toMat4(orientation);
 		m_ViewMatrix = glm::inverse(m_ViewMatrix);
 	}
 
@@ -60,7 +61,7 @@ namespace Kaidel {
 		return speed;
 	}
 
-	void EditorCamera::OnUpdate(Timestep ts)
+	void EditorCamera::OnUpdate(Timestep ts, bool pan, bool rotate, bool zoom, bool keyMove)
 	{
 		if (Input::IsKeyDown(Key::LeftAlt))
 		{
@@ -68,11 +69,11 @@ namespace Kaidel {
 			glm::vec2 delta = (mouse - m_InitialMousePosition) * 0.003f;
 			m_InitialMousePosition = mouse;
 
-			if (Input::IsMouseButtonDown(Mouse::ButtonMiddle))
+			if (pan && Input::IsMouseButtonDown(Mouse::ButtonMiddle))
 				MousePan(delta);
-			else if (Input::IsMouseButtonDown(Mouse::ButtonLeft))
+			else if (rotate && Input::IsMouseButtonDown(Mouse::ButtonLeft))
 				MouseRotate(delta);
-			else if (Input::IsMouseButtonDown(Mouse::ButtonRight))
+			else if (zoom && Input::IsMouseButtonDown(Mouse::ButtonRight))
 				MouseZoom(delta.y);
 
 			glm::vec3 dir = glm::vec3(0.0f);
@@ -90,7 +91,7 @@ namespace Kaidel {
 			if (Input::IsKeyDown(Key::LeftControl))
 				dir.y = -1.0f;
 
-			if (dir != glm::vec3(0.0f)) {
+			if (keyMove && dir != glm::vec3(0.0f)) {
 				dir = glm::normalize(dir);
 				KeyMove(dir * (float)ts);
 			}

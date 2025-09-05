@@ -12,6 +12,10 @@ namespace Kaidel {
 		void StageUniformBuffer(VkCommandBuffer commandBuffer, VkBuffer buffer, const void* data, uint64_t size);
 		void StageStorageBuffer(VkCommandBuffer commandBuffer, VkBuffer buffer, const void* data, uint64_t size);
 
+		uint8_t* Reserve(uint64_t dataSize);
+
+		void UploadReserveStorageBuffer(VkCommandBuffer commandBuffer, VkBuffer buffer, const uint8_t* reservedStart, uint64_t size);
+
 		void Reset();
 
 	private:
