@@ -3,8 +3,12 @@
 namespace Kaidel {
 
 	struct JobDispatchArgs {
-		uint32_t jobIndex;
-		uint32_t groupIndex;
+		uint32_t GlobalID;
+		uint32_t LocalID;
+		uint32_t GroupID;
+		bool FirstJobInGroup;
+		bool LastJobInGroup;
+		void* SharedMemory;
 	};
 
 	template <typename T, size_t capacity>
@@ -64,7 +68,7 @@ namespace Kaidel {
 		JobSystem(uint32_t workerThreadCount);
 		~JobSystem();
 		void Execute(const std::function<void()>& job);
-		void Dispatch(uint32_t jobCount, uint32_t groupSize, const std::function<void(JobDispatchArgs)>& job);
+		void Dispatch(uint32_t jobCount, uint32_t groupSize, const std::function<void(JobDispatchArgs)>& job, uint32_t sharedMemorySize = 0);
 		bool IsBusy();
 		void Wait();
 		static JobSystem& GetMainJobSystem() { return *s_JobSystem; }

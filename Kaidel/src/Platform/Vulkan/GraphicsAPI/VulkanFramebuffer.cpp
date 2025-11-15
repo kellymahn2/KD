@@ -19,7 +19,6 @@ namespace Kaidel {
 			info.Mips = 1;
 			info.Samples = samples;
 			info.IsCpuReadable = false;
-			info.IsCube = false;
 			info.Layout = isDepth ? ImageLayout::DepthAttachmentOptimal : ImageLayout::ColorAttachmentOptimal;
 			info.Swizzles[0] = TextureSwizzle::Red;
 			info.Swizzles[1] = TextureSwizzle::Green;

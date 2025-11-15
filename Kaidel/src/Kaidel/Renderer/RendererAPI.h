@@ -103,6 +103,9 @@ namespace Kaidel {
 			Ref<Texture> dstTexture, uint32_t dstLayer, uint32_t dstMip) = 0;
 		virtual void ClearColorTexture(Ref<Texture> texture,
 			const AttachmentColorClearValue& clear) = 0;
+
+		virtual void GenerateMips(const Ref<Texture> texture) = 0;
+
 		//void CopyBufferToTexture(In<BufferInfo> srcBuffer, In<TextureInfo> dstTexture, VkImageLayout dstLayout,
 		//	std::initializer_list<VkBufferImageCopy> regions);
 		//void CopyTextureToBuffer(In<TextureInfo> srcTexture, VkImageLayout srcLayout, In<BufferInfo> dstBuffer,

@@ -25,18 +25,19 @@ namespace Kaidel {
 		s_Instance = this;
 		if (!m_Specification.WorkingDirectory.empty())
 			std::filesystem::current_path(m_Specification.WorkingDirectory);
-		m_Window = Window::Create(WindowProps(m_Specification.Name));
+		m_Window = Window::Create(WindowProps(m_Specification.Name, false, 1600, 900));
 		m_Window->SetEventCallback(KD_BIND_EVENT_FN(Application::OnEvent));
+
+		JobSystem::InitMainJobSystem();
+
+		m_Window->AcquireImage();
 
 		Renderer::Init();
 		ScriptEngine::Init();
 
-		JobSystem::InitMainJobSystem();
-
 
 		m_ImGuiLayer = new ImGuiLayer();
 		PushOverlay(m_ImGuiLayer);
-
 	}
 
 	Application::~Application()
@@ -55,7 +56,6 @@ namespace Kaidel {
 
 	void Application::PushOverlay(Layer* layer)
 	{
-
 		m_LayerStack.PushOverlay(layer);
 		layer->OnAttach();
 	}
@@ -74,14 +74,18 @@ namespace Kaidel {
 
 	void Application::OnUpdate()
 	{
+
+
 		float time = (float)glfwGetTime();
 		Timestep timestep = time - m_LastFrameTime;
 		m_LastFrameTime = time;
 
+		m_DeltaTime = timestep.GetSeconds();
+		m_RunningTime += m_DeltaTime;
+
 		{
 			if (!m_Minimized)
 			{
-				m_Window->AcquireImage();
 				ExecuteMainThreadQueue();
 
 				{
@@ -99,6 +103,8 @@ namespace Kaidel {
 					m_ImGuiLayer->End();
 				}
 				m_Window->PresentImage();
+				m_Window->AcquireImage();
+				m_FrameNumber++;
 			}
 			
 		}
@@ -124,10 +130,8 @@ namespace Kaidel {
 
 	void Application::Run()
 	{
-
 		while (m_Running)
 		{
-
 			OnUpdate();
 			//{
 			//	//SCOPED_TIMER(Swap Buffers)

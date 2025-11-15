@@ -7,9 +7,6 @@
 [submodule "Kaidel/vendor/imguizmo"]
 	path = Kaidel/vendor/imguizmo
 	url = https://github.com/thecherno/imguizmo
-[submodule "Kaidel/vendor/imgui"]
-	path = Kaidel/vendor/imgui
-	url = https://github.com/TheCherno/imgui
 [submodule "Kaidel/vendor/spdlog"]
 	path = Kaidel/vendor/spdlog
 	url = https://github.com/gabime/spdlog
@@ -25,3 +22,6 @@
 [submodule "Kaidel/vendor/msdf-atlas-gen"]
 	path = Kaidel/vendor/msdf-atlas-gen
 	url = https://github.com/TheCherno/msdf-atlas-gen
+[submodule "Kaidel/vendor/meshoptimizer"]
+	path = Kaidel/vendor/meshoptimizer
+	url = https://github.com/zeux/meshoptimizer

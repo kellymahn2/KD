@@ -53,6 +53,7 @@ namespace Kaidel {
 			barrier.subresourceRange = info.ViewInfo.subresourceRange;
 			barrier.subresourceRange.levelCount = 1;
 			barrier.subresourceRange.baseMipLevel = mip;
+			barrier.subresourceRange.layerCount = info.ImageInfo.arrayLayers;
 
 			return barrier;
 		}
@@ -103,13 +104,13 @@ namespace Kaidel {
 				blit.srcSubresource.aspectMask = info.ViewInfo.subresourceRange.aspectMask;
 				blit.srcSubresource.mipLevel = i - 1;
 				blit.srcSubresource.baseArrayLayer = 0;
-				blit.srcSubresource.layerCount = 1;
+				blit.srcSubresource.layerCount = info.ImageInfo.arrayLayers;
 				blit.dstOffsets[0] = { 0, 0, 0 };
-				blit.dstOffsets[1] = { w > 1 ? h / 2 : 1, h > 1 ? h / 2 : 1, 1 };
+				blit.dstOffsets[1] = { w > 1 ? w / 2 : 1, h > 1 ? h / 2 : 1, 1 };
 				blit.dstSubresource.aspectMask = info.ViewInfo.subresourceRange.aspectMask;
 				blit.dstSubresource.mipLevel = i;
 				blit.dstSubresource.baseArrayLayer = 0;
-				blit.dstSubresource.layerCount = 1;
+				blit.dstSubresource.layerCount = info.ImageInfo.arrayLayers;
 
 				backend->CommandBlitTexture(
 					cb,
@@ -174,7 +175,7 @@ namespace Kaidel {
 		KD_CORE_ASSERT(specs.Layers == 1);
 		KD_CORE_ASSERT(!specs.IsCube);
 
-		uint32_t mips = (uint32_t)std::floor(std::log2(std::max(specs.Width, specs.Height))) + 1;
+		uint32_t mips = specs.Mipped ? (uint32_t)std::floor(std::log2(std::max(specs.Width, specs.Height))) + 1 : 1;
 
 		auto& backend = VK_CONTEXT.GetBackend();
 
@@ -188,7 +189,7 @@ namespace Kaidel {
 		info.Mips = mips;
 		info.Type = VK_IMAGE_TYPE_2D;
 		info.Samples = (VkSampleCountFlagBits)specs.Samples;
-		info.Usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		info.Usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
 		info.ViewFormat = info.Format;
 		info.ViewType = VK_IMAGE_VIEW_TYPE_2D;
 		info.Swizzles[0] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
@@ -264,6 +265,7 @@ namespace Kaidel {
 	}
 	VulkanTexture2D::~VulkanTexture2D()
 	{
+		KD_CORE_INFO("Texture {} Deleted", (void*)this);
 		VK_CONTEXT.GetBackend()->DestroyTexture(m_Info);
 	}
 	VulkanTextureLayered::VulkanTextureLayered(const TextureLayeredSpecification& specs)
@@ -286,7 +288,7 @@ namespace Kaidel {
 		info.Mips = specs.Mips;
 		info.Type = specs.Type == ImageType::_1D_Array ? VK_IMAGE_TYPE_1D : VK_IMAGE_TYPE_2D;
 		info.Samples = (VkSampleCountFlagBits)specs.Samples;
-		info.Usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		info.Usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
 		info.ViewFormat = info.Format;
 		info.ViewType = specs.Type == ImageType::_1D_Array ? VK_IMAGE_VIEW_TYPE_1D_ARRAY : VK_IMAGE_VIEW_TYPE_2D_ARRAY;
 		info.Swizzles[0] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
@@ -371,7 +373,6 @@ namespace Kaidel {
 		m_Specification.Layers = layers;
 		m_Specification.Mips = 1;
 		m_Specification.Layout = isDepth ? ImageLayout::DepthAttachmentOptimal : ImageLayout::ColorAttachmentOptimal;
-		m_Specification.IsCube = false;
 		m_Specification.IsCpuReadable = false;
 		m_Specification.Samples = samples;
 		
@@ -492,7 +493,7 @@ namespace Kaidel {
 		m_Info = backend->CreateTextureFromExisting(
 			referenceInfo->ViewInfo.image,
 			specs.StartLayer,
-			specs.StartLayer,
+			specs.LayerCount,
 			specs.StartMip,
 			specs.MipCount,
 			referenceInfo->ViewInfo.format,
@@ -502,6 +503,105 @@ namespace Kaidel {
 		);
 	}
 	VulkanTextureReference::~VulkanTextureReference()
+	{
+		VK_BACKEND->DestroyTexture(m_Info);
+	}
+
+	VulkanTextureCube::VulkanTextureCube(const TextureCubeSpecification& specs)
+		: m_Specification(specs)
+	{
+		KD_CORE_ASSERT(specs.Type == ImageType::_2D);
+		KD_CORE_ASSERT(specs.Layout != ImageLayout::None);
+		KD_CORE_ASSERT(specs.Depth == 1);
+		KD_CORE_ASSERT(specs.Layers == 1);
+		KD_CORE_ASSERT(specs.IsCube);
+
+		uint32_t mips = specs.Mipped ? (uint32_t)std::floor(std::log2(std::max(specs.Width, specs.Height))) + 1 : 1;
+
+		auto& backend = VK_CONTEXT.GetBackend();
+
+		VulkanBackend::TextureInputInfo info{};
+		info.Format = Utils::FormatToVulkanFormat(specs.Format);
+		info.Aspects = Utils::IsDepthFormat(specs.Format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+		info.Width = specs.Width;
+		info.Height = specs.Height;
+		info.Depth = 1;
+		info.Layers = 6;
+		info.Mips = mips;
+		info.Type = VK_IMAGE_TYPE_2D;
+		info.Samples = (VkSampleCountFlagBits)specs.Samples;
+		info.Usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+		info.ViewFormat = info.Format;
+		info.ViewType = VK_IMAGE_VIEW_TYPE_CUBE;
+		info.Swizzles[0] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[0]);
+		info.Swizzles[1] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[1]);
+		info.Swizzles[2] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[2]);
+		info.Swizzles[3] = Utils::TextureSwizzleToVulkanComponentSwizzle(specs.Swizzles[3]);
+		info.IsCube = true;
+		info.IsCpuReadable = specs.IsCpuReadable;
+
+		m_Specification.Mips = mips;
+
+		m_Info = backend->CreateTexture(info);
+
+		VkCommandBuffer cb = backend->CreateCommandBuffer(VK_CONTEXT.GetPrimaryCommandPool());
+		backend->CommandBufferBegin(cb);
+
+		VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+		std::vector<VulkanBackend::BufferInfo> stagingBuffers;
+
+		if (specs.InitialDatas.size()) {
+			layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+
+			VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+			barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.srcAccessMask = 0;
+			barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+			barrier.image = m_Info.ViewInfo.image;
+			barrier.subresourceRange = m_Info.ViewInfo.subresourceRange;
+
+			backend->CommandPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, {}, { barrier });
+
+			for (auto& initData : specs.InitialDatas) {
+				auto stagingBuffer = Utils::AddCopyOperation(initData, m_Info, cb, specs.Format);
+				stagingBuffers.push_back(stagingBuffer);
+			}
+			if (mips > 1)
+				Utils::GenerateMips(m_Info, cb, layout, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+		}
+
+		VkImageLayout finalLayout = Utils::ImageLayoutToVulkanImageLayout(specs.Layout);
+		if (finalLayout != layout) {
+			VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+			barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.srcAccessMask = 0;
+			barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			barrier.oldLayout = layout;
+			barrier.newLayout = finalLayout;
+			barrier.image = m_Info.ViewInfo.image;
+			barrier.subresourceRange = m_Info.ViewInfo.subresourceRange;
+
+			backend->CommandPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, {}, {}, { barrier });
+		}
+
+		backend->CommandBufferEnd(cb);
+
+		backend->SubmitCommandBuffers(VK_CONTEXT.GetGraphicsQueue(), { cb }, VK_CONTEXT.GetSingleSubmitFence());
+		backend->FenceWait(VK_CONTEXT.GetSingleSubmitFence());
+
+		backend->DestroyCommandBuffer(cb, VK_CONTEXT.GetPrimaryCommandPool());
+
+		for (auto& stagingBuffer : stagingBuffers) {
+			backend->DestroyBuffer(stagingBuffer);
+		}
+	}
+
+	VulkanTextureCube::~VulkanTextureCube()
 	{
 		VK_BACKEND->DestroyTexture(m_Info);
 	}

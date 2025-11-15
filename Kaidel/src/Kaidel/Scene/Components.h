@@ -17,6 +17,7 @@ namespace Kaidel {
 		UUID ID;
 		bool IsActive = true;
 		bool IsVisible = true;
+		bool VisibilityResult = false;
 		IDComponent() = default;
 		IDComponent(const IDComponent&) = default;
 	};
@@ -124,14 +125,20 @@ namespace Kaidel {
 		ModelComponent(const ModelComponent&) = default;
 	};
 
+
+
 	struct MeshComponent {
 		Ref<Mesh> UsedMesh;
+		std::vector<Ref<MaterialInstance>> UsedMaterial;
+		std::vector<bool> VisibilityResults;
 		MeshComponent() = default;
 		MeshComponent(const MeshComponent&) = default;
 	};
 
 	struct SkinnedMeshComponent {
 		Ref<SkinnedMesh> UsedMesh;
+		std::vector<Ref<MaterialInstance>> UsedMaterial;
+		std::vector<bool> VisibilityResults;
 		UUID RootBone;
 		SkinnedMeshComponent() = default;
 		SkinnedMeshComponent(const SkinnedMeshComponent&) = default;
@@ -139,10 +146,12 @@ namespace Kaidel {
 
 	struct DirectionalLightComponent {
 		glm::vec3 Color = glm::vec3(1.0);
+		float SplitDistances[4] = { 0.1f, 0.3f, 0.5f, 1.0f };
 		float MaxDistance = 1000.0f;
 		float PancakeSize = 20.0f;
 		float SplitLambda = 0.95f;
 		float FadeStart = 1.0f;
+		float LightSize = 0.0f;
 	};
 
 

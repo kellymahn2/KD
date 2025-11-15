@@ -1,5 +1,5 @@
-#type vertex
 #version 460 core
+#ifdef vertex
 
 layout(location = 0) in vec3 a_Position;
 layout(location = 1) in vec4 a_Color;
@@ -23,9 +23,9 @@ void main(){
 	v_Normal = normalize(a_Normal);
 	v_LineWidth = a_LineWidth;
 }
+#endif
 
-#type geometry
-#version 460 core
+#ifdef geometry
 
 layout(lines) in;
 layout(triangle_strip,max_vertices = 6) out;
@@ -93,10 +93,10 @@ void main(){
 
 	EndPrimitive();
 }
+#endif
 
 
-#type fragment
-#version 460 core
+#ifdef fragment
 
 layout(location = 0) out vec4 o_Color;
 
@@ -105,3 +105,4 @@ layout(location = 0) in vec4 v_FragColor;
 void main(){
 	o_Color = v_FragColor;
 }
+#endif

@@ -61,7 +61,7 @@ namespace Kaidel {
 		VulkanAllocator& GetAllocator() { return *m_Allocator; }
 
 		const Scope<VulkanBackend::Backend>& GetBackend()const { return m_Backend; }
-
+		
 		VulkanBufferStager& GetBufferStager() { return *m_Stager;  }
 
 		VkCommandBuffer GetCurrentCommandBuffer()const { return m_Swapchain.Frames[m_CurrentFrameNumber].MainCommandBuffer; }
@@ -72,7 +72,10 @@ namespace Kaidel {
 
 		uint32_t GetFramesInFlightCount()const { return m_MaxFramesInFlight; }
 		uint32_t GetCurrentFrameNumber()const { return m_CurrentFrameNumber; }
-
+		void SubmitDeferredDelete(std::function<void()>&& func)
+		{
+			m_Swapchain.Frames[m_CurrentFrameNumber].DeferredDeletes.emplace(func);
+		}
 
 		VkDescriptorSetLayout GetSingleDescriptorSetLayout(VkDescriptorType type, VkShaderStageFlags flags);
 

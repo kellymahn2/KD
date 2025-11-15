@@ -117,6 +117,11 @@ namespace Kaidel {
 			const AttachmentColorClearValue& clear) {
 			s_RendererAPI->ClearColorTexture(texture, clear);
 		}
+
+		static void GenerateMips(const Ref<Texture> texture)
+		{
+			s_RendererAPI->GenerateMips(texture);
+		}
 		//void CopyBufferToTexture(In<BufferInfo> srcBuffer, In<TextureInfo> dstTexture, VkImageLayout dstLayout,
 		//	std::initializer_list<VkBufferImageCopy> regions);
 		//void CopyTextureToBuffer(In<TextureInfo> srcTexture, VkImageLayout srcLayout, In<BufferInfo> dstBuffer,
@@ -129,6 +134,11 @@ namespace Kaidel {
 			std::initializer_list<BufferMemoryBarrier> bufferBarriers,
 			std::initializer_list<ImageMemoryBarrier> textureBarriers) {
 			s_RendererAPI->PipelineBarrier(srcStages, dstStages, memoryBarriers, bufferBarriers, textureBarriers);
+		}
+
+		static void Submit(std::function<void()>&& func)
+		{
+			s_RendererAPI->Submit(std::move(func));
 		}
 		
 		static Scope<RendererAPI>& Get() { return s_RendererAPI; }

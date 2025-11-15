@@ -1,5 +1,5 @@
-#type comp
 #version 460 core
+#ifdef compute
 
 #define MAX_LIGHTS_PER_CLUSTER 100
 #define NUM_LIGHTS 100
@@ -90,3 +90,4 @@ vec3 lineIntersectionToZPlane(vec3 A, vec3 B, float zDistance){
 
     return result;
 }
+#endif

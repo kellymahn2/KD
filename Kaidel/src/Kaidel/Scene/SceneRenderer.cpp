@@ -1,15 +1,16 @@
 #include "KDpch.h"
 #include "SceneRenderer.h"
 #include "Components.h"
+#include "Kaidel/Core/DebugUtils.h"
 #include "Scene.h"
 #include "Entity.h"
 #include "Kaidel/Renderer/Text/Font.h"
 #include "Kaidel/Renderer/Text/MSDFData.h"
-#include "temp.h"
-
 #include "Kaidel/Renderer/GraphicsAPI/PerFrameResource.h"
+#include "Kaidel/Scene/ModelLibrary.h"
 
 #include "Kaidel/Renderer/GraphicsAPI/UniformBuffer.h"
+#include "Kaidel/Renderer/EnvironmentMap.h"
 #include "Kaidel/Renderer/2D\Renderer2D.h"
 #include "Kaidel/Core/JobSystem.h"
 #include "Kaidel/Core/Timer.h"
@@ -21,6 +22,7 @@
 #include "Kaidel/Renderer/DescriptorSetPack.h"
 #include "Kaidel/Scene/Material.h"
 #include "Kaidel/Scene/Model.h"
+#include "Visibility.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtx/compatibility.hpp>
@@ -44,110 +46,19 @@ namespace Kaidel {
 		//Ref<GraphicsPipeline> Pipeline;
 	};
 	
-	struct SpriteData {
-		static const constexpr uint64_t MaxTextureCount = 32;
-		static const constexpr uint64_t MaxSpriteCount = 60000;
-		static const constexpr uint64_t MaxVertexCount = MaxSpriteCount * 4;
-		static const constexpr uint64_t MaxIndexCount = MaxSpriteCount * 6;
-
-		Ref<IndexBuffer> SpriteIndexBuffer;
-		Ref<GraphicsPipeline> SpriteGraphicsPipeline;
-		std::vector<SpriteVertex> Vertices;
-		uint64_t VertexCount;
-
-		struct BatchDrawParams {
-			uint64_t BufferIndex;
-			uint64_t VertexCount;
-			uint64_t TextureIndex;
-			uint64_t BufferOffset;
-		};
-
-		struct BatchingData {
-			BatchingData() {
-				Buffers.push_back(VertexBuffer::Create(nullptr, 0));
-				TextureSet.push_back(CreateTextureDescriptorForSprites());
-			}
-
-			void Reset() {
-				BufferOffset = 0;
-				BufferCount = 1;
-				TextureSetCount = 1;
-				TextureCount = 1;
-			}
-
-			std::vector<Ref<VertexBuffer>> Buffers;
-			uint32_t BufferCount = 1;
-			uint64_t BufferOffset = 0;
-
-			std::vector<Ref<DescriptorSet>> TextureSet;
-			uint32_t TextureSetCount = 1;
-			uint32_t TextureCount = 1;
-
-			Ref<DescriptorSet> CreateTextureDescriptorForSprites() {
-				Ref<Shader> s = ShaderLibrary::LoadOrGetNamedShader("SpriteRender", "assets/_shaders/SpriteRender.glsl");
-				Ref<DescriptorSet> set = DescriptorSet::Create(s, 0);
-
-				//Set all the textures in the list to flat white texture.
-				for (uint32_t i = 0; i < SpriteData::MaxTextureCount; ++i) {
-					set->Update(RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f)), {}, ImageLayout::ShaderReadOnlyOptimal, 0, i);
-				}
-				//Set a global sampler for all of them.
-				set->Update({}, RendererGlobals::GetSamler(SamplerFilter::Linear, SamplerMipMapMode::Linear), {}, "u_Sampler");
-
-				return set;
-			}
-		};
-		std::vector<BatchDrawParams> DrawParams;
-		PerFrameResource<BatchingData> Batches;
-	};
-
-	struct TextData {
-		struct TextVertex {
-			glm::vec3 Position;
-			glm::vec4 Color;
-			glm::vec2 TexCoord;
-			glm::vec4 Border;
-		};
-		
-		Ref<GraphicsPipeline> Pipeline;
-		Ref<RenderPass> TextRenderPass;
-		std::vector<TextVertex> Vertices;
-		uint64_t VertexCount = 0;
-
-		PerFrameResource<Ref<VertexBuffer>> Buffer;
-	};
-
-	struct LineData {
-		struct LineVertex {
-			glm::vec3 Position;
-			glm::vec4 Color;
-			glm::vec3 Normal;
-			float LineWidth;
-		};
-
-		Ref<GraphicsPipeline> Pipeline;
-		Ref<RenderPass> LineRenderPass;
-		std::vector<LineVertex> Vertices;
-		uint64_t VertexCount = 0;
-
-		PerFrameResource<Ref<VertexBuffer>> Buffer;
-	};
-
-#ifdef SHADOW_MAPPING
-	struct ShadowData {
-		Ref<RenderPass> RenderPass;
-		Ref<GraphicsPipeline> Pipeline;
-		PerFrameResource<Ref<Framebuffer>> Framebuffer;
-		Ref<Sampler> ShadowSampler;
-		PerFrameResource<DescriptorSetPack> Pack;
-	};
-#endif
-
 	struct BoneData {
 		Ref<ComputePipeline> Pipeline;
 	};
 
+	struct SkyboxData {
+		Ref<GraphicsPipeline> Pipeline;
+		Ref<VertexBuffer> SkyboxCubeData;
+	};
+
 	static struct Data {
+
+		Ref<Mesh> DirectionalArrow;
+
 		Ref<VertexBuffer> CubeVertexBuffer;
 		Ref<IndexBuffer> CubeIndexBuffer;
 		Ref<ComputePipeline> ClusterPipeline;
@@ -161,40 +72,14 @@ namespace Kaidel {
 		PerFrameResource<Ref<StorageBuffer>> Clusters;
 		PerFrameResource<Ref<StorageBuffer>> ClusterGrids;
 
-		DeferredPassData DeferredPass;
 		
-		//Screen pass
-		Ref<VertexBuffer> ScreenNDC;
-		Ref<RenderPass> ScreenRenderPass;
-		PerFrameResource<Ref<Framebuffer>> HDROutputs;
-		Ref<GraphicsPipeline> ScreenPipeline;
-		PerFrameResource<DescriptorSetPack> ScreenPipelinePack;
-
-		//tonemap pass
-		Ref<RenderPass> TonemapRenderPass;
-		PerFrameResource<Ref<Framebuffer>> Outputs;
-		Ref<GraphicsPipeline> TonemapPipeline;
-		PerFrameResource<DescriptorSetPack> TonemapPipelinePack;
-
-		PerFrameResource<Ref<UniformBuffer>> DirectionalLight;
-		PerFrameResource<Ref<DescriptorSet>> DirectionalLightSet;
-
-		SpriteData Sprites;
-		TextData Texts;
-		LineData Lines;
 		BoneData Bones;
+		SkyboxData Skybox;
 
-		ShadowData Shadows;
 		Ref<Sampler> GlobalSampler;
 		uint32_t Width = 1280, Height = 720;
+
 	}*s_Data;
-
-	Ref<RenderPass> GetDeferredPassRenderPass() {
-		SceneRenderer r(nullptr);
-		return s_Data->DeferredPass.RenderPass;
-	}
-
-	TextureSamples samples = TextureSamples::x1;
 
 	struct Light {
 		glm::vec4 Position;
@@ -204,1415 +89,547 @@ namespace Kaidel {
 
 	std::vector<Light> lights;
 
-	struct DirectionalLight {
-		glm::mat4 GlobalShadowMatrix;
-		glm::mat4 ViewProj[4];
-		alignas(16) glm::vec3 Direction;
-		alignas(16) glm::vec3 Color;
-		alignas(16) float SplitDistances[4];
-		alignas(16) glm::vec4 CascadeOffsets[4];
-		alignas(16) glm::vec4 CascadeScales[4];
-		float FadeStart;
-	} DLight;
-
-	#pragma region Clusters
-
-	struct Cluster {
-		glm::vec4 Min;
-		glm::vec4 Max;
-	};
-
-	struct ClusterGrid {
-		uint32_t Count;
-		uint32_t Indices[50];
-		uint32_t Padding;
-	};
-
-	static glm::uvec3 s_ClusterDimensions = { 16,9,24 };
-	static uint64_t s_ClusterGridLength = s_ClusterDimensions.x * s_ClusterDimensions.y * s_ClusterDimensions.z;
-
-	static void CreateClusterResources() {
-		s_Data->ClusterPipeline = ComputePipeline::Create(ShaderLibrary::LoadShader("Cluster", "assets/_shaders/ClusterComp.shader"));
-		for (auto& cluster : s_Data->Clusters) {
-			cluster =
-				StorageBuffer::Create(nullptr, s_ClusterGridLength * sizeof(Cluster));
-		}
-
-		uint32_t i = 0;
-		for (auto& pack : s_Data->ClusterPipelinePack) {
-			pack =
-				DescriptorSetPack(ShaderLibrary::GetNamedShader("Cluster"), {});
-			pack.GetSet(0)->Update(s_Data->Clusters.GetResources()[i], 0);
-			++i;
-		}
-	}
-
-	void SceneRenderer::MakeClusters(const glm::mat4& invProj, float zNear, float zFar, const glm::vec2& screenSize) {
-		RenderCommand::BindComputePipeline(s_Data->ClusterPipeline);
-		s_Data->ClusterPipelinePack->Bind();
-		RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("Cluster"), 0,
-			invProj, zNear, zFar, screenSize);
-		RenderCommand::Dispatch(s_ClusterDimensions.x, s_ClusterDimensions.y, s_ClusterDimensions.z);
-	}
-
-	void SceneRenderer::InsertClusterBarrier() {
-		BufferMemoryBarrier barrier{};
-		barrier.Buffer = *s_Data->Clusters;
-		barrier.Offset = 0;
-		barrier.Size = -1;
-		barrier.Src = AccessFlags_ShaderWrite;
-		barrier.Dst = AccessFlags_ShaderRead;
-		RenderCommand::PipelineBarrier(
-			PipelineStages_ComputeShader,
-			PipelineStages_ComputeShader,
-			{},
-			{ barrier },
-			{}
-		);
-	}
-	#pragma endregion
-
-	#pragma region Light Culling
-	static void CreateLightCullResources() {
-
-		s_Data->LightCullPipeline = ComputePipeline::Create(ShaderLibrary::LoadShader("LightCull", "assets/_shaders/ClusterCullComp.shader"));
-
-		for (auto& grid : s_Data->ClusterGrids) {
-			grid = StorageBuffer::Create(nullptr, s_ClusterGridLength * sizeof(ClusterGrid));
-		}
-
-		uint32_t i = 0;
-		for (auto& pack : s_Data->LightCullPipelinePack) {
-			pack =
-				DescriptorSetPack(ShaderLibrary::GetNamedShader("LightCull"), 
-					{ {0,s_Data->ClusterPipelinePack.GetResources()[i].GetSet(0)} });
-			pack.GetSet(1)->Update(StorageBuffer::Create(nullptr, MAX_LIGHT_COUNT * sizeof(Light)),0)
-				.Update(s_Data->ClusterGrids.GetResources()[i],1);
-			++i;
-		}
-	}
-	
-	void SceneRenderer::MakeLightGrids(const glm::mat4& view) {
-		s_Data->LightCullPipelinePack->GetSet(1)->GetStorageBufferAtBinding(0)->SetData(lights.data(), lights.size() * sizeof(Light));
-
-		RenderCommand::BindComputePipeline(s_Data->LightCullPipeline);
-		s_Data->LightCullPipelinePack->Bind();
-		RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("LightCull"), 0,
-			view, (uint32_t)lights.size());
-		RenderCommand::Dispatch(1, 1, 6);
-	}
-	
-	void SceneRenderer::InsertLightGridBarrier() {
-		BufferMemoryBarrier barrier{};
-		barrier.Buffer = s_Data->LightCullPipelinePack->GetSet(1)->GetStorageBufferAtBinding(1);
-		barrier.Offset = 0;
-		barrier.Size = -1;
-		barrier.Src = AccessFlags_ShaderWrite;
-		barrier.Dst = AccessFlags_ShaderRead;
-		RenderCommand::PipelineBarrier(
-			PipelineStages_ComputeShader,
-			PipelineStages_FragmentShader,
-			{},
-			{ barrier },
-			{}
-		);
-	}
-	#pragma endregion
-
-	#pragma region 2D
-
-	static std::array<SpriteVertex, 4> MakeSpriteVertices(const glm::mat4& transform, const glm::vec4& tint, uint32_t textureIndex, const SamplingRegion& region) {
-		glm::vec2 positions[4] = {
-			{-.5,-.5},
-			{.5,-.5},
-			{.5,.5},
-			{-.5,.5}
-		};
-
-		glm::vec2 uv[4] = {
-			{region.UV0.x,region.UV1.y},
-			region.UV1,
-			{region.UV1.x,region.UV0.y},
-			region.UV0
-		};
-
-		std::array<SpriteVertex, 4> vertices{};
-
-		for (uint32_t i = 0; i < 4; ++i) {
-			SpriteVertex& vertex = vertices[i];
-			vertex.Position = transform * glm::vec4(positions[i], 0, 1);
-			vertex.Color = tint;
-			vertex.UV = { uv[i], (float)textureIndex };
-		}
-
-		return vertices;
-	}
-
-	static void AddDraw() {
-		auto& sprites = s_Data->Sprites;
-
-		bool textureFull = sprites.Batches->TextureCount == SpriteData::MaxTextureCount;
-		bool vertexFull = sprites.VertexCount + sprites.Batches->BufferOffset == SpriteData::MaxVertexCount;
-
-		SpriteData::BatchDrawParams params;
-		params.BufferIndex = sprites.Batches->BufferCount - 1;
-		params.TextureIndex = sprites.Batches->TextureSetCount - 1;
-		params.BufferOffset = sprites.Batches->BufferOffset;
-		params.VertexCount = sprites.VertexCount;
-		sprites.DrawParams.push_back(params);
-
-		sprites.Batches->Buffers[sprites.Batches->BufferCount - 1]
-			->SetData(sprites.Vertices.data(), sprites.VertexCount * sizeof(SpriteVertex), sprites.Batches->BufferOffset * sizeof(SpriteVertex));
-
-		if (textureFull && vertexFull) {
-			sprites.Batches->BufferCount++;
-			sprites.Batches->BufferOffset = 0;
-			sprites.Batches->TextureSetCount++;
-			sprites.Batches->TextureCount = 1;
-		}
-		else if (textureFull) {
-			sprites.Batches->BufferOffset += sprites.VertexCount;
-			sprites.Batches->TextureSetCount++;
-			sprites.Batches->TextureCount = 1;
-		}
-		else if (vertexFull) {
-			sprites.Batches->BufferCount++;
-			sprites.Batches->BufferOffset = 0;
-		}
-
-		if (sprites.Batches->BufferCount > sprites.Batches->Buffers.size()) {
-			sprites.Batches->Buffers.push_back(VertexBuffer::Create(nullptr, 0));
-		}
-
-		if (sprites.Batches->TextureSetCount > sprites.Batches->TextureSet.size()) {
-			sprites.Batches->TextureSet.push_back(sprites.Batches->CreateTextureDescriptorForSprites());
-		}
-		sprites.VertexCount = 0;
-	}
-
-	static void AddSpriteToBatch(const glm::mat4& transform, const glm::vec4& tint, Ref<TextureReference> texture, const SamplingRegion& region) {
-
-		auto& sprites = s_Data->Sprites;
-
-		uint32_t textureIndex = -1;
-		for (uint32_t i = 0; i < sprites.Batches->TextureCount; ++i) {
-			uint32_t setIndex = sprites.Batches->TextureSetCount - 1;
-			if (sprites.Batches->TextureSet[setIndex]->GetTextureAtBinding(0, i) == texture) {
-				textureIndex = i;
-				break;
-			}
-		}
-
-		if (textureIndex == -1) {
-			if (sprites.Batches->TextureCount != SpriteData::MaxTextureCount) {
-				uint32_t setIndex = sprites.Batches->TextureSetCount - 1;
-				sprites.Batches->TextureSet[setIndex]->Update(texture, {}, ImageLayout::ShaderReadOnlyOptimal, 0, sprites.Batches->TextureCount);
-				textureIndex = sprites.Batches->TextureCount++;
-			}
-			else {
-				AddDraw();
-				uint32_t setIndex = sprites.Batches->TextureSetCount - 1;
-				sprites.Batches->TextureSet[setIndex]->Update(texture, {}, ImageLayout::ShaderReadOnlyOptimal, 0, sprites.Batches->TextureCount);
-				textureIndex = sprites.Batches->TextureCount++;
-			}
-		}
-
-		std::array<SpriteVertex, 4> vertices = MakeSpriteVertices(transform, tint, textureIndex, region);
-
-
-		if (sprites.VertexCount + sprites.Batches->BufferOffset == SpriteData::MaxVertexCount) {
-			AddDraw();
-		}
-
-		if (sprites.VertexCount + 4 > sprites.Vertices.size()) {
-			uint64_t newSize = (uint64_t)(sprites.VertexCount * 1.5f) + 4;
-			if (newSize > SpriteData::MaxVertexCount) {
-				newSize = SpriteData::MaxVertexCount;
-			}
-			sprites.Vertices.resize(newSize);
-		}
-		sprites.Vertices[sprites.VertexCount + 0] = vertices[0];
-		sprites.Vertices[sprites.VertexCount + 1] = vertices[1];
-		sprites.Vertices[sprites.VertexCount + 2] = vertices[2];
-		sprites.Vertices[sprites.VertexCount + 3] = vertices[3];
-		sprites.VertexCount += 4;
-	}
-
-	static uint64_t AddStringToBatch(const std::string& string, Ref<Font> font, const glm::mat4& transform, const glm::vec4& color, const glm::vec4& borderColor, float borderThickness, float kerningOffset) {
-
-		auto& texts = s_Data->Texts;
-
-		const MSDFData* data = font->GetMSDFData();
-		
-		Ref<Texture2D> fontAtlas = font->GetAtlasTexture();
-
-		const auto& fontGeometry = data->FontGeometry;
-		const auto& metrics = fontGeometry.getMetrics();
-
-		double x = 0.0;
-		double fsScale = 1.0 / (metrics.ascenderY - metrics.descenderY);
-		double y = 0.0;
-		double lineHeightOffset = 0.0;
-
-		uint64_t renderedCharacters = 0;
-		const float spaceGlyphAdvance = (float)fontGeometry.getGlyph(' ')->getAdvance();
-		for (uint32_t i = 0; i < string.length(); ++i) {
-
-			if (string[i] == '\n')
-			{
-				x = 0;
-				y -= fsScale * metrics.lineHeight + lineHeightOffset;
-				continue;
-			}
-
-			if (string[i] == ' ')
-			{
-				double advance = spaceGlyphAdvance;
-				x += (fsScale * advance + kerningOffset);
-				continue;
-			}
-
-			if (string[i] == '\t')
-			{
-				double advance = spaceGlyphAdvance;
-				x += 4.0f * (fsScale * advance + kerningOffset);
-				continue;
-			}
-			double pl, pb, pr, pt;
-			double al, ab, ar, at;
-
-			{
-				const msdf_atlas::GlyphGeometry* glyph = nullptr;
-
-				glyph = fontGeometry.getGlyph(string[i]);
-
-				if (!glyph)
-					glyph = fontGeometry.getGlyph('?');
-				if (!glyph)
-					return renderedCharacters;
-
-				glyph->getQuadPlaneBounds(pl, pb, pr, pt);
-				pl *= fsScale; pb *= fsScale; pr *= fsScale; pt *= fsScale;
-				pl += x; pb += y; pr += x; pt += y;
-				glm::vec2 quadMin((float)pl, (float)pb), quadMax((float)pr, (float)pt);
-
-				glyph->getQuadAtlasBounds(al, ab, ar, at);
-				float texelWidth = 1.0f / (float)fontAtlas->GetTextureSpecification().Width;
-				float texelHeight = 1.0f / (float)fontAtlas->GetTextureSpecification().Height;
-				al *= texelWidth; ab *= texelHeight; ar *= texelWidth; at *= texelHeight;
-				glm::vec2 coordTopLeft((float)al, (float)at), coordBottomRight((float)ar, (float)ab);
-			}
-
-			if (texts.VertexCount + 4 > texts.Vertices.size()) {
-				uint64_t newSize = (uint64_t)(texts.VertexCount * 1.5f) + 4;
-				texts.Vertices.resize(newSize);
-			}
-
-			{
-				glm::vec2 positions[4] =
-				{
-					glm::vec2((float)pl, (float)pb),
-					glm::vec2((float)pr, (float)pb),
-					glm::vec2((float)pr, (float)pt),
-					glm::vec2((float)pl, (float)pt)
-				};
-				glm::vec2 texCoords[4] =
-				{
-					glm::vec2((float)al, (float)ab),
-					glm::vec2((float)ar, (float)ab),
-					glm::vec2((float)ar, (float)at),
-					glm::vec2((float)al, (float)at)
-				};
-
-				
-				
-				for (int i = 0; i < 4; ++i) {
-					s_Data->Texts.Vertices[s_Data->Texts.VertexCount + i].Position = transform * glm::vec4(positions[i], 0.0f, 1.0f);
-					s_Data->Texts.Vertices[s_Data->Texts.VertexCount + i].Color = color;
-					s_Data->Texts.Vertices[s_Data->Texts.VertexCount + i].TexCoord = texCoords[i];
-					s_Data->Texts.Vertices[s_Data->Texts.VertexCount + i].Border = glm::vec4(glm::vec3(borderColor), borderThickness);
-				}
-			}
-
-			texts.VertexCount += 4;
-
-			++renderedCharacters;
-
-			if (i < string.length() - 1) {
-				double advance;
-				fontGeometry.getAdvance(advance, string[i], string[i + 1]);
-				x += fsScale * advance + kerningOffset;
-			}
-		}
-		
-		return renderedCharacters;
-	}
-
-	#pragma endregion
-
-	#pragma region Screen Pass
-	int ShowDebugShadow = false;
-
-	static void CreateScreenPassResources() {
-		{
-			RenderPassSpecification specs{};
-			specs.Colors =
-			{
-				RenderPassAttachment(Format::RGBA16F,ImageLayout::None,ImageLayout::ColorAttachmentOptimal,TextureSamples::x1,
-					AttachmentLoadOp::Clear, AttachmentStoreOp::Store)
-			};
-			s_Data->ScreenRenderPass = RenderPass::Create(specs);
-		}
-		{
-			FramebufferSpecification specs;
-			specs.RenderPass = s_Data->ScreenRenderPass;
-			specs.Width = s_Data->Width;
-			specs.Height = s_Data->Height;
-			for (auto& fb : s_Data->HDROutputs) {
-				fb = Framebuffer::Create(specs);
-			}
-		}
-
-		{
-			GraphicsPipelineSpecification specs{};
-			specs.Input.Bindings = {
-				{
-					{"a_NDC",Format::RG32F},
-					{"a_TexCoords",Format::RG32F}
-				}
-			};
-			specs.Multisample.Samples = TextureSamples::x1;
-			specs.Primitive = PrimitiveTopology::TriangleList;
-			specs.RenderPass = s_Data->ScreenRenderPass;
-			specs.Subpass = 0;
-			specs.Rasterization.CullMode = PipelineCullMode::None;
-			specs.Shader = ShaderLibrary::LoadShader("LightPass", "assets/_shaders/CubeLightPass.shader");
-			s_Data->ScreenPipeline = GraphicsPipeline::Create(specs);
-		}
-
-		{
-			SamplerState state;
-			state.AddressModeU = SamplerAddressMode::ClampToEdge;
-			state.AddressModeV = SamplerAddressMode::ClampToEdge;
-			state.AddressModeW = SamplerAddressMode::ClampToEdge;
-			state.BorderColor = SamplerBorderColor::FloatOpaqueWhite;
-			state.MagFilter = SamplerFilter::Nearest;
-			state.MinFilter = SamplerFilter::Nearest;
-			state.MipFilter = SamplerMipMapMode::Nearest;
-			state.Compare = true;
-			state.CompareOp = CompareOp::LessOrEqual;
-
-			s_Data->Shadows.ShadowSampler = Sampler::Create(state);
-		}
-
-		s_Data->ScreenPipelinePack.Construct([](uint32_t i) {
-			Ref<Texture2D> pos, norm, albedo, metalRough, depth;
-			
-			if (samples == TextureSamples::x1) {
-				pos = s_Data->DeferredPass.Output[i]->GetColorAttachment(0);
-				norm = s_Data->DeferredPass.Output[i]->GetColorAttachment(1);
-				albedo = s_Data->DeferredPass.Output[i]->GetColorAttachment(2);
-				metalRough = s_Data->DeferredPass.Output[i]->GetColorAttachment(3);
-			}
-			else {
-				pos = s_Data->DeferredPass.Output[i]->GetResolveAttachment(0);
-				norm = s_Data->DeferredPass.Output[i]->GetResolveAttachment(1);
-				albedo = s_Data->DeferredPass.Output[i]->GetResolveAttachment(2);
-				metalRough = s_Data->DeferredPass.Output[i]->GetResolveAttachment(3);
-			}
-			depth = s_Data->DeferredPass.Output[i]->GetDepthAttachment();
-			
-			DescriptorSetPack pack = DescriptorSetPack(ShaderLibrary::GetNamedShader("LightPass"), {});
-			pack[0]->Update(s_Data->Clusters[i], 0);
-			pack[1]->Update(s_Data->LightCullPipelinePack[i].GetSet(1)->GetStorageBufferAtBinding(0), 0).
-				Update(s_Data->ClusterGrids[i], 1);
-			//sampler
-			pack[2]->Update({}, s_Data->GlobalSampler, {}, 0).
-				//positions
-				Update(pos, {}, ImageLayout::ShaderReadOnlyOptimal, 1).
-				//normals
-				Update(norm, {}, ImageLayout::ShaderReadOnlyOptimal, 2).
-				//albedo
-				Update(albedo, {}, ImageLayout::ShaderReadOnlyOptimal, 3).
-				//metallic/roughness
-				Update(metalRough, {}, ImageLayout::ShaderReadOnlyOptimal, 4).
-				//depths
-				Update(depth, {}, ImageLayout::ShaderReadOnlyOptimal, 5);
-			pack[3]->Update(s_Data->DirectionalLight[i], 0).
-				Update({}, s_Data->Shadows.ShadowSampler, {}, "ShadowSampler").
-#ifdef SHADOW_MAPPING
-				Update(s_Data->Shadows.Framebuffer[i]->GetDepthAttachment(), {}, ImageLayout::ShaderReadOnlyOptimal, "DirectionalShadows");
-				
-#endif
-			return pack;
-		});
-	}
-
-	extern Ref<Font> font;
-
-	void SceneRenderer::ScreenPass(float zNear, float zFar, const glm::vec3& cameraPos, const glm::mat4& viewMatrix, const glm::mat4& viewProjection) {
-		float scale = 24.0f / (std::log2f(zFar / zNear));
-		float bias = -24.0f * (std::log2f(zNear)) / std::log2f(zFar / zNear);
-		
-		RenderCommand::SetViewport(s_Data->Width, s_Data->Height, 0, 0);
-		RenderCommand::SetScissor(s_Data->Width, s_Data->Height, 0, 0);
-
-		//2D setup
-		{
-			auto& sprites = s_Data->Sprites;
-
-			sprites.Batches->Reset();
-			sprites.VertexCount = 0;
-			sprites.DrawParams.clear();
-
-			auto& sceneReg = ((Scene*)m_Context)->m_Registry;
-			auto view = sceneReg.view<TransformComponent, SpriteRendererComponent>();
-
-			for (auto& e : view) {
-				auto& [tc, src] = view.get(e);
-
-				SamplingRegion region{};
-				region.Layer = 0;
-				region.UV0 = { 0,0 };
-				region.UV1 = { 1,1 };
-
-				if (src.SpriteTexture)
-					AddSpriteToBatch(tc.GlobalTransform, glm::vec4(1.0f), src.SpriteTexture, region);
-				else
-					AddSpriteToBatch(tc.GlobalTransform, glm::vec4(1.0f), RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f)), region);
-			}
-
-			if (sprites.VertexCount) {
-				SpriteData::BatchDrawParams params{};
-				params.BufferIndex = sprites.Batches->BufferCount - 1;
-				params.TextureIndex = sprites.Batches->TextureSetCount - 1;
-				params.BufferOffset = sprites.Batches->BufferOffset;
-				params.VertexCount = sprites.VertexCount;
-				sprites.DrawParams.push_back(params);
-
-				sprites.Batches->Buffers[sprites.Batches->BufferCount - 1]
-					->SetData(sprites.Vertices.data(), sprites.VertexCount * sizeof(SpriteVertex), sprites.Batches->BufferOffset * sizeof(SpriteVertex));
-			}
-		}
-
-		RenderCommand::BeginRenderPass(s_Data->ScreenRenderPass, *s_Data->HDROutputs,
-			{ AttachmentColorClearValue(glm::vec4{0.0f,0.0f,0.0f,0.0f}) });
-
-		//3D
-		{
-			RenderCommand::BindGraphicsPipeline(s_Data->ScreenPipeline);
-			RenderCommand::BindVertexBuffers({ s_Data->ScreenNDC }, { 0 });
-			s_Data->ScreenPipelinePack->Bind();
-			RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("LightPass"), 0, viewMatrix,
-				glm::vec4(cameraPos, 0.0f), glm::vec2{ s_Data->Width,s_Data->Height }, zNear, zFar, scale, bias, ShowDebugShadow);
-			RenderCommand::Draw(6, 1, 0, 0);
-		}
-
-		//2D
-		{
-			auto& sprites = s_Data->Sprites;
-			
-			if (sprites.DrawParams.size()) {
-				uint64_t lastBuffer = -1;
-				uint64_t lastTexture = -1;
-				RenderCommand::BindGraphicsPipeline(sprites.SpriteGraphicsPipeline);
-				RenderCommand::BindIndexBuffer(sprites.SpriteIndexBuffer, 0);
-				RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("SpriteRender"), 0, viewProjection);
-
-				for (auto& draw : sprites.DrawParams) {
-					if (lastBuffer != draw.BufferIndex) {
-						lastBuffer = draw.BufferIndex;
-						RenderCommand::BindVertexBuffers({ sprites.Batches->Buffers[draw.BufferIndex] }, { draw.BufferOffset });
-					}
-					if (lastTexture != draw.TextureIndex) {
-						lastTexture = draw.TextureIndex;
-						RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("SpriteRender"), sprites.Batches->TextureSet[draw.TextureIndex], 0);
-					}
-					RenderCommand::DrawIndexed((uint32_t)((draw.VertexCount / 4) * 6), 0, 1, 0, 0, 0);
-				}
-			}
-		}
-
-		RenderCommand::EndRenderPass();
-	}
-	void SceneRenderer::InsertScreenPassBarrier()
+	DirectionalLightData CalculateDirectionalLightData(
+		float zNear, float zFar, 
+		const glm::vec3& color, float lightSize, const glm::mat4& rotation, const glm::mat4& viewProj,
+		float splits[4], float shadowMapWidth)
 	{
-		ImageMemoryBarrier hdrBarrier(
-			s_Data->HDROutputs->Get()->GetColorAttachment(0),
-			ImageLayout::ShaderReadOnlyOptimal,
-			AccessFlags_ColorAttachmentWrite,
-			AccessFlags_ShaderRead
-		);
+		DirectionalLightData lightData{};
+		lightData.LightSize = lightSize;
 
-		RenderCommand::PipelineBarrier(
-			PipelineStages_ColorAttachmentOutput,
-			PipelineStages_FragmentShader,
-			{},
-			{},
-			{ hdrBarrier }
-		);
-	}
-	#pragma endregion
+		float maxDistance = zFar;
 
-	#pragma region Tonemap Pass
-	static void CreateTonemapPassResources() {
+		float minDistance = zNear;
+
+		lightData.Color = glm::vec4(color, 1.0f);
+
+		glm::mat4 lightRotation = rotation;
+		lightRotation = glm::transpose(glm::inverse(glm::mat3(lightRotation)));
+
+		const glm::vec4 to = -glm::normalize(lightRotation[2]);
+		const glm::vec4 up = glm::normalize(lightRotation[1]);
+		glm::mat4 lightView = glm::lookAt(glm::vec3(0.0f), glm::vec3(to), glm::vec3(up));
+
+		const glm::mat4 unproj = glm::inverse(viewProj);
+
+		glm::vec4 frustum_corners[] =
 		{
-			RenderPassSpecification specs{};
-			specs.Colors =
-			{
-				RenderPassAttachment(Format::RGBA8SRGB,ImageLayout::None,ImageLayout::ColorAttachmentOptimal,TextureSamples::x1,
-					AttachmentLoadOp::Clear, AttachmentStoreOp::Store)
-			};
-			s_Data->TonemapRenderPass = RenderPass::Create(specs);
+			unproj * glm::vec4(-1, -1, 0, 1),
+			unproj * glm::vec4(-1, -1, 1, 1),
+			unproj * glm::vec4(-1, 1, 0, 1),
+			unproj * glm::vec4(-1, 1, 1, 1),
+			unproj * glm::vec4(1, -1, 0, 1),
+			unproj * glm::vec4(1, -1, 1, 1),
+			unproj * glm::vec4(1, 1, 0, 1),
+			unproj * glm::vec4(1, 1, 1, 1),
+		};
+
+		for (uint32_t i = 0; i < 8; ++i)
+		{
+			frustum_corners[i] /= frustum_corners[i].w;
 		}
+
+		lightData.SplitDistances[0] = glm::lerp(minDistance, maxDistance, splits[0]);
+		lightData.SplitDistances[1] = glm::lerp(minDistance, maxDistance, splits[1]);
+		lightData.SplitDistances[2] = glm::lerp(minDistance, maxDistance, splits[2]);
+		lightData.SplitDistances[3] = glm::lerp(minDistance, maxDistance, splits[3]);
+
+		for (int cascade = 0; cascade < 4; ++cascade)
 		{
-			FramebufferSpecification specs;
-			specs.RenderPass = s_Data->TonemapRenderPass;
-			specs.Width = s_Data->Width;
-			specs.Height = s_Data->Height;
-			for (auto& fb : s_Data->Outputs) {
-				fb = Framebuffer::Create(specs);
+			// Compute cascade bounds in light-view-space from the main frustum corners:
+			const float split_near = cascade == 0 ? 0 : splits[cascade - 1];
+			const float split_far = splits[cascade];
+
+			const glm::vec4 corners[] =
+			{
+				lightView * glm::lerp(frustum_corners[0], frustum_corners[1], split_near),
+				lightView * glm::lerp(frustum_corners[0], frustum_corners[1], split_far),
+				lightView * glm::lerp(frustum_corners[2], frustum_corners[3], split_near),
+				lightView * glm::lerp(frustum_corners[2], frustum_corners[3], split_far),
+				lightView * glm::lerp(frustum_corners[4], frustum_corners[5], split_near),
+				lightView * glm::lerp(frustum_corners[4], frustum_corners[5], split_far),
+				lightView * glm::lerp(frustum_corners[6], frustum_corners[7], split_near),
+				lightView * glm::lerp(frustum_corners[6], frustum_corners[7], split_far),
+			};
+
+			glm::vec3 center = glm::vec3(0.0f);
+
+			// Compute cascade bounding sphere center:
+			for (int j = 0; j < 8; ++j)
+			{
+				center += glm::vec3(corners[j]);
+			}
+			center = center / 8.0f;
+
+			float radius = 0.0f;
+
+			// Compute cascade bounding sphere radius:
+			for (int j = 0; j < 8; ++j)
+			{
+				radius = std::max(radius, glm::length(glm::vec3(corners[j]) - center));
+			}
+
+			// Fit AABB onto bounding sphere:
+			glm::vec3 vRadius = glm::vec3(radius);
+			glm::vec3 vMin = center - vRadius;
+			glm::vec3 vMax = center + radius;
+
+			// Snap cascade to texel grid:
+			const glm::vec3 extent = vMax - vMin;
+			const glm::vec3 texelSize = extent / float(shadowMapWidth);
+			vMin = glm::floor(vMin / texelSize) * texelSize;
+			vMax = glm::floor(vMax / texelSize) * texelSize;
+			center = (vMin + vMax) * 0.5f;
+
+			glm::vec3 _center = center;
+
+			// clipping extrusion for projection:
+			//	Tight Z distribution for precision (16-bit unorm especially) but allowing some extra room for cascade blending in Z
+			{
+				glm::vec3 _min = vMin;
+				glm::vec3 _max = vMax;
+				float ext = abs(_center.z - _min.z);
+
+				const glm::mat4 lightProjection =
+					glm::ortho(_min.x, _max.x, _min.y, _max.y, _min.z, _max.z);
+				lightData.ViewProjection[cascade] = lightProjection * lightView;
 			}
 		}
 
+		lightData.Direction = to;
+
+		return lightData;
+	}
+
+	static Entity GetDirectionalLightEntity(Scene* scene, entt::registry& sceneReg)
+	{
+		auto view = sceneReg.view<DirectionalLightComponent>();
+		entt::entity e = *view.begin();
+
+		return Entity(e, scene);
+	}
+
+	static void DrawSkinnedMesh(const SkinnedMeshComponent& smc, Ref<Mesh> mesh, Ref<VertexBuffer> vb, Ref<IndexBuffer> ib)
+	{
+		if (mesh->GetSubmeshes().size() == 1)
 		{
-			GraphicsPipelineSpecification specs{};
-			specs.Input.Bindings = {
-				{
-					{"a_NDC",Format::RG32F},
-					{"a_TexCoords",Format::RG32F}
-				}
-			};
-			specs.Multisample.Samples = TextureSamples::x1;
-			specs.Primitive = PrimitiveTopology::TriangleList;
-			specs.RenderPass = s_Data->TonemapRenderPass;
-			specs.Subpass = 0;
-			specs.Rasterization.CullMode = PipelineCullMode::None;
-			specs.Shader = ShaderLibrary::LoadShader("TonemapPass", "assets/_shaders/TonemapPass.shader");
-			s_Data->TonemapPipeline = GraphicsPipeline::Create(specs);
+			Ref<MaterialInstance> mat = smc.UsedMaterial[0];
+			KD_CORE_ASSERT(mat);
+
+			Renderer3DRenderParams params;
+			params.VB = vb;
+			params.IB = ib;
+			params.IndexCount = mesh->GetSubmeshes()[0].IndexCount;
+			params.IndexOffset = mesh->GetSubmeshes()[0].IndexOffset;
+			params.InstanceCount = 1;
+			params.InstanceOffset = 0;
+			params.VertexCount = mesh->GetSubmeshes()[0].VertexCount;
+			params.VertexOffset = mesh->GetSubmeshes()[0].VertexOffset;
+
+			Renderer3D::Draw(params, mat);
+
+			return;
 		}
+
+
 		uint32_t i = 0;
-		for (auto& pack : s_Data->TonemapPipelinePack) {
-			pack = DescriptorSetPack(ShaderLibrary::GetNamedShader("TonemapPass"), {});
-			//sampler
-			pack[0]->Update({}, s_Data->GlobalSampler, {}, 0).
-				//hdr
-				Update(s_Data->HDROutputs[i]->GetColorAttachment(0), {}, ImageLayout::ShaderReadOnlyOptimal, 1);
+
+		bool rendered = false;
+		for (auto& submesh : mesh->GetSubmeshes())
+		{
+			Ref<MaterialInstance> mat = smc.UsedMaterial[i];
+			KD_CORE_ASSERT(mat);
+
+			if (!rendered)
+				Renderer3D::BeginSubmesh();
+
+			rendered = true;
+
+			Renderer3DRenderParams params;
+			params.VB = vb;
+			params.IB = ib;
+			params.IndexCount = submesh.IndexCount;
+			params.IndexOffset = submesh.IndexOffset;
+			params.InstanceCount = 1;
+			params.InstanceOffset = 0;
+			params.VertexCount = submesh.VertexCount;
+			params.VertexOffset = submesh.VertexOffset;
+
+			Renderer3D::DrawSubmesh(params, mat);
 			++i;
 		}
+
+		if (rendered)
+			Renderer3D::EndSubmesh();
 	}
 	
-	static void TonemapPass() {
-		RenderCommand::BeginRenderPass(s_Data->TonemapRenderPass, *s_Data->Outputs, {
-			AttachmentClearValue(glm::vec4(0.0f))
-			});
-		RenderCommand::BindGraphicsPipeline(s_Data->TonemapPipeline);
-		RenderCommand::BindVertexBuffers({ s_Data->ScreenNDC }, { 0 });
-		//s_Data->TonemapPipelinePack->GetSet(0)->Update(
-		//	s_Data->ShadowData.ShadowBuffers->Get()->GetDepthAttachment(), {}, ImageLayout::ShaderReadOnlyOptimal, 1
-		//);
-		s_Data->TonemapPipelinePack->Bind();
-		//RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("TonemapPass"));
-		RenderCommand::Draw(6, 1, 0, 0);
-		RenderCommand::EndRenderPass();
-	}
-
-	static void InsertTonemapPassBarrier() {
-		ImageMemoryBarrier barrier(
-			s_Data->Outputs->Get()->GetColorAttachment(0),
-			ImageLayout::ColorAttachmentOptimal,
-			AccessFlags_ColorAttachmentWrite, 
-			AccessFlags_ColorAttachmentWrite
-		);
-
-		RenderCommand::PipelineBarrier(
-			PipelineStages_ColorAttachmentOutput, 
-			PipelineStages_ColorAttachmentOutput, 
-			{}, 
-			{},
-			{ barrier });
-	}
-	#pragma endregion
-
-	#pragma region Deferred Pass
-	static void CreateGBufferResources() {
+	static void DrawMesh(const MeshComponent& mc, Ref<Mesh> mesh, Ref<VertexBuffer> vb, Ref<IndexBuffer> ib)
+	{
+		if (mesh->GetSubmeshes().size() == 1)
 		{
-			RenderPassSpecification specs{};
-			specs.Colors = {
-				//Position
-				RenderPassAttachment(Format::RGBA32F,ImageLayout::None,ImageLayout::ColorAttachmentOptimal,samples,
-					AttachmentLoadOp::Clear,AttachmentStoreOp::Store),
-				//Normals
-				RenderPassAttachment(Format::RGBA32F,ImageLayout::None,ImageLayout::ColorAttachmentOptimal,samples,
-					AttachmentLoadOp::Clear,AttachmentStoreOp::Store),
-				//Albedo
-				RenderPassAttachment(Format::RGBA8UN,ImageLayout::None,ImageLayout::ColorAttachmentOptimal,samples,
-					AttachmentLoadOp::Clear,AttachmentStoreOp::Store),
-				//Mettalic/roughness
-				RenderPassAttachment(Format::RG32F,ImageLayout::None,ImageLayout::ColorAttachmentOptimal,samples,
-					AttachmentLoadOp::Clear,AttachmentStoreOp::Store)
-			};
-			specs.DepthStencil =
-				RenderPassAttachment(Format::Depth32F, ImageLayout::None, ImageLayout::DepthAttachmentOptimal, samples,
-					AttachmentLoadOp::Clear, AttachmentStoreOp::Store);
-			specs.AutoResolve = samples != TextureSamples::x1;
-			s_Data->DeferredPass.RenderPass = RenderPass::Create(specs);
+			Ref<MaterialInstance> mat = mc.UsedMaterial[0];
+			KD_CORE_ASSERT(mat);
+
+			if (!mc.VisibilityResults[0])
+				return;
+
+			Renderer3DRenderParams params;
+			params.VB = vb;
+			params.IB = ib;
+			params.IndexCount = mesh->GetSubmeshes()[0].IndexCount;
+			params.IndexOffset = mesh->GetSubmeshes()[0].IndexOffset;
+			params.InstanceCount = 1;
+			params.InstanceOffset = 0;
+			params.VertexCount = mesh->GetSubmeshes()[0].VertexCount;
+			params.VertexOffset = mesh->GetSubmeshes()[0].VertexOffset;
+
+			Renderer3D::Draw(params, mat);
+
+			return;
 		}
 
-		{
-			FramebufferSpecification specs{};
-			specs.Width = s_Data->Width;
-			specs.Height = s_Data->Height;
-			specs.RenderPass = s_Data->DeferredPass.RenderPass;
 
-			s_Data->DeferredPass.Output.Construct([&specs](auto) {
-				return Framebuffer::Create(specs);
-			});
+		uint32_t i = 0;
+
+		bool rendered = false;
+		for (auto& submesh : mesh->GetSubmeshes())
+		{
+			Ref<MaterialInstance> mat = mc.UsedMaterial[i];
+			KD_CORE_ASSERT(mat);
+
+			if (!mc.VisibilityResults[i++])
+				continue;
+
+			if (!rendered)
+				Renderer3D::BeginSubmesh();
+
+			rendered = true;
+
+			Renderer3DRenderParams params;
+			params.VB = vb;
+			params.IB = ib;
+			params.IndexCount = submesh.IndexCount;
+			params.IndexOffset = submesh.IndexOffset;
+			params.InstanceCount = 1;
+			params.InstanceOffset = 0;
+			params.VertexCount = submesh.VertexCount;
+			params.VertexOffset = submesh.VertexOffset;
+
+			Renderer3D::DrawSubmesh(params, mat);
 		}
+
+		if (rendered)
+			Renderer3D::EndSubmesh();
 	}
 
-	static void DeferredPass(const glm::mat4& viewProj, const entt::registry& sceneReg) {
-
-		s_Data->DeferredPass.RenderPass->SetDepthClearValue(AttachmentDepthStencilClearValue(1.0f, 0));
-
-		RenderCommand::BeginRenderPass(s_Data->DeferredPass.RenderPass, s_Data->DeferredPass.Output,
-			{}
-		);
-
+#pragma region Deferred Pass
+	static void DeferredPass(Visibility& vis, const glm::mat4& viewProj, const entt::registry& sceneReg) {
 		Ref<VertexBuffer> lastSetVertexBuffer = {};
 		Ref<IndexBuffer> lastSetIndexBuffer = {};
 
-		Ref<Material> lastSetMaterial = {};
+		Ref<MaterialInstance> lastSetMaterial = {};
 
-		RenderCommand::SetViewport(s_Data->Width, s_Data->Height, 0, 0);
-		RenderCommand::SetScissor(s_Data->Width, s_Data->Height, 0, 0);
+		Renderer3D::BeginColor(RendererGlobals::GetEnvironmentMap());
 
 		{
-			auto view = sceneReg.view<TransformComponent, MeshComponent>();
-			for (auto& e : view) {
-				auto& [tc, smc] = view.get(e);
-		
-				if (!smc.UsedMesh)
+			for (uint32_t entity = 0;  entity < vis.Count; ++entity) {
+				bool isSkinned = sceneReg.try_get<SkinnedMeshComponent>(vis.VisibleEntities[entity]);
+
+				Ref<Mesh> mesh;
+
+				const void* component = nullptr;
+					 
+				if (isSkinned)
+				{
+					auto& smc = sceneReg.get<SkinnedMeshComponent>(vis.VisibleEntities[entity]);
+					component = &smc;
+					mesh = smc.UsedMesh;
+				}
+				else
+				{
+					auto& mc = sceneReg.get<MeshComponent>(vis.VisibleEntities[entity]);
+					component = &mc;
+					mesh = mc.UsedMesh;
+				}
+
+				if (!mesh)
 					continue;
 		
-				glm::mat4 model = tc.GlobalTransform;
+				Ref<VertexBuffer> vb = mesh->GetVertexBuffer();
+				Ref<IndexBuffer> ib = mesh->GetIndexBuffer();
+
+				if (isSkinned)
+					DrawSkinnedMesh(*(const SkinnedMeshComponent*)component, mesh, vb, ib);
+				else
+					DrawMesh(*(const MeshComponent*)component, mesh, vb, ib);
+			}
+		}
 		
+		Renderer3D::EndColor();
+	}
+	
+	#pragma endregion
+
+	static AABB CalculateSkinAABB(Scene* scene, SkinTree& currBoneNode, Entity currBoneEntity)
+	{
+		if (!currBoneEntity)
+			return {};
+
+		AABB boundingBox = currBoneNode.BoundingBox.Transform(currBoneEntity.GetComponent<TransformComponent>().GlobalTransform);
+
+		if (!currBoneEntity.HasChildren())
+			return boundingBox;
+
+		auto& pc = currBoneEntity.GetComponent<ParentComponent>();
+
+		uint32_t i = 0;
+		for (auto& childBoneNode : currBoneNode.Children)
+		{
+			Entity childBoneEntity = scene->GetEntity(pc.Children[i++]);
+
+			AABB childBoundingBox = CalculateSkinAABB(scene, childBoneNode, childBoneEntity);
+
+			boundingBox.Merge(childBoundingBox);
+		}
+
+		return boundingBox;
+	}
+
+	static void VisibilityTests(Scene* scene, Visibility& vis)
+	{
+		auto meshView = scene->GetRegistry().view<MeshComponent>();
+
+		auto skinnedView = scene->GetRegistry().view<SkinnedMeshComponent>();
+
+		const entt::sparse_set& meshSet = meshView.handle();
+		const entt::sparse_set& skinnedSet = skinnedView.handle();
+
+		uint32_t meshSize = meshView.size();
+		uint32_t skinnedSize = skinnedView.size();
+
+		uint32_t size = meshSize + skinnedSize;
+
+		struct SharedMemory {
+			
+			struct ShadowCascadeData {
+				std::vector<InstanceData> ShadowInstances;
+				std::vector<entt::entity> ShadowEntities;
+			};
+
+			struct ShadowData {
+				ShadowCascadeData Cascades[4];
+			};
+
+			std::vector<InstanceData> Instances;
+			std::vector<entt::entity> Entites;
+
+			ShadowData Shadows;
+		};
+
+		vis.Instances.resize(size);
+		vis.VisibleEntities.resize(size);
+		vis.Count = 0;
+
+		for (uint32_t i = 0; i < 4; ++i)
+		{
+			vis.Directional.Cascades[i].Instances.resize(size);
+			vis.Directional.Cascades[i].VisibleEntities.resize(size);
+
+			vis.Directional.Cascades[i].Count = 0;
+		}
+
+		auto visibilityTest = 
+			[](
+				entt::entity entity, Ref<Mesh> mesh, const glm::mat4& transform, 
+				SharedMemory* sharedMemory, Visibility& vis, std::vector<bool>& visibilityResults) 
+		{
+			auto& submeshes = mesh->GetSubmeshes();
+
+			bool visible = false;
+
+			for (uint32_t i = 0; i < submeshes.size(); ++i)
+			{
+				visibilityResults[i] = vis.Culler.IsVisiblePlanes(transform, submeshes[i].BoundingBox.Min, submeshes[i].BoundingBox.Max);
+				if (visibilityResults[i])
+				{
+					visible = true;
+				}
+			}
+
+			if (visible)
+			{
+				InstanceData instanceData;
+				instanceData.Transform = transform;
+				sharedMemory->Instances.emplace_back(instanceData);
+				sharedMemory->Entites.push_back(entity);
+			}
+
+			auto& totalAABB = mesh->GetBoundingBox();
+
+			for (uint32_t i = 0; i < 4; ++i)
+			{
+				if (vis.Directional.Cascades[i].Culler.IsVisiblePlanes(transform, totalAABB.Min, totalAABB.Max))
+				{
+					InstanceData instanceData;
+					instanceData.Transform = transform;
+					sharedMemory->Shadows.Cascades[i].ShadowInstances.push_back(instanceData);
+					sharedMemory->Shadows.Cascades[i].ShadowEntities.push_back(entity);
+				}
+			}
+		};
+
+		auto skinnedVisibilityTest =
+			[scene](
+				entt::entity entity, SkinnedMeshComponent& smc, const glm::mat4& transform,
+				SharedMemory* sharedMemory, Visibility& vis, std::vector<bool>& visibilityResults)
+		{
+
+			Entity rootBone = scene->GetEntity(smc.RootBone);
+			if (!rootBone)
+				return;
+			
+			AABB mergedAABB = CalculateSkinAABB(scene, smc.UsedMesh->GetSkin()->Tree, rootBone);
+
+			if (vis.Culler.IsVisiblePlanes(glm::mat4(1.0f), mergedAABB.Min, mergedAABB.Max))
+			{
+				visibilityResults.assign(visibilityResults.size(), true);
+				InstanceData instanceData;
+				instanceData.Transform = glm::mat4(1.0f);
+				sharedMemory->Instances.emplace_back(instanceData);
+				sharedMemory->Entites.push_back(entity);
+			}
+			else
+			{
+				visibilityResults.assign(visibilityResults.size(), false);
+			}
+		};
+
+		JobSystem::GetMainJobSystem().Dispatch(size, 128, [&](JobDispatchArgs args) {
+			
+			if (args.GlobalID >= size)
+				return;
+
+			SharedMemory* sharedMemory = (SharedMemory*)args.SharedMemory;
+
+			if (args.FirstJobInGroup)
+			{
+				*sharedMemory = SharedMemory();
+			}
+
+			Entity entity;
+
+			if (args.GlobalID < meshSize)
+			{
+				entity = Entity(meshSet[args.GlobalID], scene);
+				auto& [tc, mc] = entity.GetComponent<TransformComponent, MeshComponent>();
+
+				visibilityTest(entity, mc.UsedMesh, tc.GlobalTransform, sharedMemory, vis, mc.VisibilityResults);
+			}
+			else
+			{
+				entity = Entity(skinnedSet[args.GlobalID - meshSize], scene);
+				auto& [tc, smc] = entity.GetComponent<TransformComponent, SkinnedMeshComponent>();
+				skinnedVisibilityTest(entity, smc, tc.GlobalTransform, sharedMemory, vis, smc.VisibilityResults);
+			}
+
+			if (args.LastJobInGroup)
+			{
+				if (sharedMemory->Instances.size())
+				{
+					uint32_t prevCount = vis.Count.fetch_add(sharedMemory->Instances.size());
+
+					for (uint32_t i = 0; i < sharedMemory->Instances.size(); ++i)
+					{
+						vis.Instances[prevCount + i] = sharedMemory->Instances[i];
+						vis.VisibleEntities[prevCount + i] = sharedMemory->Entites[i];
+					}
+				}
+
+				for (uint32_t i = 0; i < 4; ++i)
+				{
+					ShadowVisibilityCascade& cascade = vis.Directional.Cascades[i];
+
+					SharedMemory::ShadowCascadeData& cascadeData = sharedMemory->Shadows.Cascades[i];
+
+					if (cascadeData.ShadowInstances.size())
+					{
+						uint32_t prevCount = cascade.Count.fetch_add(cascadeData.ShadowInstances.size());
+
+						for (uint32_t j = 0; j < cascadeData.ShadowInstances.size(); ++j)
+						{
+							cascade.Instances[prevCount + j] = cascadeData.ShadowInstances[j];
+							cascade.VisibleEntities[prevCount + j] = cascadeData.ShadowEntities[j];
+						}
+					}
+				}
+			}
+
+		}, sizeof(SharedMemory));
+
+		JobSystem::GetMainJobSystem().Wait();
+	}
+
+	static uint32_t VisibleObjectsCount(entt::registry& sceneReg)
+	{
+		uint32_t count = 0;
+
+		auto view = sceneReg.view<MeshComponent>();
+		for (auto e : view)
+		{
+			auto& [mc] = view.get(e);
+
+			count += std::count(mc.VisibilityResults.begin(), mc.VisibilityResults.end(), true);
+		}
+
+		return count;
+	}
+
+	static void ShadowPass(const SceneData& sceneData, Scene* scene, const DirectionalLightData& lightData, const Visibility& vis) {
+		//SCOPED_ACCU_TIMER("SceneRenderer::ShadowPass");
+		Ref<VertexBuffer> lastSetVertexBuffer = {};
+		Ref<IndexBuffer> lastSetIndexBuffer = {};
+		
+		auto& sceneReg = scene->GetRegistry();
+
+		Renderer3D::BeginShadow(lightData);
+
+		for (uint32_t t = 0; t < 4; ++t)
+		{
+			const ShadowVisibilityCascade& cascade = vis.Directional.Cascades[t];
+
+			Renderer3D::BeginDirectionalShadow(t);
+
+			for (uint32_t entity = 0; entity < cascade.Count; ++entity) {
+				auto& [tc, smc] = sceneReg.get<TransformComponent, MeshComponent>(cascade.VisibleEntities[entity]);
+
+				if (!smc.UsedMesh)
+					continue;
+
+				const glm::mat4& model = tc.GlobalTransform;
+
 				Ref<Mesh> mesh = smc.UsedMesh;
 				Ref<VertexBuffer> vb = mesh->GetVertexBuffer();
 				Ref<IndexBuffer> ib = mesh->GetIndexBuffer();
 
-				if (lastSetVertexBuffer != vb) {
-					RenderCommand::BindVertexBuffers({ vb }, { 0 });
-					lastSetVertexBuffer = vb;
-				}
-				if (lastSetIndexBuffer != ib) {
-					RenderCommand::BindIndexBuffer(ib, 0);
-					lastSetIndexBuffer = ib;
-				}
-
-				for (auto& submesh : mesh->GetSubmeshes())
 				{
-					Ref<Material> mat = submesh.DefaultMaterial;
-					KD_CORE_ASSERT(mat);
+					Renderer3DRenderParams params;
+					params.VB = vb;
+					params.IB = ib;
+					params.IndexCount = mesh->GetIndexCount();
+					params.IndexOffset = 0;
+					params.InstanceCount = 1;
+					params.InstanceOffset = 0;
+					params.VertexCount = mesh->GetVertexCount();
+					params.VertexOffset = 0;
 
-					if (!lastSetMaterial) {
-						mat->BindValues();
-						mat->BindPipeline();
-						mat->BindBaseValues(viewProj);
-						lastSetMaterial = mat;
-					}
-					else if (lastSetMaterial != mat) {
-						mat->BindValues();
+					Renderer3D::Draw(params, {});
 
-						//RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), mesh->GetDefaultMaterial()->GetTextureSet(), 1);
-
-						if (lastSetMaterial->GetPipeline() != mat->GetPipeline()) {
-							mat->BindPipeline();
-							mat->BindBaseValues(viewProj);
-						}
-
-						lastSetMaterial = mat;
-					}
-
-					lastSetMaterial->BindTransform(model);
-
-					RenderCommand::DrawIndexed(
-						submesh.IndexOffset, 
-						submesh.VertexCount, 
-						1, 
-						submesh.IndexOffset, 
-						submesh.VertexOffset, 
-						0);
-				}
-			}
-		}
-		
-		
-		{
-			auto view = sceneReg.view<TransformComponent, SkinnedMeshComponent>();
-			for (auto& e : view) {
-				auto& [tc,smc] = view.get(e);
-		
-				if (!smc.UsedMesh)
 					continue;
-				
-				glm::mat4 model = glm::mat4(1.0f);
-		
-				Ref<SkinnedMesh> mesh = smc.UsedMesh;
-				Ref<VertexBuffer> vb = mesh->GetVertexBuffer();
-				Ref<IndexBuffer> ib = mesh->GetIndexBuffer();
-				
-				if (lastSetVertexBuffer != vb) {
-					RenderCommand::BindVertexBuffers({ vb }, { 0 });
-					lastSetVertexBuffer = vb;
-				}
-				if (lastSetIndexBuffer != ib) {
-					RenderCommand::BindIndexBuffer(ib, 0);
-					lastSetIndexBuffer = ib;
-				}
-				
-				for (auto& submesh : mesh->GetSubmeshes())
-				{
-					Ref<Material> mat = submesh.DefaultMaterial;
-					KD_CORE_ASSERT(mat);
-
-					if (!lastSetMaterial) {
-						mat->BindValues();
-						mat->BindPipeline();
-						mat->BindBaseValues(viewProj);
-						lastSetMaterial = mat;
-					}
-					else if (lastSetMaterial != mat) {
-						mat->BindValues();
-
-						//RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), mesh->GetDefaultMaterial()->GetTextureSet(), 1);
-
-						if (lastSetMaterial->GetPipeline() != mat->GetPipeline()) {
-							mat->BindPipeline();
-							mat->BindBaseValues(viewProj);
-						}
-
-						lastSetMaterial = mat;
-					}
-
-					lastSetMaterial->BindTransform(model);
-
-					RenderCommand::DrawIndexed(
-						submesh.IndexCount,
-						submesh.VertexCount,
-						1,
-						submesh.IndexOffset,
-						0,
-						0);
-				}
-			}
-		}
-		RenderCommand::EndRenderPass();
-		
-	}
-	
-	static void InsertDeferredBarrier() {
-		
-		if (samples == TextureSamples::x1) {
-			ImageMemoryBarrier positionBarrier(
-				s_Data->DeferredPass.Output->Get()->GetColorAttachment(0),
-				ImageLayout::ShaderReadOnlyOptimal,
-				AccessFlags_ColorAttachmentWrite,
-				AccessFlags_ShaderRead);
-			ImageMemoryBarrier normalBarrier(
-				s_Data->DeferredPass.Output->Get()->GetColorAttachment(1),
-				ImageLayout::ShaderReadOnlyOptimal,
-				AccessFlags_ColorAttachmentWrite,
-				AccessFlags_ShaderRead);
-			ImageMemoryBarrier albedoBarrier(
-				s_Data->DeferredPass.Output->Get()->GetColorAttachment(2),
-				ImageLayout::ShaderReadOnlyOptimal,
-				AccessFlags_ColorAttachmentWrite,
-				AccessFlags_ShaderRead
-			);
-			ImageMemoryBarrier metallicRoughnessBarrier(
-				s_Data->DeferredPass.Output->Get()->GetColorAttachment(3),
-				ImageLayout::ShaderReadOnlyOptimal,
-				AccessFlags_ColorAttachmentWrite,
-				AccessFlags_ShaderRead
-			);
-			ImageMemoryBarrier depthBarrier(
-				s_Data->DeferredPass.Output->Get()->GetDepthAttachment(),
-				ImageLayout::ShaderReadOnlyOptimal,
-				AccessFlags_DepthStencilWrite,
-				AccessFlags_ShaderRead
-			);
-			RenderCommand::PipelineBarrier(
-				PipelineStages_ColorAttachmentOutput | PipelineStages_LateFragmentTests | PipelineStages_EarlyFragmentTests,
-				PipelineStages_VertexShader,
-				{},
-				{},
-				{ positionBarrier,albedoBarrier,normalBarrier,metallicRoughnessBarrier,depthBarrier }
-			);
-		}
-		else {
-			ImageMemoryBarrier positionBarrier(
-				s_Data->DeferredPass.Output->Get()->GetResolveAttachment(0),
-				ImageLayout::ShaderReadOnlyOptimal,
-				AccessFlags_ColorAttachmentWrite,
-				AccessFlags_ShaderRead);
-			ImageMemoryBarrier normalBarrier(
-				s_Data->DeferredPass.Output->Get()->GetResolveAttachment(1),
-				ImageLayout::ShaderReadOnlyOptimal,
-				AccessFlags_ColorAttachmentWrite,
-				AccessFlags_ShaderRead);
-			ImageMemoryBarrier albedoBarrier(
-				s_Data->DeferredPass.Output->Get()->GetResolveAttachment(2),
-				ImageLayout::ShaderReadOnlyOptimal,
-				AccessFlags_ColorAttachmentWrite,
-				AccessFlags_ShaderRead
-			);
-			ImageMemoryBarrier metallicRoughnessBarrier(
-				s_Data->DeferredPass.Output->Get()->GetResolveAttachment(3),
-				ImageLayout::ShaderReadOnlyOptimal,
-				AccessFlags_ColorAttachmentWrite,
-				AccessFlags_ShaderRead
-			);
-
-			ImageMemoryBarrier depthBarrier(
-				s_Data->DeferredPass.Output->Get()->GetDepthAttachment(),
-				ImageLayout::ShaderReadOnlyOptimal,
-				AccessFlags_DepthStencilWrite,
-				AccessFlags_ShaderRead
-			);
-
-			RenderCommand::PipelineBarrier(
-				PipelineStages_ColorAttachmentOutput | PipelineStages_LateFragmentTests | PipelineStages_EarlyFragmentTests,
-				PipelineStages_VertexShader,
-				{},
-				{},
-				{ positionBarrier,albedoBarrier,normalBarrier,metallicRoughnessBarrier,depthBarrier }
-			);
-		}
-	}
-
-	#pragma endregion
-	
-	std::array<PerFrameResource<Ref<Texture2D>>*, 4> DepthTexture;
-	
-	#pragma region ShadowPass
-
-	static void CreateShadowPassResources() {
-#ifdef SHADOW_MAPPING
-		RenderPassSpecification rpSpecs;
-		rpSpecs.DepthStencil =
-			RenderPassAttachment(Format::Depth32F, ImageLayout::None, ImageLayout::DepthAttachmentOptimal, TextureSamples::x1,
-				AttachmentLoadOp::Clear, AttachmentStoreOp::Store);
-		s_Data->Shadows.RenderPass = RenderPass::Create(rpSpecs);
-
-
-		FramebufferSpecification fbSpecs;
-		fbSpecs.Width = SHADOW_MAP_SIZE;
-		fbSpecs.Height = SHADOW_MAP_SIZE;
-		fbSpecs.Layers = 4;
-		fbSpecs.RenderPass = s_Data->Shadows.RenderPass;
-		s_Data->Shadows.Framebuffer.Construct([&fbSpecs](uint32_t) {
-			return Framebuffer::Create(fbSpecs);
-		});
-		/*for (int j = 0; j < 4; ++j) {
-			DepthTexture[j] = new PerFrameResource<Ref<Texture2D>>;
-			DepthTexture[j]->Construct([j](uint32_t i) {
-				return s_Data->Shadows.Framebuffer[j][i]->GetDepthAttachment();
-				});
-		}*/
-		
-		GraphicsPipelineSpecification gpSpecs;
-		gpSpecs.Shader = ShaderLibrary::LoadOrGetNamedShader("ShadowPass", "assets/_shaders/ShadowPass.glsl");
-		gpSpecs.Input.Bindings.push_back(VertexInputBinding({
-			{ "a_Position",Format::RGB32F },
-			{ sizeof(MeshVertex) - sizeof(MeshVertex::Position) }
-			}));
-		gpSpecs.Multisample.Samples = TextureSamples::x1;
-		gpSpecs.Primitive = PrimitiveTopology::TriangleList;
-		gpSpecs.Rasterization.FrontCCW = true;
-		gpSpecs.Rasterization.CullMode = PipelineCullMode::None;
-		gpSpecs.RenderPass = s_Data->Shadows.RenderPass;
-		gpSpecs.Subpass = 0;
-		gpSpecs.DepthStencil.DepthTest = true;
-		gpSpecs.DepthStencil.DepthWrite = true;
-		gpSpecs.DepthStencil.DepthCompareOperator = CompareOp::LessOrEqual;
-		
-		s_Data->Shadows.Pipeline = GraphicsPipeline::Create(gpSpecs);
-
-		s_Data->Shadows.Pack.Construct([&gpSpecs](uint32_t i) {
-			auto pack = DescriptorSetPack(gpSpecs.Shader, {});
-			pack[0]->Update(s_Data->DirectionalLight[i], "DLight");
-			return pack;
-		});
-
-#endif
-	}
-
-#undef near
-#undef far
-
-	static std::vector<float> GetSplitDistances(uint32_t count, float near, float far, float splitLambda) {
-		std::vector<float> cascadeSplits(count);
-
-		float minZ = near;
-		float maxZ = far;
-
-		float range = maxZ - minZ;
-		float ratio = maxZ / minZ;
-
-		for (uint32_t i = 0; i < count; i++) {
-			float p = (i + 1) / (float)count;
-			float log = minZ * std::pow(ratio, p);
-			float uniform = minZ + range * p;
-			float d = splitLambda * (log - uniform) + uniform;
-			cascadeSplits[i] = d;
-		}
-		
-		return cascadeSplits;
-	}
-
-	void SceneRenderer::ShadowPass(const SceneData& sceneData) {
-
-		Scene* scene = (Scene*)m_Context;
-		{
-			auto view = scene->m_Registry.view<TransformComponent, DirectionalLightComponent>();
-			entt::entity e = *view.begin();
-			Entity entity{ e, scene };
-
-			auto& [tc, dlc] = entity.GetComponent<TransformComponent, DirectionalLightComponent>();
-
-			float maxDistance = glm::min(sceneData.zFar, dlc.MaxDistance);
-			maxDistance = glm::max(maxDistance, sceneData.zNear + 0.001f);
-
-			float minDistance = glm::min(sceneData.zNear, maxDistance);
-
-			DLight.Color = dlc.Color;
-
-			glm::mat4 lightRotation = glm::toMat4(glm::quat(tc.Rotation));
-			lightRotation = glm::transpose(glm::inverse(glm::mat3(lightRotation)));
-
-
-			std::vector<float> splits = GetSplitDistances(4, minDistance, maxDistance, dlc.SplitLambda);
-
-			//KD_CORE_INFO("{},{},{},{}", splits[0], splits[1], splits[2], splits[3]);
-
-			splits[0] = (maxDistance - minDistance) * 0.3f + minDistance;
-			splits[1] = (maxDistance - minDistance) * 0.5f + minDistance;
-			splits[2] = (maxDistance - minDistance) * 0.7f + minDistance;
-			splits[3] = (maxDistance - minDistance) * 1.0f + minDistance;
-
-			auto viewProj = ComputeLightViewProjections(sceneData, {0.1f,0.3f,0.5f,1.0f}, lightRotation, SHADOW_MAP_SIZE);
-			DLight.GlobalShadowMatrix = viewProj.GlobalShadowMatrix;
-
-			DLight.ViewProj[0] = viewProj.Cascades[0].ShadowMatrix;
-			DLight.ViewProj[1] = viewProj.Cascades[1].ShadowMatrix;
-			DLight.ViewProj[2] = viewProj.Cascades[2].ShadowMatrix;
-			DLight.ViewProj[3] = viewProj.Cascades[3].ShadowMatrix;
-
-			DLight.CascadeOffsets[0] = viewProj.Cascades[0].CascadeOffsets;
-			DLight.CascadeOffsets[1] = viewProj.Cascades[1].CascadeOffsets;
-			DLight.CascadeOffsets[2] = viewProj.Cascades[2].CascadeOffsets;
-			DLight.CascadeOffsets[3] = viewProj.Cascades[3].CascadeOffsets;
-
-			DLight.CascadeScales[0] = viewProj.Cascades[0].CascadeScales;
-			DLight.CascadeScales[1] = viewProj.Cascades[1].CascadeScales;
-			DLight.CascadeScales[2] = viewProj.Cascades[2].CascadeScales;
-			DLight.CascadeScales[3] = viewProj.Cascades[3].CascadeScales;
-
-			DLight.SplitDistances[0] = splits[0];
-			DLight.SplitDistances[1] = splits[1];
-			DLight.SplitDistances[2] = splits[2];
-			DLight.SplitDistances[3] = splits[3];
-
-			DLight.Direction = -glm::normalize(lightRotation[2]);
-
-			DLight.FadeStart = dlc.FadeStart * splits[3];
-		}
-
-		s_Data->DirectionalLight->Get()->SetData(&DLight, sizeof(DLight));
-
-		Ref<VertexBuffer> lastSetVertexBuffer = {};
-		Ref<IndexBuffer> lastSetIndexBuffer = {};
-
-		s_Data->Shadows.RenderPass->SetDepthClearValue({ 1.0f,0 });
-		RenderCommand::BindGraphicsPipeline(s_Data->Shadows.Pipeline);
-		RenderCommand::SetViewport(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE,0,0);
-		RenderCommand::SetScissor(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE,0,0);
-
-		
-		RenderCommand::BeginRenderPass(s_Data->Shadows.RenderPass, s_Data->Shadows.Framebuffer, {});
-
-		s_Data->Shadows.Pack->Bind();
-		{
-			auto view = scene->m_Registry.view<TransformComponent, ModelComponent>();
-			for (auto& e : view) {
-				auto& [tc, mc] = view.get(e);
-
-				if (!mc.UsedModel)
-					continue;
-
-				glm::mat4 model = tc.GlobalTransform;
-
-				for (auto& mesh : mc.UsedModel->GetMeshes()) {
-					Ref<VertexBuffer> vb = mesh->GetVertexBuffer();
-					Ref<IndexBuffer> ib = mesh->GetIndexBuffer();
-					if (lastSetVertexBuffer != vb) {
-						RenderCommand::BindVertexBuffers({ vb }, { 0 });
-						lastSetVertexBuffer = vb;
-					}
-					if (lastSetIndexBuffer != ib) {
-						RenderCommand::BindIndexBuffer(ib, 0);
-						lastSetIndexBuffer = ib;
-					}
-					RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("ShadowPass"), 0, model);
-
-					RenderCommand::DrawIndexed((uint32_t)mesh->GetIndexCount(), (uint32_t)mesh->GetVertexCount(), 1, 0, 0, 0);
-				}
-			}
-		}
-		RenderCommand::EndRenderPass();
-	}
-	
-	static void InsertShadowPassBarrier() {
-
-#ifdef SHADOW_MAPPING
-		ImageMemoryBarrier depthBarrier(
-			s_Data->Shadows.Framebuffer->Get()->GetDepthAttachment(),
-			ImageLayout::ShaderReadOnlyOptimal,
-			AccessFlags_DepthStencilWrite,
-			AccessFlags_ShaderRead
-		);
-
-		RenderCommand::PipelineBarrier(
-			PipelineStages_ColorAttachmentOutput | PipelineStages_LateFragmentTests | PipelineStages_EarlyFragmentTests,
-			PipelineStages_VertexShader,
-			{},
-			{},
-			{ depthBarrier }
-		);
-#endif
-	}
-
-	#pragma endregion
-
-	const int n = 100;
-	const glm::vec2 interval = { 0.0f,1.0f }/*{ 0.0f, 2.0f * glm::pi<float>() }*//*{ -10.0f,10.0f }*/;
-	const float lineWidth = 0.01f;
-
-	static void CreateLinePassResources() {
-		auto& lines = s_Data->Lines;
-
-		{
-			lines.LineRenderPass = s_Data->Texts.TextRenderPass;
-		}
-
-		{
-			GraphicsPipelineSpecification specs;
-			
-			specs.Input.Bindings.push_back(
-				VertexInputBinding(
-					{
-						{"a_Position", Format::RGB32F},
-						{"a_Color", Format::RGBA32F},
-						{"a_Tangent", Format::RGB32F},
-						{"a_LineWidth", Format::R32F}
-					}
-				)
-			);
-
-			specs.Primitive = PrimitiveTopology::LineList;
-
-			specs.RenderPass = lines.LineRenderPass;
-
-			specs.Shader = ShaderLibrary::LoadOrGetNamedShader("LinePass", "assets/_shaders/LinePass.glsl");
-
-			lines.Pipeline = GraphicsPipeline::Create(specs);
-		}
-
-		{
-			float maxT = 0.5f;
-			std::vector<LineData::LineVertex> vertices(2 * n);
-
-			auto position = [](float t, glm::vec3 positions[4]) {
-				float u = 1.0f - t;
-				return
-					u * u * u * positions[0] +
-					3.0f * u * u * t * positions[1] +
-					3.0f * u * t * t * positions[2] +
-					t * t * t * positions[3];
-
-				//Sin(x)
-				//return glm::vec3(t, glm::sin(t),0.0f);
-			
-				//X^2
-				//return glm::vec3(t, t * t, 0.0f);
-			};
-
-			auto normal = [](float t, glm::vec3 positions[4]) {
-				glm::vec3 rPrime = glm::vec3(0.0f);
-				{
-					float u = 1.0f - t;
-					rPrime =
-						3.0f * u * u * (positions[1] - positions[0]) +
-						6.0f * u * t * (positions[2] - positions[1]) +
-						3.0f * t * t * (positions[3] - positions[2]);
-
-					//Sin(x)
-					//rPrime = glm::vec3(1.0f, glm::cos(t), 0.0f);
-				
-					//X^2
-					//rPrime = glm::vec3(1, 2.0f * t, 0.0f);
-				}
-				glm::vec3 rDoublePrime = glm::vec3(0.0f);
-				{
-					float u = 1.0f - t;
-					rDoublePrime =
-						-6.0f * u * (positions[1] - positions[0]) +
-						6.0f * (1.0f - 2.0f * t) * (positions[2] - positions[1])
-						+ 6.0f * t * t * (positions[3] - positions[2]);
-					
-					//Sin(x)
-					//rDoublePrime = glm::vec3(0.0f, -glm::sin(t), 0.0f);
-
-					//X^2
-					//rDoublePrime = glm::vec3(0.0f, 2.0f, 0.0f);
-				}
-
-				glm::vec3 rDoublePrime_Cross_rPrime = glm::cross(rDoublePrime, rPrime);
-				return glm::cross(rPrime, rDoublePrime_Cross_rPrime) / (glm::length(rPrime) * glm::length(rDoublePrime_Cross_rPrime));
-			};
-
-			glm::vec3 positions[4] = { {} };
-			positions[0] = glm::vec3(0.0f);
-			positions[1] = glm::vec3(1.0f, 1.0f, 0.0f);
-			positions[2] = glm::vec3(2.0f, 1.0f, 0.0f);
-			positions[3] = glm::vec3(3.0f, 0.0f, 0.0f);
-
-			for (int i = 0; i < n; ++i) {
-				{
-					float t = (float)(i + 0) / (float)(n) * (interval.y - interval.x) + interval.x;
-					vertices[2 * i + 0].Position = position(t, positions);
-					vertices[2 * i + 0].Normal = normal(t, positions);
-					vertices[2 * i + 0].LineWidth = lineWidth;
-					vertices[2 * i + 0].Color = glm::mix(glm::vec4(1.0f, 0.0f, 0.0f, 1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f), t);
-					if (glm::dot(vertices[2 * i + 0].Normal, glm::vec3(0.0f, 1.0f, 0.0f)) < 0.0f) {
-						vertices[2 * i + 0].Normal = -vertices[2 * i + 0].Normal;
-					}
-				}
-
-				{
-					float t = (float)(i + 1) / (float)(n) * (interval.y - interval.x) + interval.x;
-					vertices[2 * i + 1].Position = position(t, positions);
-					vertices[2 * i + 1].Normal = normal(t, positions);
-					vertices[2 * i + 1].LineWidth = lineWidth;
-					vertices[2 * i + 1].Color = glm::mix(glm::vec4(1.0f, 0.0f, 0.0f, 1.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f), t);
-					if (glm::dot(vertices[2 * i + 1].Normal, glm::vec3(0.0f, 1.0f, 0.0f)) < 0.0f) {
-						vertices[2 * i + 1].Normal = -vertices[2 * i + 1].Normal;
-					}
 				}
 			}
 
-			lines.Buffer.Construct([vertices](uint32_t i) {
-				return VertexBuffer::Create(vertices.data(), vertices.size() * sizeof(LineData::LineVertex));
-			});
+			Renderer3D::EndShadow();
 		}
-	}
-
-	static void CreateTextPassResources() {
-		auto& texts = s_Data->Texts;
-
-		{
-			RenderPassSpecification specs{};
-			specs.Colors =
-			{
-				RenderPassAttachment(Format::RGBA8SRGB,ImageLayout::ColorAttachmentOptimal,ImageLayout::ColorAttachmentOptimal,TextureSamples::x1,
-					AttachmentLoadOp::Load, AttachmentStoreOp::Store)
-			};
-			texts.TextRenderPass = RenderPass::Create(specs);
-		}
-
-		{
-			GraphicsPipelineSpecification specs;
-
-			PipelineColorBlend::Attachment attachment;
-			attachment.WriteR = true;
-			attachment.WriteG = true;
-			attachment.WriteB = true;
-			attachment.WriteA = true;
-			attachment.Blend = true;
-			attachment.AttachmentIndex = 0;
-			
-			attachment.SrcColorBlend = BlendFactor::SrcAlpha;
-			attachment.DstColorBlend = BlendFactor::OneMinusSrcAlpha;
-			attachment.ColorBlendOp = BlendOp::Add;
-			
-			attachment.SrcAlphaBlend = BlendFactor::One;
-			attachment.DstAlphaBlend = BlendFactor::Zero;
-			attachment.AlphaBlendOp = BlendOp::Add;
-
-			specs.Blend.Attachments.push_back(attachment);
-
-			specs.Input.Bindings.push_back(
-				{
-					{"a_Position", Format::RGB32F},
-					{"a_Color", Format::RGBA32F},
-					{"a_TexCoords", Format::RG32F},
-					{"a_Border", Format::RGBA32F}
-				}
-			);
-			specs.Primitive = PrimitiveTopology::TriangleList;
-			specs.Rasterization.CullMode = PipelineCullMode::None;
-			
-			specs.Shader = ShaderLibrary::LoadOrGetNamedShader("TextPass", "assets/_shaders/TextPass.glsl");
-			specs.RenderPass = texts.TextRenderPass;
-			specs.Subpass = 0;
-
-			texts.Pipeline = GraphicsPipeline::Create(specs);
-		}
-
-		{
-			texts.Buffer.Construct([](uint32_t i) {
-				return VertexBuffer::Create(nullptr, 0);
-			});
-		}
-	}
-
-	static void TextPass(const SceneData& sceneData, entt::registry& sceneReg) 
-	{
-		auto& texts = s_Data->Texts;
-		//Reset.
-		texts.VertexCount = 0;
-
-		//Go through all texts need to be drawn and add to vertex buffer.
-		//AddStringToBatch(test, font, glm::mat4(1.0f), glm::vec4(1.0f));
-		auto view = sceneReg.view<TransformComponent, TextComponent>();
-		for (auto e : view) {
-			auto& [transform, text] = view.get(e);
-			if (text.TextContent.empty() || !text.TextFont)
-				continue;
-			text.RenderableCharacters = AddStringToBatch(text.TextContent, text.TextFont, transform.GlobalTransform, text.Color, text.BorderColor, text.BorderThickness, text.Kerning);
-		}
-
-		if (texts.VertexCount == 0)
-			return;
-
-		texts.Buffer->Get()->SetData(texts.Vertices.data(), texts.VertexCount * sizeof(TextData::TextVertex), 0);
-
-		//Go through all texts need to be drawn and draw them.
-		uint64_t indexCount = 0;
-		uint64_t indexOffset = 0;
-
-		RenderCommand::BindVertexBuffers({ *texts.Buffer }, { 0 });
-		RenderCommand::BindIndexBuffer(s_Data->Sprites.SpriteIndexBuffer, 0);
-
-		RenderCommand::BindGraphicsPipeline(texts.Pipeline);
-		RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("TextPass"), 0, sceneData.ViewProj);
-
-		RenderCommand::BeginRenderPass(texts.TextRenderPass, *s_Data->Outputs, {});
-		
-		Ref<Font> lastFont = {};
-		
-		for (auto e : view) {
-			auto& [transform, text] = view.get(e);
-			if (text.TextContent.empty() || !text.TextFont)
-				continue;
-			if (!lastFont || lastFont == text.TextFont) {
-				indexCount += text.RenderableCharacters * 6;
-				lastFont = text.TextFont;
-			}
-			else {
-				RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("TextPass"), lastFont->GetSet(), 0);
-				RenderCommand::DrawIndexed((uint32_t)indexCount, 4, 1, (uint32_t)indexOffset, 0, 0);
-				indexOffset += indexCount;
-				indexCount = 0;
-				lastFont = text.TextFont;
-			}
-		}
-
-		if (indexCount) {
-			RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("TextPass"), lastFont->GetSet(), 0);
-			RenderCommand::DrawIndexed((uint32_t)indexCount, 4, 1, (uint32_t)indexOffset, 0, 0);
-		}
-
-		/*RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("TextPass"), font->GetSet(), 0);
-		RenderCommand::DrawIndexed(texts.VertexCount / 4 * 6, 4, 1, 0, 0, 0);*/
-
-		RenderCommand::EndRenderPass();
-	}
-
-	static void InsertTextPassBarrier() {
-		ImageMemoryBarrier barrier(
-			s_Data->Outputs->Get()->GetColorAttachment(0),
-			ImageLayout::ColorAttachmentOptimal,
-			AccessFlags_ColorAttachmentWrite,
-			AccessFlags_ColorAttachmentWrite
-		);
-
-		RenderCommand::PipelineBarrier(
-			PipelineStages_ColorAttachmentOutput,
-			PipelineStages_ColorAttachmentOutput,
-			{},
-			{},
-			{ barrier });
-	}
-
-	static void CreateSpriteResources() {
-		auto& spriteData = s_Data->Sprites;
-
-		{
-			uint32_t* indices = new uint32_t[SpriteData::MaxIndexCount];
-
-			uint32_t vertex = 0;
-			for (uint32_t i = 0; i < (uint32_t)SpriteData::MaxIndexCount; i += 6) {
-				indices[i] = vertex + 0;
-				indices[i + 1] = vertex + 1;
-				indices[i + 2] = vertex + 2;
-				indices[i + 3] = vertex + 2;
-				indices[i + 4] = vertex + 3;
-				indices[i + 5] = vertex + 0;
-				vertex += 4;
-			}
-
-			spriteData.SpriteIndexBuffer = IndexBuffer::Create(indices, SpriteData::MaxIndexCount * sizeof(uint32_t), IndexType::Uint32);
-			delete[] indices;
-		}
-
-		//Pipeline
-		{
-			GraphicsPipelineSpecification specs;
-			specs.Shader = ShaderLibrary::LoadOrGetNamedShader("SpriteRender", "assets/_shaders/SpriteRender.glsl");
-			specs.Subpass = 0;
-			specs.RenderPass = s_Data->ScreenRenderPass;
-			specs.Primitive = PrimitiveTopology::TriangleList;
-			specs.Rasterization.CullMode = PipelineCullMode::None;
-			specs.Input.Bindings =
-			{
-				{
-					{"a_Position", Format::RGB32F},
-					{"a_Color", Format::RGBA32F},
-					{"a_TexCoords", Format::RGB32F}
-				}
-			};
-			specs.DepthStencil.DepthTest = false;
-			//specs.DepthStencil.DepthCompareOperator = Comap;
-			spriteData.SpriteGraphicsPipeline = GraphicsPipeline::Create(specs);
-		}
-	}
-
-	static void LinePass(const SceneData& sceneData, entt::registry& sceneReg) 
-	{
-		auto& lines = s_Data->Lines;
-		
-		RenderCommand::BindVertexBuffers({ *lines.Buffer }, { 0 });
-
-		RenderCommand::BindGraphicsPipeline(lines.Pipeline);
-		RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("LinePass"), 0, sceneData.ViewProj);
-
-		RenderCommand::BeginRenderPass(lines.LineRenderPass, *s_Data->Outputs, {});
-
-		RenderCommand::Draw(2 * n, 1, 0, 0);
-		
-		RenderCommand::EndRenderPass();
 	}
 	
 	bool SceneRenderer::NeedsRecreation(Ref<Texture2D> output) {
@@ -1621,6 +638,7 @@ namespace Kaidel {
 			specs.Height != s_Data->Height;
 	}
 
+#pragma region Bone pass
 	static void CreateBonePassResources()
 	{
 		s_Data->Bones.Pipeline = ComputePipeline::Create(ShaderLibrary::LoadOrGetNamedShader("BonePass", "assets/_shaders/BonePass.glsl"));
@@ -1631,7 +649,6 @@ namespace Kaidel {
 		if (!currBoneEntity)
 			return;
 		boneTransforms[currBoneNode.ID] = currBoneEntity.GetComponent<TransformComponent>().GlobalTransform;
-		//boneTransforms[currBoneNode.ID] = glm::mat4(1.0f);
 
 		if (!currBoneEntity.HasChildren())
 			return;
@@ -1643,17 +660,6 @@ namespace Kaidel {
 		{
 			Entity childBoneEntity = scene->GetEntity(pc.Children[i++]);
 
-			//for (auto& childID : pc.Children)
-			//{
-			//	Entity childEntity = scene->GetEntity(childID);
-			//
-			//	if (childBoneNode.Name == childEntity.GetComponent<TagComponent>().Tag)
-			//	{
-			//		childBoneEntity = childEntity;
-			//		break;
-			//	}
-			//}
-			
 			CalculateBoneTransforms(scene, childBoneNode, childBoneEntity, boneTransforms);
 		}
 	}
@@ -1688,7 +694,7 @@ namespace Kaidel {
 					//	CalculateBoneTransforms(scene, skin->Tree, rootBone, boneTransforms);
 					//}
 					{
-						SCOPED_ACCU_TIMER("Bone transforms MT");
+						//SCOPED_ACCU_TIMER("Bone transforms MT");
 						boneTransforms[skin->Tree.ID] = rootBone.GetComponent<TransformComponent>().GlobalTransform;
 
 						if (!rootBone.HasChildren())
@@ -1700,17 +706,6 @@ namespace Kaidel {
 						for (auto& childBoneNode : skin->Tree.Children)
 						{
 							Entity childBoneEntity = scene->GetEntity(pc.Children[i++]);
-
-							//for (auto& childID : pc.Children)
-							//{
-							//	Entity childEntity = scene->GetEntity(childID);
-							//
-							//	if (childBoneNode.Name == childEntity.GetComponent<TagComponent>().Tag)
-							//	{
-							//		childBoneEntity = childEntity;
-							//		break;
-							//	}
-							//}
 
 							JobSystem::GetMainJobSystem().Execute(
 								[scene, 
@@ -1745,65 +740,33 @@ namespace Kaidel {
 		}
 	}
 
+#pragma endregion
+
 	SceneRenderer::SceneRenderer(void* scene)
 		:m_Context(scene)
 	{
 		if (!s_Data) {
 			s_Data = new Data;
 
-			{
-				glm::vec2 screenVertices[] =
-				{
-					//NDC, TexCoords
-					{-1.0,-1.0},{0,1},
-					{1.0,-1.0},{1,1},
-					{1,1},{1,0},
-					{1,1},{1,0},
-					{-1,1},{0,0},
-					{-1.0,-1.0},{0,1},
-				};
 
-				s_Data->ScreenNDC = VertexBuffer::Create(screenVertices, sizeof(screenVertices));
-			}
-			
 			{
-				SamplerState state;
-				state.Aniso = false;
-				state.MagFilter = SamplerFilter::Linear;
-				state.MinFilter = SamplerFilter::Linear;
-				state.MipFilter = SamplerMipMapMode::Linear;
-				state.AddressModeU = SamplerAddressMode::Repeat;
-				state.AddressModeV = SamplerAddressMode::Repeat;
-				state.AddressModeW = SamplerAddressMode::Repeat;
-				s_Data->GlobalSampler = Sampler::Create(state);
+				s_Data->GlobalSampler = RendererGlobals::GetSamler(SamplerFilter::Linear, SamplerMipMapMode::Linear);
 			}
 
-			CreateClusterResources();
-			CreateLightCullResources();
-			CreateGBufferResources();
-
-			s_Data->DirectionalLight.Construct([](uint32_t i) {return UniformBuffer::Create(sizeof(DirectionalLight)); });
-
-			CreateShadowPassResources();
-			
-			CreateScreenPassResources();
-
-			CreateTonemapPassResources();
-
-			CreateTextPassResources();
+			/*CreateTextPassResources();
 
 			CreateLinePassResources();
 
 			CreateSpriteResources();
-
+			*/
 			CreateBonePassResources();
 
-			Light l{};
-			l.Color = glm::vec4(1.0f, 0, 0, 1);
-			l.Position = glm::vec4(0,5,0.0f,0.0f);
-			l.Radius = 100.0f;
+			{
+				Ref<Model> m = ModelLibrary::LoadModel("assets/models/EditorDirectionalArrow/untitled.gltf");
+				Ref<Mesh> mesh = m->GetMeshTree()->NodeMesh;
+				s_Data->DirectionalArrow = mesh;
+			}
 
-			lights.push_back(l);
 		}
 	}
 
@@ -1825,155 +788,84 @@ namespace Kaidel {
 		}
 	}
 
-
 	static void CalculateTransforms(Scene* scene, entt::registry& m_Registry)
 	{
-		SCOPED_ACCU_TIMER("Calculate transforms");
 		auto view = m_Registry.view<TransformComponent>();
+		if (view.empty())
+			return;
 
-		for (auto e : view)
-		{
-			Entity entity = { e, scene };
+		uint64_t offset = 0;
 
-			TagComponent& tc = entity.GetComponent<TagComponent>();
+		const entt::sparse_set& dataSet = view.handle();
+		uint32_t size = m_Registry.size();
 
-			bool isRoot = !entity.HasComponent<ChildComponent>() || !scene->IsEntity(entity.GetComponent<ChildComponent>().Parent);
+		//Calculate
+		JobSystem::GetMainJobSystem().Dispatch(size, std::ceil(size / 16.0f), [view, size, scene, offset](JobDispatchArgs args) {
 
-			if (!isRoot)
-				continue;
+			if (args.GlobalID >= size)
+				return;
 
-			{
-				JobSystem::GetMainJobSystem().Execute([entity, scene]() { CalculateTransformFromRoot(entity, scene, glm::mat4(1.0f)); });
-			}
-		}
+			Entity entity = { view.handle()[offset + args.GlobalID], scene };
 
+
+			if (entity.HasParent())
+				return;
+
+			CalculateTransformFromRoot(entity, scene, glm::mat4(1.0f));
+		});
 		JobSystem::GetMainJobSystem().Wait();
 	}
 
 	//TODO: add depth to 2D.
 	void SceneRenderer::Render(Ref<Texture2D> outputBuffer, const SceneData& sceneData)
 	{
+		//SCOPED_ACCU_TIMER("SceneRenderer::Render");
+
 		Scene* scene = (Scene*)m_Context;
-		if (NeedsRecreation(outputBuffer)) {
-			RenderCommand::DeviceWaitIdle();
-			s_Data->Width = outputBuffer->GetTextureSpecification().Width;
-			s_Data->Height = outputBuffer->GetTextureSpecification().Height;
-			RecreateSizeOrSampleDependent();
-		}
-
-		glm::mat4 proj = sceneData.Proj;
-		glm::mat4 view = sceneData.View;
-
-		glm::mat4 viewProj = sceneData.ViewProj;
-
-		glm::mat4 invProj = glm::inverse(proj);
-
-		float zNear = sceneData.zNear;
-		float zFar = sceneData.zFar;
 
 		{
-			MakeClusters(invProj, zNear, zFar, sceneData.ScreenSize);
-			InsertClusterBarrier();
-
+			//SCOPED_ACCU_TIMER("SceneRenderer::Transforms");
 			CalculateTransforms(scene, scene->m_Registry);
+		}
 
-			MakeLightGrids(view);
+		auto& [tc, dlc] = GetDirectionalLightEntity(scene, scene->m_Registry).GetComponent<TransformComponent, DirectionalLightComponent>();
 
+		DirectionalLightData lightData =
+			CalculateDirectionalLightData(
+				sceneData.zNear, sceneData.zFar, dlc.Color, dlc.LightSize,
+				glm::toMat4(tc.Rotation), sceneData.ViewProj, dlc.SplitDistances, SHADOW_MAP_SIZE);
+
+		static Visibility vis;
+
+		vis.Culler = FrustumCuller(sceneData.ViewProj);
+
+		for (uint32_t i = 0; i < 4; ++i)
+		{
+			vis.Directional.Cascades[i].Culler = FrustumCuller(lightData.ViewProjection[i]);
+		}
+
+		{
+			//SCOPED_ACCU_TIMER("SceneRenderer::Visibility");
+			VisibilityTests(scene, vis);
+		}
+		{
+			//SCOPED_ACCU_TIMER("SceneRenderer::BonePass");
 			BonePass(scene, sceneData, scene->m_Registry);
-
-			DeferredPass(viewProj, scene->m_Registry);
-			InsertLightGridBarrier();
-			InsertDeferredBarrier();
-
-			ShadowPass(sceneData);
-			InsertShadowPassBarrier();
-
-			ScreenPass(zNear, zFar, sceneData.CameraPos, view, sceneData.ViewProj);
-			InsertScreenPassBarrier();
 		}
-
-		TonemapPass();
-		InsertTonemapPassBarrier();
-
-		TextPass(sceneData, scene->m_Registry);
-		InsertTextPassBarrier();
-
-		//LinePass(sceneData, scene->m_Registry);
-
-		ResolveToOutput(outputBuffer);
-	}
-
-	void SceneRenderer::RecreateSizeOrSampleDependent()
-	{
-		CreateGBufferResources();
-		CreateScreenPassResources();
-		CreateTonemapPassResources();
-	}
-
-	void SceneRenderer::ResolveToOutput(Ref<Texture2D> outputBuffer)
-	{
-		//Screen pass barrier
 		{
-			ImageMemoryBarrier barrier =
-				ImageMemoryBarrier(
-					s_Data->Outputs->Get()->GetColorAttachment(0),
-					ImageLayout::TransferSrcOptimal,
-					AccessFlags_ColorAttachmentWrite,
-					AccessFlags_TransferRead
-				);
-			RenderCommand::PipelineBarrier(
-				PipelineStages_ColorAttachmentOutput,
-				PipelineStages_Transfer,
-				{},
-				{},
-				{ barrier }
-			);
+			
+			Renderer3D::Begin(outputBuffer, vis, sceneData, lightData);
+
+
+			ShadowPass(sceneData, scene, lightData, vis);
+
+			{
+				//SCOPED_ACCU_TIMER("SceneRenderer::DeferredPass");
+				DeferredPass(vis, sceneData.ViewProj, scene->m_Registry);
+			}
+			Renderer3D::End();
 		}
 
-		ImageLayout outputLayout = outputBuffer->GetTextureSpecification().Layout;
-
-		//Transition Output to copy layout
-		{
-			ImageMemoryBarrier barrier =
-				ImageMemoryBarrier(
-					outputBuffer,
-					ImageLayout::TransferDstOptimal,
-					AccessFlags_None,
-					AccessFlags_TransferWrite
-				);
-
-			barrier.OldLayout = ImageLayout::None;
-
-			RenderCommand::PipelineBarrier(
-				PipelineStages_TopOfPipe,
-				PipelineStages_Transfer,
-				{},
-				{},
-				{ barrier }
-			);
-		}
-
-		RenderCommand::CopyTexture(s_Data->Outputs->Get()->GetColorAttachment(0), 0, 0, outputBuffer, 0, 0);
-
-		{
-			ImageMemoryBarrier barrier =
-				ImageMemoryBarrier(
-					outputBuffer,
-					ImageLayout::ShaderReadOnlyOptimal,
-					AccessFlags_TransferWrite,
-					AccessFlags_ShaderRead
-				);
-
-			RenderCommand::PipelineBarrier(
-				PipelineStages_Transfer,
-				PipelineStages_VertexShader,
-				{},
-				{},
-				{ barrier }
-			);
-		}
 	}
-
-	glm::vec3 col = glm::vec3(1.0), dir = glm::vec3(0,0,1),pos(0,0,-500);
-
+	
 }

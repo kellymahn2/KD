@@ -1,128 +1,251 @@
 #pragma once
 #include "Kaidel/Core/Base.h"
+#include "Kaidel/Core/DirtyCounter.h"
+#include "Kaidel/Renderer/GraphicsAPI/PerFrameResource.h"
 #include "Kaidel/Renderer/GraphicsAPI/ShaderLibrary.h"
 #include "Kaidel/Renderer/GraphicsAPI/DescriptorSet.h"
 #include "Kaidel/Renderer/RendererGlobals.h"
+#include "Kaidel/Renderer/RenderCommand.h"
+#include "Kaidel/VisualMaterial/VisualMaterial.h"
 
 namespace Kaidel {
-	enum class MaterialTextureType {
-		Albedo = 1,
-		Normal,
-		Mettalic,
-		Roughness,
-		Max
+	class MaterialInstance : public IRCCounter<false>
+	{
+	public:
+		virtual void Recreate() = 0;
+		virtual void BindDescriptors() = 0;
+		virtual void BindInstanceData(Ref<DescriptorSet> instanceDataSet) = 0;
+		virtual void BindSceneData(Ref<DescriptorSet> sceneDataSet) = 0;
+
+		virtual Ref<Shader> GetShader() = 0;
+
+		virtual void BindInstanceOffset(uint32_t instanceOffset) = 0;
+
+		virtual void BindPipeline() const = 0;
 	};
 
-
-	class Material : public IRCCounter<false> {
+	class StandardMaterialInstance : public MaterialInstance
+	{
 	public:
-		Material(Ref<RenderPass> renderPass) {
+		enum class MaterialTextureType {
+			Albedo = 0,
+			Normal,
+			Metallic,
+			Roughness,
+			Emissive,
+			Max
+		};
 
-			if (!s_Pipeline) {
-				{
-					GraphicsPipelineSpecification specs;
 
-					specs.Input.Bindings.push_back(VertexInputBinding({
-						{"a_Position",Format::RGB32F},
-						{"a_TexCoords",Format::RG32F},
-						{"a_Normal",Format::RGB32F},
-						{"a_Tangent",Format::RGB32F},
-						{"a_BiTangent",Format::RGB32F},
-						}));
-					specs.Multisample.Samples = TextureSamples::x1;
-					specs.Primitive = PrimitiveTopology::TriangleList;
-					specs.Rasterization.FrontCCW = true;
-					specs.Rasterization.CullMode = PipelineCullMode::None;
-					specs.Shader = ShaderLibrary::LoadShader("DeferredGBufferGen", "assets/_shaders/DeferredGBufferGen.shader");
-					specs.RenderPass = renderPass;
-					specs.Subpass = 0;
-					specs.DepthStencil.DepthTest = true;
-					specs.DepthStencil.DepthWrite = true;
-					specs.DepthStencil.DepthCompareOperator = CompareOp::Less;
-					s_Pipeline = GraphicsPipeline::Create(specs);
-				}
-			}
+		enum class MaterialTextureChannel : uint32_t {
+			Red, Green, Blue
+		};
 
-			m_Pipeline = s_Pipeline;
-			m_TextureSet = DescriptorSet::Create(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), 0);
+		struct MaterialUniformData
+		{
+			glm::vec4 BaseColor = glm::vec4(1.0f);
+			float Roughness = 1.0f;
+			float Metalness = 0.0f;
 
-			Ref<Texture> defaultWhite = RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f));
+			MaterialTextureChannel MetalnessChannel = MaterialTextureChannel::Blue;
+			MaterialTextureChannel RoughnessChannel = MaterialTextureChannel::Green;
 
-			for (uint32_t i = 1; i < (uint32_t)MaterialTextureType::Max; ++i) {
-				m_TextureSet->Update(defaultWhite, {}, ImageLayout::ShaderReadOnlyOptimal, i);
-			}
+			uint32_t HasTexture[(uint32_t)MaterialTextureType::Max] = { 0 };
+		};
+	
+	public:
 
-			Ref<Sampler> sampler = RendererGlobals::GetSamler(SamplerFilter::Linear, SamplerMipMapMode::Linear);
+		StandardMaterialInstance();
 
-			m_TextureSet->Update({}, sampler, {}, (uint32_t)0);
+		virtual void BindDescriptors() override;
+
+
+		virtual void BindInstanceData(Ref<DescriptorSet> instanceDataSet) override;
+
+
+		virtual void BindInstanceOffset(uint32_t instanceOffset) override;
+
+
+		virtual void BindPipeline() const override;
+
+
+		virtual void BindSceneData(Ref<DescriptorSet> sceneDataSet) override;
+
+
+		virtual Ref<Shader> GetShader() override;
+
+
+		virtual void Recreate() override;
+
+		MaterialUniformData& GetUniformData() { return m_UniformData; }
+
+		void SetBaseColor(const glm::vec4& color)
+		{
+			m_UniformData.BaseColor = color;
 		}
 
-		~Material() = default;
-
-		void BindValues() {
-			RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), m_TextureSet, 0);
+		const glm::vec4& GetBaseColor() const
+		{
+			return m_UniformData.BaseColor;
 		}
 
-
-		void BindBaseValues(const glm::mat4& viewProj) {
-			RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), 0, viewProj);
-		}
-
-		void BindTransform(const glm::mat4& transform) {
-			RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), sizeof(glm::mat4), transform);
-		}
-
-		void BindPipeline()const {
-			RenderCommand::BindGraphicsPipeline(s_Pipeline);
-		}
-
-		Ref<GraphicsPipeline> GetPipeline()const { return s_Pipeline; }
-
-		Ref<DescriptorSet> GetTextureSet()const { return m_TextureSet; }
-
-		const glm::vec3& GetAlbedoColor()const { return m_Values.AlbedoColor; }
-		void SetAlbedoColor(const glm::vec3& color) { m_Values.AlbedoColor = color; }
-
-		const glm::vec3& GetSpecular()const { return m_Values.Specular; }
-		void SetSpecular(const glm::vec3& value) { m_Values.Specular = value; }
-
-		const glm::vec3& GetMetallic()const { return m_Values.Metallic; }
-		void SetMetallic(const glm::vec3& value) { m_Values.Metallic = value; }
-
-		const glm::vec3& GetRoughness()const { return m_Values.Roughness; }
-		void SetRoughness(const glm::vec3& value) { m_Values.Roughness = value; }
-
-		void SetTexture(MaterialTextureType type, Ref<Texture2D> image) {
-			m_Textures[(uint32_t)type] = image;
+		void SetTexture(MaterialTextureType type, Ref<Texture2D> image)
+		{
 			if (image)
-				m_TextureSet->Update(image, {}, ImageLayout::ShaderReadOnlyOptimal, (uint32_t)type);
+			{
+				m_Textures[(uint32_t)type] = image;
+				Application::Get().SubmitToMainThread([this, image, type]() {
+					KD_INFO("Bound");
+					RenderCommand::DeviceWaitIdle();
+					m_TextureSet->Update(image, {}, ImageLayout::ShaderReadOnlyOptimal, (uint32_t)type);
+					});
+				m_UniformData.HasTexture[(uint32_t)type] = 1;
+			}
+			else
+			{
+				m_Textures[(uint32_t)type] = {};
+				Application::Get().SubmitToMainThread([this, type]() {
+					RenderCommand::DeviceWaitIdle();
+					m_TextureSet->Update(
+						RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f)), {},
+						ImageLayout::ShaderReadOnlyOptimal, (uint32_t)type);
+					});
+				m_UniformData.HasTexture[(uint32_t)type] = 0;
+			}
+			UploadUniforms();
 		}
 
-		Ref<Texture2D> GetTexture(MaterialTextureType type) {
+		void SetMetalnessColorChannel(MaterialTextureChannel channel)
+		{
+			m_UniformData.MetalnessChannel = channel;
+			UploadUniforms();
+		}
+
+		void SetRoughnessColorChannel(MaterialTextureChannel channel)
+		{
+			m_UniformData.RoughnessChannel = channel;
+			UploadUniforms();
+		}
+
+		void SetMetalness(float metalness)
+		{
+			m_UniformData.Metalness = metalness;
+			UploadUniforms();
+		}
+
+		void SetRoughness(float roughness)
+		{
+			m_UniformData.Roughness = roughness;
+			UploadUniforms();
+		}
+
+		Kaidel::Ref<Kaidel::Texture2D> GetTexture(MaterialTextureType type)
+		{
 			return m_Textures[(uint32_t)type];
 		}
 
+		bool IsTextureUsed(MaterialTextureType type) const
+		{
+			return m_UniformData.HasTexture[(uint32_t)type];
+		}
+
+		void SetTextureUsed(MaterialTextureType type, bool isUsed)
+		{
+			m_UniformData.HasTexture[(uint32_t)type] = isUsed;
+			UploadUniforms();
+		}
+
+		void UploadUniforms()
+		{
+			RenderCommand::DeviceWaitIdle();
+			m_UniformBuffer->SetData(&m_UniformData, sizeof(MaterialUniformData));
+		}
+
 	private:
-		struct MaterialValues {
-			glm::vec3 AlbedoColor = {};
-			glm::vec3 Specular = {};
-			glm::vec3 Metallic = {};
-			glm::vec3 Roughness = {};
-		};
-	private:
-
-		MaterialValues m_Values;
-
-		Ref<UniformBuffer> m_MaterialData;
-		Ref<DescriptorSet> m_DataSet;
-
-		Ref<GraphicsPipeline> m_Pipeline;
+		MaterialUniformData m_UniformData;
+		Ref<UniformBuffer> m_UniformBuffer;
+		Ref<DescriptorSet> m_UniformSet;
 
 		Ref<Texture2D> m_Textures[(uint32_t)MaterialTextureType::Max] = {};
 		Ref<DescriptorSet> m_TextureSet;
-
-		static inline Ref<RenderPass> s_RenderPass;
-
-		static inline Ref<GraphicsPipeline> s_Pipeline;
 	};
+
+	class VisualMaterialInstance : public MaterialInstance
+	{
+	public:
+		VisualMaterialInstance(Ref<VisualMaterial> visualMaterial);
+
+		virtual void BindDescriptors() override;
+
+
+		virtual void BindInstanceData(Ref<DescriptorSet> instanceDataSet) override;
+
+		virtual void BindInstanceOffset(uint32_t instanceOffset) override;
+
+
+		virtual void BindPipeline() const override;
+
+		void SetVisualMaterial(Ref<VisualMaterial> visualMaterial);
+
+		Ref<VisualMaterial> GetVisualMaterial() const { return m_VisualMaterial; }
+
+		virtual void BindSceneData(Ref<DescriptorSet> sceneDataSet) override;
+
+
+		virtual Ref<Shader> GetShader() override;
+
+
+		virtual void Recreate() override;
+
+		void UploadUniformData();
+
+		char* GetUniformData() { return m_UniformData.data(); }
+
+		Ref<Texture> GetTexture(uint32_t set, uint32_t binding)
+		{
+			return m_Sets[set]->GetTextureAtBinding(binding);
+		}
+
+		void SetTexture(Ref<Texture> texture, uint32_t set, uint32_t binding)
+		{
+			if (texture)
+			{
+				Application::Get().SubmitToMainThread([this, texture, set, binding]() {
+					RenderCommand::DeviceWaitIdle();
+					m_Sets[set]->Update(texture, {}, ImageLayout::ShaderReadOnlyOptimal, binding);
+				});
+			}
+			else
+			{
+				Application::Get().SubmitToMainThread([this, set, binding]() {
+					RenderCommand::DeviceWaitIdle();
+					m_Sets[set]->Update(RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f)), {}, ImageLayout::ShaderReadOnlyOptimal, binding);
+				});
+			}
+		}
+
+	private:
+		void CreateSets();
+	private:
+		Ref<VisualMaterial> m_VisualMaterial;
+
+		std::unordered_map<uint32_t, Ref<DescriptorSet>> m_Sets;
+
+		std::vector<char> m_UniformData;
+		Ref<UniformBuffer> m_UniformBuffer;
+
+		uint32_t m_LastVersion = -1;
+	};
+
+	/*
+	
+	class VisualMaterialInstance : MaterialInstance {
+
+		VisualMaterial mat;
+		//Added descriptors		
+		//Added param arrays
+	};
+
+	
+	*/
 }

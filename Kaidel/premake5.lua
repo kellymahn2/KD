@@ -53,6 +53,7 @@ project "Kaidel"
 		"%{IncludeDir.msdfgen}",
 		"%{IncludeDir.msdf_atlas_gen}",
 		"%{IncludeDir.Vulkan}",
+		"%{IncludeDir.MeshOpt}",
 		"vendor/VMA",
 		"vendor/spirv-reflect"
 	}
@@ -69,6 +70,7 @@ project "Kaidel"
 		"D3D11.lib",
 		"%{Library.mono}",
 		"%{Library.Vulkan}",
+		"meshoptimizer"
 	}
 
 	filter "files:vendor/ImGuizmo/**.cpp"

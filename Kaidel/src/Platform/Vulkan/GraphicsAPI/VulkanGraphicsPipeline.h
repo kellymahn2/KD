@@ -8,6 +8,7 @@ namespace Kaidel {
 		VulkanGraphicsPipeline(const GraphicsPipelineSpecification& specs);
 		~VulkanGraphicsPipeline();
 		VkPipeline GetPipeline()const { return m_Pipeline; }
+		void Recreate();
 	private:
 		GraphicsPipelineSpecification m_Specification;
 		VkPipeline m_Pipeline;

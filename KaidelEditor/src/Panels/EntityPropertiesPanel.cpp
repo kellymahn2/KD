@@ -1,7 +1,11 @@
 #include "EntityPropertiesPanel.h"
 #include "Kaidel/Scripting/ScriptEngine.h"
+#include "Kaidel/Utils/PlatformUtils.h"
+#include "EditorViewport.h"
 #include "Kaidel/Project/Project.h"
+#include "EditorViewport.h"
 #include "UI/UIHelper.h"
+#include "EditorIcon.h"
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
 #include <imgui/misc/cpp/imgui_stdlib.h>
@@ -15,12 +19,12 @@ namespace Kaidel {
 	{
 		static std::unordered_map<std::string, bool> s_Map;
 		const ImGuiTreeNodeFlags treeNodeFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnDoubleClick |
-			ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_Leaf;
+			ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_Leaf;
 		if (entity.HasComponent<T>())
 		{
 			ImVec2 contentRegionAvailable = ImGui::GetContentRegionAvail();
 			auto& component = entity.GetComponent<T>();
-			float lineHeight = GImGui->Font->FontSize + GImGui->Style.FramePadding.y * 2.0f;
+			float lineHeight = GImGui->Font->LegacySize + GImGui->Style.FramePadding.y * 2.0f;
 			static float itemHeight = 0.0f;
 			static float itemWidth = 0.0f;
 			bool open = false;
@@ -102,45 +106,6 @@ namespace Kaidel {
 			}
 		}
 	}
-	class AssetChooserScriptItem {
-	public:
-		AssetChooserScriptItem() = default;
-		AssetChooserScriptItem(const std::unordered_map<std::string, Ref<ScriptClass>>& map) {
-			for (const auto& [name, field] : map) {
-				AddScript(name);
-			}
-		}
-		void AddScript(const std::string& script) {
-			std::size_t loc = script.find_first_of('.');
-			if (loc != std::string::npos) {
-				std::string name = script.substr(0, loc);
-				m_ScriptMap[name].AddScript(script.substr(loc + 1));
-				return;
-			}
-			m_ScriptMap[script];
-		}
-		std::string Draw() {
-			for (auto& [name, acsi] : m_ScriptMap) {
-				if (acsi.m_ScriptMap.empty()) {
-					ImGui::MenuItem(name.c_str());
-					if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-						return name;
-					}
-				}
-				else {
-					if (ImGui::TreeNodeEx(name.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth)) {
-						std::string res = acsi.Draw();
-						ImGui::TreePop();
-						if (!res.empty())
-							return name + '.' + res;
-					}
-				}
-			}
-			return "";
-		}
-	private:
-		std::unordered_map<std::string, AssetChooserScriptItem> m_ScriptMap;
-	};
 
 	void HandleEntityDragDrops(Entity entity) {
 
@@ -153,28 +118,348 @@ namespace Kaidel {
 		DrawComponents();
 	}
 
+	static void DrawVisualMaterialTextureUI(const char* strID, Ref<VisualMaterialInstance> mat, uint32_t setID, uint32_t binding, const std::string& name,
+		const ImVec2 imageSize, Ref<Texture2D> fallback)
+	{
+		ImGuiTreeNodeFlags flags =
+			ImGuiTreeNodeFlags_SpanAvailWidth;
 
-	template<typename Func>
-	static void DrawAssetChooser(const std::string& chooserName, Func&& func) {
-		static bool chooserOpen = false;
+		if (ImGui::TreeNodeEx(strID, flags, name.c_str()))
+		{
+			Ref<Texture> texture = mat->GetTexture(setID, binding);
 
-		if (ImGui::Button("Choose... "))
-			chooserOpen = !chooserOpen;
+			if (texture == RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f)))
+			{
+				texture = fallback;
+			}
 
+			Ref<DescriptorSet> set = DescriptorSet::Create({ {DescriptorType::SamplerWithTexture, ShaderStage_FragmentShader} });
 
+			set->Update(texture, RendererGlobals::GetSamler(SamplerFilter::Linear, SamplerMipMapMode::Linear), ImageLayout::ShaderReadOnlyOptimal, 0);
+			
+			ImTextureID id = (ImTextureID)set->GetSetID();
 
-		bool chooser = chooserOpen;
+			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
 
-		if (chooser) {
-			if (ImGui::Begin(chooserName.c_str(), &chooser)) {
-				bool chooserState = func();
-				if (chooserOpen) {
-					chooserOpen = chooserState;
+			if (ImGui::ImageButton("##Image", id, imageSize))
+			{
+				auto path = FileDialogs::OpenFile("jpg (*.jpg)\0*.jpg\0png (*.png)\0*.png\0");
+				if (path)
+				{
+					Ref<Texture2D> t = TextureLibrary::Load(*path, ImageLayout::ShaderReadOnlyOptimal, Format::RGBA8UN);
+					if (t)
+					{
+						mat->SetTexture(t, setID, binding);
+					}
 				}
 			}
-			ImGui::End();
+
+			if (ImGui::IsItemHovered() && texture != fallback)
+			{
+				ImGui::BeginTooltip();
+				ImGui::Text(TextureLibrary::GetPath(texture).string().c_str());
+				ImGui::EndTooltip();
+			}
+
+			ImGui::PopStyleVar();
+
+			ImGui::TreePop();
 		}
-		chooserOpen = chooser;
+	}
+
+	static void DrawMaterialTextureUI(
+		const char* strID, Ref<StandardMaterialInstance> mat, StandardMaterialInstance::MaterialTextureType type,
+		Ref<DescriptorSet> set, const ImVec2& imageSize, const ImVec2& iconSize, Ref<Texture2D> fallback, Format format,
+		std::function<void()>&& func)
+	{
+		ImGuiTreeNodeFlags flags =
+			ImGuiTreeNodeFlags_SpanAvailWidth;
+
+		if (ImGui::TreeNodeEx(strID, flags))
+		{
+			float offset = ImGui::GetCursorPosY();
+			ImGui::PushID(strID);
+			Ref<Texture2D> texture = mat->GetTexture(type);
+			if (!texture)
+				texture = fallback;
+
+			Ref<Sampler> sampler = RendererGlobals::GetSamler(SamplerFilter::Linear, SamplerMipMapMode::Linear);
+			set->Update(texture, sampler, ImageLayout::ShaderReadOnlyOptimal, 0);
+
+
+			if (mat->GetTexture(type))
+			{
+				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + imageSize.y * 0.5f - ImGui::GetFrameHeight() * 0.5f);
+				bool isUsed = mat->IsTextureUsed(type);
+				if (ImGui::Checkbox("##Used", &isUsed))
+				{
+					mat->SetTextureUsed(type, isUsed);
+				}
+
+				ImGui::SameLine();
+				ImGui::SetCursorPosY(offset);
+			}
+			ImTextureID id = (ImTextureID)set->GetSetID();
+			
+			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+
+			if (ImGui::ImageButton("##Image", id, imageSize))
+			{
+				auto path = FileDialogs::OpenFile("jpg (*.jpg)\0*.jpg\0png (*.png)\0*.png\0");
+				if (path)
+				{
+					Ref<Texture2D> t = TextureLibrary::Load(*path, ImageLayout::ShaderReadOnlyOptimal, format);
+					if (t)
+					{
+						mat->SetTexture(type, t);
+					}
+				}
+			}
+
+			if (mat->GetTexture(type) != fallback && ImGui::IsItemHovered())
+			{
+				ImGui::BeginTooltip();
+				ImGui::Text(TextureLibrary::GetPath(texture).string().c_str());
+				ImGui::EndTooltip();
+			}
+			
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+			}
+
+			ImGui::SameLine();
+			ImGui::SetCursorPosY(offset + imageSize.y * 0.5f - iconSize.y * 0.5f);
+			auto& crossIcon = EditorIcon::Load("Resources/Icons/TextureClearCross.png");
+			if (ImGui::ImageButton("##Clear", (ImTextureID)crossIcon.GetDescriptorSet()->GetSetID(), iconSize))
+			{
+				mat->SetTexture(type, {});
+			}
+
+			if (func)
+				func();
+
+			ImGui::PopStyleVar(1);
+			ImGui::PopID();
+			ImGui::TreePop();
+		}
+	}
+
+	static void DrawPreview(Ref<MaterialInstance> material)
+	{
+		ImGuiTreeNodeFlags flags =
+			ImGuiTreeNodeFlags_SpanAvailWidth;
+
+		if (ImGui::TreeNodeEx("Preview"))
+		{
+			Ref<EnvironmentMap> environment = RendererGlobals::GetEnvironmentMap();
+
+			static EditorViewport viewport("Preview", 60.0f, 240, 240, 0.1f, 100.0f);
+
+			viewport.OnImGuiRender(glm::mat4(1.0f), material);
+
+			ImGui::TreePop();
+		}
+	}
+
+	static void DrawStandardMaterial(Ref<StandardMaterialInstance> material)
+	{
+		PerFrameResource<Ref<DescriptorSet>> sets[(uint32_t)StandardMaterialInstance::MaterialTextureType::Max] = {{}};
+		if (!sets[0][0])
+		{
+			for (uint32_t i = 0; i < (uint32_t)StandardMaterialInstance::MaterialTextureType::Max; ++i)
+			{
+				DescriptorSetLayoutSpecification specs({ {DescriptorType::SamplerWithTexture, ShaderStage_FragmentShader} });
+				sets[i].Construct([&specs](uint32_t) {
+					return DescriptorSet::Create(specs);
+				});
+			}
+		}
+
+		static Ref<Texture2D> fallback = 
+			TextureLibrary::Load("Resources/Icons/TextureNullCross.png", ImageLayout::ShaderReadOnlyOptimal, Format::RGBA8UN);
+
+		const ImVec2 imageSize = ImVec2(64, 64);
+		const ImVec2 iconSize = ImVec2(16, 16);
+
+		static const char* channels[] = {"R", "G", "B", "A"};
+
+		DrawPreview(material);
+
+		DrawMaterialTextureUI(
+			"Albedo", material, StandardMaterialInstance::MaterialTextureType::Albedo,
+			sets[(uint32_t)StandardMaterialInstance::MaterialTextureType::Albedo],
+			imageSize, iconSize, fallback, Format::RGBA8UN, {});
+
+		DrawMaterialTextureUI(
+			"Normal", material, StandardMaterialInstance::MaterialTextureType::Normal,
+			sets[(uint32_t)StandardMaterialInstance::MaterialTextureType::Normal],
+			imageSize, iconSize, fallback, Format::RGBA8UN, {});
+
+		DrawMaterialTextureUI(
+			"Metallic", material, StandardMaterialInstance::MaterialTextureType::Metallic,
+			sets[(uint32_t)StandardMaterialInstance::MaterialTextureType::Metallic],
+			imageSize, iconSize, fallback, Format::RGBA32F, [material]() {
+				if (material->GetTexture(StandardMaterialInstance::MaterialTextureType::Metallic))
+				{
+					uint32_t currIndex = (uint32_t)material->GetUniformData().MetalnessChannel;
+
+					uint32_t combo = Combo("Channel", channels, 3, channels[currIndex]);
+
+					if (combo != -1 && currIndex != combo)
+					{
+						material->SetMetalnessColorChannel((StandardMaterialInstance::MaterialTextureChannel)combo);
+					}
+				}
+				else
+				{
+					float metalness = material->GetUniformData().Metalness;
+
+					if (ImGui::DragFloat("Metalness", &metalness, 0.05f, 0.0f, 1.0f))
+					{
+						material->SetMetalness(metalness);
+					}
+				}
+			});
+
+		DrawMaterialTextureUI(
+			"Roughness", material, StandardMaterialInstance::MaterialTextureType::Roughness,
+			sets[(uint32_t)StandardMaterialInstance::MaterialTextureType::Roughness],
+			imageSize, iconSize, fallback, Format::RGBA32F, [material]() {
+				if (material->GetTexture(StandardMaterialInstance::MaterialTextureType::Roughness))
+				{
+					uint32_t currIndex = (uint32_t)material->GetUniformData().RoughnessChannel;
+					
+					uint32_t combo = Combo("Channel", channels, 3, channels[currIndex]);
+					
+					if (combo != -1 && currIndex != combo)
+					{
+						material->SetRoughnessColorChannel((StandardMaterialInstance::MaterialTextureChannel)combo);
+					}
+				}
+				else
+				{
+					float roughness = material->GetUniformData().Roughness;
+
+					if (ImGui::DragFloat("Roughness", &roughness, 0.05f, 0.0f, 1.0f))
+					{
+						material->SetRoughness(roughness);
+					}
+				}
+			});
+
+		DrawMaterialTextureUI(
+			"Emissive", material, StandardMaterialInstance::MaterialTextureType::Emissive,
+			sets[(uint32_t)StandardMaterialInstance::MaterialTextureType::Emissive],
+			imageSize, iconSize, fallback, Format::RGBA8UN, {});
+	}
+
+
+	void DrawVisualMaterial(Ref<VisualMaterialInstance> material)
+	{
+
+		DrawPreview(material);
+		auto& vm = material->GetVisualMaterial();
+		bool propertiesChanged = false;
+
+		const ImVec2 imageSize = ImVec2(64, 64);
+
+		static Ref<Texture2D> fallback =
+			TextureLibrary::Load("Resources/Icons/TextureNullCross.png", ImageLayout::ShaderReadOnlyOptimal, Format::RGBA8UN);
+
+		for (auto& [name, param] : vm->Parameters)
+		{
+			ImGui::PushID(&param);
+
+			bool isTexture = param.Type == VisualMaterialParameterType::Texture;
+
+			if (!isTexture)
+			{
+				void* dataPtr = material->GetUniformData() + param.ByteOffset;
+
+				switch (param.Type)
+				{
+				case VisualMaterialParameterType::Bool: propertiesChanged = ImGui::Checkbox(name.c_str(), (bool*)dataPtr) || propertiesChanged; break;
+				case VisualMaterialParameterType::Int: propertiesChanged = ImGui::DragInt(name.c_str(), (int*)dataPtr) || propertiesChanged; break;
+				case VisualMaterialParameterType::UInt:
+				{
+					uint32_t min = 0, max = UINT32_MAX;
+					propertiesChanged = ImGui::DragScalar(name.c_str(), ImGuiDataType_U32, (uint32_t*)dataPtr, 1.0f, &min, &max) || propertiesChanged;
+				}
+				break;
+				case VisualMaterialParameterType::Float: propertiesChanged = ImGui::DragFloat(name.c_str(), (float*)dataPtr, 0.005f) || propertiesChanged; break;
+				case VisualMaterialParameterType::Vec2: propertiesChanged = DrawVec2Control(name, *(glm::vec2*)dataPtr, 0.0f, 100.0f) || propertiesChanged; break;
+				case VisualMaterialParameterType::Vec3: propertiesChanged = DrawVec3Control(name, *(glm::vec3*)dataPtr, 0.0f, 100.0f) || propertiesChanged; break;
+				case VisualMaterialParameterType::Vec4: propertiesChanged = DrawVec4Control(name, *(glm::vec4*)dataPtr, 0.0f, 100.0f) || propertiesChanged; break;
+				}
+			}
+			else
+			{
+				DrawVisualMaterialTextureUI("##Texture", material, param.Set, param.Binding, name, imageSize, fallback);
+			}
+
+			
+
+			ImGui::PopID();
+		}
+
+		if (propertiesChanged)
+			material->UploadUniformData();
+	}
+
+	void DrawMaterialList(std::vector<Ref<MaterialInstance>>& list)
+	{
+		if (ImGui::TreeNodeEx("Material List", ImGuiTreeNodeFlags_SpanAvailWidth)) {
+			for (uint32_t i = 0; i < list.size(); ++i)
+			{
+				auto mat = list[i];
+
+				ImGui::PushID(i);
+				if (ImGui::TreeNodeEx("Material", ImGuiTreeNodeFlags_SpanAvailWidth, "Material %d", i))
+				{
+					if (ImGui::Button("Make unique"))
+					{
+						//list[i] = Material::CreateFrom(mat);
+						mat = list[i];
+					}
+
+					if (dynamic_cast<StandardMaterialInstance*>(mat.Get()))
+					{
+						DrawStandardMaterial(mat);					}
+					else if (dynamic_cast<VisualMaterialInstance*>(mat.Get()))
+					{
+						DrawVisualMaterial(mat);
+					}
+
+					ImGui::TreePop();
+				}
+				ImGui::PopID();
+			}
+			ImGui::TreePop();
+		}
+	}
+
+	static void ShowMat4Drag(const char* label, glm::mat4& m, float dragSpeed = 0.1f, float min = -FLT_MAX, float max = FLT_MAX)
+	{
+		float v[16];
+		const float* p = glm::value_ptr(m);
+		
+		for (int row = 0; row < 4; ++row)
+			for (int col = 0; col < 4; ++col)
+				v[row * 4 + col] = p[col * 4 + row]; // convert to row-major display
+
+		ImGui::Columns(4, nullptr, false);
+		for (int row = 0; row < 4; ++row) {
+			for (int col = 0; col < 4; ++col) {
+				char labelBuf[8];
+				snprintf(labelBuf, sizeof(labelBuf), "M%02d", row * 4 + col);
+				ImGui::PushItemWidth(90.0f);
+				ImGui::DragFloat(labelBuf, &v[row * 4 + col], dragSpeed, min, max, "%.6f");
+				ImGui::PopItemWidth();
+				ImGui::NextColumn();
+			}
+		}
+		ImGui::Columns(1);
 	}
 
 	void EntityPropertiesPanel::DrawComponents()
@@ -223,6 +508,12 @@ namespace Kaidel {
 				DrawVec3Control("Translation", component.Translation);
 				DrawVec3Control("Rotation", rotDeg);
 				DrawVec3Control("Scale", component.Scale, 1.0f);
+
+				ImGui::BeginDisabled(true);
+
+				ShowMat4Drag("Transform", component.GlobalTransform);
+
+				ImGui::EndDisabled();
 
 				component.Rotation = glm::radians(rotDeg);
 			}, false);
@@ -408,20 +699,28 @@ namespace Kaidel {
 			ImGui::Checkbox("IsSkinned", &b);
 
 			ImGui::Text("%" PRIu64, (uint64_t)component.UsedMesh.Get());
-			});
+			DrawMaterialList(component.UsedMaterial);
+		});
 
 		DrawComponent<SkinnedMeshComponent>("Skinned mesh", entity, [entity, scene = scene](SkinnedMeshComponent& component) {
 			bool b = component.UsedMesh->IsSkinned();
 			ImGui::Checkbox("IsSkinned", &b);
 			ImGui::Text("%llu", (uint64_t)component.RootBone);
 			ImGui::Text("%s", scene->GetEntity(component.RootBone).GetComponent<TagComponent>().Tag.c_str());
-			});
+			DrawMaterialList(component.UsedMaterial);
+		});
 
 		DrawComponent<DirectionalLightComponent>("Directional light", entity, [entity, scene = scene](DirectionalLightComponent& component) {
 			ImGui::ColorEdit3("Color", &component.Color.r);
 			ImGui::DragFloat("Max distance", &component.MaxDistance);
 			ImGui::DragFloat("Split lambda", &component.SplitLambda, 0.005f, 0.0f, 1.0f);
 			ImGui::DragFloat("Fade start", &component.FadeStart, 0.005f, 0.0f, 1.0f);
+
+			ImGui::DragFloat("Cascade 0", &component.SplitDistances[0], 0.005f, 0.0f, 1.0f);
+			ImGui::DragFloat("Cascade 1", &component.SplitDistances[1], 0.005f, 0.0f, 1.0f);
+			ImGui::DragFloat("Cascade 2", &component.SplitDistances[2], 0.005f, 0.0f, 1.0f);
+			ImGui::DragFloat("Cascade 3", &component.SplitDistances[3], 0.005f, 0.0f, 1.0f);
+			ImGui::DragFloat("Light size", &component.LightSize, 0.005f, 0.0f);
 			});
 
 		//Scripts
@@ -448,26 +747,6 @@ namespace Kaidel {
 					ImGui::PushID((int)currentIndex);
 					IsChoosingScript = !entityScripts.empty() && (ImGui::Button("##ScriptChooser", { 15,0 }) || (IsChoosingScript));
 					ImGui::PopID();
-					if (IsChoosingScript && currentChoosingIndex == -1)
-						currentChoosingIndex = currentIndex;
-					if (IsChoosingScript && currentChoosingIndex == currentIndex) {
-						AssetChooserScriptItem acsi(entityScripts);
-						ImGui::Begin("Please Choose A Script", &IsChoosingScript);
-						if (!IsChoosingScript)
-						{
-							currentChoosingIndex = -1;
-						}
-						{
-							std::string res = acsi.Draw();
-							if (!res.empty()) {
-								klassName = res;
-								IsChoosingScript = false;
-								currentChoosingIndex = -1;
-							}
-						}
-						ImGui::End();
-
-					}
 					if (!scriptClassExists) {
 						++currentIndex;
 						continue;

@@ -52,4 +52,27 @@ namespace Kaidel{
 		}
 		VK_CONTEXT.GetBufferStager().StageStorageBuffer(VK_CONTEXT.GetCurrentCommandBuffer(), buffer.Buffer, data, size);
     }
+
+	void* VulkanStorageBuffer::Reserve(uint64_t dataSize)
+	{
+		auto& buffer = m_Buffer;
+		if (buffer.BufferSize < dataSize) {
+			VK_CONTEXT.GetBackend()->DestroyBuffer(buffer);
+
+			buffer = VK_CONTEXT.GetBackend()->CreateBuffer(dataSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+		}
+
+		return VK_CONTEXT.GetBufferStager().Reserve(dataSize);
+	}
+
+	void VulkanStorageBuffer::UploadReserve(const void* reservedStart, uint64_t dataSize)
+	{
+		auto& buffer = m_Buffer;
+
+		VK_CONTEXT.GetBufferStager().
+			UploadReserveStorageBuffer(
+				VK_CONTEXT.GetCurrentCommandBuffer(),
+				buffer.Buffer, (const uint8_t*)reservedStart, dataSize
+			);
+	}
 }

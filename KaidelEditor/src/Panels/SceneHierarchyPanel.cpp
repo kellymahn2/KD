@@ -61,15 +61,15 @@ namespace Kaidel {
 		styler.PushColor(ImGuiCol_HeaderHovered, { 0,0,0,0 });
 		styler.PushColor(ImGuiCol_HeaderActive, { 0,0,0,0 });
 		styler.PushColor(ImGuiCol_Header, { 0,0,0,0 });
-		static float defFont = ImGui::GetFont()->FontSize;
+		static float defFont = ImGui::GetFont()->LegacySize;
 		if (currContext == entity) {
-			ImGui::GetFont()->FontSize -= .8f;
+			ImGui::GetFont()->LegacySize -= .8f;
 			styler.PushColor(ImGuiCol_HeaderHovered, { .2f,.2f,.2f,1.0f });
 			styler.PushColor(ImGuiCol_HeaderActive, { .2f,.2f,.2f,1.0f });
 			styler.PushColor(ImGuiCol_Header, { .2f,.2f,.2f,1.0f });
 		}
 		else
-			ImGui::GetFont()->FontSize = defFont;
+			ImGui::GetFont()->LegacySize = defFont;
 		ImGuiTreeNodeFlags flags = ((currContext == entity) ? ImGuiTreeNodeFlags_Selected : 0) | ImGuiTreeNodeFlags_OpenOnDoubleClick;
 		flags |= ImGuiTreeNodeFlags_SpanAvailWidth;
 		bool opened = false;
@@ -129,11 +129,11 @@ namespace Kaidel {
 					entityDeleted = true;
 				ImGui::EndPopup();
 			}
-			if (ImGui::BeginDragDropSource()) {
+		/*	if (ImGui::BeginDragDropSource()) {
 				ImGui::SetDragDropPayload("ENTITY_PARENT", &entity.GetComponent<IDComponent>(), sizeof(uint64_t));
 				ImGui::EndDragDropSource();
-			}
-			if (ImGui::BeginDragDropTarget()) {
+			}*/
+			/*if (ImGui::BeginDragDropTarget()) {
 				if (auto payload = ImGui::AcceptDragDropPayload("ENTITY_PARENT")) {
 					auto childEntityID= (*(IDComponent*)payload->Data).ID;
 
@@ -154,7 +154,7 @@ namespace Kaidel {
 					childEntity.GetComponent<ChildComponent>().LocalPosition = childEntity.GetComponent<TransformComponent>().Translation
 						- entity.GetComponent<TransformComponent>().Translation;
 				}
-			}
+			}*/
 			if (ImGui::IsItemClicked()) {
 				EditorContext::SelectedEntity(entity);
 			}
@@ -162,7 +162,7 @@ namespace Kaidel {
 			ImGui::PopID();
 		}
 		if (currContext == entity) {
-			ImGui::GetFont()->FontSize =defFont;
+			ImGui::GetFont()->LegacySize = defFont;
 		}
 		
 		if (entityDeleted)

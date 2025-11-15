@@ -14,6 +14,29 @@
 #include "GraphicsAPI/VulkanStorageBuffer.h"
 
 namespace Kaidel {
+
+	namespace Utils {
+		static VkImageMemoryBarrier TransitionMipBarrier(const VulkanBackend::TextureInfo& info, uint32_t mip,
+			VkImageLayout srcLayout, VkAccessFlags srcAccess,
+			VkImageLayout dstLayout, VkAccessFlags dstAccess) {
+
+			VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+			barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.srcAccessMask = srcAccess;
+			barrier.dstAccessMask = dstAccess;
+			barrier.oldLayout = srcLayout;
+			barrier.newLayout = dstLayout;
+			barrier.image = info.ViewInfo.image;
+			barrier.subresourceRange = info.ViewInfo.subresourceRange;
+			barrier.subresourceRange.levelCount = 1;
+			barrier.subresourceRange.baseMipLevel = mip;
+			barrier.subresourceRange.layerCount = info.ImageInfo.arrayLayers;
+
+			return barrier;
+		}
+	}
+
     void VulkanRendererAPI::Init()
     {
     }
@@ -43,7 +66,7 @@ namespace Kaidel {
 		const VkClearValue* clearEnd = rp->GetVkClearValues().data() + rp->GetVkClearValues().size();
 
 		VK_BACKEND->CommandBeginRenderPass(
-			VK_CURRENT_COMMAND_BUFFER,
+			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
 			rp->GetRenderPass(), fb->GetFramebuffer(),
 			VK_SUBPASS_CONTENTS_INLINE,
 			renderArea,
@@ -60,7 +83,7 @@ namespace Kaidel {
 	}
 	void VulkanRendererAPI::EndRenderPass()
     {
-		VK_BACKEND->CommandEndRenderPass(VK_CURRENT_COMMAND_BUFFER);
+		VK_BACKEND->CommandEndRenderPass(m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER);
 
 		uint32_t colorIndex = 0;
 		for (auto& val : m_RenderPassInstance.Framebuffer->GetResources().Textures) {
@@ -77,7 +100,7 @@ namespace Kaidel {
     }
 	void VulkanRendererAPI::NextSubpass()
 	{
-		VK_BACKEND->CommandNextSubpass(VK_CURRENT_COMMAND_BUFFER, VK_SUBPASS_CONTENTS_INLINE);
+		VK_BACKEND->CommandNextSubpass(m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER, VK_SUBPASS_CONTENTS_INLINE);
 	}
 	void VulkanRendererAPI::BindVertexBuffers(std::initializer_list<Ref<VertexBuffer>> buffers, std::initializer_list<uint64_t> offsets)
 	{
@@ -89,7 +112,7 @@ namespace Kaidel {
 		}
 		
 		VK_BACKEND->CommandBindVertexBuffers(
-			VK_CURRENT_COMMAND_BUFFER,
+			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
 			std::initializer_list<const VulkanBackend::BufferInfo*>(vkBuffers, vkBuffers + buffers.size()),
 			offsets
 		);
@@ -98,24 +121,27 @@ namespace Kaidel {
 	{
 		Ref<VulkanIndexBuffer> vkBuffer = buffer;
 		VK_BACKEND->CommandBindIndexBuffer(
-			VK_CURRENT_COMMAND_BUFFER,
+			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
 			vkBuffer->GetBufferInfo(),
 			Utils::IndexTypeToVulkanIndexType(vkBuffer->GetIndexType()),
 			offset);
 	}
     void VulkanRendererAPI::BindGraphicsPipeline(Ref<GraphicsPipeline> pipeline)
     {
+		if (m_CurrentBoundPipeline == pipeline)
+			return;
 		Ref<VulkanGraphicsPipeline> vkPipeline = pipeline;
 		VK_BACKEND->CommandBindGraphicsPipeline(
-			VK_CURRENT_COMMAND_BUFFER,
+			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
 			vkPipeline->GetPipeline()
 		);
+		m_CurrentBoundPipeline = pipeline;
     }
 	void VulkanRendererAPI::BindComputePipeline(Ref<ComputePipeline> pipeline)
 	{
 		Ref<VulkanComputePipeline> vkPipeline = pipeline;
 		VK_BACKEND->CommandBindComputePipeline(
-			VK_CURRENT_COMMAND_BUFFER,
+			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
 			vkPipeline->GetPipeline()
 		);
 	}
@@ -123,7 +149,7 @@ namespace Kaidel {
 	{
 		Ref<VulkanShader> vkShader = shader;
 		VK_BACKEND->CommandBindPushConstants(
-			VK_CURRENT_COMMAND_BUFFER,
+			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
 			vkShader->GetShaderInfo(),
 			firstIndex, values, size
 		);
@@ -133,7 +159,7 @@ namespace Kaidel {
 		Ref<VulkanShader> vkShader = shader;
 		Ref<VulkanDescriptorSet> vkSet = set;
 		VK_BACKEND->CommandBindDescriptorSet(
-			VK_CURRENT_COMMAND_BUFFER,
+			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
 			vkShader->GetShaderInfo(),
 			vkSet->GetSetInfo(),
 			setIndex
@@ -146,7 +172,7 @@ namespace Kaidel {
 		viewport.offset = { offsetX,offsetY };
 
 		VK_BACKEND->CommandSetViewport(
-			VK_CURRENT_COMMAND_BUFFER,
+			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
 			{ viewport }
 		);
 	}
@@ -157,21 +183,21 @@ namespace Kaidel {
 		scissor.offset = { offsetX,offsetY };
 		
 		VK_BACKEND->CommandSetScissor(
-			VK_CURRENT_COMMAND_BUFFER,
+			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
 			{ scissor }
 		);
 	}
 	void VulkanRendererAPI::SetBlendConstants(const float color[4])
 	{
 		VK_BACKEND->CommandSetBlendConstants(
-			VK_CURRENT_COMMAND_BUFFER,
+			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
 			color
 		);
 	}
 	void VulkanRendererAPI::SetLineWidth(float width)
 	{
 		VK_BACKEND->CommandSetLineWidth(
-			VK_CURRENT_COMMAND_BUFFER, 
+			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER, 
 			width
 		);
 	}
@@ -195,7 +221,7 @@ namespace Kaidel {
 		}
 		
 		VK_BACKEND->CommandClearAttachments(
-			VK_CURRENT_COMMAND_BUFFER,
+			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
 			std::initializer_list<VkClearAttachment>(vkClears, vkClears + clearValues.size()),
 			std::initializer_list<VkClearRect>(vkRects, vkRects + clearValues.size())
 		);
@@ -203,21 +229,21 @@ namespace Kaidel {
 	void VulkanRendererAPI::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t vertexOffset, uint32_t instanceOffset)
 	{
 		VK_BACKEND->CommandDraw(
-			VK_CURRENT_COMMAND_BUFFER,
+			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
 			vertexCount, instanceCount, vertexOffset, instanceOffset
 		);
 	}
 	void VulkanRendererAPI::DrawIndexed(uint32_t indexCount, uint32_t vertexCount, uint32_t instanceCount, uint32_t indexOffset, uint32_t vertexOffset, uint32_t instanceOffset)
 	{
 		VK_BACKEND->CommandDrawIndexed(
-			VK_CURRENT_COMMAND_BUFFER,
+			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
 			indexCount,vertexCount,instanceCount,indexOffset,vertexOffset,instanceOffset
 		);
 	}
 	void VulkanRendererAPI::Dispatch(uint32_t x, uint32_t y, uint32_t z)
 	{
 		VK_BACKEND->CommandDispatch(
-			VK_CURRENT_COMMAND_BUFFER,
+			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
 			x, y, z
 		);
 	}
@@ -239,7 +265,7 @@ namespace Kaidel {
 		region.dstSubresource.mipLevel = dstMip;
 
 		VK_BACKEND->CommandCopyTexture(
-			VK_CURRENT_COMMAND_BUFFER,
+			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
 			*srcInfo,
 			Utils::ImageLayoutToVulkanImageLayout(srcTexture->GetTextureSpecification().Layout),
 			*dstInfo,
@@ -253,7 +279,7 @@ namespace Kaidel {
 		const VulkanBackend::TextureInfo* dstInfo = (const VulkanBackend::TextureInfo*)dstTexture->GetBackendInfo();
 
 		VK_BACKEND->CommandResolveTexture(
-			VK_CURRENT_COMMAND_BUFFER,
+			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
 			*srcInfo,
 			Utils::ImageLayoutToVulkanImageLayout(srcTexture->GetTextureSpecification().Layout),
 			srcLayer, srcMip,
@@ -271,7 +297,7 @@ namespace Kaidel {
 		range.layerCount = texture->GetTextureSpecification().Layers;
 		range.levelCount = texture->GetTextureSpecification().Mips;
 		VK_BACKEND->CommandClearColorTexture(
-			VK_CURRENT_COMMAND_BUFFER,
+			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
 			info,
 			Utils::ImageLayoutToVulkanImageLayout(texture->GetTextureSpecification().Layout),
 			(const VkClearColorValue&)clear,
@@ -342,7 +368,7 @@ namespace Kaidel {
 		}
 
 		VK_BACKEND->CommandPipelineBarrier(
-			VK_CURRENT_COMMAND_BUFFER,
+			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
 			vkSrcStages,
 			vkDstStages,
 			std::initializer_list<VkMemoryBarrier>(vkMemoryBarriers, vkMemoryBarriers + memoryBarriers.size()),
@@ -355,7 +381,93 @@ namespace Kaidel {
 			barrier->Image->SetImageLayout(barrier->NewLayout);
 		}
 	}
-    void VulkanRendererAPI::Submit(std::function<void()>&& func)
+
+	void VulkanRendererAPI::Submit(std::function<void()>&& func)
     {
+		m_OverrideCommandBuffer = VK_BACKEND->CreateCommandBuffer(VK_CONTEXT.GetPrimaryCommandPool());
+		VK_BACKEND->CommandBufferBegin(m_OverrideCommandBuffer);
+
+		func();
+
+		VK_BACKEND->CommandBufferEnd(m_OverrideCommandBuffer);
+
+		VK_BACKEND->SubmitCommandBuffers(VK_CONTEXT.GetGraphicsQueue(), { m_OverrideCommandBuffer }, VK_CONTEXT.GetSingleSubmitFence());
+		VK_BACKEND->FenceWait(VK_CONTEXT.GetSingleSubmitFence());
+
+		VK_BACKEND->DestroyCommandBuffer(m_OverrideCommandBuffer, VK_CONTEXT.GetPrimaryCommandPool());
+		m_OverrideCommandBuffer = VK_NULL_HANDLE;
     }
+
+	void VulkanRendererAPI::GenerateMips(const Ref<Texture> texture)
+	{
+		KD_CORE_ASSERT(texture->GetTextureSpecification().Layout == ImageLayout::TransferSrcOptimal);
+
+		auto& specs = texture->GetTextureSpecification();
+
+		auto& info = *(VulkanBackend::TextureInfo*)texture->GetBackendInfo();
+
+		VkCommandBuffer cb = m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER;
+
+		int w = (uint32_t)specs.Width;
+		int h = (uint32_t)specs.Height;
+
+
+		for (uint32_t i = 1; i < specs.Mips; ++i) {
+
+			//Transform mip i to dst.
+			{
+				VkImageMemoryBarrier barrier =
+					Utils::TransitionMipBarrier(
+						info, i,
+						VK_IMAGE_LAYOUT_UNDEFINED, 0,
+						VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT);
+				VK_BACKEND->CommandPipelineBarrier(
+					cb,
+					VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+					VK_PIPELINE_STAGE_TRANSFER_BIT,
+					{},
+					{},
+					{ barrier });
+			}
+			VkImageBlit blit{};
+			blit.srcOffsets[0] = { 0, 0, 0 };
+			blit.srcOffsets[1] = { w, h, 1 };
+			blit.srcSubresource.aspectMask = info.ViewInfo.subresourceRange.aspectMask;
+			blit.srcSubresource.mipLevel = i - 1;
+			blit.srcSubresource.baseArrayLayer = 0;
+			blit.srcSubresource.layerCount = info.ImageInfo.arrayLayers;
+			blit.dstOffsets[0] = { 0, 0, 0 };
+			blit.dstOffsets[1] = { w > 1 ? w / 2 : 1, h > 1 ? h / 2 : 1, 1 };
+			blit.dstSubresource.aspectMask = info.ViewInfo.subresourceRange.aspectMask;
+			blit.dstSubresource.mipLevel = i;
+			blit.dstSubresource.baseArrayLayer = 0;
+			blit.dstSubresource.layerCount = info.ImageInfo.arrayLayers;
+
+			VK_BACKEND->CommandBlitTexture(
+				cb,
+				info, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				info, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				blit);
+
+			//Transform mip i to src for next iteration.
+			{
+				VkImageMemoryBarrier barrier =
+					Utils::TransitionMipBarrier(
+						info, i,
+						VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_TRANSFER_WRITE_BIT,
+						VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT);
+				VK_BACKEND->CommandPipelineBarrier(
+					cb,
+					VK_PIPELINE_STAGE_TRANSFER_BIT,
+					VK_PIPELINE_STAGE_TRANSFER_BIT,
+					{}, {}, { barrier }
+				);
+			}
+
+			if (w > 1)
+				w /= 2;
+			if (h > 1)
+				h /= 2;
+		}
+	}
 }

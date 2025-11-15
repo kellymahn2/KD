@@ -30,9 +30,35 @@ namespace Kaidel {
 			}
 		}
 
+		std::string RemoveEmptyLines(const std::string& s) {
+			std::stringstream input(s);
+			std::string line;
+			std::string result;
+			bool first = true;
+
+			while (std::getline(input, line)) {
+				// Check if line has non-whitespace characters
+				bool non_ws = false;
+				for (char c : line) {
+					if (!std::isspace(static_cast<unsigned char>(c))) {
+						non_ws = true;
+						break;
+					}
+				}
+				if (non_ws) {
+					if (!first) result += '\n';
+					result += line;
+					first = false;
+				}
+			}
+			// Note: trailing newline behavior is preserved by not adding extra at end
+			return result;
+		}
+
 	}
 
 	struct ShaderLibraryData {
+		std::unordered_map<Path, uint64_t> TimeAtLoad;
 		std::unordered_map<Path, Ref<Shader>> Shaders;
 		std::unordered_map<std::string, Ref<Shader>> NamedShaders;
 		Path CachePath;
@@ -89,12 +115,8 @@ namespace Kaidel {
 		s_LibraryData->CachedFileExtension = cacheFileExtension;
 		CreateCacheDirectoryIfNeeded();
 		s_LibraryData->TypeStringsToTypes = {
-			{"vert",ShaderType::VertexShader},
 			{"tcs",ShaderType::TessellationControlShader},
 			{"tes",ShaderType::TessellationEvaluationShader},
-			{"geo",ShaderType::GeometryShader},
-			{"frag",ShaderType::FragmentShader},
-			{"comp",ShaderType::ComputeShader},
 			{"vertex",ShaderType::VertexShader},
 			{"geometry",ShaderType::GeometryShader},
 			{"fragment",ShaderType::FragmentShader},
@@ -125,6 +147,7 @@ namespace Kaidel {
 
 		Ref<Shader> shader = Shader::Create(spirvs);
 
+		s_LibraryData->TimeAtLoad[path] = FileSystem::last_write_time(path).time_since_epoch().count();
 		s_LibraryData->Shaders[path] = shader;
 
 		return shader;
@@ -137,13 +160,21 @@ namespace Kaidel {
 			spirvs = ReadSPIRVsFromCache(path);
 		}
 		else {
-			spirvs = ReadSPIRVsFromFile(path);
-			CreateCache(spirvs, path);
+			try {
+				spirvs = ReadSPIRVsFromFile(path);
+				CreateCache(spirvs, path);
+			}
+			catch(std::exception& e)
+			{ }
+			
 		}
 
 		Ref<Shader> shader = Shader::Create(spirvs);
 
+		s_LibraryData->TimeAtLoad[path] = FileSystem::last_write_time(path).time_since_epoch().count();
+
 		s_LibraryData->NamedShaders[name] = shader;
+		s_LibraryData->Shaders[path] = shader;
 
 		return shader;
 	}
@@ -176,6 +207,83 @@ namespace Kaidel {
 		return LoadShader(name, path);
 	}
 	
+	Ref<Shader> ShaderLibrary::CompileFromSource(const std::string& source)
+	{
+		std::unordered_map<ShaderType, Spirv> spirvs;
+
+		spirvs = ReadSPIRVsFromSource(source, Path("assets/_shaders/"));
+
+		return Shader::Create(spirvs);
+	}
+
+	void ShaderLibrary::UpdateShader(const Path& path)
+	{
+		KD_CORE_ASSERT(ShaderLoaded(path));
+
+		std::unordered_map<ShaderType, Spirv> spirvs = ReadSPIRVsFromFile(path);
+		spirvs = ReadSPIRVsFromFile(path);
+		CreateCache(spirvs, path);
+		
+		s_LibraryData->TimeAtLoad[path] = FileSystem::last_write_time(path).time_since_epoch().count();
+
+		s_LibraryData->Shaders[path]->Update(spirvs);
+	}
+
+	std::unordered_map<Path, Ref<Shader>>& ShaderLibrary::GetAllShaders()
+	{
+		return s_LibraryData->Shaders;
+	}
+
+	uint64_t ShaderLibrary::GetTimeAtLoad(const Path& path)
+	{
+		return s_LibraryData->TimeAtLoad[path];
+	}
+
+	std::unordered_map<std::string, Ref<Shader>> ShaderLibrary::BatchLoad(const std::unordered_map<std::string, Path>& paths)
+	{
+		std::unordered_map<std::string, Ref<Shader>> results;
+
+		for (auto& [name, path] : paths)
+		{
+			results[name] = {};
+		}
+
+		for (auto& [name, path] : paths)
+		{
+			JobSystem::GetMainJobSystem().Execute([&name, &path, &results]() {
+				std::unordered_map<ShaderType, Spirv> spirvs;
+				if (IsCacheValid(path)) {
+					spirvs = ReadSPIRVsFromCache(path);
+				}
+				else {
+					try {
+						spirvs = ReadSPIRVsFromFile(path);
+						CreateCache(spirvs, path);
+					}
+					catch (std::exception& e)
+					{
+					}
+
+				}
+
+				Ref<Shader> shader = Shader::Create(spirvs);
+
+				results[name] = shader;
+			});
+		}
+		
+		JobSystem::GetMainJobSystem().Wait();
+
+		for (auto& [name, shader] : results)
+		{
+			s_LibraryData->Shaders[paths.at(name)] = shader;
+			s_LibraryData->NamedShaders[name] = shader;
+			s_LibraryData->TimeAtLoad[paths.at(name)] = FileSystem::last_write_time(paths.at(name)).time_since_epoch().count();
+		}
+
+		return results;
+	}
+
 	Ref<Shader> ShaderLibrary::UnloadShader(const Path& path)
 	{
 		Ref<Shader> shader = s_LibraryData->Shaders.at(path);
@@ -300,64 +408,94 @@ namespace Kaidel {
 	
 	std::unordered_map<ShaderType, Spirv> ShaderLibrary::ReadSPIRVsFromFile(const Path& path)
 	{
-		KD_CORE_INFO("Compiling shader at: {}", path);
 
 		std::string content = ReadFile(path);
-		shaderc::Compiler comp;
 
-		std::string_view contentView = content;
+		KD_INFO("Compiling shader at: {}", path);
 
-		//Preprocess
-		std::unordered_map<ShaderType, std::string_view> shaderSources;
+		return ReadSPIRVsFromSource(content, path);
+	}
 
-		const char* typeToken = "#type";
-		size_t typeTokenLength = strlen(typeToken);
-		size_t pos = content.find(typeToken, 0);
-		while (pos != std::string::npos) {
-			size_t eol = content.find_first_of("\r\n", pos);
-			KD_CORE_ASSERT(eol != std::string::npos);
-
-			size_t begin = pos + typeTokenLength + 1;
-			
-			std::string type = content.substr(begin, eol - begin);
-
-			size_t nextLinePos = content.find_first_not_of("\r\n", eol);
-			KD_CORE_ASSERT(nextLinePos != std::string::npos);
-			
-			pos = content.find(typeToken, nextLinePos);
-
-			shaderSources[s_LibraryData->TypeStringsToTypes.at(type)] = 
-				(pos == std::string::npos) ? contentView.substr(nextLinePos) : contentView.substr(nextLinePos, pos - nextLinePos);
-		}
+	std::unordered_map<ShaderType, Spirv> ShaderLibrary::ReadSPIRVsFromSource(const std::string& source, const Path& path)
+	{
+		KD_INFO("Compiling shader at: {}", path);
 
 		std::unordered_map<ShaderType, Spirv> spirvs;
 
-		shaderc::Compiler compiler;
-		shaderc::CompileOptions opt;
 
-		opt.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
-		opt.SetGenerateDebugInfo();
-#ifdef  KD_RELEASE 
-		opt.SetOptimizationLevel(shaderc_optimization_level_performance);
-		opt.SetPreserveBindings(true);
-#endif //  KD_RELEASE 
-
-		opt.SetIncluder(CreateScope<ShaderIncluder>());
-		
 		std::string pathStr = path.string();
 
-		for (auto& [type, src] : shaderSources) {
-			shaderc::CompilationResult res = 
-				compiler.CompileGlslToSpv(src.data(), src.size(), Utils::KaidelShaderTypeToShaderCShaderKind(type), pathStr.c_str(), "main", opt);
-			
-			if (res.GetCompilationStatus() != shaderc_compilation_status_success) {
-				KD_CORE_ERROR(res.GetErrorMessage());
-				KD_CORE_ASSERT(false);
+		for (auto& [name, type] : s_LibraryData->TypeStringsToTypes) {
+
+			shaderc::Compiler compiler;
+			if (size_t pos = source.find("#ifdef " + name);
+				pos == std::string::npos)
+			{
+				continue;
 			}
-			
+
+			shaderc::CompileOptions opt;
+
+			opt.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
+			opt.SetGenerateDebugInfo();
+#ifdef  KD_RELEASE 
+			opt.SetOptimizationLevel(shaderc_optimization_level_performance);
+			opt.SetPreserveBindings(true);
+#endif //  KD_RELEASE 
+
+			opt.SetIncluder(CreateScope<ShaderIncluder>());
+
+			opt.AddMacroDefinition(name, "1");
+			auto c = compiler.PreprocessGlsl(source, Utils::KaidelShaderTypeToShaderCShaderKind(type), pathStr.c_str(), opt);
+
+			if (c.GetCompilationStatus() != shaderc_compilation_status_success) {
+				KD_ERROR(c.GetErrorMessage());
+
+				KD_INFO("Shader Code");
+
+				uint32_t lineNum = 0;
+
+				std::string line;
+				std::stringstream preprocessed(std::string(c.begin(), c.end()));
+				while (std::getline(preprocessed, line))
+				{
+					KD_INFO("{} {}", lineNum++, line);
+				}
+
+				KD_ASSERT(false);
+				throw std::exception("Error");
+			}
+
+			std::string lines = std::string(c.begin(), c.end());
+
+			//lines = Utils::RemoveEmptyLines(lines);
+
+			shaderc::CompilationResult res =
+				compiler.CompileGlslToSpv(lines.c_str(), lines.length(), Utils::KaidelShaderTypeToShaderCShaderKind(type), pathStr.c_str(), "main", opt);
+
+			if (res.GetCompilationStatus() != shaderc_compilation_status_success) {
+				KD_ERROR(res.GetErrorMessage());
+
+				KD_INFO("Shader Code");
+
+				uint32_t lineNum = 0;
+
+				std::string line;
+				std::stringstream preprocessed(lines);
+				while (std::getline(preprocessed, line))
+				{
+					//if (std::any_of(line.begin(), line.end(), [](const char& c) { return std::isprint(c); }))
+					KD_INFO("{} {}", lineNum, line);
+					++lineNum;
+				}
+
+				KD_ASSERT(false);
+			}
+
 			spirvs[type] = std::vector<uint32_t>(res.cbegin(), res.cend());
 		}
 
 		return spirvs;
 	}
+
 }

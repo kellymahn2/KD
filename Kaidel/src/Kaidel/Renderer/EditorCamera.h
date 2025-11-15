@@ -18,7 +18,7 @@ namespace Kaidel {
 		float GetFOV()const { return m_FOV; }
 		float GetAspectRatio()const { return m_AspectRatio; }
 
-		void OnUpdate(Timestep ts);
+		void OnUpdate(Timestep ts, bool pan, bool rotate, bool zoom, bool keyMove);
 		void OnEvent(Event& e);
 
 		inline float GetDistance() const { return m_Distance; }
@@ -29,6 +29,11 @@ namespace Kaidel {
 		}
 
 		inline void SetViewportSize(float width, float height) { m_ViewportWidth = width; m_ViewportHeight = height; UpdateProjection(); }
+
+		inline void SetRotationPoint(const glm::vec3& point)
+		{
+			m_RotationPoint = point;
+		}
 
 		const glm::mat4& GetViewMatrix() const { return m_ViewMatrix; }
 		glm::mat4 GetViewProjection() const { return m_Projection * m_ViewMatrix; }
@@ -41,6 +46,9 @@ namespace Kaidel {
 
 		float GetPitch() const { return m_Pitch; }
 		float GetYaw() const { return m_Yaw; }
+
+		float GetNear()const { return m_NearClip; }
+		float GetFar()const { return m_FarClip; }
 	private:
 		void UpdateProjection();
 		void UpdateView();
@@ -62,6 +70,7 @@ namespace Kaidel {
 
 		glm::mat4 m_ViewMatrix;
 		glm::vec3 m_Position = { 0.0f, 0.0f, 0.0f };
+		glm::vec3 m_RotationPoint = glm::vec3(0.0f);
 		glm::vec3 m_FocalPoint = { 0.0f, 0.0f, 0.0f };
 
 		glm::vec2 m_InitialMousePosition = { 0.0f, 0.0f };

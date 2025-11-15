@@ -55,6 +55,15 @@ namespace Kaidel {
 	{
 		return CreateIRCPointer<T, false>(std::forward<Args>(args)...);
 	}
+
+	template<typename T, uint32_t _Count>
+	constexpr std::array<T, _Count> FillArray(const T& val)
+	{
+		std::array<T, _Count> array;
+		array.fill(val);
+		return array;
+	}
+
 	template<typename T>
 	constexpr T Fact(T n) {
 		if (n == static_cast<T>(0))

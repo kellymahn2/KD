@@ -1,0 +1,12 @@
+struct SceneData {
+	mat4 View;
+	mat4 Proj;
+	mat4 ViewProj;
+	vec3 CameraPos;
+	uvec2 ScreenSize;
+	float zNear, zFar;
+	float FOV;
+	float AspectRatio;
+	float Time;
+	float DeltaTime;
+};

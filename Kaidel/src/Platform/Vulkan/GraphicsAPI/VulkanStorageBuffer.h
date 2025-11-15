@@ -13,6 +13,10 @@ namespace Kaidel{
 		virtual void SetData(const void* data,uint64_t size,uint64_t offset) override;
 		const VulkanBackend::BufferInfo& GetBufferInfo()const { return m_Buffer; }
 
+		virtual void* Reserve(uint64_t dataSize) override;
+
+		virtual void UploadReserve(const void* reservedStart, uint64_t dataSize) override;
+
     private:
 		VulkanBackend::BufferInfo m_Buffer;
 		friend class VulkanRendererAPI;
