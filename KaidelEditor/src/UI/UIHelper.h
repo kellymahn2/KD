@@ -4,6 +4,11 @@
 #include <imgui/implot.h>
 #include <vector>
 #include <string>
+#include <functional>
+#include <unordered_map>
+
+#include <imgui/imnodes.h>
+#include <imgui/imnodes_internal.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -186,7 +191,9 @@ namespace Kaidel {
 		ImDrawFlags drawFlags = 0, float v_min = 0.0f, float v_max = 0.0f,
 		const char* format = "%.3f", ImGuiSliderFlags flags = 0);
 
-	void DrawVec3Control(const std::string& label, glm::vec3& values, float resetValue = 0.0f, float columnWidth = 100.0f);
-	void DrawQuatControl(const std::string& label, glm::quat& values, float columnWidth = 100.0f);
+	bool DrawVec2Control(const std::string& label, glm::vec2& values, float resetValue = 0.0f, float columnWidth = 100.0f);
+	bool DrawVec3Control(const std::string& label, glm::vec3& values, float resetValue = 0.0f, float columnWidth = 100.0f);
+	bool DrawVec4Control(const std::string& label, glm::vec4& values, float resetValue = 0.0f, float columnWidth = 100.0f);
+	bool DrawQuatControl(const std::string& label, glm::quat& values, float columnWidth = 100.0f);
 }
 

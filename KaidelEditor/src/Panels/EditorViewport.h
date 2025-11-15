@@ -28,13 +28,13 @@ namespace Kaidel
 			m_EditorCamera.SetDistance(3.0f);
 		}
 
-		void OnImGuiRender(const glm::mat4& model, Ref<Material> mat)
+		void OnImGuiRender(const glm::mat4& model, Ref<MaterialInstance> mat)
 		{
 			ImGui::PushID(this);
 
 			Styler styler;
 			styler.PushStyle(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-			if (ImGui::BeginChild("##Viewport", ImVec2(m_Width, m_Height), ImGuiChildFlags_ResizeX | ImGuiChildFlags_ResizeY | ImGuiChildFlags_Border, ImGuiWindowFlags_NoTitleBar))
+			if (ImGui::BeginChild("##Viewport", ImVec2(m_Width, m_Height), ImGuiChildFlags_ResizeX | ImGuiChildFlags_ResizeY | ImGuiChildFlags_Borders, ImGuiWindowFlags_NoTitleBar))
 			{
 
 				static float rotate = 0.0f;
@@ -44,9 +44,9 @@ namespace Kaidel
 
 				UpdateViewportSize();
 
-				m_EditorCamera.OnUpdate(ImGui::GetIO().DeltaTime, false, true, false, false);
+				m_EditorCamera.OnUpdate(ImGui::GetIO().DeltaTime, false, m_ViewportHovered, false, false);
 
-				SceneData sceneData{};
+				SceneData sceneData;
 				sceneData.AspectRatio = m_EditorCamera.GetAspectRatio();
 				sceneData.CameraPos = glm::vec4(m_EditorCamera.GetPosition(), 1.0f);
 				sceneData.FOV = m_EditorCamera.GetFOV();
@@ -85,8 +85,6 @@ namespace Kaidel
 				m_ViewportFocused = ImGui::IsWindowFocused();
 				m_ViewportHovered = ImGui::IsWindowHovered();
 
-				ImGui::DragFloat("Rotate", &rotate, 0.5f);
-				//ImGui::Text("%.3f, %.3f, %.3f", m_EditorCamera.GetPosition().x, m_EditorCamera.GetPosition().y, m_EditorCamera.GetPosition().z);
 			}
 
 			ImGui::EndChild();

@@ -30,6 +30,31 @@ namespace Kaidel {
 			}
 		}
 
+		std::string RemoveEmptyLines(const std::string& s) {
+			std::stringstream input(s);
+			std::string line;
+			std::string result;
+			bool first = true;
+
+			while (std::getline(input, line)) {
+				// Check if line has non-whitespace characters
+				bool non_ws = false;
+				for (char c : line) {
+					if (!std::isspace(static_cast<unsigned char>(c))) {
+						non_ws = true;
+						break;
+					}
+				}
+				if (non_ws) {
+					if (!first) result += '\n';
+					result += line;
+					first = false;
+				}
+			}
+			// Note: trailing newline behavior is preserved by not adding extra at end
+			return result;
+		}
+
 	}
 
 	struct ShaderLibraryData {
@@ -182,6 +207,15 @@ namespace Kaidel {
 		return LoadShader(name, path);
 	}
 	
+	Ref<Shader> ShaderLibrary::CompileFromSource(const std::string& source)
+	{
+		std::unordered_map<ShaderType, Spirv> spirvs;
+
+		spirvs = ReadSPIRVsFromSource(source, Path("assets/_shaders/"));
+
+		return Shader::Create(spirvs);
+	}
+
 	void ShaderLibrary::UpdateShader(const Path& path)
 	{
 		KD_CORE_ASSERT(ShaderLoaded(path));
@@ -195,7 +229,7 @@ namespace Kaidel {
 		s_LibraryData->Shaders[path]->Update(spirvs);
 	}
 
-	std::unordered_map<Kaidel::Path, Kaidel::Ref<Kaidel::Shader>>& ShaderLibrary::GetAllShaders()
+	std::unordered_map<Path, Ref<Shader>>& ShaderLibrary::GetAllShaders()
 	{
 		return s_LibraryData->Shaders;
 	}
@@ -374,21 +408,27 @@ namespace Kaidel {
 	
 	std::unordered_map<ShaderType, Spirv> ShaderLibrary::ReadSPIRVsFromFile(const Path& path)
 	{
-		KD_INFO("Compiling shader at: {}", path);
 
 		std::string content = ReadFile(path);
-		shaderc::Compiler comp;
+
+		KD_INFO("Compiling shader at: {}", path);
+
+		return ReadSPIRVsFromSource(content, path);
+	}
+
+	std::unordered_map<ShaderType, Spirv> ShaderLibrary::ReadSPIRVsFromSource(const std::string& source, const Path& path)
+	{
+		KD_INFO("Compiling shader at: {}", path);
 
 		std::unordered_map<ShaderType, Spirv> spirvs;
-		
-		shaderc::Compiler compiler;
-		
-		
+
+
 		std::string pathStr = path.string();
 
-		for (auto&[name, type] : s_LibraryData->TypeStringsToTypes) {
+		for (auto& [name, type] : s_LibraryData->TypeStringsToTypes) {
 
-			if (size_t pos = content.find("#ifdef " + name); 
+			shaderc::Compiler compiler;
+			if (size_t pos = source.find("#ifdef " + name);
 				pos == std::string::npos)
 			{
 				continue;
@@ -398,15 +438,15 @@ namespace Kaidel {
 
 			opt.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
 			opt.SetGenerateDebugInfo();
-			#ifdef  KD_RELEASE 
-					opt.SetOptimizationLevel(shaderc_optimization_level_performance);
-					opt.SetPreserveBindings(true);
-			#endif //  KD_RELEASE 
+#ifdef  KD_RELEASE 
+			opt.SetOptimizationLevel(shaderc_optimization_level_performance);
+			opt.SetPreserveBindings(true);
+#endif //  KD_RELEASE 
 
 			opt.SetIncluder(CreateScope<ShaderIncluder>());
 
 			opt.AddMacroDefinition(name, "1");
-			auto c = compiler.PreprocessGlsl(content, Utils::KaidelShaderTypeToShaderCShaderKind(type), pathStr.c_str(), opt);
+			auto c = compiler.PreprocessGlsl(source, Utils::KaidelShaderTypeToShaderCShaderKind(type), pathStr.c_str(), opt);
 
 			if (c.GetCompilationStatus() != shaderc_compilation_status_success) {
 				KD_ERROR(c.GetErrorMessage());
@@ -422,13 +462,17 @@ namespace Kaidel {
 					KD_INFO("{} {}", lineNum++, line);
 				}
 
-				KD_CORE_ASSERT(false);
+				KD_ASSERT(false);
 				throw std::exception("Error");
 			}
 
-			shaderc::CompilationResult res = 
-				compiler.CompileGlslToSpv(c.begin(), c.end() - c.begin(), Utils::KaidelShaderTypeToShaderCShaderKind(type), pathStr.c_str(), "main", opt);
-			
+			std::string lines = std::string(c.begin(), c.end());
+
+			//lines = Utils::RemoveEmptyLines(lines);
+
+			shaderc::CompilationResult res =
+				compiler.CompileGlslToSpv(lines.c_str(), lines.length(), Utils::KaidelShaderTypeToShaderCShaderKind(type), pathStr.c_str(), "main", opt);
+
 			if (res.GetCompilationStatus() != shaderc_compilation_status_success) {
 				KD_ERROR(res.GetErrorMessage());
 
@@ -437,21 +481,21 @@ namespace Kaidel {
 				uint32_t lineNum = 0;
 
 				std::string line;
-				std::stringstream preprocessed(std::string(c.begin(), c.end()));
+				std::stringstream preprocessed(lines);
 				while (std::getline(preprocessed, line))
 				{
-					if(std::any_of(line.begin(), line.end(), [](const char& c){ return std::isprint(c);}))
-						KD_INFO("{} {}", lineNum, line);
+					//if (std::any_of(line.begin(), line.end(), [](const char& c) { return std::isprint(c); }))
+					KD_INFO("{} {}", lineNum, line);
 					++lineNum;
 				}
 
-				KD_CORE_ASSERT(false);
-				throw std::exception("Error");
+				KD_ASSERT(false);
 			}
-			
+
 			spirvs[type] = std::vector<uint32_t>(res.cbegin(), res.cend());
 		}
 
 		return spirvs;
 	}
+
 }

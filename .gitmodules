@@ -25,6 +25,3 @@
 [submodule "Kaidel/vendor/meshoptimizer"]
 	path = Kaidel/vendor/meshoptimizer
 	url = https://github.com/zeux/meshoptimizer
-[submodule "Kaidel/vendor/imgui"]
-	path = Kaidel/vendor/imgui
-	url = https://github.com/ocornut/imgui.git

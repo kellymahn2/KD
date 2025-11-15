@@ -1,4 +1,6 @@
 #include "UIHelper.h"
+#include <imgui/imnodes.h>
+#include <imgui/imnodes_internal.h>
 
 namespace Kaidel {
 
@@ -184,7 +186,62 @@ namespace Kaidel {
 		return DragScalar(label, ImGuiDataType_Float, v, v_speed, &v_min, &v_max, format, flags, drawFlags);
 	}
 
-	void DrawVec3Control(const std::string& label, glm::vec3& values, float resetValue, float columnWidth)
+	bool DrawVec2Control(const std::string& label, glm::vec2& values, float resetValue, float columnWidth)
+	{
+		ImGuiIO& io = ImGui::GetIO();
+		auto boldFont = io.Fonts->Fonts[0];
+
+		ImGui::PushID(label.c_str());
+
+		ImGui::Columns(2);
+		ImGui::SetColumnWidth(0, columnWidth);
+		ImGui::Text(label.c_str());
+		ImGui::NextColumn();
+		ImGui::PushMultiItemsWidths(2, ImGui::CalcItemWidth());
+
+		float lineHeight = GImGui->Font->LegacySize + GImGui->Style.FramePadding.y * 2.0f;
+		ImVec2 buttonSize = { lineHeight + 2.0f, lineHeight };
+
+		bool changed = false;
+
+		auto controlLambda = [&](float* v, const char* buttonText, const char* dragText, const ImVec4* buttonColors) {
+			ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f);
+			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0,2.0f });
+			ImGui::PushStyleColor(ImGuiCol_Button, buttonColors[0]);
+			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, buttonColors[1]);
+			ImGui::PushStyleColor(ImGuiCol_ButtonActive, buttonColors[2]);
+			ImGui::PushFont(boldFont);
+			if (ButtonEx(buttonText, buttonSize, ImDrawFlags_RoundCornersBottomLeft | ImDrawFlags_RoundCornersTopLeft))
+			{
+				*v = resetValue;
+				changed = true;
+			}
+			ImGui::PopFont();
+			ImGui::PopStyleColor(3);
+			ImGui::SameLine();
+			if (DragFloat(dragText, v, 0.1f, ImDrawFlags_RoundCornersBottomRight | ImDrawFlags_RoundCornersTopRight, 0.0f, 0.0f, "%.2f"))
+			{
+				changed = true;
+			}
+			ImGui::PopStyleVar(2);
+			ImGui::PopItemWidth();
+
+			};
+		const ImVec4 xColors[3] = { ImVec4{0.8f, 0.1f, 0.15f, 1.0f},ImVec4{0.9f, 0.2f, 0.2f, 1.0f},ImVec4{0.8f, 0.1f, 0.15f, 1.0f} };
+		const ImVec4 yColors[3] = { ImVec4{ 0.2f, 0.7f, 0.2f, 1.0f},ImVec4{0.3f, 0.8f, 0.3f, 1.0f},ImVec4{0.2f, 0.7f, 0.2f, 1.0f} };
+
+		controlLambda(&values.x, "X", "##X", xColors);
+		ImGui::SameLine(0.0f, 5.0f);
+		controlLambda(&values.y, "Y", "##Y", yColors);
+
+		ImGui::Columns(1);
+
+		ImGui::PopID();
+
+		return changed;
+	}
+
+	bool DrawVec3Control(const std::string& label, glm::vec3& values, float resetValue, float columnWidth)
 	{
 		ImGuiIO& io = ImGui::GetIO();
 		auto boldFont = io.Fonts->Fonts[0];
@@ -197,9 +254,11 @@ namespace Kaidel {
 		ImGui::NextColumn();
 		ImGui::PushMultiItemsWidths(3, ImGui::CalcItemWidth());
 
+		bool changed = false;
+
 		float lineHeight = GImGui->Font->LegacySize + GImGui->Style.FramePadding.y * 2.0f;
 		ImVec2 buttonSize = { lineHeight + 2.0f, lineHeight };
-		static auto controlLambda = [&](float* v, const char* buttonText, const char* dragText, const ImVec4* buttonColors) {
+		auto controlLambda = [&](float* v, const char* buttonText, const char* dragText, const ImVec4* buttonColors) {
 			ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f);
 			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0,2.0f });
 			ImGui::PushStyleColor(ImGuiCol_Button, buttonColors[0]);
@@ -207,11 +266,17 @@ namespace Kaidel {
 			ImGui::PushStyleColor(ImGuiCol_ButtonActive, buttonColors[2]);
 			ImGui::PushFont(boldFont);
 			if (ButtonEx(buttonText, buttonSize, ImDrawFlags_RoundCornersBottomLeft | ImDrawFlags_RoundCornersTopLeft))
+			{
 				*v = resetValue;
+				changed = true;
+			}
 			ImGui::PopFont();
 			ImGui::PopStyleColor(3);
 			ImGui::SameLine();
-			DragFloat(dragText, v, 0.1f, ImDrawFlags_RoundCornersBottomRight | ImDrawFlags_RoundCornersTopRight, 0.0f, 0.0f, "%.2f");
+			if (DragFloat(dragText, v, 0.1f, ImDrawFlags_RoundCornersBottomRight | ImDrawFlags_RoundCornersTopRight, 0.0f, 0.0f, "%.2f"))
+			{
+				changed = true;
+			}
 			ImGui::PopStyleVar(2);
 			ImGui::PopItemWidth();
 
@@ -230,9 +295,11 @@ namespace Kaidel {
 		ImGui::Columns(1);
 
 		ImGui::PopID();
+
+		return changed;
 	}
 
-	void DrawQuatControl(const std::string& label, glm::quat& values, float columnWidth)
+	bool DrawVec4Control(const std::string& label, glm::vec4& values, float resetValue, float columnWidth)
 	{
 		ImGuiIO& io = ImGui::GetIO();
 		auto boldFont = io.Fonts->Fonts[0];
@@ -245,9 +312,11 @@ namespace Kaidel {
 		ImGui::NextColumn();
 		ImGui::PushMultiItemsWidths(4, ImGui::CalcItemWidth());
 
+		bool changed = false;
+
 		float lineHeight = GImGui->Font->LegacySize + GImGui->Style.FramePadding.y * 2.0f;
 		ImVec2 buttonSize = { lineHeight + 2.0f, lineHeight };
-		static auto controlLambda = [&](float* v, const char* buttonText, const char* dragText, const ImVec4* buttonColors, float resetValue) {
+		auto controlLambda = [&](float* v, const char* buttonText, const char* dragText, const ImVec4* buttonColors) {
 			ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f);
 			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0,2.0f });
 			ImGui::PushStyleColor(ImGuiCol_Button, buttonColors[0]);
@@ -255,11 +324,77 @@ namespace Kaidel {
 			ImGui::PushStyleColor(ImGuiCol_ButtonActive, buttonColors[2]);
 			ImGui::PushFont(boldFont);
 			if (ButtonEx(buttonText, buttonSize, ImDrawFlags_RoundCornersBottomLeft | ImDrawFlags_RoundCornersTopLeft))
+			{
 				*v = resetValue;
+				changed = true;
+			}
 			ImGui::PopFont();
 			ImGui::PopStyleColor(3);
 			ImGui::SameLine();
-			DragFloat(dragText, v, 0.1f, ImDrawFlags_RoundCornersBottomRight | ImDrawFlags_RoundCornersTopRight, 0.0f, 0.0f, "%.2f");
+			if (DragFloat(dragText, v, 0.1f, ImDrawFlags_RoundCornersBottomRight | ImDrawFlags_RoundCornersTopRight, 0.0f, 0.0f, "%.2f"))
+			{
+				changed = true;
+			}
+			ImGui::PopStyleVar(2);
+			ImGui::PopItemWidth();
+
+			};
+		const ImVec4 xColors[3] = { ImVec4{0.8f, 0.1f, 0.15f, 1.0f},ImVec4{0.9f, 0.2f, 0.2f, 1.0f},ImVec4{0.8f, 0.1f, 0.15f, 1.0f} };
+		const ImVec4 yColors[3] = { ImVec4{ 0.2f, 0.7f, 0.2f, 1.0f},ImVec4{0.3f, 0.8f, 0.3f, 1.0f},ImVec4{0.2f, 0.7f, 0.2f, 1.0f} };
+		const ImVec4 zColors[3] = { ImVec4{0.1f, 0.25f, 0.8f, 1.0f},ImVec4{0.2f, 0.35f, 0.9f, 1.0f},ImVec4{0.1f, 0.25f, 0.8f, 1.0f} };
+		const ImVec4 wColors[3] = { ImVec4{0.84f, 0.9f, 0.70f, 1.0f},ImVec4{0.94f, 1.0f, 0.80f, 1.0f},ImVec4{0.84f, 0.9f, 0.70f, 1.0f} };
+
+
+		controlLambda(&values.x, "X", "##X", xColors);
+		ImGui::SameLine(0.0f, 5.0f);
+		controlLambda(&values.y, "Y", "##Y", yColors);
+		ImGui::SameLine(0.0f, 5.0f);
+		controlLambda(&values.z, "Z", "##Z", zColors);
+		ImGui::SameLine(0.0f, 5.0f);
+		controlLambda(&values.w, "W", "##W", wColors);
+
+
+		ImGui::Columns(1);
+
+		ImGui::PopID();
+
+		return changed;
+	}
+
+	bool DrawQuatControl(const std::string& label, glm::quat& values, float columnWidth)
+	{
+		ImGuiIO& io = ImGui::GetIO();
+		auto boldFont = io.Fonts->Fonts[0];
+
+		ImGui::PushID(label.c_str());
+
+		ImGui::Columns(2);
+		ImGui::SetColumnWidth(0, columnWidth);
+		ImGui::Text(label.c_str());
+		ImGui::NextColumn();
+		ImGui::PushMultiItemsWidths(4, ImGui::CalcItemWidth());
+
+		bool changed = false;
+
+		float lineHeight = GImGui->Font->LegacySize + GImGui->Style.FramePadding.y * 2.0f;
+		ImVec2 buttonSize = { lineHeight + 2.0f, lineHeight };
+		auto controlLambda = [&](float* v, const char* buttonText, const char* dragText, const ImVec4* buttonColors, float resetValue) {
+			ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 8.0f);
+			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0,2.0f });
+			ImGui::PushStyleColor(ImGuiCol_Button, buttonColors[0]);
+			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, buttonColors[1]);
+			ImGui::PushStyleColor(ImGuiCol_ButtonActive, buttonColors[2]);
+			ImGui::PushFont(boldFont);
+			if (ButtonEx(buttonText, buttonSize, ImDrawFlags_RoundCornersBottomLeft | ImDrawFlags_RoundCornersTopLeft))
+			{
+				*v = resetValue;
+				changed = true;
+			}
+			ImGui::PopFont();
+			ImGui::PopStyleColor(3);
+			ImGui::SameLine();
+			if (DragFloat(dragText, v, 0.1f, ImDrawFlags_RoundCornersBottomRight | ImDrawFlags_RoundCornersTopRight, 0.0f, 0.0f, "%.2f"))
+				changed = true;
 			ImGui::PopStyleVar(2);
 			ImGui::PopItemWidth();
 
@@ -280,6 +415,8 @@ namespace Kaidel {
 		ImGui::Columns(1);
 
 		ImGui::PopID();
+
+		return changed;
 	}
 
 }

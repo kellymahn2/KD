@@ -145,7 +145,7 @@ namespace Kaidel {
 
 		Ref<Texture> Output;
 
-		Ref<Material> m_LastMat;
+		Ref<MaterialInstance> m_LastMat;
 		Renderer3DRenderParams m_LastParams;
 
 		PerViewportData<ViewportStorageBuffers> StorageBuffers;
@@ -504,6 +504,10 @@ namespace Kaidel {
 
 		RenderCommand::BeginRenderPass(deferred.Pass, deferred.GBuffers, {});
 
+		RenderCommand::BindDescriptorSet(deferred.Shader, RendererGlobals::GetSamplerSet(), 0);
+		RenderCommand::BindDescriptorSet(deferred.Shader, s_Data->SceneDataSet, 1);
+		RenderCommand::BindDescriptorSet(deferred.Shader, s_Data->StorageBuffers[s_Data->CurrentViewport].InstanceDataSet, 2);
+
 		auto& viewport = s_Data->ViewportSize[s_Data->CurrentViewport];
 		RenderCommand::SetViewport(viewport.RenderWidth, viewport.RenderHeight, 0, 0);
 		RenderCommand::SetScissor(viewport.RenderWidth, viewport.RenderHeight, 0, 0);
@@ -516,6 +520,7 @@ namespace Kaidel {
 		s_Data->CurrentBatchSize = 0;
 
 		s_Data->m_LastParams = {};
+
 	}
 
 	void Renderer3D::UploadInstanceData(const std::vector<InstanceData>& instances, Ref<StorageBuffer> buffer, Ref<DescriptorSet> set)
@@ -532,7 +537,7 @@ namespace Kaidel {
 		set->Update(buffer, 0);
 	}
 
-	void Renderer3D::Draw(const Renderer3DRenderParams& params, Ref<Material> material)
+	void Renderer3D::Draw(const Renderer3DRenderParams& params, Ref<MaterialInstance> material)
 	{
 
 		//SCOPED_ACCU_TIMER("Draw");
@@ -569,7 +574,7 @@ namespace Kaidel {
 		DrawBatch(true);
 	}
 
-	void Renderer3D::DrawSubmesh(const Renderer3DRenderParams& params, Ref<Material> material)
+	void Renderer3D::DrawSubmesh(const Renderer3DRenderParams& params, Ref<MaterialInstance> material)
 	{
 		//SCOPED_ACCU_TIMER("DrawSubmesh");
 		s_Data->m_LastMat = material;
@@ -912,11 +917,13 @@ namespace Kaidel {
 
 			
 			s_Data->m_LastMat->BindPipeline();
-			s_Data->m_LastMat->BindValues();
-			s_Data->m_LastMat->BindSceneData(s_Data->SceneDataSet);
-			s_Data->m_LastMat->BindInstanceData(s_Data->StorageBuffers[s_Data->CurrentViewport].InstanceDataSet);
+			s_Data->m_LastMat->BindDescriptors();
+			//s_Data->m_LastMat->BindSceneData(s_Data->SceneDataSet);
+			//s_Data->m_LastMat->BindInstanceData(s_Data->StorageBuffers[s_Data->CurrentViewport].InstanceDataSet);
+			//s_Data->m_LastMat->BindInstanceOffset((uint32_t)s_Data->InstanceOffset);
 
 			RenderCommand::BindPushConstants(s_Data->m_LastMat->GetShader(), 0, (uint32_t)s_Data->InstanceOffset);
+
 			RenderCommand::DrawIndexed(params.IndexCount, params.VertexCount, s_Data->CurrentBatchSize,
 				params.IndexOffset, params.VertexOffset, 0);
 

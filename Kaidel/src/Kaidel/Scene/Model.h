@@ -144,7 +144,7 @@ namespace Kaidel {
 		uint32_t IndexOffset;
 		uint32_t VertexCount;
 		uint32_t IndexCount;
-		Ref<Material> DefaultMaterial;
+		Ref<MaterialInstance> DefaultMaterial;
 	};
 
 	extern Ref<RenderPass> GetDeferredPassRenderPass();

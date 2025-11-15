@@ -18,6 +18,8 @@ namespace Kaidel {
 
 		virtual void BindPipeline(Ref<GraphicsPipeline> pipeline) override;
 
+		virtual const ShaderReflection& GetReflection() const override { return m_Shader.Reflection; }
+
 	private:
 		VulkanBackend::ShaderInfo m_Shader;
 		std::vector<Ref<GraphicsPipeline>> m_Pipelines;

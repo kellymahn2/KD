@@ -1,1 +1,209 @@
 const float PI = 3.1415926535897932384626433832795;
+
+float _EaseLinear(float t)
+{
+	return t;
+}
+
+float _EaseSineIn(float t)
+{
+	return 1.0 - cos((t * PI) * 0.5);
+}
+
+float _EaseSineOut(float t)
+{
+	return sin((t * PI) * 0.5);
+}
+
+float _EaseSine(float t)
+{
+	return -(cos(PI * t) - 1.0) * 0.5;
+}
+
+float _EaseQuadIn(float t)
+{
+	return t * t;
+}
+
+float _EaseQuadOut(float t)
+{
+	float x = 1.0 - t;
+	return 1.0 - x * x;
+}
+
+float _EaseQuad1(float t)
+{
+	return 2.0 * t * t;
+}
+
+float _EaseQuad2(float t)
+{
+	float x = -2.0 * t + 2.0;
+	return 1.0 - x * x * 0.5;
+}
+
+float _EaseQuad(float t)
+{
+	return mix(_EaseQuad1(t), _EaseQuad2(t), step(0.5, t));
+}
+
+float _EaseCubicIn(float t)
+{
+	return t * t * t;
+}
+
+float _EaseCubicOut(float t)
+{
+	float x = 1.0 - t;
+	return 1.0 - x * x * x;
+}
+
+float _EaseCubic1(float t)
+{
+	return 4.0 * t * t * t;
+}
+
+float _EaseCubic2(float t)
+{
+	float x = -2.0 * t + 2.0;
+	return 1.0 - x * x * x * 0.5;
+}
+
+float _EaseCubic(float t)
+{
+	return mix(_EaseCubic1(t), _EaseCubic2(t), step(0.5, t));
+}
+
+float _EaseExpoIn2(float t)
+{
+	return pow(2, 10.0 * t - 10.0);	
+}
+
+float _EaseExpoIn(float t)
+{
+	return t == 0.0 ? 0.0 : _EaseExpoIn2(t);
+}
+
+float _EaseExpoOut2(float t)
+{
+	return 1.0 - pow(2, -10.0 * t);	
+}
+
+float _EaseExpoOut(float t)
+{
+	return t == 1.0 ? 1.0 : _EaseExpoOut2(t);
+}
+
+float _EaseExpo(float t)
+{
+	return t == 0.0
+	  ? 0.0
+	  : t == 1.0
+	  ? 1.0
+	  : t < 0.5 ? pow(2.0, 20.0 * t - 10.0) * 0.5
+	  : (2.0 - pow(2.0, -20.0 * t + 10.0)) * 0.5;
+}
+
+
+float _EaseCircIn(float t)
+{
+	return 1.0 - sqrt(1.0 - t * t);
+}
+
+float _EaseCircOut(float t)
+{
+	float x = t - 1.0;
+	return sqrt(1.0 - x * x);
+}
+
+float _EaseCirc1(float t)
+{
+	float x = 2.0 * t;
+	return (1.0 - sqrt(1.0 - x * x)) * 0.5;
+}
+
+float _EaseCirc2(float t)
+{
+	float x = -2.0 * t + 2.0;
+	return (sqrt(1.0 - x * x) + 1.0) * 0.5;
+}
+
+float _EaseCirc(float t)
+{
+	return mix(_EaseCirc1(t), _EaseCirc2(t), step(0.5, t));
+}
+
+float _EaseBounceOut(float t)
+{
+	const float n1 = 7.5625;
+	const float d1 = 2.75;
+
+	const float d1Rec = 0.3636;
+
+	if (t < d1Rec) {
+	    return n1 * t * t;
+	} else if (t < 2.0 * d1Rec) {
+	    return n1 * (t -= 1.5 * d1Rec) * t + 0.75;
+	} else if (t < 2.5 * d1Rec) {
+	    return n1 * (t -= 2.25 * d1Rec) * t + 0.9375;
+	} else {
+	    return n1 * (t -= 2.625 * d1Rec) * t + 0.984375;
+	}
+}
+
+float _EaseBounceIn(float t)
+{
+	return 1.0 - _EaseBounceOut(1.0 - t);
+}
+
+
+float _EaseBounce1(float t)
+{
+	float x = 1.0 - 2 * t;
+	return (1.0 - _EaseBounceOut(x)) * 0.5;
+}
+
+float _EaseBounce2(float t)
+{
+	float x = 2.0 * t - 1.0;
+	return (1.0 + _EaseBounceOut(x)) * 0.5;
+}
+
+float _EaseBounce(float t)
+{
+	return mix(_EaseBounce1(t), _EaseBounce2(t), step(0.5, t));
+}
+
+
+#define DEFINE_INTERP_FUNC_TYPED(type, name, interpName) \
+	type name(type a, type b, float t) \
+	{ \
+		return mix(a, b, interpName(t)); \
+	}
+
+#define DEFINE_INTERP_FUNC(name, interpName) \
+	DEFINE_INTERP_FUNC_TYPED(float, name, interpName) \
+	DEFINE_INTERP_FUNC_TYPED(vec2, name, interpName) \
+	DEFINE_INTERP_FUNC_TYPED(vec3, name, interpName) \
+	DEFINE_INTERP_FUNC_TYPED(vec4, name, interpName)
+
+DEFINE_INTERP_FUNC(InterpLinear, _EaseLinear)
+DEFINE_INTERP_FUNC(InterpSineIn, _EaseSineIn)
+DEFINE_INTERP_FUNC(InterpSineOut, _EaseSineOut)
+DEFINE_INTERP_FUNC(InterpSine, _EaseSine)
+DEFINE_INTERP_FUNC(InterpQuadIn, _EaseQuadIn)
+DEFINE_INTERP_FUNC(InterpQuadOut, _EaseQuadOut)
+DEFINE_INTERP_FUNC(InterpQuad, _EaseQuad)
+DEFINE_INTERP_FUNC(InterpCubicIn, _EaseCubicIn)
+DEFINE_INTERP_FUNC(InterpCubicOut, _EaseCubicOut)
+DEFINE_INTERP_FUNC(InterpCubic, _EaseCubic)
+DEFINE_INTERP_FUNC(InterpExpoIn, _EaseExpoIn)
+DEFINE_INTERP_FUNC(InterpExpoOut, _EaseExpoOut)
+DEFINE_INTERP_FUNC(InterpExpo, _EaseExpo)
+DEFINE_INTERP_FUNC(InterpCircIn, _EaseCircIn)
+DEFINE_INTERP_FUNC(InterpCircOut, _EaseCircOut)
+DEFINE_INTERP_FUNC(InterpCirc, _EaseCirc)
+DEFINE_INTERP_FUNC(InterpBounceIn, _EaseBounceIn)
+DEFINE_INTERP_FUNC(InterpBounceOut, _EaseBounceOut)
+DEFINE_INTERP_FUNC(InterpBounce, _EaseBounce)
+

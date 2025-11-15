@@ -97,7 +97,7 @@ namespace Kaidel {
 		m_Values.resize(set.Bindings.size());
 		for (uint32_t i = 0; i < set.Bindings.size(); ++i) {
 			m_Values[i].resize(set.Bindings.at(i).Count);
-			m_DescriptorTypes.push_back(set.Bindings.at(i).Type);
+			m_DescriptorTypes.push_back(Utils::DescriptorTypeToVulkanDescriptorType(set.Bindings.at(i).Type));
 		}
 		m_NamesToBindings = set.NameToBinding;
 	}

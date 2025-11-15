@@ -66,6 +66,10 @@ namespace Kaidel {
 		void ExecuteMainThreadQueue();
 
 		uint64_t GetCurrentFrameNumber()const { return m_FrameNumber; }
+
+		float GetDeltaTime() const { return m_DeltaTime; }
+		float GetRunningTime() const { return m_RunningTime; }
+
 	private:
 		void OnUpdate();
 
@@ -82,9 +86,11 @@ namespace Kaidel {
 		bool m_Running = true;
 		bool m_Minimized = false;
 		LayerStack m_LayerStack;
-		float m_LastFrameTime = 0.0f;
 		std::mutex m_AppThreadQueueMutex;
 		std::vector<std::function<void()>>m_AppThreadQueue;
+		float m_LastFrameTime = 0.0f;
+		float m_RunningTime = 0.0f;
+		float m_DeltaTime = 0.0f;
 		uint64_t m_FrameNumber = 0;
 	private:
 		static Application* s_Instance;

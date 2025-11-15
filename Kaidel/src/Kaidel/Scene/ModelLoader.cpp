@@ -237,7 +237,7 @@ namespace Kaidel {
 		return mesh;
 	}
 
-	Ref<Material> ModelLoader::ProcessMaterial(const aiMesh* mesh, const aiMaterial* material)
+	Ref<StandardMaterialInstance> ModelLoader::ProcessMaterial(const aiMesh* mesh, const aiMaterial* material)
 	{
 		//SCOPED_TIMER("ProcessMaterial");
 		std::vector<std::pair<uint32_t, std::string>> texturePaths;
@@ -306,7 +306,7 @@ namespace Kaidel {
 			albedo = TextureLibrary::Load(m_Model->m_ModelDir / pathStr, ImageLayout::ShaderReadOnlyOptimal, Format::RGBA8UN);
 
 			{
-				uint32_t type = (uint32_t)MaterialTextureType::Albedo;
+				uint32_t type = (uint32_t)StandardMaterialInstance::MaterialTextureType::Albedo;
 				texturePaths.push_back({ type, pathStr });
 			}
 		}
@@ -322,7 +322,7 @@ namespace Kaidel {
 			metallic = TextureLibrary::Load(m_Model->m_ModelDir / pathStr, ImageLayout::ShaderReadOnlyOptimal, Format::RGBA32F);
 
 			{
-				uint32_t type = (uint32_t)MaterialTextureType::Metallic;
+				uint32_t type = (uint32_t)StandardMaterialInstance::MaterialTextureType::Metallic;
 				texturePaths.push_back({ type, pathStr });
 			}
 		}
@@ -338,7 +338,7 @@ namespace Kaidel {
 			roughness = TextureLibrary::Load(m_Model->m_ModelDir / pathStr, ImageLayout::ShaderReadOnlyOptimal, Format::RGBA32F);
 
 			{
-				uint32_t type = (uint32_t)MaterialTextureType::Roughness;
+				uint32_t type = (uint32_t)StandardMaterialInstance::MaterialTextureType::Roughness;
 				texturePaths.push_back({ type, pathStr });
 			}
 		}
@@ -354,7 +354,7 @@ namespace Kaidel {
 			normals = TextureLibrary::Load(m_Model->m_ModelDir / pathStr, ImageLayout::ShaderReadOnlyOptimal, Format::RGBA8UN);
 
 			{
-				uint32_t type = (uint32_t)MaterialTextureType::Normal;
+				uint32_t type = (uint32_t)StandardMaterialInstance::MaterialTextureType::Normal;
 				texturePaths.push_back({ type, pathStr });
 			}
 		}
@@ -371,7 +371,7 @@ namespace Kaidel {
 			emmisive = TextureLibrary::Load(m_Model->m_ModelDir / pathStr, ImageLayout::ShaderReadOnlyOptimal, Format::RGBA8UN);
 
 			{
-				uint32_t type = (uint32_t)MaterialTextureType::Emissive;
+				uint32_t type = (uint32_t)StandardMaterialInstance::MaterialTextureType::Emissive;
 				texturePaths.push_back({ type, pathStr });
 			}
 		}
@@ -384,13 +384,13 @@ namespace Kaidel {
 			baseColor = glm::vec4(col.r, col.g, col.b, 1.0);
 		}
 
-		Ref<Material> mat = CreateRef<Material>(Renderer3D::GetDeferredPassRenderPass());
+		Ref<StandardMaterialInstance> mat = CreateRef<StandardMaterialInstance>();
 		mat->SetBaseColor(baseColor);
-		mat->SetTexture(MaterialTextureType::Albedo, albedo);
-		mat->SetTexture(MaterialTextureType::Metallic, metallic);
-		mat->SetTexture(MaterialTextureType::Roughness, roughness);
-		mat->SetTexture(MaterialTextureType::Normal, normals);
-		mat->SetTexture(MaterialTextureType::Emissive, emmisive);
+		mat->SetTexture(StandardMaterialInstance::MaterialTextureType::Albedo, albedo);
+		mat->SetTexture(StandardMaterialInstance::MaterialTextureType::Metallic, metallic);
+		mat->SetTexture(StandardMaterialInstance::MaterialTextureType::Roughness, roughness);
+		mat->SetTexture(StandardMaterialInstance::MaterialTextureType::Normal, normals);
+		mat->SetTexture(StandardMaterialInstance::MaterialTextureType::Emissive, emmisive);
 
 		return mat;
 	}

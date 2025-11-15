@@ -1,6 +1,7 @@
 #include "KDpch.h"
 #include "Backend.h"
 #include "VulkanGraphicsContext.h"
+#include "Platform/Vulkan/VulkanDefinitions.h"
 
 bool operator==(const VkDescriptorPoolSize& lhs, const VkDescriptorPoolSize& rhs) {
 	return lhs.descriptorCount == rhs.descriptorCount && lhs.type == rhs.type;
@@ -539,27 +540,11 @@ namespace VulkanBackend {
 		});
 	}
 
-	void Backend::ReflectDescriptor(ShaderReflection& reflection, const spirv_cross::CompilerReflection& compilerReflection,
-		const spirv_cross::SmallVector<spirv_cross::Resource>& resources, VkDescriptorType type, uint32_t stageFlags)
-	{
-		for (auto& resource : resources) {
-			uint32_t set = compilerReflection.get_decoration(resource.id, spv::DecorationDescriptorSet);
-			uint32_t binding = compilerReflection.get_decoration(resource.id, spv::DecorationBinding);
-			uint32_t count = 1;
-			const spirv_cross::SPIRType& spirvType = compilerReflection.get_type(resource.type_id);
-			if (spirvType.array.size() > 0) {
-				count = spirvType.array[0];
-			}
-			//reflection.AddDescriptor(type, count, set, binding);
-		}
-	}
-	
-
 	ShaderInfo Backend::CreateShader(const std::unordered_map<VkShaderStageFlagBits, std::initializer_list<uint32_t>>& spirvs)
 	{
 		std::unordered_map<VkShaderStageFlagBits, VkPipelineShaderStageCreateInfo> stages{};
 
-		ShaderReflection shaderReflection{};
+		Kaidel::ShaderReflection shaderReflection{};
 		VkShaderStageFlags pushConstantStages = 0;
 
 		for (auto& [stage, spirv] : spirvs)
@@ -585,9 +570,10 @@ namespace VulkanBackend {
 						if (variable->built_in != -1)
 							continue;
 
-						VertexShaderInputReflection input;
+						Kaidel::VertexShaderInputReflection input;
 						input.Location = variable->location;
-						input.Name = variable->name;
+						if(variable->name)
+							input.Name = variable->name;
 						shaderReflection.Inputs[variable->location] = input;
 					}
 				}
@@ -606,22 +592,34 @@ namespace VulkanBackend {
 					{
 						const SpvReflectDescriptorBinding& binding = *bindings[i];
 
-						VkDescriptorType type = VK_DESCRIPTOR_TYPE_MAX_ENUM;
+						Kaidel::DescriptorType type = Kaidel::DescriptorType::Count;
 						switch (binding.descriptor_type)
 						{
-						case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER: type = VK_DESCRIPTOR_TYPE_SAMPLER; break;
-						case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER; break;
-						case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE: type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE; break;
-						case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE: type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE; break;
-						case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER: type = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER; break;
-						case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER: type = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER; break;
-						case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER: type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; break;
-						case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER: type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER; break;
+						case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER: type = Kaidel::DescriptorType::Sampler; break;
+						case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: type = Kaidel::DescriptorType::SamplerWithTexture; break;
+						case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE: type = Kaidel::DescriptorType::Texture; break;
+						case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE: type = Kaidel::DescriptorType::Image; break;
+						case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER: type = Kaidel::DescriptorType::UniformBuffer; break;
+						case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER: type = Kaidel::DescriptorType::StorageBuffer; break;
 						}
 
-						std::string name = binding.name;
+						std::string name = binding.name ? binding.name : "";
 
-						shaderReflection.AddDescriptor(name, type, binding.count, binding.set, binding.binding, stage);
+						Kaidel::DescriptorReflection descriptor;
+
+						if (binding.descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+						{
+							descriptor.Uniform.Name = binding.name;
+							descriptor.Uniform.Size = binding.block.size;
+
+							for (uint32_t i = 0; i < binding.block.member_count; ++i)
+							{
+								auto& member = binding.block.members[i];
+								descriptor.Uniform.Elements[member.name] = member.offset;
+							}
+						}
+
+						shaderReflection.AddDescriptor(name, descriptor, type, binding.count, binding.set, binding.binding, stage);
 					}
 				}
 
@@ -658,6 +656,7 @@ namespace VulkanBackend {
 		}
 
 		std::vector<VkDescriptorSetLayout> setLayouts;
+
 		setLayouts.resize(shaderReflection.Sets.size());
 
 		for (auto& [setIndex, set] : shaderReflection.Sets)
@@ -670,12 +669,11 @@ namespace VulkanBackend {
 				VkDescriptorSetLayoutBinding setBinding{};
 				setBinding.binding = binding.Binding;
 				setBinding.descriptorCount = binding.Count;
-				setBinding.descriptorType = binding.Type;
+				setBinding.descriptorType = Kaidel::Utils::DescriptorTypeToVulkanDescriptorType(binding.Type);
 				setBinding.stageFlags = VK_SHADER_STAGE_ALL;
 				setBindings[bindingIndex] = setBinding;
 
 			}
-
 
 			VkDescriptorSetLayoutCreateInfo layoutInfo{};
 			layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -1164,8 +1162,9 @@ namespace VulkanBackend {
 		std::unordered_map<VkDescriptorType, VkDescriptorPoolSize> sizes;
 
 		for (auto& [index, binding] : shader.Reflection.Sets.at(setIndex).Bindings) {
-			sizes[binding.Type].type = binding.Type;
-			++sizes[binding.Type].descriptorCount;
+			auto type = Kaidel::Utils::DescriptorTypeToVulkanDescriptorType(binding.Type);
+			sizes[type].type = type;
+			++sizes[type].descriptorCount;
 		}
 
 		VkDescriptorPool pool = FindOrCreatePool(sizes).Pool;

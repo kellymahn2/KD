@@ -21,7 +21,7 @@ namespace Kaidel {
 
 		void ProcessNode(const aiNode* node, MeshTree& outTree);
 		Ref<Mesh> ProcessMesh(const uint32_t* meshes, uint32_t meshCount);
-		Ref<Material> ProcessMaterial(const aiMesh* mesh, const aiMaterial* material);
+		Ref<StandardMaterialInstance> ProcessMaterial(const aiMesh* mesh, const aiMaterial* material);
 
 		void ProcessVertices(const aiMesh* mesh, MeshVertex* output);
 		void ProcessSkinnedVertices(const aiMesh* mesh, SkinnedMeshVertex* output, uint32_t offset);

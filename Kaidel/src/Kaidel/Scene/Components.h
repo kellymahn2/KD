@@ -129,7 +129,7 @@ namespace Kaidel {
 
 	struct MeshComponent {
 		Ref<Mesh> UsedMesh;
-		std::vector<Ref<Material>> UsedMaterial;
+		std::vector<Ref<MaterialInstance>> UsedMaterial;
 		std::vector<bool> VisibilityResults;
 		MeshComponent() = default;
 		MeshComponent(const MeshComponent&) = default;
@@ -137,7 +137,7 @@ namespace Kaidel {
 
 	struct SkinnedMeshComponent {
 		Ref<SkinnedMesh> UsedMesh;
-		std::vector<Ref<Material>> UsedMaterial;
+		std::vector<Ref<MaterialInstance>> UsedMaterial;
 		std::vector<bool> VisibilityResults;
 		UUID RootBone;
 		SkinnedMeshComponent() = default;

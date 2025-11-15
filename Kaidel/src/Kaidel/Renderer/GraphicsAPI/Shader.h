@@ -2,6 +2,7 @@
 #include "Kaidel/Core/Base.h"
 
 #include "Kaidel/Renderer/RendererDefinitions.h"
+#include "ShaderReflection.h"
 
 namespace Kaidel {
 
@@ -17,6 +18,8 @@ namespace Kaidel {
 		virtual uint32_t GetSetCount()const = 0;
 		virtual void Update(const std::unordered_map<ShaderType, Spirv>& spirvs) = 0;
 		virtual void BindPipeline(Ref<GraphicsPipeline> pipeline) = 0;
+
+		virtual const ShaderReflection& GetReflection() const = 0;
 	};
 }
 

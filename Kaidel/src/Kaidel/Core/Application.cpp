@@ -74,9 +74,14 @@ namespace Kaidel {
 
 	void Application::OnUpdate()
 	{
+
+
 		float time = (float)glfwGetTime();
 		Timestep timestep = time - m_LastFrameTime;
 		m_LastFrameTime = time;
+
+		m_DeltaTime = timestep.GetSeconds();
+		m_RunningTime += m_DeltaTime;
 
 		{
 			if (!m_Minimized)
@@ -125,10 +130,8 @@ namespace Kaidel {
 
 	void Application::Run()
 	{
-
 		while (m_Running)
 		{
-
 			OnUpdate();
 			//{
 			//	//SCOPED_TIMER(Swap Buffers)

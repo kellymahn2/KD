@@ -9,7 +9,7 @@
 #include "Kaidel/Scene/Model.h"
 #include "Kaidel/Renderer/EnvironmentMap.h"
 #include "Kaidel/Scene/Visibility.h"
-
+#include "Kaidel/Core/Application.h"
 
 #include <glm/glm.hpp>
 
@@ -33,6 +33,13 @@ namespace Kaidel
 		float zNear, zFar;
 		float FOV;
 		float AspectRatio;
+		float Time;
+		float DeltaTime;
+
+		SceneData() {
+			Time = Application::Get().GetRunningTime();
+			DeltaTime = Application::Get().GetDeltaTime();
+		}
 	};
 
 	struct Renderer3DStats {
@@ -95,10 +102,10 @@ namespace Kaidel
 
 		static InstanceData* ReserveInstanceData(uint64_t instanceCount);
 
-		static void Draw(const Renderer3DRenderParams& params, Ref<Material> material);
+		static void Draw(const Renderer3DRenderParams& params, Ref<MaterialInstance> material);
 		
 		static void BeginSubmesh();
-		static void DrawSubmesh(const Renderer3DRenderParams& params, Ref<Material> material);
+		static void DrawSubmesh(const Renderer3DRenderParams& params, Ref<MaterialInstance> material);
 		static void EndSubmesh();
 
 		static void Flush();

@@ -7,4 +7,6 @@ struct SceneData {
 	float zNear, zFar;
 	float FOV;
 	float AspectRatio;
+	float Time;
+	float DeltaTime;
 };

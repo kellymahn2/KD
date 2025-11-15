@@ -14,12 +14,12 @@ layout(push_constant) uniform DrawData{
 	uint InstanceOffset;
 };
 
-layout(set = 4, binding = 0) buffer _InstanceData
+layout(set = 2, binding = 0) buffer _InstanceData
 {
 	mat4 InstanceTransform[];
 };
 
-layout(set = 3, binding = 0) uniform _SceneData
+layout(set = 1, binding = 0) uniform _SceneData
 {
 	SceneData u_SceneData;
 };
@@ -67,13 +67,13 @@ layout(location = 0) in VS_OUT{
 	vec2 TexCoords;
 } Input;
 
-layout(set = 1,binding = 0) uniform texture2D Albedo;
-layout(set = 1,binding = 1) uniform texture2D NormalMap;
-layout(set = 1,binding = 2) uniform texture2D MetallicMap;
-layout(set = 1,binding = 3) uniform texture2D RoughnessMap;
-layout(set = 1, binding = 4) uniform texture2D EmissionMap;
+layout(set = 3,binding = 0) uniform texture2D Albedo;
+layout(set = 3,binding = 1) uniform texture2D NormalMap;
+layout(set = 3,binding = 2) uniform texture2D MetallicMap;
+layout(set = 3,binding = 3) uniform texture2D RoughnessMap;
+layout(set = 3, binding = 4) uniform texture2D EmissionMap;
 
-layout(set = 2, binding = 0, std140) uniform MaterialUniformData
+layout(set = 4, binding = 0, std140) uniform MaterialUniformData
 {
 	vec4 BaseColor;
 	float Roughness;
@@ -145,7 +145,7 @@ void main(){
 		}
 	}
 
-	o_MetallicRoughness = vec2(metallic, 1.0 - roughness);
+	o_MetallicRoughness = vec2(metallic, roughness);
 
 	// if(MaterialData.HasEmission == 1)
 	// {

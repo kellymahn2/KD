@@ -213,7 +213,7 @@ namespace Kaidel {
 	{
 		if (mesh->GetSubmeshes().size() == 1)
 		{
-			Ref<Material> mat = smc.UsedMaterial[0];
+			Ref<MaterialInstance> mat = smc.UsedMaterial[0];
 			KD_CORE_ASSERT(mat);
 
 			Renderer3DRenderParams params;
@@ -237,7 +237,7 @@ namespace Kaidel {
 		bool rendered = false;
 		for (auto& submesh : mesh->GetSubmeshes())
 		{
-			Ref<Material> mat = smc.UsedMaterial[i];
+			Ref<MaterialInstance> mat = smc.UsedMaterial[i];
 			KD_CORE_ASSERT(mat);
 
 			if (!rendered)
@@ -267,7 +267,7 @@ namespace Kaidel {
 	{
 		if (mesh->GetSubmeshes().size() == 1)
 		{
-			Ref<Material> mat = mc.UsedMaterial[0];
+			Ref<MaterialInstance> mat = mc.UsedMaterial[0];
 			KD_CORE_ASSERT(mat);
 
 			if (!mc.VisibilityResults[0])
@@ -294,7 +294,7 @@ namespace Kaidel {
 		bool rendered = false;
 		for (auto& submesh : mesh->GetSubmeshes())
 		{
-			Ref<Material> mat = mc.UsedMaterial[i];
+			Ref<MaterialInstance> mat = mc.UsedMaterial[i];
 			KD_CORE_ASSERT(mat);
 
 			if (!mc.VisibilityResults[i++])
@@ -327,7 +327,7 @@ namespace Kaidel {
 		Ref<VertexBuffer> lastSetVertexBuffer = {};
 		Ref<IndexBuffer> lastSetIndexBuffer = {};
 
-		Ref<Material> lastSetMaterial = {};
+		Ref<MaterialInstance> lastSetMaterial = {};
 
 		Renderer3D::BeginColor(RendererGlobals::GetEnvironmentMap());
 

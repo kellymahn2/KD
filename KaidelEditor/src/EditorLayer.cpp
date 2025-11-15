@@ -22,6 +22,9 @@
 #include "Kaidel/Scene/SceneRenderer.h"
 #include "Kaidel/Animation/Animation.h"
 
+#include "Kaidel/VisualMaterial/VisualMaterial.h"
+#include "Panels/VisualMaterialNodeEditor.h"
+
 #include <forward_list>
 #include <inttypes.h>
 #include <random>
@@ -35,7 +38,8 @@ namespace Kaidel {
 
 	bool animationPlaying = false;
 
-	Ref<AnimationTree> anim;
+
+	static Ref<VisualMaterial> mat;
 
 	float maxAnimationTime = 2.0f;
 
@@ -68,7 +72,7 @@ namespace Kaidel {
 		file.read(data, size);
 		return res;
 	}
-	
+
 	void EditorLayer::OnAttach()
 	{
 		{
@@ -82,7 +86,7 @@ namespace Kaidel {
 			params.AddressModeW = SamplerAddressMode::ClampToEdge;
 			m_OutputSampler = Sampler::Create(params);
 		}
-		
+
 		//m_Icons.IconPlay = EditorIcon("Resources/Icons/PlayButton.png",m_OutputSampler);
 		//KD_INFO("Loaded Play Button");
 		//m_Icons.IconPause = EditorIcon("Resources/Icons/PauseButton.png", m_OutputSampler);
@@ -102,7 +106,7 @@ namespace Kaidel {
 			m_OutputRenderPass = RenderPass::Create(specs);
 		}
 
-		for(auto& texture : m_OutputTextures) {
+		for (auto& texture : m_OutputTextures) {
 			Texture2DSpecification specs{};
 			specs.Width = 1280;
 			specs.Height = 720;
@@ -119,8 +123,8 @@ namespace Kaidel {
 
 			texture = Texture2D::Create(specs);
 		}
-		
-		
+
+
 		m_ActiveScene = CreateRef<Scene>();
 		m_EditorScene = m_ActiveScene;
 		m_EditorCamera = EditorCamera(60.0f, 1.778f, m_Near, m_Far);
@@ -152,7 +156,7 @@ namespace Kaidel {
 				DescriptorSetLayoutSpecification specs{};
 				specs.Types = { {DescriptorType::SamplerWithTexture, ShaderStage_FragmentShader} };
 				return DescriptorSet::Create(specs);
-			});
+				});
 		}
 		{
 			Entity e = m_ActiveScene->CreateEntity("Light");
@@ -165,43 +169,34 @@ namespace Kaidel {
 			dlc.FadeStart = 1.0f;
 		}
 
-		{		
-			Ref<Model> model = ModelLibrary::LoadModel("assets/models/Silly Dancing/untitled.gltf");
-			m_ActiveScene->CreateModel(model);
-		}
-		
-		
-		/*{
-			Entity parent = m_ActiveScene->CreateEntity("Parent");
-
-			{
-				auto& mc = parent.AddComponent<MeshComponent>();
-				mc.UsedMesh = ModelLibrary::GetBaseSphere();
-				mc.UsedMaterial.push_back(mc.UsedMesh->GetSubmeshes()[0].DefaultMaterial);
-				mc.VisibilityResults.resize(1, false);
-			}
-
-			Entity child = m_ActiveScene->CreateEntity("Child");
-
-			child.AddParent(parent.GetUUID());
-			parent.AddChild(child.GetUUID());
-
-			{
-				auto& mc = child.AddComponent<MeshComponent>();
-				mc.UsedMesh = ModelLibrary::GetBaseSphere();
-				mc.UsedMaterial.push_back(mc.UsedMesh->GetSubmeshes()[0].DefaultMaterial);
-				mc.VisibilityResults.resize(1, false);
-			}
-		}*/
-
-		/*{
-			auto& mc = m_ActiveScene->CreateEntity("Sphere").AddComponent<MeshComponent>();
+		{
+			auto& mc = m_ActiveScene->CreateEntity("Visual").AddComponent<MeshComponent>();
 			mc.UsedMesh = ModelLibrary::GetBaseSphere();
-			mc.UsedMaterial.push_back(mc.UsedMesh->GetSubmeshes()[0].DefaultMaterial);
+			mat = CreateRef<VisualMaterial>();
+			mat->Recompile();
+			mc.UsedMaterial.push_back(CreateRef<VisualMaterialInstance>(mat));
 			mc.VisibilityResults.resize(1, false);
-		}*/
+		}
+
+		{
+			auto& mc = m_ActiveScene->CreateEntity("Standard").AddComponent<MeshComponent>();
+			mc.UsedMesh = ModelLibrary::GetBaseSphere();
+			mc.UsedMaterial.push_back(CreateRef<StandardMaterialInstance>());
+			mc.VisibilityResults.resize(1, false);
+		}
 
 		RendererGlobals::LoadEnvironmentMap("assets/skybox/brown_photostudio_02_4k.hdr");
+
+
+		/*
+
+		mat.AddIntConstant(-3, -1)->Position = glm::vec2(300.0f, 0.0f);
+
+		mat.AddFloatConstant(5.36f, -1)->Position = glm::vec2(900.0f, 0.0f);
+		mat.AddUIntConstant(44, -1)->Position = glm::vec2(600.0f, 0.0f);*/
+		
+		//mat->CreateNode<VisualMaterialNodeVec4Constant>();
+
 	}
 
 	void EditorLayer::OnDetach()
@@ -244,7 +239,7 @@ namespace Kaidel {
 		} break;
 		case Kaidel::AnimationValueType::Rotation:
 		{
-			
+
 			if (frame == track->Frames.size() - 1)
 			{
 				tc.Rotation = track->Frames.back().Rotation.Target;
@@ -272,7 +267,7 @@ namespace Kaidel {
 
 	void UpdateAnimationRecursive(float time, AnimationTree::AnimationTreeNode& currNode, Entity currEntity, Scene* scene)
 	{
-		for (uint32_t i = 0; i < AnimationValueTypeCount; ++i) 
+		for (uint32_t i = 0; i < AnimationValueTypeCount; ++i)
 		{
 			if (!currNode.Tracks[i])
 				continue;
@@ -285,7 +280,7 @@ namespace Kaidel {
 			return;
 		}
 
-		if (currEntity.HasComponent<ParentComponent>()) 
+		if (currEntity.HasComponent<ParentComponent>())
 		{
 			auto& pc = currEntity.GetComponent<ParentComponent>();
 
@@ -296,7 +291,7 @@ namespace Kaidel {
 				Entity childEntity = scene->GetEntity(childID);
 
 				auto it = currNode.Children.find(childEntity.GetComponent<TagComponent>().Tag);
-				
+
 				if (it != currNode.Children.end())
 				{
 					UpdateAnimationRecursive(time, it->second, childEntity, scene);
@@ -332,7 +327,7 @@ namespace Kaidel {
 			//RenderCommand::BeginRenderPass(m_OutputBuffer, m_OutputBuffer->GetDefaultRenderPass());
 			//RenderCommand::EndRenderPass();
 		}
-		
+
 		// Update scene
 		switch (m_SceneState)
 		{
@@ -340,7 +335,7 @@ namespace Kaidel {
 		{
 			//m_ActiveScene->OnUpdateEditor(ts, m_EditorCamera, *m_OutputTextures);
 			SceneRenderer renderer(m_ActiveScene.Get());
-			SceneData data{};
+			SceneData data;
 			data.Proj = m_EditorCamera.GetProjection();
 			data.View = m_EditorCamera.GetViewMatrix();
 			data.ViewProj = m_EditorCamera.GetViewProjection();
@@ -350,7 +345,7 @@ namespace Kaidel {
 			data.CameraPos = glm::vec4(m_EditorCamera.GetPosition(), 1.0f);
 			data.FOV = m_EditorCamera.GetFOV();
 			data.AspectRatio = m_EditorCamera.GetAspectRatio();
-			renderer.Render(m_OutputTextures,data);
+			renderer.Render(m_OutputTextures, data);
 
 			// Project Auto Save
 			auto& currentProjectConfig = Project::GetActive()->GetConfig();
@@ -361,7 +356,7 @@ namespace Kaidel {
 					currentProjectConfig.TimeSinceLastProjectAutoSave = 0.0f;
 				}
 			}
-			
+
 			{
 				auto view = m_ActiveScene->m_Registry.view<AnimationPlayerComponent>();
 
@@ -369,7 +364,7 @@ namespace Kaidel {
 				{
 					auto& [apc] = view.get(e);
 
-					if (apc.Animation && apc.PlaybackSpeed != 0.0f && apc.State != AnimationPlayerComponent::PlayerState::Paused) 
+					if (apc.Animation && apc.PlaybackSpeed != 0.0f && apc.State != AnimationPlayerComponent::PlayerState::Paused)
 					{
 						UpdateAnimation(apc.Time, *apc.Animation, Entity(e, m_ActiveScene.Get()), m_ActiveScene.Get());
 
@@ -507,6 +502,7 @@ namespace Kaidel {
 			//m_ContentBrowserPanel.OnImGuiRender();
 			m_AnimationPanel.OnImGuiRender();
 			PropertiesPanel::OnImGuiRender();
+			VisualMaterialNodeEditor::OnImGuiRender(mat);
 
 			ShowDebugWindow();
 			ShowViewport();
@@ -556,7 +552,7 @@ namespace Kaidel {
 			}
 			ImGui::End();
 
-			
+
 			//if (m_ConsoleOpen) {
 			//	ImGui::Begin("Debug Console", &m_ConsoleOpen, ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoNavFocus);
 			//	static bool core = true;
@@ -724,7 +720,7 @@ namespace Kaidel {
 	}
 
 	void EditorLayer::DrawSelectedEntityOutline(Entity selectedEntity) {
-		
+
 	}
 
 	static void GetSegmentCount(float totalSegmentCount, float* lineCount, float* segmentPerLineCount) {
@@ -744,11 +740,12 @@ namespace Kaidel {
 
 	void ShowTextures(const std::string& name, DescriptorSet* set, const ImVec2& size) {
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0, 0 });
-		ImGui::Begin(name.c_str(),nullptr);
+		ImGui::Begin(name.c_str(), nullptr);
 		ImGui::Image((ImTextureID)set->GetSetID(), size);
 		ImGui::End();
 		ImGui::PopStyleVar();
 	}
+
 	void EditorLayer::ShowDebugWindow()
 	{
 		ImGui::Begin("Styler");
@@ -791,8 +788,14 @@ namespace Kaidel {
 
 		ImGui::Text("Gizmo Mode : %d", m_GizmoType);
 		//auto stats = Renderer2D::GetStats();
-		ImGui::Text("Frame Rate: %.3f", ImGui::GetIO().Framerate);
-		ImGui::Text("Frame Time: %.3f", 1.0f / ImGui::GetIO().Framerate);
+		ImGui::Text("UI Frame Rate: %.3f", ImGui::GetIO().Framerate);
+		ImGui::Text("UI Frame Time: %.3f", 1.0f / ImGui::GetIO().Framerate);
+
+		ImGui::Text("App Frame Rate: %.3f", 1.0f / Application::Get().GetDeltaTime());
+		ImGui::Text("App Frame Time: %.3f", Application::Get().GetDeltaTime());
+		ImGui::Text("App Running Time: %.3f", Application::Get().GetRunningTime());
+
+
 
 		ImGui::Text("Draw calls: %" PRIu64, Renderer3D::GetStats().DrawCalls);
 		ImGui::Text("Instance count: %" PRIu64, Renderer3D::GetStats().InstanceCount);

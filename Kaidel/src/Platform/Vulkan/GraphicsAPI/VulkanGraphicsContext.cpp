@@ -321,13 +321,13 @@ namespace Kaidel {
 		info.Device = m_LogicalDevice->GetDevice();
 		info.ImageCount = m_Swapchain.ImageCount;
 		info.MinImageCount = m_Swapchain.ImageCount;
-		info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+		info.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 		auto& graphicsQueue = m_PhysicalDevice->GetQueue("GraphicsQueue");
 		info.Queue = graphicsQueue.Queue;
 		info.QueueFamily = graphicsQueue.FamilyIndex;
-		info.Subpass = 0;
+		info.PipelineInfoMain.Subpass = 0;
 		info.DescriptorPool = m_ImGuiDescriptorPool;
-		info.RenderPass = m_Swapchain.RenderPass;
+		info.PipelineInfoMain.RenderPass = m_Swapchain.RenderPass;
 
 		ImGui_ImplVulkan_Init(&info);
 

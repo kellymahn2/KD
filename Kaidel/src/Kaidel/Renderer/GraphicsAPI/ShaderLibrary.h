@@ -29,6 +29,8 @@ namespace Kaidel {
 		static Ref<Shader> LoadOrGetShader(const Path& path);
 		static Ref<Shader> LoadOrGetNamedShader(const std::string& name, const Path& path);
 
+		static Ref<Shader> CompileFromSource(const std::string& source);
+
 		static void UpdateShader(const Path& path);
 
 		static std::unordered_map<Path, Ref<Shader>>& GetAllShaders();
@@ -48,5 +50,6 @@ namespace Kaidel {
 		static bool IsCacheValid(const Path& path);
 		static std::unordered_map<ShaderType, Spirv> ReadSPIRVsFromCache(const Path& path);
 		static std::unordered_map<ShaderType, Spirv> ReadSPIRVsFromFile(const Path& path);
+		static std::unordered_map<ShaderType, Spirv> ReadSPIRVsFromSource(const std::string& source, const Path& path);
 	};
 }

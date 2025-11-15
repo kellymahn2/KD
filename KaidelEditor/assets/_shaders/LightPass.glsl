@@ -193,6 +193,8 @@ void main()
 	float metalness = mr.r;
 	float roughness = mr.g;
 
+	roughness = max(0.01, roughness);
+
 	vec3 N = normal;
 
 	vec3 Lo = normalize(u_SceneData.CameraPos - position);
@@ -216,7 +218,7 @@ void main()
 		float cosLh = max(0.0, dot(N, Lh));
 		
 		// Calculate Fresnel term for direct lighting. 
-		vec3 F  = fresnelSchlick(F0, max(0.0, dot(Lh, Lo)));
+		vec3 F  = fresnelSchlickRoughness(max(0.0, dot(Lh, Lo)), F0, roughness);
 		// Calculate normal distribution for specular BRDF.
 		float D = ndf(cosLh, roughness);
 		// Calculate geometric attenuation for specular BRDF.
@@ -239,6 +241,7 @@ void main()
 		float shadowWeight = calcDirShadow(position, N, -normalize(DLight.Direction));
 		// Total contribution for this light.
 		directionalLight += shadowWeight * (diffuseBRDF + specularBRDF) * Lradiance * cosLi;
+
 	}
 	
 	vec3 ambientLighting = CalcAmbientLighting(N, albedo, F0, metalness, roughness, Lo, cosLo);

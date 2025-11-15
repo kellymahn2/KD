@@ -1,6 +1,6 @@
 #pragma once
 
-
+#include "Kaidel/Renderer/GraphicsAPI/ShaderReflection.h"
 #include <VMA.h>
 #include <glad/vulkan.h>
 #include <spirv_cross/spirv_cross.hpp>
@@ -112,68 +112,11 @@ namespace VulkanBackend
 		uint64_t BufferSize = 0;
 	};
 
-	struct DescriptorSetBindingReflection 
-	{
-		uint32_t Binding = 0;
-		uint32_t Count = 0;
-		VkDescriptorType Type = VK_DESCRIPTOR_TYPE_MAX_ENUM;
-		VkShaderStageFlags ShaderStages = 0;
-	};
-
-	struct DescriptorSetReflection 
-	{
-		uint32_t Set;
-		std::unordered_map<uint32_t, DescriptorSetBindingReflection> Bindings;
-		std::unordered_map<std::string, uint32_t> NameToBinding;
-	};
-
-	struct VertexShaderInputReflection {
-		std::string Name;
-		uint32_t Location;
-	};
-
-	struct ShaderReflection 
-	{
-		std::unordered_map<uint32_t, VertexShaderInputReflection> Inputs;
-		std::unordered_map<uint32_t, DescriptorSetReflection> Sets;
-		uint32_t PushConstantSize;
-
-		void AddDescriptor(const std::string& name,VkDescriptorType type, uint32_t count, uint32_t set, uint32_t binding, VkShaderStageFlagBits stage) {
-			Sets[set].Set = set;
-			Sets[set].NameToBinding[name] = binding;
-
-			DescriptorSetBindingReflection& setBinding = Sets[set].Bindings[binding];
-			setBinding.Binding = binding;
-			setBinding.Type = type;
-			setBinding.Count = count;
-			setBinding.ShaderStages |= stage;
-		}
-
-		void Add(const ShaderReflection& reflection) {
-			for (auto& [setIndex, set] : reflection.Sets) {
-				Sets[setIndex].Set = setIndex;
-				Add(Sets[setIndex], set);
-			}
-		}
-		void Add(DescriptorSetReflection& dst, const DescriptorSetReflection& src) {
-			for (auto& [bindingIndex, binding] : src.Bindings) {
-				dst.Bindings[bindingIndex] = binding;
-			}
-		}
-	};
-
-	struct ShaderModuleInfo
-	{
-		ShaderReflection Reflection;
-		VkShaderModule Module{};
-		VkShaderModuleCreateInfo ModuleInfo{};
-	};
-
 	struct ShaderInfo
 	{
 		std::unordered_map<VkShaderStageFlagBits,VkPipelineShaderStageCreateInfo> VkStageInfos;
 		std::vector<VkDescriptorSetLayout> DescriptorSetLayouts{};
-		ShaderReflection Reflection;
+		Kaidel::ShaderReflection Reflection;
 		VkShaderStageFlags PushConstantStages;
 		VkPipelineLayout Layout{};
 	};
@@ -481,8 +424,6 @@ namespace VulkanBackend
 
 	private:
 		void SwapchainRelease(InOut<SwapchainInfo> swapchain);
-		void ReflectDescriptor(ShaderReflection& reflection, const spirv_cross::CompilerReflection& compilerReflection,
-			const spirv_cross::SmallVector<spirv_cross::Resource>& resources, VkDescriptorType type, uint32_t stageFlags);
 		uint32_t VkFormatSize(VkFormat format);
 		VkAttachmentReference2 Backend::ToAttachmentReference(const AttachmentReference& ref);
 

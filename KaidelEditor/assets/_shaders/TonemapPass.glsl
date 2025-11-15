@@ -47,6 +47,7 @@ void main(){
 	mappedColor = pow(mappedColor, vec3(1.0 / 2.2));
 
 	o_Color = vec4(mappedColor, 1.0);
+
 }
 
 #endif

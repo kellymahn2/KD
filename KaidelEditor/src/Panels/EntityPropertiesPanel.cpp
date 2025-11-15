@@ -19,7 +19,7 @@ namespace Kaidel {
 	{
 		static std::unordered_map<std::string, bool> s_Map;
 		const ImGuiTreeNodeFlags treeNodeFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnDoubleClick |
-			ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_Leaf;
+			ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_Leaf;
 		if (entity.HasComponent<T>())
 		{
 			ImVec2 contentRegionAvailable = ImGui::GetContentRegionAvail();
@@ -118,8 +118,57 @@ namespace Kaidel {
 		DrawComponents();
 	}
 
+	static void DrawVisualMaterialTextureUI(const char* strID, Ref<VisualMaterialInstance> mat, uint32_t setID, uint32_t binding, const std::string& name,
+		const ImVec2 imageSize, Ref<Texture2D> fallback)
+	{
+		ImGuiTreeNodeFlags flags =
+			ImGuiTreeNodeFlags_SpanAvailWidth;
+
+		if (ImGui::TreeNodeEx(strID, flags, name.c_str()))
+		{
+			Ref<Texture> texture = mat->GetTexture(setID, binding);
+
+			if (texture == RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f)))
+			{
+				texture = fallback;
+			}
+
+			Ref<DescriptorSet> set = DescriptorSet::Create({ {DescriptorType::SamplerWithTexture, ShaderStage_FragmentShader} });
+
+			set->Update(texture, RendererGlobals::GetSamler(SamplerFilter::Linear, SamplerMipMapMode::Linear), ImageLayout::ShaderReadOnlyOptimal, 0);
+			
+			ImTextureID id = (ImTextureID)set->GetSetID();
+
+			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+
+			if (ImGui::ImageButton("##Image", id, imageSize))
+			{
+				auto path = FileDialogs::OpenFile("jpg (*.jpg)\0*.jpg\0png (*.png)\0*.png\0");
+				if (path)
+				{
+					Ref<Texture2D> t = TextureLibrary::Load(*path, ImageLayout::ShaderReadOnlyOptimal, Format::RGBA8UN);
+					if (t)
+					{
+						mat->SetTexture(t, setID, binding);
+					}
+				}
+			}
+
+			if (ImGui::IsItemHovered() && texture != fallback)
+			{
+				ImGui::BeginTooltip();
+				ImGui::Text(TextureLibrary::GetPath(texture).string().c_str());
+				ImGui::EndTooltip();
+			}
+
+			ImGui::PopStyleVar();
+
+			ImGui::TreePop();
+		}
+	}
+
 	static void DrawMaterialTextureUI(
-		const char* strID, Ref<Material> mat, MaterialTextureType type,
+		const char* strID, Ref<StandardMaterialInstance> mat, StandardMaterialInstance::MaterialTextureType type,
 		Ref<DescriptorSet> set, const ImVec2& imageSize, const ImVec2& iconSize, Ref<Texture2D> fallback, Format format,
 		std::function<void()>&& func)
 	{
@@ -167,7 +216,7 @@ namespace Kaidel {
 				}
 			}
 
-			if (ImGui::IsItemHovered())
+			if (mat->GetTexture(type) != fallback && ImGui::IsItemHovered())
 			{
 				ImGui::BeginTooltip();
 				ImGui::Text(TextureLibrary::GetPath(texture).string().c_str());
@@ -196,12 +245,29 @@ namespace Kaidel {
 		}
 	}
 
-	static void DrawMaterial(Ref<Material> material)
+	static void DrawPreview(Ref<MaterialInstance> material)
 	{
-		PerFrameResource<Ref<DescriptorSet>> sets[(uint32_t)MaterialTextureType::Max] = { {} };
+		ImGuiTreeNodeFlags flags =
+			ImGuiTreeNodeFlags_SpanAvailWidth;
+
+		if (ImGui::TreeNodeEx("Preview"))
+		{
+			Ref<EnvironmentMap> environment = RendererGlobals::GetEnvironmentMap();
+
+			static EditorViewport viewport("Preview", 60.0f, 240, 240, 0.1f, 100.0f);
+
+			viewport.OnImGuiRender(glm::mat4(1.0f), material);
+
+			ImGui::TreePop();
+		}
+	}
+
+	static void DrawStandardMaterial(Ref<StandardMaterialInstance> material)
+	{
+		PerFrameResource<Ref<DescriptorSet>> sets[(uint32_t)StandardMaterialInstance::MaterialTextureType::Max] = {{}};
 		if (!sets[0][0])
 		{
-			for (uint32_t i = 0; i < (uint32_t)MaterialTextureType::Max; ++i)
+			for (uint32_t i = 0; i < (uint32_t)StandardMaterialInstance::MaterialTextureType::Max; ++i)
 			{
 				DescriptorSetLayoutSpecification specs({ {DescriptorType::SamplerWithTexture, ShaderStage_FragmentShader} });
 				sets[i].Construct([&specs](uint32_t) {
@@ -218,37 +284,23 @@ namespace Kaidel {
 
 		static const char* channels[] = {"R", "G", "B", "A"};
 
-		{
-			ImGuiTreeNodeFlags flags =
-				ImGuiTreeNodeFlags_SpanAvailWidth;
-
-			if (ImGui::TreeNodeEx("Preview"))
-			{
-				Ref<EnvironmentMap> environment = RendererGlobals::GetEnvironmentMap();
-
-				static EditorViewport viewport("Preview", 60.0f, 240, 240, 0.1f, 100.0f);
-				
-				viewport.OnImGuiRender(glm::mat4(1.0f), material);
-
-				ImGui::TreePop();
-			}
-		}
+		DrawPreview(material);
 
 		DrawMaterialTextureUI(
-			"Albedo", material, MaterialTextureType::Albedo, 
-			sets[(uint32_t)MaterialTextureType::Albedo], 
+			"Albedo", material, StandardMaterialInstance::MaterialTextureType::Albedo,
+			sets[(uint32_t)StandardMaterialInstance::MaterialTextureType::Albedo],
 			imageSize, iconSize, fallback, Format::RGBA8UN, {});
 
 		DrawMaterialTextureUI(
-			"Normal", material, MaterialTextureType::Normal,
-			sets[(uint32_t)MaterialTextureType::Normal],
+			"Normal", material, StandardMaterialInstance::MaterialTextureType::Normal,
+			sets[(uint32_t)StandardMaterialInstance::MaterialTextureType::Normal],
 			imageSize, iconSize, fallback, Format::RGBA8UN, {});
 
 		DrawMaterialTextureUI(
-			"Metallic", material, MaterialTextureType::Metallic,
-			sets[(uint32_t)MaterialTextureType::Metallic],
+			"Metallic", material, StandardMaterialInstance::MaterialTextureType::Metallic,
+			sets[(uint32_t)StandardMaterialInstance::MaterialTextureType::Metallic],
 			imageSize, iconSize, fallback, Format::RGBA32F, [material]() {
-				if (material->GetTexture(MaterialTextureType::Metallic))
+				if (material->GetTexture(StandardMaterialInstance::MaterialTextureType::Metallic))
 				{
 					uint32_t currIndex = (uint32_t)material->GetUniformData().MetalnessChannel;
 
@@ -256,7 +308,7 @@ namespace Kaidel {
 
 					if (combo != -1 && currIndex != combo)
 					{
-						material->SetMetalnessColorChannel((MaterialTextureChannel)combo);
+						material->SetMetalnessColorChannel((StandardMaterialInstance::MaterialTextureChannel)combo);
 					}
 				}
 				else
@@ -271,10 +323,10 @@ namespace Kaidel {
 			});
 
 		DrawMaterialTextureUI(
-			"Roughness", material, MaterialTextureType::Roughness,
-			sets[(uint32_t)MaterialTextureType::Roughness],
+			"Roughness", material, StandardMaterialInstance::MaterialTextureType::Roughness,
+			sets[(uint32_t)StandardMaterialInstance::MaterialTextureType::Roughness],
 			imageSize, iconSize, fallback, Format::RGBA32F, [material]() {
-				if (material->GetTexture(MaterialTextureType::Roughness))
+				if (material->GetTexture(StandardMaterialInstance::MaterialTextureType::Roughness))
 				{
 					uint32_t currIndex = (uint32_t)material->GetUniformData().RoughnessChannel;
 					
@@ -282,7 +334,7 @@ namespace Kaidel {
 					
 					if (combo != -1 && currIndex != combo)
 					{
-						material->SetRoughnessColorChannel((MaterialTextureChannel)combo);
+						material->SetRoughnessColorChannel((StandardMaterialInstance::MaterialTextureChannel)combo);
 					}
 				}
 				else
@@ -297,51 +349,88 @@ namespace Kaidel {
 			});
 
 		DrawMaterialTextureUI(
-			"Emissive", material, MaterialTextureType::Emissive,
-			sets[(uint32_t)MaterialTextureType::Emissive],
+			"Emissive", material, StandardMaterialInstance::MaterialTextureType::Emissive,
+			sets[(uint32_t)StandardMaterialInstance::MaterialTextureType::Emissive],
 			imageSize, iconSize, fallback, Format::RGBA8UN, {});
 	}
 
-	void DrawMaterialList(MeshComponent& mc)
-	{
-		if (ImGui::TreeNodeEx("Material List", ImGuiTreeNodeFlags_SpanAvailWidth)) {
-			for (uint32_t i = 0; i < mc.UsedMesh->GetSubmeshes().size(); ++i)
-			{
-				auto mat = mc.UsedMaterial[i];
-				ImGui::PushID(i);
-				if (ImGui::TreeNodeEx("Material", ImGuiTreeNodeFlags_SpanAvailWidth, "Material %d", i))
-				{
-					if (ImGui::Button("Make unique"))
-					{
-						mc.UsedMaterial[i] = Material::CreateFrom(mat);
-						mat = mc.UsedMaterial[i];
-					}
 
-					DrawMaterial(mat);
-					ImGui::TreePop();
+	void DrawVisualMaterial(Ref<VisualMaterialInstance> material)
+	{
+
+		DrawPreview(material);
+		auto& vm = material->GetVisualMaterial();
+		bool propertiesChanged = false;
+
+		const ImVec2 imageSize = ImVec2(64, 64);
+
+		static Ref<Texture2D> fallback =
+			TextureLibrary::Load("Resources/Icons/TextureNullCross.png", ImageLayout::ShaderReadOnlyOptimal, Format::RGBA8UN);
+
+		for (auto& [name, param] : vm->Parameters)
+		{
+			ImGui::PushID(&param);
+
+			bool isTexture = param.Type == VisualMaterialParameterType::Texture;
+
+			if (!isTexture)
+			{
+				void* dataPtr = material->GetUniformData() + param.ByteOffset;
+
+				switch (param.Type)
+				{
+				case VisualMaterialParameterType::Bool: propertiesChanged = ImGui::Checkbox(name.c_str(), (bool*)dataPtr) || propertiesChanged; break;
+				case VisualMaterialParameterType::Int: propertiesChanged = ImGui::DragInt(name.c_str(), (int*)dataPtr) || propertiesChanged; break;
+				case VisualMaterialParameterType::UInt:
+				{
+					uint32_t min = 0, max = UINT32_MAX;
+					propertiesChanged = ImGui::DragScalar(name.c_str(), ImGuiDataType_U32, (uint32_t*)dataPtr, 1.0f, &min, &max) || propertiesChanged;
 				}
-				ImGui::PopID();
+				break;
+				case VisualMaterialParameterType::Float: propertiesChanged = ImGui::DragFloat(name.c_str(), (float*)dataPtr, 0.005f) || propertiesChanged; break;
+				case VisualMaterialParameterType::Vec2: propertiesChanged = DrawVec2Control(name, *(glm::vec2*)dataPtr, 0.0f, 100.0f) || propertiesChanged; break;
+				case VisualMaterialParameterType::Vec3: propertiesChanged = DrawVec3Control(name, *(glm::vec3*)dataPtr, 0.0f, 100.0f) || propertiesChanged; break;
+				case VisualMaterialParameterType::Vec4: propertiesChanged = DrawVec4Control(name, *(glm::vec4*)dataPtr, 0.0f, 100.0f) || propertiesChanged; break;
+				}
 			}
-			ImGui::TreePop();
+			else
+			{
+				DrawVisualMaterialTextureUI("##Texture", material, param.Set, param.Binding, name, imageSize, fallback);
+			}
+
+			
+
+			ImGui::PopID();
 		}
+
+		if (propertiesChanged)
+			material->UploadUniformData();
 	}
 
-	void DrawMaterialList(SkinnedMeshComponent& smc)
+	void DrawMaterialList(std::vector<Ref<MaterialInstance>>& list)
 	{
 		if (ImGui::TreeNodeEx("Material List", ImGuiTreeNodeFlags_SpanAvailWidth)) {
-			for (uint32_t i = 0; i < smc.UsedMesh->GetSubmeshes().size(); ++i)
+			for (uint32_t i = 0; i < list.size(); ++i)
 			{
-				auto mat = smc.UsedMaterial[i];
+				auto mat = list[i];
+
 				ImGui::PushID(i);
 				if (ImGui::TreeNodeEx("Material", ImGuiTreeNodeFlags_SpanAvailWidth, "Material %d", i))
 				{
 					if (ImGui::Button("Make unique"))
 					{
-						smc.UsedMaterial[i] = Material::CreateFrom(mat);
-						mat = smc.UsedMaterial[i];
+						//list[i] = Material::CreateFrom(mat);
+						mat = list[i];
 					}
 
-					DrawMaterial(mat);
+					if (dynamic_cast<StandardMaterialInstance*>(mat.Get()))
+					{
+						DrawStandardMaterial(mat);					}
+					else if (dynamic_cast<VisualMaterialInstance*>(mat.Get()))
+					{
+						DrawVisualMaterial(mat);
+					}
+
 					ImGui::TreePop();
 				}
 				ImGui::PopID();
@@ -610,7 +699,7 @@ namespace Kaidel {
 			ImGui::Checkbox("IsSkinned", &b);
 
 			ImGui::Text("%" PRIu64, (uint64_t)component.UsedMesh.Get());
-			DrawMaterialList(component);
+			DrawMaterialList(component.UsedMaterial);
 		});
 
 		DrawComponent<SkinnedMeshComponent>("Skinned mesh", entity, [entity, scene = scene](SkinnedMeshComponent& component) {
@@ -618,7 +707,7 @@ namespace Kaidel {
 			ImGui::Checkbox("IsSkinned", &b);
 			ImGui::Text("%llu", (uint64_t)component.RootBone);
 			ImGui::Text("%s", scene->GetEntity(component.RootBone).GetComponent<TagComponent>().Tag.c_str());
-			DrawMaterialList(component);
+			DrawMaterialList(component.UsedMaterial);
 		});
 
 		DrawComponent<DirectionalLightComponent>("Directional light", entity, [entity, scene = scene](DirectionalLightComponent& component) {
