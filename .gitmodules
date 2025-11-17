@@ -22,10 +22,10 @@
 [submodule "Kaidel/vendor/msdf-atlas-gen"]
 	path = Kaidel/vendor/msdf-atlas-gen
 	url = https://github.com/TheCherno/msdf-atlas-gen
-[submodule "Kaidel/vendor/meshoptimizer"]
-	path = Kaidel/vendor/meshoptimizer
-	url = https://github.com/zeux/meshoptimizer
 [submodule "Kaidel/vendor/imgui"]
 	path = Kaidel/vendor/imgui
 	url = https://github.com/kellymahn2/imgui
 	branch = docking
+[submodule "Kaidel/vendor/meshoptimizer"]
+	path = Kaidel/vendor/meshoptimizer
+	url = https://github.com/kellymahn2/meshoptimizer.git
