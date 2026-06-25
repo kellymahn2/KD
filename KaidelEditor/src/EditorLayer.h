@@ -11,7 +11,6 @@
 #include "Kaidel/Renderer/2D/Renderer2D.h"
 #include "Kaidel/Renderer/RenderCommand.h"
 #include "Kaidel/Renderer/GraphicsAPI/DescriptorSet.h"
-#include "EditorIcon.h"
 
 namespace Kaidel {
 
@@ -34,16 +33,16 @@ namespace Kaidel {
 		bool OnRendererSettingsChanged(RendererSettingsChangedEvent& e);
 
 		void NewScene();
-		void OpenScene();
-		void OpenScene(const std::filesystem::path& path);
+		bool OpenScene();
+		bool OpenScene(const std::filesystem::path& path);
 		void SaveScene();
 		void SaveSceneAs();
 
+		bool ImportAsset();
 
 		void NewProject();
-		void OpenProject(const std::filesystem::path& path);
+		bool OpenProject(const std::filesystem::path& path);
 		void SaveProject();
-		void ImportAsset();
 
 
 		void OnScenePlay();
@@ -88,7 +87,7 @@ namespace Kaidel {
 
 		bool m_ConsoleOpen = false;
 		EditorCamera m_EditorCamera;
-		float m_Near = .1f, m_Far = 1000.0f;
+		float m_Near = .1f, m_Far = 100.0f;
 		
 		bool m_ViewportFocused = false, m_ViewportHovered = false;
 
@@ -104,14 +103,6 @@ namespace Kaidel {
 		ConsolePanel m_ConsolePanel;
 		AnimationPanel m_AnimationPanel;
 
-
-		struct Icons {
-			EditorIcon IconPlay;
-			EditorIcon IconPause;
-			EditorIcon IconSimulateStart;
-			EditorIcon IconSimulateStop;
-			EditorIcon IconStop;
-		} m_Icons;
 
 		enum class SceneState {
 			Edit = 0, Play = 1 , Simulate = 2

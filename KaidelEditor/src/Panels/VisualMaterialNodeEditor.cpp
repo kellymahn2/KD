@@ -286,6 +286,9 @@ namespace Kaidel {
 
 	void VisualMaterialNodeEditor::OnImGuiRender(Ref<VisualMaterial> material)
 	{
+		if (!material)
+			return;
+
 		static bool isCodeWindowOpen = false;
 		static std::string code;
 
@@ -1436,7 +1439,7 @@ namespace Kaidel {
 				if (!tex)
 					tex = fallback;
 
-				Ref<Sampler> sampler = RendererGlobals::GetSamler(SamplerFilter::Linear, SamplerMipMapMode::Linear);
+				Ref<Sampler> sampler = RendererGlobals::GetSampler(SamplerFilter::Linear, SamplerMipMapMode::Linear);
 				set->Update(tex, sampler, ImageLayout::ShaderReadOnlyOptimal, 0);
 
 				ImTextureID id = (ImTextureID)set->GetSetID();

@@ -250,7 +250,7 @@ namespace Kaidel {
 
 		for (auto& [name, path] : paths)
 		{
-			JobSystem::GetMainJobSystem().Execute([&name, &path, &results]() {
+			JobSystem::Execute([&name, &path, &results](const JobArgs&) {
 				std::unordered_map<ShaderType, Spirv> spirvs;
 				if (IsCacheValid(path)) {
 					spirvs = ReadSPIRVsFromCache(path);
@@ -272,7 +272,7 @@ namespace Kaidel {
 			});
 		}
 		
-		JobSystem::GetMainJobSystem().Wait();
+		JobSystem::GetDefault().Wait();
 
 		for (auto& [name, shader] : results)
 		{

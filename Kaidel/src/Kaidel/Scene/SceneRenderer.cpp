@@ -267,10 +267,10 @@ namespace Kaidel {
 	{
 		if (mesh->GetSubmeshes().size() == 1)
 		{
-			Ref<MaterialInstance> mat = mc.UsedMaterial[0];
+			Ref<MaterialInstance> mat = mc.Instance.UsedMaterial[0];
 			KD_CORE_ASSERT(mat);
 
-			if (!mc.VisibilityResults[0])
+			if (!mc.Instance.VisibilityResults[0])
 				return;
 
 			Renderer3DRenderParams params;
@@ -294,10 +294,10 @@ namespace Kaidel {
 		bool rendered = false;
 		for (auto& submesh : mesh->GetSubmeshes())
 		{
-			Ref<MaterialInstance> mat = mc.UsedMaterial[i];
+			Ref<MaterialInstance> mat = mc.Instance.UsedMaterial[i];
 			KD_CORE_ASSERT(mat);
 
-			if (!mc.VisibilityResults[i++])
+			if (!mc.Instance.VisibilityResults[i++])
 				continue;
 
 			if (!rendered)
@@ -443,6 +443,10 @@ namespace Kaidel {
 				entt::entity entity, Ref<Mesh> mesh, const glm::mat4& transform, 
 				SharedMemory* sharedMemory, Visibility& vis, std::vector<bool>& visibilityResults) 
 		{
+
+			if (!mesh)
+				return;
+
 			auto& submeshes = mesh->GetSubmeshes();
 
 			bool visible = false;
@@ -484,6 +488,7 @@ namespace Kaidel {
 				SharedMemory* sharedMemory, Visibility& vis, std::vector<bool>& visibilityResults)
 		{
 
+
 			Entity rootBone = scene->GetEntity(smc.RootBone);
 			if (!rootBone)
 				return;
@@ -504,7 +509,7 @@ namespace Kaidel {
 			}
 		};
 
-		JobSystem::GetMainJobSystem().Dispatch(size, 128, [&](JobDispatchArgs args) {
+		JobSystem::Dispatch(size, 128, [&](const JobArgs& args) {
 			
 			if (args.GlobalID >= size)
 				return;
@@ -523,7 +528,7 @@ namespace Kaidel {
 				entity = Entity(meshSet[args.GlobalID], scene);
 				auto& [tc, mc] = entity.GetComponent<TransformComponent, MeshComponent>();
 
-				visibilityTest(entity, mc.UsedMesh, tc.GlobalTransform, sharedMemory, vis, mc.VisibilityResults);
+				visibilityTest(entity, mc.UsedMesh, tc.GlobalTransform, sharedMemory, vis, mc.Instance.VisibilityResults);
 			}
 			else
 			{
@@ -566,7 +571,7 @@ namespace Kaidel {
 
 		}, sizeof(SharedMemory));
 
-		JobSystem::GetMainJobSystem().Wait();
+		JobSystem::GetDefault().Wait();
 	}
 
 	static uint32_t VisibleObjectsCount(entt::registry& sceneReg)
@@ -578,7 +583,7 @@ namespace Kaidel {
 		{
 			auto& [mc] = view.get(e);
 
-			count += std::count(mc.VisibilityResults.begin(), mc.VisibilityResults.end(), true);
+			count += std::count(mc.Instance.VisibilityResults.begin(), mc.Instance.VisibilityResults.end(), true);
 		}
 
 		return count;
@@ -707,16 +712,16 @@ namespace Kaidel {
 						{
 							Entity childBoneEntity = scene->GetEntity(pc.Children[i++]);
 
-							JobSystem::GetMainJobSystem().Execute(
+							JobSystem::Execute(
 								[scene, 
 								&childBoneNode, 
 								childBoneEntity, 
-								&boneTransforms]() { 
+								&boneTransforms](const JobArgs&) { 
 									CalculateBoneTransforms(scene, childBoneNode, childBoneEntity, boneTransforms); 
 								});
 						}
 
-						JobSystem::GetMainJobSystem().Wait();
+						JobSystem::GetDefault().Wait();
 					}
 
 					skin->LastRoot = smc.RootBone;
@@ -750,7 +755,7 @@ namespace Kaidel {
 
 
 			{
-				s_Data->GlobalSampler = RendererGlobals::GetSamler(SamplerFilter::Linear, SamplerMipMapMode::Linear);
+				s_Data->GlobalSampler = RendererGlobals::GetSampler(SamplerFilter::Linear, SamplerMipMapMode::Linear);
 			}
 
 			/*CreateTextPassResources();
@@ -762,9 +767,9 @@ namespace Kaidel {
 			CreateBonePassResources();
 
 			{
-				Ref<Model> m = ModelLibrary::LoadModel("assets/models/EditorDirectionalArrow/untitled.gltf");
-				Ref<Mesh> mesh = m->GetMeshTree()->NodeMesh;
-				s_Data->DirectionalArrow = mesh;
+				//Ref<Model> m = ModelLibrary::LoadModel("assets/models/EditorDirectionalArrow/untitled.gltf");
+				//Ref<Mesh> mesh = m->GetMeshTree()->NodeMesh;
+				//s_Data->DirectionalArrow = mesh;
 			}
 
 		}
@@ -800,7 +805,7 @@ namespace Kaidel {
 		uint32_t size = m_Registry.size();
 
 		//Calculate
-		JobSystem::GetMainJobSystem().Dispatch(size, std::ceil(size / 16.0f), [view, size, scene, offset](JobDispatchArgs args) {
+		JobSystem::Dispatch(size, std::ceil(size / 16.0f), [view, size, scene, offset](const JobArgs& args) {
 
 			if (args.GlobalID >= size)
 				return;
@@ -813,7 +818,7 @@ namespace Kaidel {
 
 			CalculateTransformFromRoot(entity, scene, glm::mat4(1.0f));
 		});
-		JobSystem::GetMainJobSystem().Wait();
+		JobSystem::GetDefault().Wait();
 	}
 
 	//TODO: add depth to 2D.
@@ -830,10 +835,12 @@ namespace Kaidel {
 
 		auto& [tc, dlc] = GetDirectionalLightEntity(scene, scene->m_Registry).GetComponent<TransformComponent, DirectionalLightComponent>();
 
+		std::array<float, 4> splits = dlc.GetSplitDistances(sceneData.zNear, sceneData.zFar);
+
 		DirectionalLightData lightData =
 			CalculateDirectionalLightData(
 				sceneData.zNear, sceneData.zFar, dlc.Color, dlc.LightSize,
-				glm::toMat4(tc.Rotation), sceneData.ViewProj, dlc.SplitDistances, SHADOW_MAP_SIZE);
+				glm::toMat4(tc.Rotation), sceneData.ViewProj, splits.data(), SHADOW_MAP_SIZE);
 
 		static Visibility vis;
 

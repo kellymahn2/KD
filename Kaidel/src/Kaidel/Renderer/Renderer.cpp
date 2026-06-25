@@ -14,11 +14,16 @@ namespace Kaidel {
 	void Renderer::Init()
 	{
 		RenderCommand::Init();
-		RendererGlobals::Init();
 
 		ShaderLibrary::Init("assets/_shaders/cache", ".shader_cache");
+		
+		RendererGlobals::Init();
+		
 		TextureLibrary::Init();
 		Renderer3D::Init();
+		
+		RendererGlobals::CreateDefaults();
+		
 		ModelLibrary::Init();
 	}
 

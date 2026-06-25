@@ -7,6 +7,7 @@
 #include "Kaidel/Renderer/Renderer.h"
 
 #include "Kaidel/Scripting/ScriptEngine.h"
+#include "Kaidel/Asset/AssetManager.h"
 
 #include "Kaidel/Core/Input.h"
 
@@ -17,7 +18,6 @@ namespace Kaidel {
 	Application::Application(const ApplicationSpecification& specification)
 		: m_Specification(specification)
 	{
-
 		KD_CORE_ASSERT(!s_Instance, "Application already exists!");
 		
 		Random::m_RandomEngine = std::mt19937(Random::m_RandomDevice());
@@ -28,13 +28,14 @@ namespace Kaidel {
 		m_Window = Window::Create(WindowProps(m_Specification.Name, false, 1600, 900));
 		m_Window->SetEventCallback(KD_BIND_EVENT_FN(Application::OnEvent));
 
-		JobSystem::InitMainJobSystem();
+		JobSystem::Init();
+
+		AssetManager::Init();
 
 		m_Window->AcquireImage();
 
 		Renderer::Init();
 		ScriptEngine::Init();
-
 
 		m_ImGuiLayer = new ImGuiLayer();
 		PushOverlay(m_ImGuiLayer);
@@ -42,7 +43,8 @@ namespace Kaidel {
 
 	Application::~Application()
 	{
-		delete &JobSystem::GetMainJobSystem();
+		AssetManager::Shutdown();
+		JobSystem::Shutdown();
 		ScriptEngine::Shutdown();
 		Renderer::Shutdown();
 	}

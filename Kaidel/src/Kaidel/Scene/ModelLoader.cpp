@@ -4,42 +4,64 @@
 #include "AnimationResolver.h"
 #include "Kaidel\Math\Math.h"
 #include "Kaidel\Renderer\Renderer3D.h"
+#include "Kaidel/Asset/AssetManager.h"
+#include <yaml-cpp/yaml.h>
 
 #include <glm/gtx/matrix_decompose.hpp>
 
+#include <semaphore>
 #include <meshoptimizer.h>
 
 namespace Kaidel {
 #define MT
 	static std::mutex s_MeshLoadingMutex;
 
-	Ref<Model> ModelLoader::Load(const Path& path)
+	ModelLoader::ModelLoader(const Path& path)
 	{
-		Assimp::Importer importer;
-		importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
+		if (!path.empty())
+			OpenScene(path);
+	}
 
+	ModelLoader::~ModelLoader()
+	{
+		if (m_Scene)
 		{
-			SCOPED_TIMER("Assimp ReadFile");
-			m_Scene =
-				importer.ReadFile(path.string(),
-					aiProcess_Triangulate | 
-					aiProcess_OptimizeMeshes | 
-					aiProcess_CalcTangentSpace | 
-					aiProcess_FlipUVs |
-					aiProcess_PopulateArmatureData |
-					aiProcess_JoinIdenticalVertices |
-					aiProcess_GenNormals |
-					aiProcess_GenBoundingBoxes);
+			delete m_Scene;
 		}
-		if (!m_Scene || m_Scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !m_Scene->mRootNode)
+	}
+
+	const Kaidel::ModelDependencies& ModelLoader::GetDependencies() const
+	{
+		KD_ASSERT(m_Scene);
+
+		return m_Dependencies;
+	}
+
+	const Kaidel::ModelDependencies& ModelLoader::GetDependencies(const Path& path)
+	{
+		if (m_Scene)
 		{
-			KD_CORE_ASSERT(importer.GetErrorString());
-			return {};
+			delete m_Scene;
+			m_Scene = nullptr;
 		}
 
-		m_Model = CreateRef<Model>();
-		m_Model->m_ModelDir = path.parent_path();
-		m_Model->m_ModelPath = path;
+		OpenScene(path);
+
+		return m_Dependencies;
+	}
+
+	void ModelLoader::LoadInto(Ref<Model> model, const AssetMetadata& metadata, MetadataFile* mtdFile)
+	{
+		if (m_Scene == nullptr)
+		{
+			OpenScene(metadata.Path);
+			m_MtdFile = mtdFile;
+		}
+
+		m_Model = model;
+
+		m_Model->m_ModelDir = metadata.Path.parent_path();
+		m_Model->m_ModelPath = metadata.Path;
 		m_Model->m_Tree = CreateScope<MeshTree>();
 
 		m_MeshToSkin = SkinResolver(m_Scene).ResolveSkinTrees();
@@ -53,13 +75,103 @@ namespace Kaidel {
 			m_IDToTexture[texture->mFilename.C_Str()] = texture;
 		}
 
+		m_Metadata = &metadata;
+
+		GenerateMetadata();
+
 		SCOPED_TIMER("Mesh loading");
 		ProcessNode(m_Scene->mRootNode, *m_Model->m_Tree);
 
-		JobSystem::GetMainJobSystem().Wait();
-		return m_Model;
 	}
-	
+
+	Kaidel::AssetHandle ModelLoader::GetNextHandle()
+	{
+		if (m_GeneratedAssets.empty())
+			return AssetHandle();
+		
+		{
+			AssetHandle handle = m_GeneratedAssets.back().Handle;
+			m_GeneratedAssets.pop_back();
+
+			return handle;
+		}
+	}
+
+	void ModelLoader::OpenScene(const Path& path)
+	{
+		//I hope this flushes all the data.
+		//*this = {};
+
+		SCOPED_TIMER("Opening scene");
+
+		Assimp::Importer importer;
+		importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
+
+		{
+			m_Scene =
+				importer.ReadFile(path.string(),
+					aiProcess_Triangulate |
+					aiProcess_OptimizeMeshes |
+					aiProcess_CalcTangentSpace |
+					aiProcess_FlipUVs |
+					aiProcess_PopulateArmatureData |
+					aiProcess_JoinIdenticalVertices |
+					aiProcess_GenNormals |
+					aiProcess_GenBoundingBoxes);
+
+			m_Scene = importer.GetOrphanedScene();
+		}
+
+		if (!m_Scene || m_Scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !m_Scene->mRootNode)
+		{
+			KD_ASSERT(importer.GetErrorString());
+			m_Scene = nullptr;
+			return;
+		}
+
+		//Read dependencies
+		{
+			auto texturePath = [this](const aiMaterial* material, aiTextureType textureType)
+				{
+					if (material->GetTextureCount(textureType)) {
+						aiString texturePath;
+						KD_CORE_ASSERT(material->GetTexture(textureType, 0, &texturePath) == aiReturn_SUCCESS);
+						KD_CORE_ASSERT(texturePath.length);
+
+						std::string pathStr = texturePath.C_Str();
+
+						m_Dependencies.Textures.insert(pathStr);
+					}
+			};
+
+			for (uint32_t i = 0; i < m_Scene->mNumMaterials; ++i)
+			{
+				const aiMaterial* mat = m_Scene->mMaterials[i];
+				
+				texturePath(mat, aiTextureType_DIFFUSE);
+				texturePath(mat, aiTextureType_GLTF_METALLIC_ROUGHNESS);
+				texturePath(mat, aiTextureType_NORMALS);
+				texturePath(mat, aiTextureType_EMISSION_COLOR);
+			}
+		}
+	}
+
+	void ModelLoader::NodeDFS(const aiNode* currentNode, uint32_t& index)
+	{
+		m_ResourceToID[currentNode] = m_ResourceToID.size();
+
+		for (uint32_t i = 0; i < currentNode->mNumChildren; ++i)
+		{
+			NodeDFS(currentNode->mChildren[i], index);
+		}
+	}
+
+	void ModelLoader::GenerateMetadata()
+	{
+		uint32_t index = 0;
+		NodeDFS(m_Scene->mRootNode, index);
+	}
+
 	const aiMesh* ModelLoader::GetMesh(uint32_t index)
 	{
 		return m_Scene->mMeshes[index];
@@ -82,13 +194,16 @@ namespace Kaidel {
 		}
 
 		if(node->mNumMeshes){
-#ifdef MT
-			JobSystem::GetMainJobSystem().Execute([&outTree, node, this]() {
-				outTree.NodeMesh = ProcessMesh(node->mMeshes, node->mNumMeshes);
-		});
-#else
-			outTree.NodeMesh = ProcessMesh(node->mMeshes, node->mNumMeshes);
-#endif // MT
+			Ref<Mesh>& asset = outTree.NodeMesh = ProcessMesh(node->mMeshes, node->mNumMeshes);
+			
+			AssetMetadata metadata;
+			metadata.AssetName = outTree.NodeName;
+			
+			m_MtdFile->Resolve(metadata.Handle);
+
+			AssetManager::RegisterAsset(asset, metadata);
+
+			m_Model->m_BoundingBox.Merge(asset->GetBoundingBox());
 		}
 
 		for (uint32_t i = 0; i < node->mNumChildren; ++i) {
@@ -108,7 +223,6 @@ namespace Kaidel {
 
 	Ref<Mesh> ModelLoader::ProcessMesh(const uint32_t* meshes, uint32_t meshCount)
 	{
-
 		bool skinned = GetMesh(meshes[0])->HasBones();
 
 		uint64_t totalVertexCount = CalcVertexCount(meshes, meshCount);
@@ -204,14 +318,20 @@ namespace Kaidel {
 			indexOffset += indexCount;
 		}
 
-		std::unique_lock<std::mutex> lock(s_MeshLoadingMutex);
-
 		for (uint32_t i = 0; i < meshCount; ++i)
 		{
 			const aiMesh* mesh = GetMesh(meshes[i]);
 
 			Submesh& submesh = initializer.Submeshes[i];
-			submesh.DefaultMaterial = ProcessMaterial(mesh, m_Scene->mMaterials[mesh->mMaterialIndex]);
+			
+			Ref<MaterialInstance>& mat = submesh.DefaultMaterial = ProcessMaterial(mesh, m_Scene->mMaterials[mesh->mMaterialIndex]);
+
+			AssetMetadata metadata;
+			metadata.AssetName = m_Scene->mMaterials[mesh->mMaterialIndex]->GetName().C_Str();
+
+			m_MtdFile->Resolve(metadata.Handle);
+
+			AssetManager::RegisterAsset(mat, metadata);
 		}
 
 		Ref<Mesh> mesh;
@@ -273,7 +393,34 @@ namespace Kaidel {
 			"aiTextureType_ANISOTROPY",
 			"aiTextureType_GLTF_METALLIC_ROUGHNESS"
 		};
+		
+		StandardMaterialInstance::Initializer initializer;
+		initializer.Roughness = 1.0f;
+		initializer.Metalness = 0.0f;
 
+		auto textureLoad = [&initializer, this](const FileSystem::path& modelDir, const aiMaterial* material,
+			aiTextureType textureType, StandardMaterialInstance::MaterialTextureType type)
+		{
+			if (material->GetTextureCount(textureType)) {
+				aiString texturePath;
+				KD_CORE_ASSERT(material->GetTexture(textureType, 0, &texturePath) == aiReturn_SUCCESS);
+				KD_CORE_ASSERT(texturePath.length);
+
+				std::string pathStr = texturePath.C_Str();
+
+				AssetMetadata metadata;
+
+				metadata.Path = modelDir / pathStr;
+
+				Asset texture = AssetManager::LoadAsset(metadata, AssetType::Texture2D, {}, AssetLoadPolicy::Async);
+
+				initializer.Textures[(uint32_t)type] = texture.AssetPtr;
+				
+				return texture;
+			}
+
+			return Asset();
+		};
 
 		for (uint32_t i = 0; i <= aiTextureType_GLTF_METALLIC_ROUGHNESS; ++i)
 		{
@@ -282,99 +429,22 @@ namespace Kaidel {
 				aiString texturePath;
 				KD_CORE_ASSERT(material->GetTexture((aiTextureType)i, 0, &texturePath) == aiReturn_SUCCESS);
 				KD_CORE_ASSERT(texturePath.length);
-				KD_INFO(
+				KD_CORE_INFO(
 					"material {}, on mesh {}, has {} texture at {}",
 					material->GetName().C_Str(), mesh->mName.C_Str(), names[i], texturePath.C_Str());
 			}
 		}
 
-		Ref<Texture2D> albedo = {};
-		if (material->GetTextureCount(aiTextureType_DIFFUSE)) {
-			aiString texturePath;
-			KD_CORE_ASSERT(material->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath) == aiReturn_SUCCESS);
-			KD_CORE_ASSERT(texturePath.length);
+		Asset diffuse = textureLoad(m_Model->m_ModelDir, material, aiTextureType_DIFFUSE, StandardMaterialInstance::MaterialTextureType::Albedo);
+		Asset metallic = textureLoad(m_Model->m_ModelDir, material, aiTextureType_GLTF_METALLIC_ROUGHNESS, StandardMaterialInstance::MaterialTextureType::Metallic);
+		Asset roughness = metallic;
+		initializer.Textures[(uint32_t)StandardMaterialInstance::MaterialTextureType::Roughness] = roughness.As<Texture2D>();
+		Asset normal = textureLoad(m_Model->m_ModelDir, material, aiTextureType_NORMALS, StandardMaterialInstance::MaterialTextureType::Normal);
+		Asset emissive = textureLoad(m_Model->m_ModelDir, material, aiTextureType_EMISSION_COLOR, StandardMaterialInstance::MaterialTextureType::Emissive);
 
-			/*const aiTexture* texture = m_IDToTexture[texturePath.C_Str()];
+		AssetManager::WaitOnAssets({ diffuse, metallic, roughness, normal, emissive });
 
-			if (!texture->mHeight)
-			{
-				TextureLibrary::LoadFromBuffer(texture->pcData, texture->mWidth, ImageLayout::ShaderReadOnlyOptimal, Format::RGBA8UN);
-			}*/
-
-			std::string pathStr = texturePath.C_Str();
-
-			albedo = TextureLibrary::Load(m_Model->m_ModelDir / pathStr, ImageLayout::ShaderReadOnlyOptimal, Format::RGBA8UN);
-
-			{
-				uint32_t type = (uint32_t)StandardMaterialInstance::MaterialTextureType::Albedo;
-				texturePaths.push_back({ type, pathStr });
-			}
-		}
-
-		Ref<Texture2D> metallic = {};
-		if (material->GetTextureCount(aiTextureType_GLTF_METALLIC_ROUGHNESS)) {
-			aiString texturePath;
-			KD_CORE_ASSERT(material->GetTexture(aiTextureType_GLTF_METALLIC_ROUGHNESS, 0, &texturePath) == aiReturn_SUCCESS);
-			KD_CORE_ASSERT(texturePath.length);
-
-			std::string pathStr = texturePath.C_Str();
-
-			metallic = TextureLibrary::Load(m_Model->m_ModelDir / pathStr, ImageLayout::ShaderReadOnlyOptimal, Format::RGBA32F);
-
-			{
-				uint32_t type = (uint32_t)StandardMaterialInstance::MaterialTextureType::Metallic;
-				texturePaths.push_back({ type, pathStr });
-			}
-		}
-
-		Ref<Texture2D> roughness = {};
-		if (material->GetTextureCount(aiTextureType_GLTF_METALLIC_ROUGHNESS)) {
-			aiString texturePath;
-			KD_CORE_ASSERT(material->GetTexture(aiTextureType_GLTF_METALLIC_ROUGHNESS, 0, &texturePath) == aiReturn_SUCCESS);
-			KD_CORE_ASSERT(texturePath.length);
-
-			std::string pathStr = texturePath.C_Str();
-
-			roughness = TextureLibrary::Load(m_Model->m_ModelDir / pathStr, ImageLayout::ShaderReadOnlyOptimal, Format::RGBA32F);
-
-			{
-				uint32_t type = (uint32_t)StandardMaterialInstance::MaterialTextureType::Roughness;
-				texturePaths.push_back({ type, pathStr });
-			}
-		}
-
-		Ref<Texture2D> normals = {};
-		if (material->GetTextureCount(aiTextureType_NORMALS)) {
-			aiString texturePath;
-			KD_CORE_ASSERT(material->GetTexture(aiTextureType_NORMALS, 0, &texturePath) == aiReturn_SUCCESS);
-			KD_CORE_ASSERT(texturePath.length);
-
-			std::string pathStr = texturePath.C_Str();
-
-			normals = TextureLibrary::Load(m_Model->m_ModelDir / pathStr, ImageLayout::ShaderReadOnlyOptimal, Format::RGBA8UN);
-
-			{
-				uint32_t type = (uint32_t)StandardMaterialInstance::MaterialTextureType::Normal;
-				texturePaths.push_back({ type, pathStr });
-			}
-		}
-
-		Ref<Texture2D> emmisive = {};
-		if (material->GetTextureCount(aiTextureType_EMISSIVE))
-		{
-			aiString texturePath;
-			KD_CORE_ASSERT(material->GetTexture(aiTextureType_EMISSIVE, 0, &texturePath) == aiReturn_SUCCESS);
-			KD_CORE_ASSERT(texturePath.length);
-
-			std::string pathStr = texturePath.C_Str();
-
-			emmisive = TextureLibrary::Load(m_Model->m_ModelDir / pathStr, ImageLayout::ShaderReadOnlyOptimal, Format::RGBA8UN);
-
-			{
-				uint32_t type = (uint32_t)StandardMaterialInstance::MaterialTextureType::Emissive;
-				texturePaths.push_back({ type, pathStr });
-			}
-		}
+		Ref<StandardMaterialInstance> mat = CreateRef<StandardMaterialInstance>(initializer);
 
 		glm::vec4 baseColor = glm::vec4(1.0f);
 
@@ -383,14 +453,6 @@ namespace Kaidel {
 		{
 			baseColor = glm::vec4(col.r, col.g, col.b, 1.0);
 		}
-
-		Ref<StandardMaterialInstance> mat = CreateRef<StandardMaterialInstance>();
-		mat->SetBaseColor(baseColor);
-		mat->SetTexture(StandardMaterialInstance::MaterialTextureType::Albedo, albedo);
-		mat->SetTexture(StandardMaterialInstance::MaterialTextureType::Metallic, metallic);
-		mat->SetTexture(StandardMaterialInstance::MaterialTextureType::Roughness, roughness);
-		mat->SetTexture(StandardMaterialInstance::MaterialTextureType::Normal, normals);
-		mat->SetTexture(StandardMaterialInstance::MaterialTextureType::Emissive, emmisive);
 
 		return mat;
 	}

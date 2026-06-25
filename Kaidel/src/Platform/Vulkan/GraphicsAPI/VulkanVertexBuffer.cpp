@@ -2,6 +2,8 @@
 #include "VulkanVertexBuffer.h"
 #include "VulkanGraphicsContext.h"
 
+#define COMMAND_BUFFER *m_OverrideCommandBuffer ? *m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER
+
 namespace Kaidel{
     VulkanVertexBuffer::VulkanVertexBuffer(const void* initData, uint64_t size)
     {
@@ -18,20 +20,15 @@ namespace Kaidel{
 				backend->BufferUnmap(stagingBuffer);
 
 				{
-					VkCommandBuffer commandBuffer = backend->CreateCommandBuffer(VK_CONTEXT.GetPrimaryCommandPool());
-					backend->CommandBufferBegin(commandBuffer);
-
-					VkBufferCopy region{};
-					region.srcOffset = 0;
-					region.dstOffset = 0;
-					region.size = size;
-					backend->CommandCopyBuffer(commandBuffer, stagingBuffer, m_Buffer, { region });
-
-					backend->CommandBufferEnd(commandBuffer);
-
-					backend->SubmitCommandBuffers(VK_CONTEXT.GetGraphicsQueue(), { commandBuffer });
-					vkQueueWaitIdle(VK_CONTEXT.GetGraphicsQueue());
-					backend->DestroyCommandBuffer(commandBuffer, VK_CONTEXT.GetPrimaryCommandPool());
+					VK_CONTEXT.SubmitSingle(VK_TRANSFER_Q,
+					[&](VkCommandBuffer commandBuffer)
+					{
+						VkBufferCopy region{};
+						region.srcOffset = 0;
+						region.dstOffset = 0;
+						region.size = size;
+						backend->CommandCopyBuffer(commandBuffer, stagingBuffer, m_Buffer, { region });
+					});
 				}
 
 				backend->DestroyBuffer(stagingBuffer);

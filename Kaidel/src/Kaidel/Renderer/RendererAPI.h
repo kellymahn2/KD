@@ -68,6 +68,9 @@ namespace Kaidel {
 		virtual void Shutdown() = 0;
 		
 		//Commands
+		virtual void BeginMarker(const std::string& marker) = 0;
+		virtual void EndMarker() = 0;
+
 		virtual void BeginRenderPass(Ref<RenderPass> renderPass, Ref<Framebuffer> framebuffer,
 			std::initializer_list<AttachmentClearValue> clearValues) = 0;
 		virtual void EndRenderPass() = 0;

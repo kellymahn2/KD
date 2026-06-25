@@ -4,12 +4,12 @@
 #include "Kaidel/Renderer/GraphicsAPI/PerFrameResource.h"
 #include "Kaidel/Renderer/GraphicsAPI/ShaderLibrary.h"
 #include "Kaidel/Renderer/GraphicsAPI/DescriptorSet.h"
-#include "Kaidel/Renderer/RendererGlobals.h"
 #include "Kaidel/Renderer/RenderCommand.h"
 #include "Kaidel/VisualMaterial/VisualMaterial.h"
+#include "Kaidel/Asset/Asset.h"
 
 namespace Kaidel {
-	class MaterialInstance : public IRCCounter<false>
+	class MaterialInstance : public AssetBase
 	{
 	public:
 		virtual void Recreate() = 0;
@@ -23,6 +23,8 @@ namespace Kaidel {
 
 		virtual void BindPipeline() const = 0;
 	};
+
+	
 
 	class StandardMaterialInstance : public MaterialInstance
 	{
@@ -52,10 +54,25 @@ namespace Kaidel {
 
 			uint32_t HasTexture[(uint32_t)MaterialTextureType::Max] = { 0 };
 		};
-	
+
+		struct Initializer {
+			glm::vec4 BaseColor = glm::vec4(1.0f);
+			float Roughness = 1.0f;
+			float Metalness = 0.0f;
+
+			MaterialTextureChannel MetalnessChannel = MaterialTextureChannel::Blue;
+			MaterialTextureChannel RoughnessChannel = MaterialTextureChannel::Green;
+
+			Ref<Texture2D> Textures[(uint32_t)MaterialTextureType::Max] = { nullptr };
+		};
+
+		virtual bool IsLoaded() const override;
+
 	public:
 
-		StandardMaterialInstance();
+		StandardMaterialInstance(const Initializer& initializer);
+		
+		DECL_ASSET_TYPE(StandardMaterial)
 
 		virtual void BindDescriptors() override;
 
@@ -89,31 +106,7 @@ namespace Kaidel {
 			return m_UniformData.BaseColor;
 		}
 
-		void SetTexture(MaterialTextureType type, Ref<Texture2D> image)
-		{
-			if (image)
-			{
-				m_Textures[(uint32_t)type] = image;
-				Application::Get().SubmitToMainThread([this, image, type]() {
-					KD_INFO("Bound");
-					RenderCommand::DeviceWaitIdle();
-					m_TextureSet->Update(image, {}, ImageLayout::ShaderReadOnlyOptimal, (uint32_t)type);
-					});
-				m_UniformData.HasTexture[(uint32_t)type] = 1;
-			}
-			else
-			{
-				m_Textures[(uint32_t)type] = {};
-				Application::Get().SubmitToMainThread([this, type]() {
-					RenderCommand::DeviceWaitIdle();
-					m_TextureSet->Update(
-						RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f)), {},
-						ImageLayout::ShaderReadOnlyOptimal, (uint32_t)type);
-					});
-				m_UniformData.HasTexture[(uint32_t)type] = 0;
-			}
-			UploadUniforms();
-		}
+		void SetTexture(MaterialTextureType type, Ref<Texture2D> image);
 
 		void SetMetalnessColorChannel(MaterialTextureChannel channel)
 		{
@@ -206,23 +199,9 @@ namespace Kaidel {
 			return m_Sets[set]->GetTextureAtBinding(binding);
 		}
 
-		void SetTexture(Ref<Texture> texture, uint32_t set, uint32_t binding)
-		{
-			if (texture)
-			{
-				Application::Get().SubmitToMainThread([this, texture, set, binding]() {
-					RenderCommand::DeviceWaitIdle();
-					m_Sets[set]->Update(texture, {}, ImageLayout::ShaderReadOnlyOptimal, binding);
-				});
-			}
-			else
-			{
-				Application::Get().SubmitToMainThread([this, set, binding]() {
-					RenderCommand::DeviceWaitIdle();
-					m_Sets[set]->Update(RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f)), {}, ImageLayout::ShaderReadOnlyOptimal, binding);
-				});
-			}
-		}
+		void SetTexture(Ref<Texture> texture, uint32_t set, uint32_t binding);
+
+		DECL_ASSET_TYPE(VisualMaterial)
 
 	private:
 		void CreateSets();

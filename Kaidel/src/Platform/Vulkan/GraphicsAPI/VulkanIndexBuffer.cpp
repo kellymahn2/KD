@@ -17,20 +17,15 @@ namespace Kaidel{
         backend->BufferUnmap(stagingBuffer);
 
         {
-            VkCommandBuffer commandBuffer = backend->CreateCommandBuffer(VK_CONTEXT.GetPrimaryCommandPool());
-            backend->CommandBufferBegin(commandBuffer);
-
-            VkBufferCopy region{};
-            region.srcOffset = 0;
-            region.dstOffset = 0;
-            region.size = size;
-            backend->CommandCopyBuffer(commandBuffer,stagingBuffer,m_Buffer,{region});
-            
-            backend->CommandBufferEnd(commandBuffer);
-
-            backend->SubmitCommandBuffers(VK_CONTEXT.GetGraphicsQueue(),{commandBuffer});
-            vkQueueWaitIdle(VK_CONTEXT.GetGraphicsQueue());
-            backend->DestroyCommandBuffer(commandBuffer,VK_CONTEXT.GetPrimaryCommandPool());
+			VK_CONTEXT.SubmitSingle(VK_TRANSFER_Q,
+			[&](VkCommandBuffer commandBuffer)
+			{
+				VkBufferCopy region{};
+				region.srcOffset = 0;
+				region.dstOffset = 0;
+				region.size = size;
+				backend->CommandCopyBuffer(commandBuffer, stagingBuffer, m_Buffer, { region });
+			});
         }
 
         backend->DestroyBuffer(stagingBuffer);

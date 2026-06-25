@@ -1,12 +1,14 @@
 #include "KDpch.h"
 #include "Kaidel/Utils/PlatformUtils.h"
+#include "Kaidel/Core/Application.h"
 
 #include <commdlg.h>
+#include <shobjidl.h>
+#include <combaseapi.h>
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
-
-#include "Kaidel/Core/Application.h"
+#include <FileWatch.h>
 
 namespace Kaidel {
 
@@ -53,6 +55,59 @@ namespace Kaidel {
 		if (GetSaveFileNameA(&ofn) == TRUE)
 			return ofn.lpstrFile;
 		return std::nullopt;
+	}
+
+
+	std::optional<std::string> FileDialogs::OpenFolder(bool empty)
+	{
+		/*IFileOpenDialog* fileOpen;
+		CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&fileOpen));
+
+
+		IShellItem* item;
+
+		fileOpen->GetResult(&item);
+
+		PWSTR path;
+
+		if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path)))
+		{
+			CoTaskMemFree(pszStringPath);
+			pItem->Release();
+			pFileOpen->Release();
+		}*/
+
+		return {};
+	}
+
+	using FileWatcherType = filewatch::FileWatch<std::string>;
+
+	FileWatcher::FileWatcher(const std::string& path, const FileWatcherHandlers& handlers)
+	{
+		Reset(path, handlers);
+	}
+
+	void FileWatcher::Reset(const std::string& path, const FileWatcherHandlers& handlers)
+	{
+		m_Handlers = handlers;
+		m_Watcher = new FileWatcherType(path,
+			[this](const std::string& file, const filewatch::Event event)
+			{
+				KD_CORE_INFO("{}, {}", file, (uint32_t)event);
+				switch (event)
+				{
+				case filewatch::Event::added: m_Handlers.OnAdded(file); break;
+				case filewatch::Event::removed: m_Handlers.OnRemoved(file); break;
+				case filewatch::Event::modified: m_Handlers.OnModified(file); break;
+				case filewatch::Event::renamed_old: m_Handlers.OnRenamedOld(file); break;
+				case filewatch::Event::renamed_new: m_Handlers.OnRenamedNew(file); break;
+				}
+			});
+	}
+
+	FileWatcher::~FileWatcher()
+	{
+		delete m_Watcher;
 	}
 
 }

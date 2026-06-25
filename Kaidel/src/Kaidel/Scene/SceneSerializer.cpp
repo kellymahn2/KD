@@ -2,112 +2,20 @@
 #include "SceneSerializer.h"
 
 #include "Entity.h"
+#include "Kaidel/Core/YAMLHelpers.h"
 #include "Components.h"
 #include "Kaidel/Project/Project.h"
 #include "Kaidel/Scripting/ScriptEngine.h"
-#include <fstream>
+#include "Kaidel/Asset/AssetManager.h"
+#include "Kaidel/Scene/ModelLibrary.h"
 
+#include <fstream>
 #include <yaml-cpp/yaml.h>
 
-namespace YAML {
-
-	template<>
-	struct convert<glm::vec2>
-	{
-		static Node encode(const glm::vec2& rhs)
-		{
-			Node node;
-			node.push_back(rhs.x);
-			node.push_back(rhs.y);
-			node.SetStyle(EmitterStyle::Flow);
-			return node;
-		}
-
-		static bool decode(const Node& node, glm::vec2& rhs)
-		{
-			if (!node.IsSequence() || node.size() != 2)
-				return false;
-
-			rhs.x = node[0].as<float>();
-			rhs.y = node[1].as<float>();
-			return true;
-		}
-	};
-
-	template<>
-	struct convert<glm::vec3>
-	{
-		static Node encode(const glm::vec3& rhs)
-		{
-			Node node;
-			node.push_back(rhs.x);
-			node.push_back(rhs.y);
-			node.push_back(rhs.z);
-			node.SetStyle(EmitterStyle::Flow);
-			return node;
-		}
-
-		static bool decode(const Node& node, glm::vec3& rhs)
-		{
-			if (!node.IsSequence() || node.size() != 3)
-				return false;
-
-			rhs.x = node[0].as<float>();
-			rhs.y = node[1].as<float>();
-			rhs.z = node[2].as<float>();
-			return true;
-		}
-	};
-
-	template<>
-	struct convert<glm::vec4>
-	{
-		static Node encode(const glm::vec4& rhs)
-		{
-			Node node;
-			node.push_back(rhs.x);
-			node.push_back(rhs.y);
-			node.push_back(rhs.z);
-			node.push_back(rhs.w);
-			node.SetStyle(EmitterStyle::Flow);
-			return node;
-		}
-
-		static bool decode(const Node& node, glm::vec4& rhs)
-		{
-			if (!node.IsSequence() || node.size() != 4)
-				return false;
-
-			rhs.x = node[0].as<float>();
-			rhs.y = node[1].as<float>();
-			rhs.z = node[2].as<float>();
-			rhs.w = node[3].as<float>();
-			return true;
-		}
-	};
-}
 namespace Kaidel {
 
 
-	static YAML::Emitter& operator<<(YAML::Emitter& out, const glm::vec2& v)
-	{
-		out << YAML::Flow;
-		out << YAML::BeginSeq << v.x << v.y << YAML::EndSeq;
-		return out;
-	}
-	static YAML::Emitter& operator<<(YAML::Emitter& out, const glm::vec3& v)
-	{
-		out << YAML::Flow;
-		out << YAML::BeginSeq << v.x << v.y << v.z << YAML::EndSeq;
-		return out;
-	}
-
-	static YAML::Emitter& operator<<(YAML::Emitter& out, const glm::vec4& v)
-	{
-		out << YAML::Flow;
-		out << YAML::BeginSeq << v.x << v.y << v.z << v.w << YAML::EndSeq;
-		return out;
-	}
+	
 
 	static std::string ScriptFieldTypeToString(ScriptFieldType type) {
 		switch (type)
@@ -215,10 +123,33 @@ namespace Kaidel {
 
 			auto& tc = entity.GetComponent<TransformComponent>();
 			out << YAML::Key << "Translation" << YAML::Value << tc.Translation;
-			//out << YAML::Key << "Rotation" << YAML::Value << tc.Rotation;
+			out << YAML::Key << "Rotation" << YAML::Value << tc.Rotation;
 			out << YAML::Key << "Scale" << YAML::Value << tc.Scale;
 
 			out << YAML::EndMap; // TransformComponent
+		}
+		if (entity.HasComponent<MeshComponent>())
+		{
+			out << YAML::Key << "MeshComponent";
+			out << YAML::BeginMap; // MeshComponent
+
+			auto& mc = entity.GetComponent<MeshComponent>();
+
+
+			out << YAML::Key << "Mesh" << YAML::Value;
+
+			out << (uint64_t)mc.UsedMesh->GetHandle();
+
+			out << YAML::Key << "Materials" << YAML::Value;
+
+			out << YAML::BeginSeq;
+			for (auto& mat : mc.Instance.UsedMaterial)
+			{
+				out << (uint64_t)mat->GetHandle();
+			}
+			out << YAML::EndSeq;
+
+			out << YAML::EndMap; // MeshComponent
 		}
 		if (entity.HasComponent<CameraComponent>())
 		{
@@ -422,10 +353,19 @@ namespace Kaidel {
 	}
 	template<typename T,typename Func>
 	static void DeserializeComponent(Entity& entity, const std::string& name,YAML::Node& entityData,Func&& func) {
-		auto componentData = entityData[name];
-		if (componentData) {
-			auto& component = entity.AddComponent<T>();
-			func(component, entity, componentData);
+		try {
+			auto componentData = entityData[name];
+			if (componentData) {
+				auto& component = entity.AddComponent<T>();
+				func(component, entity, componentData);
+			}
+		}
+		catch (std::exception& error)
+		{
+			KD_ERROR("Couldn't deserialize component: {} error: {}", name, error.what());
+			KD_CORE_ASSERT(false);
+			
+			return;
 		}
 	}
 	bool SceneSerializer::Deserialize(const std::string& filepath)
@@ -440,7 +380,8 @@ namespace Kaidel {
 		auto entities = data["Entities"];
 		if (entities)
 		{
-			for (auto entityNode : entities)
+			try {
+				for (auto entityNode : entities)
 			{
 				UUID uuid = entityNode["Entity"].as<uint64_t>(); 
 				std::string name;
@@ -458,9 +399,25 @@ namespace Kaidel {
 					// Entities always have transforms
 					auto& tc = deserializedEntity.GetComponent<TransformComponent>();
 					tc.Translation = transformComponent["Translation"].as<glm::vec3>();
-					tc.Rotation = transformComponent["Rotation"].as<glm::vec3>();
+					tc.Rotation = transformComponent["Rotation"].as<glm::quat>();
 					tc.Scale = transformComponent["Scale"].as<glm::vec3>();
 				}
+
+				DeserializeComponent<MeshComponent>(deserializedEntity, "MeshComponent", entityNode,
+					[](auto& cc, auto& entity, auto& node)
+					{
+						uint64_t id = node["Mesh"].as<uint64_t>();
+
+						cc.UsedMesh = AssetManager::GetAsset(id).As<Mesh>();
+
+						for (auto matNode : node["Materials"])
+						{
+							uint64_t id = matNode.as<uint64_t>();
+
+							cc.Instance.UsedMaterial.push_back(AssetManager::GetAsset(id).As<StandardMaterialInstance>());
+						}
+						cc.Instance.VisibilityResults.resize(cc.UsedMesh->GetSubmeshes().size());
+					});
 
 				DeserializeComponent<ChildComponent>(deserializedEntity, "ChildComponent", entityNode,
 					[](auto& cc, auto& entity, auto& childComponent) {
@@ -615,6 +572,14 @@ case ScriptFieldType::##T:\
 							}
 						}
 					});*/
+			}
+			}
+
+			catch (std::exception& error)
+			{
+				KD_ERROR("Couldn't deserialize entity: {}", error.what());
+				KD_CORE_ASSERT(false);
+				return false;
 			}
 		}
 

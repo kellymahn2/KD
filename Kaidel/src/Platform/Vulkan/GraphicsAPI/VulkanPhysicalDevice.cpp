@@ -3,18 +3,33 @@
 
 
 namespace Kaidel {
-	VulkanPhysicalDevice::VulkanPhysicalDevice(const VulkanInstance& instance, const std::vector<VulkanQueueGroupSpecification>& specs)
+
+	VulkanPhysicalDevice::VulkanPhysicalDevice(
+		const VulkanInstance& instance, const VulkanSurface& surface, 
+		const std::unordered_map<std::string, QueueCapability>& requested)
+
 		:m_Device(VK_NULL_HANDLE)
 	{
 		auto devices = GetDevices(instance);
-		for (auto& device : devices) {
-			m_QueueManager.FillQueueManager(specs, device);
+
+		for (auto& device : devices) 
+		{
+			
 			VkPhysicalDeviceProperties props{};
 			vkGetPhysicalDeviceProperties(device, &props);
-			if (m_QueueManager.Filled() && props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+			
+			auto queues = GetRequestedQueues(requested, device, surface.GetSurface());
+			
+			if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && !queues.empty()) 
+			{
 				m_Device = device;
+				
+				m_Queues = std::move(queues);
+
 				KD_CORE_INFO("Chosen device {}", props.deviceName);
+				
 				m_Properties = CreateScope<VkPhysicalDeviceProperties>(props);
+				
 				break;
 			}
 		}

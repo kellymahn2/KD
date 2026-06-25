@@ -82,7 +82,6 @@ namespace Kaidel {
 				ImGui::EndTable();
 			}
 		}
-		
 
 		ImGui::End();
 

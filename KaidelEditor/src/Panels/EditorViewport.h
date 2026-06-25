@@ -63,7 +63,8 @@ namespace Kaidel
 					-glm::normalize(glm::toMat4(glm::quat(glm::vec3(-glm::pi<float>() / 2.0f, 0.0f, 0.0f)))[2]);
 				
 				static Visibility vis;
-				vis.Instances.push_back(InstanceData{ glm::mat4(1.0f) });
+				vis.Instances.clear();
+				vis.Instances.push_back(InstanceData{ model });
 
 				Renderer3D::Begin(m_Outputs, vis, sceneData, lightData, m_ViewportName);
 
@@ -121,7 +122,7 @@ namespace Kaidel
 
 				m_OutputSets.Construct([&setLayout, this](uint32_t i) {
 					Ref<DescriptorSet> set = DescriptorSet::Create(setLayout);
-					set->Update(m_Outputs[i], RendererGlobals::GetSamler(SamplerFilter::Linear, SamplerMipMapMode::Linear), ImageLayout::ShaderReadOnlyOptimal, 0);
+					set->Update(m_Outputs[i], RendererGlobals::GetSampler(SamplerFilter::Linear, SamplerMipMapMode::Linear), ImageLayout::ShaderReadOnlyOptimal, 0);
 					return set;
 				});
 

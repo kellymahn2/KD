@@ -36,92 +36,23 @@ namespace Kaidel {
 		return mat;
 	}
 
-	void Material::SetBaseColor(const glm::vec4& color)
-	{
-		m_UniformData.BaseColor = color;
-	}
-
-	const glm::vec4& Material::GetBaseColor() const
-	{
-		return m_UniformData.BaseColor;
-	}
-
-	void Material::SetTexture(MaterialTextureType type, Ref<Texture2D> image)
-	{
-		if (image)
-		{
-			m_Textures[(uint32_t)type] = image;
-			Application::Get().SubmitToMainThread([this, image, type]() {
-				KD_INFO("Bound");
-				RenderCommand::DeviceWaitIdle();
-				m_TextureSet->Update(image, {}, ImageLayout::ShaderReadOnlyOptimal, (uint32_t)type);
-				});
-			m_UniformData.HasTexture[(uint32_t)type] = 1;
-		}
-		else
-		{
-			m_Textures[(uint32_t)type] = {};
-			Application::Get().SubmitToMainThread([this, type]() {
-				RenderCommand::DeviceWaitIdle();
-				m_TextureSet->Update(
-					RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f)), {},
-					ImageLayout::ShaderReadOnlyOptimal, (uint32_t)type);
-				});
-			m_UniformData.HasTexture[(uint32_t)type] = 0;
-		}
-		UploadUniforms();
-	}
-
-	void Material::SetMetalnessColorChannel(MaterialTextureChannel channel)
-	{
-		m_UniformData.MetalnessChannel = channel;
-		UploadUniforms();
-	}
-
-	void Material::SetRoughnessColorChannel(MaterialTextureChannel channel)
-	{
-		m_UniformData.RoughnessChannel = channel;
-		UploadUniforms();
-	}
-
-	void Material::SetMetalness(float metalness)
-	{
-		m_UniformData.Metalness = metalness;
-		UploadUniforms();
-	}
-
-	void Material::SetRoughness(float roughness)
-	{
-		m_UniformData.Roughness = roughness;
-		UploadUniforms();
-	}
-
-	Kaidel::Ref<Kaidel::Texture2D> Material::GetTexture(MaterialTextureType type)
-	{
-		return m_Textures[(uint32_t)type];
-	}
-
-	bool Material::IsTextureUsed(MaterialTextureType type)
-	{
-		return m_UniformData.HasTexture[(uint32_t)type];
-	}
-
-	void Material::SetTextureUsed(MaterialTextureType type, bool isUsed)
-	{
-		m_UniformData.HasTexture[(uint32_t)type] = isUsed;
-		UploadUniforms();
-	}
-
-	void Material::UploadUniforms()
-	{
-		RenderCommand::DeviceWaitIdle();
-		m_MaterialBuffer->SetData(&m_UniformData, sizeof(MaterialUniformData));
-	}*/
+	*/
 
 
 	static Ref<GraphicsPipeline> s_StandardPipeline;
 
-	StandardMaterialInstance::StandardMaterialInstance()
+	bool StandardMaterialInstance::IsLoaded() const
+	{
+		if (!AssetBase::IsLoaded())
+			return false;
+
+		//Make sure every texture is loaded.
+		//for(uint32_t i = 0; i < )
+
+		return true;
+	}
+
+	StandardMaterialInstance::StandardMaterialInstance(const Initializer& initializer)
 	{
 		if (!s_StandardPipeline) {
 			{
@@ -137,7 +68,7 @@ namespace Kaidel {
 				specs.Multisample.Samples = TextureSamples::x1;
 				specs.Primitive = PrimitiveTopology::TriangleList;
 				specs.Rasterization.FrontCCW = true;
-				specs.Rasterization.CullMode = PipelineCullMode::Front;
+				specs.Rasterization.CullMode = PipelineCullMode::None;
 				specs.Shader = ShaderLibrary::LoadShader("DeferredGBufferGen", "assets/_shaders/DeferredGBufferGen.glsl");
 				specs.RenderPass = Renderer3D::GetDeferredPassRenderPass();
 				specs.Subpass = 0;
@@ -153,17 +84,31 @@ namespace Kaidel {
 		Ref<Texture> defaultWhite = RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f));
 
 		for (uint32_t i = 0; i < (uint32_t)MaterialTextureType::Max; ++i) {
-			m_TextureSet->Update(defaultWhite, {}, ImageLayout::ShaderReadOnlyOptimal, i);
+			Ref<Texture> t = defaultWhite;
+
+			if (initializer.Textures[i])
+			{
+				t = initializer.Textures[i];
+				m_Textures[i] = t;
+				m_UniformData.HasTexture[i] = true;
+			}
+
+			m_TextureSet->Update(t, {}, ImageLayout::ShaderReadOnlyOptimal, i);
 		}
 
-		m_UniformBuffer = UniformBuffer::Create(sizeof(MaterialUniformData));
+
+		m_UniformData.BaseColor = initializer.BaseColor;
+		m_UniformData.Roughness = initializer.Roughness;
+		m_UniformData.Metalness = initializer.Metalness;
+		m_UniformData.MetalnessChannel = initializer.MetalnessChannel;
+		m_UniformData.RoughnessChannel = initializer.RoughnessChannel;
+
+		m_UniformBuffer = UniformBuffer::Create(sizeof(MaterialUniformData), &m_UniformData);
 
 		m_UniformSet =
 			DescriptorSet::Create(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), 4);
 
 		m_UniformSet->Update(m_UniformBuffer, 0);
-
-		UploadUniforms();
 	}
 
 	void StandardMaterialInstance::BindDescriptors()
@@ -208,6 +153,33 @@ namespace Kaidel {
 		throw std::logic_error("The method or operation is not implemented.");
 	}
 
+
+	void StandardMaterialInstance::SetTexture(MaterialTextureType type, Ref<Texture2D> image)
+	{
+		if (image)
+		{
+			m_Textures[(uint32_t)type] = image;
+			Application::Get().SubmitToMainThread([this, image, type]() {
+				KD_INFO("Bound");
+				RenderCommand::DeviceWaitIdle();
+				m_TextureSet->Update(image, {}, ImageLayout::ShaderReadOnlyOptimal, (uint32_t)type);
+				UploadUniforms();
+				});
+			m_UniformData.HasTexture[(uint32_t)type] = 1;
+		}
+		else
+		{
+			m_Textures[(uint32_t)type] = {};
+			Application::Get().SubmitToMainThread([this, type]() {
+				RenderCommand::DeviceWaitIdle();
+				m_TextureSet->Update(
+					RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f)), {},
+					ImageLayout::ShaderReadOnlyOptimal, (uint32_t)type);
+				UploadUniforms();
+				});
+			m_UniformData.HasTexture[(uint32_t)type] = 0;
+		}
+	}
 
 	VisualMaterialInstance::VisualMaterialInstance(Ref<VisualMaterial> visualMaterial)
 	{
@@ -277,8 +249,25 @@ namespace Kaidel {
 
 	void VisualMaterialInstance::UploadUniformData()
 	{
-		RenderCommand::DeviceWaitIdle();
 		m_UniformBuffer->SetData(m_UniformData.data(), m_VisualMaterial->UniformLayout.Size);
+	}
+
+	void VisualMaterialInstance::SetTexture(Ref<Texture> texture, uint32_t set, uint32_t binding)
+	{
+		if (texture)
+		{
+			Application::Get().SubmitToMainThread([this, texture, set, binding]() {
+				RenderCommand::DeviceWaitIdle();
+				m_Sets[set]->Update(texture, {}, ImageLayout::ShaderReadOnlyOptimal, binding);
+				});
+		}
+		else
+		{
+			Application::Get().SubmitToMainThread([this, set, binding]() {
+				RenderCommand::DeviceWaitIdle();
+				m_Sets[set]->Update(RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f)), {}, ImageLayout::ShaderReadOnlyOptimal, binding);
+				});
+		}
 	}
 
 	void VisualMaterialInstance::CreateSets()

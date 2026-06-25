@@ -19,6 +19,7 @@ project "KaidelEditor"
 		"%{wks.location}/Kaidel/src",
 		"%{wks.location}/KaidelEditor/src",
 		"%{wks.location}/Kaidel/vendor",
+		"%{wks.location}/Kaidel/vendor/FileWatch",
 		"%{IncludeDir.glm}",
 		"%{IncludeDir.entt}",
 		"%{IncludeDir.ImGuizmo}",

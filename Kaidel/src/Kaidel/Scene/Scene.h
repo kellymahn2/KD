@@ -6,13 +6,17 @@
 #include "Kaidel/Core/UUID.h"
 #include "entt.hpp"
 #include "Model.h"
+#include "Kaidel/Asset/Asset.h"
+
 class b2World;
 
 namespace Kaidel {
 	class Entity;
-	class Scene : public IRCCounter<false>
+	class Scene : public AssetBase
 	{
 	public:
+		DECL_ASSET_TYPE(Scene)
+
 		Scene();
 		~Scene();
 

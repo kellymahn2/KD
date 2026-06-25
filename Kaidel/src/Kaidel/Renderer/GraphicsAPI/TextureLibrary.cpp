@@ -17,11 +17,6 @@ namespace Kaidel {
 
 	namespace Utils {
 
-		struct ImageLoadResult {
-			const void* Data;
-			uint32_t Width, Height;
-		};
-
 		static LoadBufferFunc GetloadBufferFunc( Format format)
 		{
 			switch (format)
@@ -102,30 +97,62 @@ namespace Kaidel {
 			return (LoadFunc)nullptr;
 		}
 
-		static ImageLoadResult LoadImage(const Path& path, Format format) {
-			ImageLoadResult res{};
+		static TextureLoadResult LoadImage(const Path& path, Format format) {
+			
+			KD_ASSERT(FileSystem::exists(path));
+
+			TextureLoadResult res{};
 			const void* data;
 			int width, height;
 			std::string pathStr = path.string();
 
-			LoadFunc func = GetLoadFunc(format);
+
+			LoadBufferFunc func = GetloadBufferFunc(format);
 			
 			ConvertFunc convert = nullptr;
 
 			uint32_t channelCount = Utils::CalculateChannelCount(format);
 			KD_CORE_ASSERT(func);
+
+			std::vector<stbi_uc> buffer;
+
+			{
+				do
+				{
+					std::ifstream file(pathStr, std::ios::binary | std::ios::in);
+
+					if (!file.is_open())
+					{
+						std::this_thread::sleep_for(std::chrono::milliseconds(200));
+						continue;
+					}
+
+					file.seekg(0, std::ios::end);
+					uint64_t size = file.tellg();
+
+					buffer.resize(size);
+
+					file.seekg(std::ios::beg);
+
+					char* data = (char*)&buffer[0];
+					file.read(data, size);
+
+				} while (buffer.empty());
+			}
+
 			{
 				int32_t count = 0;
-				data = func(pathStr.c_str(), &width, &height, &count, channelCount);
+				data = func(buffer.data(), buffer.size(), &width, &height, &count, channelCount);
 			}
-			KD_CORE_ASSERT(data);
+
+			KD_CORE_ASSERT(data, stbi_failure_reason());
 			
 			if (convert) {
 				data = convert((const float*)data, width, height, channelCount);
 				KD_CORE_ASSERT(data);
 			}
 
-			res.Data = data;
+			res.Data.reset((uint8_t*)data);
 			res.Width = width;
 			res.Height = height;
 			return res;
@@ -142,9 +169,6 @@ namespace Kaidel {
 		
 		Ref<ComputePipeline> IrradianceDiffusePipeline;
 		Ref<DescriptorSet> IrradianceDiffuseSet;
-
-		Ref<ComputePipeline> BRDFIntegrationPipeline;
-		Ref<DescriptorSet> BRDFIntegrationSet;
 
 		Ref<ComputePipeline> SpecularFilterPipeline;
 	};
@@ -188,22 +212,6 @@ namespace Kaidel {
 		}
 
 		{
-			DescriptorSetLayoutSpecification specs(
-				{
-					{DescriptorType::Image, ShaderStage_ComputeShader}
-				}
-			);
-
-			s_LibraryData->BRDFIntegrationSet = DescriptorSet::Create(specs);
-		}
-
-		{
-			s_LibraryData->BRDFIntegrationPipeline =
-				ComputePipeline::Create(ShaderLibrary::LoadOrGetNamedShader(
-					"BRDFIntegrationLUT", "assets/_shaders/BRDFIntegrationLUT.glsl"));
-		}
-
-		{
 			s_LibraryData->SpecularFilterPipeline =
 				ComputePipeline::Create(ShaderLibrary::LoadOrGetNamedShader(
 					"SpecularFilter", "assets/_shaders/SpecularFilter.glsl"));
@@ -213,6 +221,36 @@ namespace Kaidel {
 	{
 		delete s_LibraryData;
 	}
+
+	void TextureLibrary::LoadInto(Ref<Texture2D> texture, const Path& path, ImageLayout layout, Format format)
+	{
+		KD_INFO("Loading texture {}", path);
+
+		TextureLoadResult res;
+
+		res = Utils::LoadImage(path, format);
+
+		Texture2DSpecification specs;
+		specs.Format = format;
+		specs.Width = res.Width;
+		specs.Height = res.Height;
+		specs.Depth = 1;
+		specs.Layers = 1;
+		specs.Mips = 1;
+		specs.Samples = TextureSamples::x1;
+		TextureData data;
+		data.Data = res.Data.get();
+		data.Layer = 0;
+		specs.InitialDatas.push_back(data);
+		specs.Layout = layout;
+		specs.Swizzles[0] = TextureSwizzle::Red;
+		specs.Swizzles[1] = TextureSwizzle::Green;
+		specs.Swizzles[2] = TextureSwizzle::Blue;
+		specs.Swizzles[3] = TextureSwizzle::Alpha;
+
+		Texture2D::CreateAt(texture, specs);
+	}
+
 	Ref<Texture2D> TextureLibrary::Load(const Path& path, ImageLayout layout, Format format)
 	{
 		SCOPED_TIMER("Load");
@@ -221,7 +259,7 @@ namespace Kaidel {
 
 		KD_INFO("Loading texture {}", path);
 
-		Utils::ImageLoadResult res;
+		TextureLoadResult res;
 		
 		res = Utils::LoadImage(path, format);
 		
@@ -234,7 +272,7 @@ namespace Kaidel {
 		specs.Mips = 1;
 		specs.Samples = TextureSamples::x1;
 		TextureData data;
-		data.Data = res.Data;
+		data.Data = res.Data.get();
 		data.Layer = 0;
 		specs.InitialDatas.push_back(data);
 		specs.Layout = layout;
@@ -244,7 +282,6 @@ namespace Kaidel {
 		specs.Swizzles[3] = TextureSwizzle::Alpha;
 
 		Ref<Texture2D> t = Texture2D::Create(specs);
-		stbi_image_free((void*)res.Data);
 
 		s_LibraryData->LoadedTextures[path] = t;
 		s_LibraryData->LoadedTexturesInv[t] = path;
@@ -257,7 +294,7 @@ namespace Kaidel {
 
 		const Path* paths = (const Path*)&pathParams;
 
-		std::unordered_map<uint32_t, Utils::ImageLoadResult> results;
+		std::unordered_map<uint32_t, TextureLoadResult> results;
 		
 		for (uint32_t i = 0; i < 6; ++i)
 		{
@@ -272,7 +309,7 @@ namespace Kaidel {
 
 		uint32_t width = 0, height = 0;
 
-		for (auto& [i, res] :results)
+		for (auto& [i, res] : results)
 		{
 			width = std::max(width, res.Width);
 			height = std::max(height, res.Height);
@@ -295,17 +332,12 @@ namespace Kaidel {
 		for (auto& [i, res] : results)
 		{
 			TextureData data;
-			data.Data = res.Data;
+			data.Data = res.Data.get();
 			data.Layer = i;
 			specs.InitialDatas.push_back(data);
 		}
 
 		Ref<TextureCube> t = TextureCube::Create(specs);
-
-		for (auto& [i, res] : results)
-		{
-			stbi_image_free((void*)res.Data);
-		}
 
 		return t;
 	}
@@ -324,7 +356,7 @@ namespace Kaidel {
 		specs.Layers = 1;
 		specs.Samples = TextureSamples::x1;
 		TextureData data;
-		data.Data = res.Data;
+		data.Data = res.Data.get();
 		data.Layer = 0;
 		specs.InitialDatas.push_back(data);
 		specs.Layout = ImageLayout::ShaderReadOnlyOptimal;
@@ -334,7 +366,6 @@ namespace Kaidel {
 		specs.Swizzles[3] = TextureSwizzle::Alpha;
 
 		static Ref<Texture2D> t = Texture2D::Create(specs);
-		stbi_image_free((void*)res.Data);
 
 		TextureCubeSpecification cubeSpecs;
 		cubeSpecs.Format = Format::RGBA16F;
@@ -344,7 +375,7 @@ namespace Kaidel {
 		Ref<TextureCube> cube = TextureCube::Create(cubeSpecs);
 
 		s_LibraryData->EquiToCubeSet->Update(
-			t, RendererGlobals::GetSamler(SamplerFilter::Linear, SamplerMipMapMode::Linear), 
+			t, RendererGlobals::GetSampler(SamplerFilter::Linear, SamplerMipMapMode::Linear), 
 			ImageLayout::ShaderReadOnlyOptimal, 0)
 			.Update(cube, {}, ImageLayout::General, 1);
 
@@ -409,30 +440,17 @@ namespace Kaidel {
 		Ref<TextureCube> irradiance = TextureCube::Create(irSpecs);
 		
 		s_LibraryData->IrradianceDiffuseSet->Update(
-			specular, RendererGlobals::GetSamler(SamplerFilter::Linear, SamplerMipMapMode::Linear),
+			specular, RendererGlobals::GetSampler(SamplerFilter::Linear, SamplerMipMapMode::Linear),
 			ImageLayout::ShaderReadOnlyOptimal, 0)
 			.Update(irradiance, {}, ImageLayout::General, 1);
 
-		uint32_t lutWidth = 256, lutHeight = 256;
-		Texture2DSpecification lutSpecs;
-		lutSpecs.Width = lutWidth;
-		lutSpecs.Height = lutHeight;
-		lutSpecs.Format = Format::RG16F;
-		lutSpecs.Layout = ImageLayout::General;
-		lutSpecs.Mipped = false;
-		Ref<Texture2D> specularLUT = Texture2D::Create(lutSpecs);
-
-		s_LibraryData->BRDFIntegrationSet->Update(specularLUT, {}, ImageLayout::General, 0);
-
-		
-
 		RenderCommand::Submit([&]() {
+			RenderCommand::BeginMarker("Environment loading");
 			RenderCommand::BindComputePipeline(s_LibraryData->EquiToCubePipeline);
 			RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("EquiToCube"), s_LibraryData->EquiToCubeSet, 0);
 			RenderCommand::Dispatch(std::ceil(width / 16.0f), std::ceil(height / 16.0f), 6);
 
 			
-
 			{
 				ImageMemoryBarrier barrier(cube, ImageLayout::TransferSrcOptimal, AccessFlags_ShaderRead, AccessFlags_TransferRead);
 				barrier.Subresource.LayerCount = 6;
@@ -460,8 +478,6 @@ namespace Kaidel {
 
 			RenderCommand::GenerateMips(cube);
 
-			
-
 			{
 				ImageMemoryBarrier barrier(
 					cube, ImageLayout::ShaderReadOnlyOptimal, AccessFlags_TransferRead, AccessFlags_ShaderRead);
@@ -470,17 +486,7 @@ namespace Kaidel {
 				RenderCommand::PipelineBarrier(PipelineStages_Transfer, PipelineStages_ComputeShader, {}, {}, { barrier });
 			}
 
-			RenderCommand::BindComputePipeline(s_LibraryData->BRDFIntegrationPipeline);
-			RenderCommand::BindDescriptorSet(
-				ShaderLibrary::GetNamedShader("BRDFIntegrationLUT"), s_LibraryData->BRDFIntegrationSet, 0);
-			RenderCommand::Dispatch(std::ceil(lutWidth / 32.0f), std::ceil(lutHeight / 32.0f), 1);
-
-			{
-				ImageMemoryBarrier barrier(
-					specularLUT, ImageLayout::ShaderReadOnlyOptimal, AccessFlags_ShaderWrite, AccessFlags_None);
-
-				RenderCommand::PipelineBarrier(PipelineStages_ComputeShader, PipelineStages_BottomOfPipe, {}, {}, { barrier });
-			}
+			
 
 			const float deltaRoughness = 1.0f / std::max(float(envMipCount - 1), 1.0f);
 			RenderCommand::BindComputePipeline(s_LibraryData->SpecularFilterPipeline);
@@ -525,13 +531,13 @@ namespace Kaidel {
 
 				RenderCommand::PipelineBarrier(PipelineStages_ComputeShader, PipelineStages_BottomOfPipe, {}, {}, { barrier });
 			}
-			
+			RenderCommand::EndMarker();
 		});
 
 		EnvironmentMapSpecification environmentSpecs;
 		environmentSpecs.Environment = cube;
 		environmentSpecs.Irradiance = irradiance;
-		environmentSpecs.SpecularLUT = specularLUT;
+		environmentSpecs.SpecularLUT = RendererGlobals::GetSpecularLUT();
 		environmentSpecs.Specular = specular;
 		return CreateRef<EnvironmentMap>(environmentSpecs);
 	}
@@ -572,7 +578,6 @@ namespace Kaidel {
 		specs.Swizzles[3] = TextureSwizzle::Alpha;
 
 		Ref<Texture2D> t = Texture2D::Create(specs);
-		stbi_image_free((void*)res);
 
 		return t;
 	}
@@ -587,8 +592,14 @@ namespace Kaidel {
 		return empty;
 	}
 	
+	Kaidel::TextureLoadResult TextureLibrary::LoadData(const Path& path, Format format)
+	{
+		return Utils::LoadImage(path, format);
+	}
+
 	bool TextureLibrary::Exists(const Path& path)
 	{
 		return s_LibraryData->LoadedTextures.find(path) != s_LibraryData->LoadedTextures.end();
 	}
+
 }

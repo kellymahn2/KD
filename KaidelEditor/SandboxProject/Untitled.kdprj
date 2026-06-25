@@ -1,6 +1,6 @@
 Project:
   Name: Untitled
-  StartScene: ""
+  StartScene: Untitled.kaidel
   RelativeAssetDirectory: ""
-  ProjectAutoSave: true
+  ProjectAutoSave: false
   ProjectAutoSaveTimer: 60

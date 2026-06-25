@@ -1,89 +1,52 @@
 #pragma once
 #include <functional>
 namespace Kaidel {
-
-	struct JobDispatchArgs {
+	struct JobArgs {
+		void* SharedMemory;
 		uint32_t GlobalID;
 		uint32_t LocalID;
 		uint32_t GroupID;
 		bool FirstJobInGroup;
 		bool LastJobInGroup;
-		void* SharedMemory;
 	};
 
-	template <typename T, size_t capacity>
-	class ThreadSafeRingBuffer
-	{
-	public:
-		// Push an item to the end if there is free space
-		//  Returns true if succesful
-		//  Returns false if there is not enough space
-		inline bool push_back(const T& item)
-		{
-			bool result = false;
-			std::scoped_lock<std::mutex> lock(this->lock);
-			size_t next = (head + 1) % capacity;
-			if (next != tail)
-			{
-				data[head] = item;
-				head = next;
-				result = true;
-			}
-			return result;
+	using Task = std::function<void(const JobArgs&)>;
 
-		}
+	enum class DispatchPriority {
+		High,
+		Low,
+		Default = High,
+		Count
+	};
 
-		// Get an item if there are any
-		//  Returns true if succesful
-		//  Returns false if there are no items
-		inline bool pop_front(T& item)
-		{
-			bool result = false;
-			std::scoped_lock<std::mutex> lock(this->lock);
-			if (tail != head)
-			{
-				item = data[tail];
-				tail = (tail + 1) % capacity;
-				result = true;
-			}
-			return result;
+	struct JobSystemContext {
+		std::atomic<uint32_t> ActiveCount = 0;
+		DispatchPriority Priority = DispatchPriority::Default;
 
-		}
-		ThreadSafeRingBuffer()
-			:lock{}
+		JobSystemContext(DispatchPriority priority = DispatchPriority::Default)
+			: Priority(priority)
 		{
 		}
-	private:
-		T data[capacity];
-		size_t head = 0;
-		size_t tail = 0;
-		std::mutex lock; // this just works better than a spinlock here (on windows)
+
+		bool Finished();
+
+		void Wait();
 	};
 
 	class JobSystem {
 	public:
+		static void Init(uint32_t maxThreadCount = ~0U);
+		static void Shutdown();
 
-		static void InitMainJobSystem() { s_JobSystem = new JobSystem(16); }
+		static void Execute(JobSystemContext& ctx, Task task);
 
-		JobSystem(uint32_t workerThreadCount);
-		~JobSystem();
-		void Execute(const std::function<void()>& job);
-		void Dispatch(uint32_t jobCount, uint32_t groupSize, const std::function<void(JobDispatchArgs)>& job, uint32_t sharedMemorySize = 0);
-		bool IsBusy();
-		void Wait();
-		static JobSystem& GetMainJobSystem() { return *s_JobSystem; }
-	private:
-		void poll();
-		struct JobSystemData {
-			uint32_t numThreads = 0;    // number of worker threads, it will be initialized in the Initialize() function
-			ThreadSafeRingBuffer<std::function<void()>, 256> jobPool;    // a thread safe queue to put pending jobs onto the end (with a capacity of 256 jobs). A worker thread can grab a job from the beginning
-			std::condition_variable wakeCondition;    // used in conjunction with the wakeMutex below. Worker threads just sleep when there is no job, and the main thread can wake them up
-			std::mutex wakeMutex;    // used in conjunction with the wakeCondition above
-			uint64_t currentLabel = 0;    // tracks the state of execution of the main thread
-			std::atomic<uint64_t> finishedLabel;    // track the state of execution across background worker threads
-		};
-		JobSystemData m_Data;
-		static JobSystem* s_JobSystem;
+		static void Dispatch(JobSystemContext& ctx, uint32_t jobCount, uint32_t groupSize, Task task, uint64_t sharedMemorySize = 0);
+
+		static void Execute(Task task);
+
+		static void Dispatch(uint32_t jobCount, uint32_t groupSize, Task task, uint64_t sharedMemorySize = 0);
+
+		static JobSystemContext& GetDefault();
 	};
 
 

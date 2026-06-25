@@ -26,6 +26,16 @@ namespace Kaidel {
 			s_RendererAPI->DeviceWaitIdle();
 		}
 
+		static void BeginMarker(const std::string& marker)
+		{
+			s_RendererAPI->BeginMarker(marker);
+		}
+
+		static void EndMarker()
+		{
+			s_RendererAPI->EndMarker();
+		}
+
 		static void BeginRenderPass(Ref<RenderPass> renderPass, Ref<Framebuffer> framebuffer,
 			std::initializer_list<AttachmentClearValue> clearValues){
 			s_RendererAPI->BeginRenderPass(renderPass, framebuffer, clearValues);

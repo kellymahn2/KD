@@ -1,6 +1,7 @@
 #version 460 core
 #include "SceneData.glsli"
 #include "Sampler.glsli"
+#include "sRGBToLinear.glsli"
 
 #ifdef vertex
 
@@ -103,8 +104,7 @@ void main(){
 
 	vec4 baseColor = MaterialData.BaseColor;
 	if(MaterialData.HasAlbedo == 1)
-		baseColor *= pow(vec4(texture(sampler2D(Albedo,SAMPLER_LINEAR_MIPPED_CLAMP),Input.TexCoords).rgba), vec4(2.2));
-
+		baseColor *= sRGBToLinear(texture(sampler2D(Albedo,SAMPLER_LINEAR_MIPPED_CLAMP),Input.TexCoords));
 	o_Albedo = baseColor;
 	
 	float metallic = MaterialData.Metalness;

@@ -215,14 +215,7 @@ namespace Kaidel {
 			}
 			else
 			{
-				auto& mc = entity.AddComponent<MeshComponent>();
-				mc.UsedMesh = curr->NodeMesh;
-
-				for (auto& submesh : curr->NodeMesh->GetSubmeshes())
-				{
-					mc.UsedMaterial.push_back(submesh.DefaultMaterial);
-				}
-				mc.VisibilityResults.resize(curr->NodeMesh->GetSubmeshes().size(), false);
+				entity.AddComponent<MeshComponent>(curr->NodeMesh);
 			}
 		}
 
@@ -296,9 +289,7 @@ namespace Kaidel {
 
 	Entity Scene::CreateCube(const std::string& name, UUID uuid) {
 		Entity entity = CreateEntity(uuid, name);
-		auto& mc = entity.AddComponent<MeshComponent>();
-		mc.UsedMesh = ModelLibrary::GetBaseCube();
-		mc.UsedMaterial.push_back(mc.UsedMesh->GetSubmeshes()[0].DefaultMaterial);
+		entity.AddComponent<MeshComponent>(ModelLibrary::GetBaseCube());
 		return entity;
 	}
 

@@ -21,41 +21,7 @@ namespace Kaidel {
 		YAML::Emitter out;
 		const auto& config = m_Project->GetConfig();
 
-
 		out << YAML::BeginMap;// Root
-
-		//out << YAML::Key << "Assets" << YAML::Value;
-
-		//{
-		//	out << YAML::BeginMap; // Project Assets
-
-		//	// Serialize physical assets
-
-		//	out << YAML::Key << "PhysicalAssets" << YAML::Value << YAML::BeginSeq;
-
-		//	{
-		//		const auto& physical = AssetManager::m_PhysicalAssets;
-
-		//		for (auto& [assetPath, asset] : physical) {
-		//			out << YAML::BeginMap;
-		//			out << YAML::Key << "AssetType" << YAML::Value << Utils::KaidelAssetTypeToString(asset->AssetTypeID());
-		//			out << YAML::Key << "Path" << YAML::Value << assetPath.string();
-		//			out << YAML::EndMap;
-		//		}
-
-		//	}
-
-		//	out << YAML::EndSeq;
-
-		//	/*out << YAML::Key << "MaterialTextures" << YAML::Value;
-		//	TextureArraySerializer serializer(1);
-		//	serializer.SerializeTo(MaterialTexture::GetTextureArray(), out);*/
-
-
-		//	out << YAML::EndMap; // Project Assets
-		//}
-
-
 
 		out << YAML::Key << "Project" << YAML::Value;
 
@@ -111,63 +77,6 @@ namespace Kaidel {
 		config.ProjectAutoSaveTimer = projectNode["ProjectAutoSaveTimer"].as<float>();
 		m_Project->m_ProjectDirectory = path.parent_path();
 
-
-
-		auto assetsNode = data["Assets"];
-		if (assetsNode) {
-			//// Deserialize physical assets
-			//{
-			//	auto physicalAssets = assetsNode["PhysicalAssets"];
-			//	if (physicalAssets) {
-			//		for (auto assetNode : physicalAssets) {
-			//			Ref<_Asset> asset = Utils::DeserializeAsset(assetNode,path.parent_path());
-			//		}
-			//	}
-			//}
-
-			//// Deserialize textures
-			//{
-			//	auto materialTextures = assetsNode["MaterialTextures"];
-			//	if (materialTextures) {
-			//		TextureArraySerializer serializer(1);
-			//		serializer.DeserializeFrom(MaterialTexture::GetTextureArray(),materialTextures);
-			//	}
-			//}
-		}
-
-
-		{
-			auto rdi = FileSystem::recursive_directory_iterator(path.parent_path());
-
-			std::map<uint32_t, std::string> assets;
-
-			for (auto& de : rdi) {
-				if (!de.is_directory()) {
-					auto& path = de.path();
-					if (path.extension()==Extensions::MetaData) {
-						//MetaDataSerializer mds;
-						Path assetPath = "";
-						{
-							auto str = path.string();
-							uint64_t index = str.find_last_of(".");
-							assetPath = str.substr(0, index);
-						}
-
-						/*if (auto asset = mds.Deserialize(path,assetPath); asset) {
-							AssetManager::Manage(asset, true, assetPath);
-						}*/
-					}
-				}
-			}
-
-		}
-
-	
-
-
-
-
-		
 		return true;
 	}
 

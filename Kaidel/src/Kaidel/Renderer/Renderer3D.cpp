@@ -121,6 +121,8 @@ namespace Kaidel {
 
 	struct Renderer3DData
 	{
+		std::mutex SingleRenderMutex;
+
 		PerViewportData<Renderer3DScreenSize> ViewportSize;
 
 		ShadowPass Shadow;
@@ -424,6 +426,10 @@ namespace Kaidel {
 		const DirectionalLightData& lightData, 
 		const std::string& viewportName /*= "Main"*/)
 	{
+		s_Data->SingleRenderMutex.lock();
+		
+		RenderCommand::BeginMarker(viewportName);
+
 		s_Data->SceneData = sceneData;
 		s_Data->SceneDataBuffer->Get()->SetData(&s_Data->SceneData, sizeof(Kaidel::SceneData));
 		
@@ -464,11 +470,11 @@ namespace Kaidel {
 
 	void Renderer3D::BeginShadow(const DirectionalLightData& lightData)
 	{
-		
 	}
 
 	void Renderer3D::BeginDirectionalShadow(uint32_t cascade)
 	{
+		RenderCommand::BeginMarker(fmt::format("ShadowPass {}", cascade));
 		RenderCommand::BindGraphicsPipeline(s_Data->Shadow.Pipeline);
 		RenderCommand::BindPushConstants(s_Data->Shadow.Shader, 0, s_Data->LightData.ViewProjection[cascade]);
 		RenderCommand::BindDescriptorSet(s_Data->Shadow.Shader, 
@@ -493,6 +499,7 @@ namespace Kaidel {
 
 	void Renderer3D::BeginColor(Ref<EnvironmentMap> environment)
 	{
+		RenderCommand::BeginMarker("ColorPass");
 		auto& deferred = s_Data->Deferred[s_Data->CurrentViewport];
 
 		for (uint32_t i = 0; i < deferred.Pass->GetSpecification().Colors.size(); ++i)
@@ -520,7 +527,6 @@ namespace Kaidel {
 		s_Data->CurrentBatchSize = 0;
 
 		s_Data->m_LastParams = {};
-
 	}
 
 	void Renderer3D::UploadInstanceData(const std::vector<InstanceData>& instances, Ref<StorageBuffer> buffer, Ref<DescriptorSet> set)
@@ -539,10 +545,6 @@ namespace Kaidel {
 
 	void Renderer3D::Draw(const Renderer3DRenderParams& params, Ref<MaterialInstance> material)
 	{
-
-		//SCOPED_ACCU_TIMER("Draw");
-		
-
 		switch (s_Data->RendererState)
 		{
 		case Renderer3DState::Shadow:
@@ -576,11 +578,18 @@ namespace Kaidel {
 
 	void Renderer3D::DrawSubmesh(const Renderer3DRenderParams& params, Ref<MaterialInstance> material)
 	{
-		//SCOPED_ACCU_TIMER("DrawSubmesh");
+		//TODO: check everything is loaded.
+		if (material && !material->IsLoaded())
+		{
+			return;
+		}
+
+
 		s_Data->m_LastMat = material;
 		s_Data->m_LastParams = params;
 
 		s_Data->CurrentBatchSize = 1;
+
 
 		DrawBatch(false);
 	}
@@ -604,6 +613,7 @@ namespace Kaidel {
 		s_Data->RendererState = Renderer3DState::None;
 
 		RenderCommand::EndRenderPass();
+		RenderCommand::EndMarker();
 	}
 
 	void Renderer3D::EndShadow()
@@ -613,6 +623,7 @@ namespace Kaidel {
 		s_Data->RendererState = Renderer3DState::None;
 
 		RenderCommand::EndRenderPass();
+		RenderCommand::EndMarker();
 	}
 
 
@@ -651,6 +662,7 @@ namespace Kaidel {
 			PipelineStages_ColorAttachmentOutput | PipelineStages_LateFragmentTests, PipelineStages_EarlyFragmentTests | PipelineStages_FragmentShader,
 			{}, {}, std::initializer_list<ImageMemoryBarrier>(gbufferBarriers, gbufferBarriers + 6));
 
+		auto& data = s_Data;
 		auto& screen = s_Data->Screen[s_Data->CurrentViewport];
 		auto& viewport = s_Data->ViewportSize[s_Data->CurrentViewport];
 
@@ -672,7 +684,7 @@ namespace Kaidel {
 		{
 			RenderCommand::BindGraphicsPipeline(s_Data->Skybox.Pipeline);
 			RenderCommand::BindVertexBuffers({ s_Data->Skybox.Vertices }, { 0 });
-			RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("SkyboxPass"), RendererGlobals::GetEnvironmentMap()->GetSet(), 0);
+			RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("SkyboxPass"), s_Data->Environment->GetSet(), 0);
 			RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("SkyboxPass"), 0, s_Data->SceneData.Proj, s_Data->SceneData.View);
 			RenderCommand::Draw(36, 1, 0, 0);
 		}
@@ -735,6 +747,12 @@ namespace Kaidel {
 			PipelineStages_Transfer, PipelineStages_FragmentShader,
 			{}, {}, { outputEndCopyBarrier }
 		);
+
+		s_Data->Output = {};
+
+		RenderCommand::EndMarker();
+
+		s_Data->SingleRenderMutex.unlock();
 	}
 
 
@@ -882,7 +900,6 @@ namespace Kaidel {
 				return set;
 			});
 		}
-
 
 	}
 

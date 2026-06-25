@@ -2,16 +2,20 @@
 
 #include "Kaidel/Core/Base.h"
 #include "Kaidel/Core/IRCP.h"
+
+#include "Kaidel/Utils/PlatformUtils.h"
+
 #include <string>
 #include <filesystem>
 #include <vector>
 #include <unordered_set>
+
 namespace Kaidel {
 	struct ProjectConfig {
 		std::string Name = "Untitled";
 		std::filesystem::path RelAssetDirectory;
 		std::filesystem::path AbsAssetDirectory;
-		std::string StartScene;
+		std::string StartScene = "Untitled.kaidel";
 
 		bool ProjectAutoSave = true;
 		bool SceneAutoSave = true;
@@ -54,7 +58,10 @@ namespace Kaidel {
 			return m_Config;
 		}
 
+		void SetFileWatcher(const std::string& path, const FileWatcherHandlers& handlers) { m_Watcher.Reset(path, handlers); }
+
 		static Ref<Project> New();
+		//Loads the project located at .kdproj file at path and sets it as active project.
 		static Ref<Project> Load(const std::filesystem::path& path);
 		static bool SaveActive(const std::filesystem::path& path);
 		static Ref<Project> GetActive();
@@ -62,8 +69,16 @@ namespace Kaidel {
 
 
 	private:
+		
+		FileSystem::path GetProjectFilePath(const FileSystem::path& path)
+		{
+			return path / (m_Config.Name + ".kdprj");
+		}
+
+	private:
 		ProjectConfig m_Config;
 		std::filesystem::path m_ProjectDirectory;
+		FileWatcher m_Watcher;
 
 		friend class ProjectSerializer;
 

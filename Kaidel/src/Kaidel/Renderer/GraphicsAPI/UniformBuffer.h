@@ -10,6 +10,6 @@ namespace Kaidel {
 
 
 
-		static Ref<UniformBuffer> Create(uint64_t size);
+		static Ref<UniformBuffer> Create(uint64_t size, const void* initData = nullptr);
 	};
 }

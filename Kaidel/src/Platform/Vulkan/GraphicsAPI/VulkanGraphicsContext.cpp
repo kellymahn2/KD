@@ -33,15 +33,12 @@ namespace Kaidel {
 
 	VulkanGraphicsContext* VulkanGraphicsContext::s_GraphicsContext;
 
-
-
 	uint32_t GetFramesInFlightCount() {
 		return VK_CONTEXT.GetFramesInFlightCount();
 	}
 	uint32_t GetCurrentFrameNumber() {
 		return VK_CONTEXT.GetCurrentFrameNumber();
 	}
-
 	
 	VulkanGraphicsContext::VulkanGraphicsContext(Window* window)
 		:m_Window(window)
@@ -67,34 +64,14 @@ namespace Kaidel {
 		m_Surface = CreateScope<VulkanSurface>(m_Window->GetNativeWindow());
 		#pragma endregion
 		#pragma region PhysicalDevice
-		VulkanQueueGroupSpecification groupSpec{};
-		{
-			{
-				VulkanQueueSpecification spec{};
-				spec.Validator = [](const VkQueueFamilyProperties& queueProps, uint32_t familyIndex, VkPhysicalDevice device) {
-					return queueProps.queueFlags & VK_QUEUE_GRAPHICS_BIT;
-					};
-				groupSpec.QueueSpecifications["GraphicsQueue"] = spec;
-			}
-			{
-				VulkanQueueSpecification spec{};
-				spec.Validator = [](const VkQueueFamilyProperties& queueProps, uint32_t familyIndex, VkPhysicalDevice device) {
-					return queueProps.queueFlags & VK_QUEUE_TRANSFER_BIT;
-					};
-				groupSpec.QueueSpecifications["TransferQueue"] = spec;
-			}
-			{
-				VulkanQueueSpecification spec{};
-				spec.Validator = [this](const VkQueueFamilyProperties& queueProps, uint32_t familyIndex, VkPhysicalDevice device) {
-					VkBool32 supported;
-					VK_ASSERT(vkGetPhysicalDeviceSurfaceSupportKHR(device, familyIndex, m_Surface->GetSurface(), &supported));
-					return static_cast<bool>(supported);
-				};
-				groupSpec.QueueSpecifications["PresentQueue"] = spec;
-			}
-		}
+		
+		std::unordered_map<std::string, QueueCapability> requestedQueues;
 
-		m_PhysicalDevice = CreateScope<VulkanPhysicalDevice>(*m_Instance, std::vector<VulkanQueueGroupSpecification>{ groupSpec });
+		requestedQueues["GraphicsQueue"] = QueueCapability_General;
+		requestedQueues["PresentQueue"] = QueueCapability_Present;
+		requestedQueues["TransferQueue"] = QueueCapability_Transfer;
+
+		m_PhysicalDevice = CreateScope<VulkanPhysicalDevice>(*m_Instance, *m_Surface, requestedQueues);
 		#pragma endregion
 		#pragma region LogicalDevice
 		VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures feature{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES,nullptr,VK_TRUE };
@@ -124,8 +101,6 @@ namespace Kaidel {
 		m_Allocator = CreateScope<VulkanAllocator>();
 		m_Backend = CreateScope<VulkanBackend::Backend>(m_LogicalDevice->GetDevice(), m_PhysicalDevice->GetDevice(), m_Allocator->GetAllocator());
 		#pragma region Swapchain
-		
-		m_GlobalCommandPool = m_Backend->CreateCommandPool(m_PhysicalDevice->GetQueue("GraphicsQueue").FamilyIndex, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
 		{
 			VulkanBackend::SurfaceInfo info{};
@@ -133,7 +108,7 @@ namespace Kaidel {
 			info.Height = 720;
 			info.PresentMode = VK_PRESENT_MODE_FIFO_KHR;
 			info.Surface = m_Surface->GetSurface();
-			m_Swapchain = m_Backend->CreateSwapchain(info, GetGraphicsQueue().Queue, m_GlobalCommandPool, 4);
+			m_Swapchain = m_Backend->CreateSwapchain(info, GetPresentQueue().Queue, GetPrimaryCommandPool(GetPresentQueue()), 4);
 		}
 
 		#pragma endregion
@@ -177,8 +152,6 @@ namespace Kaidel {
 
 		m_CurrentFrameNumber = 0;
 
-		m_SingleSubmitFence = m_Backend->CreateFence();
-
 		CreateImGuiDescriptorPool();
 		
 		/*{
@@ -194,6 +167,53 @@ namespace Kaidel {
 		
 		*/
 		m_Stager = CreateScope<VulkanBufferStager>(50 * 1024 * 1024, 4);
+	}
+
+
+	const VulkanBackend::CommandPoolInfo& VulkanGraphicsContext::GetPrimaryCommandPool(VulkanQueue& queue)
+	{
+		auto& pool = *m_GlobalCommandPool;
+
+		if (!pool.Pool)
+		{
+			//TODO: should be different for each queue
+			// take as a parameter maybe or each queue has its TLS of command pools
+			pool = m_Backend->CreateCommandPool(queue.FamilyIndex, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+		}
+
+		return pool;
+	}
+
+	VkFence VulkanGraphicsContext::GetSingleSubmitFence(VulkanQueue& queue)
+	{
+		auto& fence = *queue.SingleSubmitFence;
+
+		if (!fence)
+		{
+			fence = m_Backend->CreateFence();
+		}
+
+		return fence;
+	}
+
+	void VulkanGraphicsContext::SubmitSingle(VulkanQueue& queue, std::function<void(VkCommandBuffer)>&& func)
+	{
+		std::unique_lock<std::mutex> lock(queue.SubmitMutex);
+		VkCommandBuffer commandBuffer = m_Backend->CreateCommandBuffer(GetPrimaryCommandPool(queue));
+
+		m_Backend->CommandBufferBegin(commandBuffer);
+
+		func(commandBuffer);
+
+		m_Backend->CommandBufferEnd(commandBuffer);
+
+		VkFence fence = GetSingleSubmitFence(queue);
+
+		m_Backend->SubmitCommandBuffers(queue, { commandBuffer }, fence);
+
+		m_Backend->FenceWait(fence);
+
+		m_Backend->DestroyCommandBuffer(commandBuffer, GetPrimaryCommandPool(queue));
 	}
 
 	VkDescriptorSetLayout VulkanGraphicsContext::GetSingleDescriptorSetLayout(VkDescriptorType type, VkShaderStageFlags flags)
@@ -263,20 +283,12 @@ namespace Kaidel {
 
 		auto& frame = m_Swapchain.Frames[m_CurrentFrameNumber];
 		VkSemaphore waitSemaphores[] = { frame.ImageAvailable };
-		VkSemaphore signalSemaphores[] = { m_Swapchain.Frames[m_Swapchain.ImageIndex].RenderFinished};
+		VkSemaphore signalSemaphores[] = { m_Swapchain.Frames[m_Swapchain.ImageIndex].RenderFinished };
 		VkCommandBuffer commandBuffers[] = { commandBuffer };
 		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 
-		VkSubmitInfo submitInfo{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = commandBuffers;
-		submitInfo.pWaitDstStageMask = waitStages;
-		submitInfo.waitSemaphoreCount = 1;
-		submitInfo.pWaitSemaphores = waitSemaphores;
-		submitInfo.signalSemaphoreCount = 1;
-		submitInfo.pSignalSemaphores = signalSemaphores;
-
-		VK_ASSERT(vkQueueSubmit(m_PhysicalDevice->GetQueue("GraphicsQueue").Queue, 1, &submitInfo, frame.InFlightFence));
+		m_Backend->SubmitCommandBuffers(VK_GRAPHICS_Q, { commandBuffer }, frame.InFlightFence,
+			{ frame.ImageAvailable }, { m_Swapchain.Frames[m_Swapchain.ImageIndex].RenderFinished }, { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT });
 
 		VkSwapchainKHR swapchain = m_Swapchain.Swapchain;
 
@@ -290,7 +302,8 @@ namespace Kaidel {
 		VkResult presentResult = vkQueuePresentKHR(m_PhysicalDevice->GetQueue("PresentQueue").Queue, &presentInfo);
 		bool needsResize = (presentResult == VK_SUBOPTIMAL_KHR) || (presentResult == VK_ERROR_OUT_OF_DATE_KHR);
 
-		if (needsResize) {
+		if (needsResize)
+		{
 			vkDeviceWaitIdle(m_LogicalDevice->GetDevice());
 			m_Backend->DestroySwapchain(m_Swapchain);
 			VulkanBackend::SurfaceInfo info{};
@@ -298,8 +311,7 @@ namespace Kaidel {
 			info.Width = m_Window->GetWidth();
 			info.Height = m_Window->GetHeight();
 			info.PresentMode = VK_PRESENT_MODE_FIFO_KHR;
-			m_Swapchain = m_Backend->CreateSwapchain(info, GetPresentQueue().Queue, m_GlobalCommandPool, 4);
-			//m_Swapchain->Resize(m_Window->GetWidth(), m_Window->GetHeight());
+			m_Swapchain = m_Backend->CreateSwapchain(info, GetPresentQueue().Queue, *m_GlobalCommandPool, 4);
 		}
 
 		//m_FramesData[m_CurrentFrameNumber].TasksReady = true;
@@ -335,6 +347,7 @@ namespace Kaidel {
 	}
 	void VulkanGraphicsContext::ImGuiBegin()const
 	{
+		VK_BACKEND->CommandBeginMarker(VK_CURRENT_COMMAND_BUFFER, "ImGui");
 		ImGui_ImplVulkan_NewFrame();
 #ifdef KD_PLATFORM_WINDOWS
 		ImGui_ImplGlfw_NewFrame();
@@ -374,6 +387,7 @@ namespace Kaidel {
 		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
 
 		vkCmdEndRenderPass(commandBuffer);
+		VK_BACKEND->CommandEndMarker(VK_CURRENT_COMMAND_BUFFER);
 	}
 
 	void VulkanGraphicsContext::ImGuiShutdown()const 
@@ -399,3 +413,4 @@ namespace Kaidel {
 	}
 
 }
+

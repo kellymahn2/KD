@@ -161,8 +161,8 @@ namespace Kaidel {
 		s_Data = new ScriptEngineData();
 		InitMono();
 		LoadAssembly("Resources/Scripts/KaidelCore.dll");
-		LoadAppAssembly("SandboxProject/assets/scripts/Binaries/Sandbox.dll");
-		LoadAssemblyClasses(s_Data->AppAssembly);
+		//LoadAppAssembly("SandboxProject/assets/scripts/Binaries/Sandbox.dll");
+		//LoadAssemblyClasses(s_Data->AppAssembly);
 		ScriptRegistry::RegisterComponents();
 		ScriptRegistry::RegisterFunctions();
 	}

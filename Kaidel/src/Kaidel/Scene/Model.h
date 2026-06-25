@@ -9,6 +9,7 @@
 #include "Material.h"
 #include "Kaidel/Animation/Animation.h"
 #include "Kaidel/Core/UUID.h"
+#include "Kaidel/Asset/Asset.h"
 
 #include <assimp/Importer.hpp>
 #include <assimp/mesh.h>
@@ -147,6 +148,11 @@ namespace Kaidel {
 		Ref<MaterialInstance> DefaultMaterial;
 	};
 
+	struct MeshInstance {
+		std::vector<Ref<MaterialInstance>> UsedMaterial;
+		std::vector<bool> VisibilityResults;
+	};
+
 	extern Ref<RenderPass> GetDeferredPassRenderPass();
 
 	struct MeshInitializer {
@@ -167,7 +173,7 @@ namespace Kaidel {
 		std::vector<Submesh> Submeshes;
 	};
 
-	class Mesh : public IRCCounter<false> {
+	class Mesh : public AssetBase {
 	public:
 		Mesh() = default;
 		virtual ~Mesh() = default;
@@ -197,7 +203,23 @@ namespace Kaidel {
 
 		void SetBoundingBox(const AABB& boundingBox) { m_BoundingBox = boundingBox; }
 
+		inline MeshInstance Mesh::CreateInstance()
+		{
+			MeshInstance instance;
 
+			instance.UsedMaterial.resize(GetSubmeshes().size());
+
+			for (uint32_t i = 0; i < GetSubmeshes().size(); ++i)
+			{
+				instance.UsedMaterial[i] = GetSubmeshes()[i].DefaultMaterial;
+			}
+
+			instance.VisibilityResults.resize(GetSubmeshes().size());
+
+			return instance;
+		}
+
+		DECL_ASSET_TYPE(Mesh);
 	protected:
 		AABB m_BoundingBox;
 		Ref<VertexBuffer> m_VertexBuffer;
@@ -207,6 +229,8 @@ namespace Kaidel {
 		std::vector<Submesh> m_Submeshes;
 		uint64_t m_VertexCount = 0, m_IndexCount = 0;
 	};
+
+	
 
 	class SkinnedMesh : public Mesh {
 	public:
@@ -283,19 +307,23 @@ namespace Kaidel {
 
 	
 
-	class Model : public IRCCounter<false> {
+	class Model : public AssetBase {
 	public:
 		Model() = default;
 
 		std::vector<Ref<Mesh>> GetMeshes() { return {}; }
 
 		Scope<MeshTree>& GetMeshTree() { return m_Tree; }
+		const AABB& GetBoundingBox() const { return m_BoundingBox; }
+
+		DECL_ASSET_TYPE(Model);
 
 	private:
 		Path m_ModelPath;
 		Path m_ModelDir;
 		Scope<MeshTree> m_Tree;
 		SkinTree m_SkinTree;
+		AABB m_BoundingBox;
 		
 		friend class ModelLibrary;
 		friend class ModelLoader;

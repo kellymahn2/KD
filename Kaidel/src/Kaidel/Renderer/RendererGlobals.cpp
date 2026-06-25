@@ -1,5 +1,6 @@
 #include "KDpch.h"
 #include "RendererGlobals.h"
+#include "Kaidel/Asset/AssetManager.h"
 
 #include "GraphicsAPI/TextureLibrary.h"
 
@@ -13,12 +14,9 @@ namespace Kaidel {
 	};
 
 	struct GlobalsData {
-		Ref<Sampler> LinearMipLinear;
-		Ref<Sampler> LinearMipNearest;
-		Ref<Sampler> NearestMipNearest;
-		Ref<Sampler> NearestMipLinear;
 		
 		Ref<EnvironmentMap> Environment;
+		Ref<EnvironmentMap> SingleColorEnvironment;
 		
 		std::vector<ColorTexture> Textures;
 
@@ -33,6 +31,10 @@ namespace Kaidel {
 
 		Ref<DescriptorSet> SamplerSet;
 
+		Ref<StandardMaterialInstance> DefaultMaterial;
+
+		Ref<Texture2D> SpecularLUT;
+
 		Ref<Font> DefaultFont;
 	};
 
@@ -42,29 +44,86 @@ namespace Kaidel {
 	{
 		s_Data = new GlobalsData;
 
+		//s_Data->DefaultFont = CreateRef<Font>("assets/fonts/opensans/OpenSans-Regular.ttf");
+
 		{
-			SamplerState state;
-			state.AddressModeU = SamplerAddressMode::Repeat;
-			state.AddressModeV = SamplerAddressMode::Repeat;
-			state.AddressModeW = SamplerAddressMode::Repeat;
+			uint32_t lutWidth = 256, lutHeight = 256;
+			Texture2DSpecification lutSpecs;
+			lutSpecs.Width = lutWidth;
+			lutSpecs.Height = lutHeight;
+			lutSpecs.Format = Format::RG16F;
+			lutSpecs.Layout = ImageLayout::General;
+			lutSpecs.Mipped = false;
+			Ref<Texture2D> specularLUT = Texture2D::Create(lutSpecs);
 
-			state.MagFilter = SamplerFilter::Linear;
-			state.MinFilter = SamplerFilter::Linear;
-			state.MipFilter = SamplerMipMapMode::Linear;
-			s_Data->LinearMipLinear = Sampler::Create(state);
+			Ref<ComputePipeline> integPipeline;
+			Ref<DescriptorSet> integSet;
 
-			state.MipFilter = SamplerMipMapMode::Nearest;
-			s_Data->LinearMipNearest = Sampler::Create(state);
+			{
+				DescriptorSetLayoutSpecification specs(
+					{
+						{DescriptorType::Image, ShaderStage_ComputeShader}
+					}
+				);
 
-			state.MagFilter = SamplerFilter::Nearest;
-			state.MinFilter = SamplerFilter::Nearest;
-			s_Data->NearestMipNearest = Sampler::Create(state);
+				integSet = DescriptorSet::Create(specs);
+			}
 
-			state.MipFilter = SamplerMipMapMode::Linear;
-			s_Data->NearestMipLinear = Sampler::Create(state);
+			{
+				integPipeline =
+					ComputePipeline::Create(ShaderLibrary::LoadOrGetNamedShader(
+						"BRDFIntegrationLUT", "assets/_shaders/BRDFIntegrationLUT.glsl"));
+			}
+
+			integSet->Update(specularLUT, {}, ImageLayout::General, 0);
+
+			RenderCommand::Submit([&]() {
+				RenderCommand::BeginMarker("BRDFIntegrationLUT");
+				RenderCommand::BindComputePipeline(integPipeline);
+				RenderCommand::BindDescriptorSet(
+					ShaderLibrary::GetNamedShader("BRDFIntegrationLUT"), integSet, 0);
+				RenderCommand::Dispatch(std::ceil(lutWidth / 32.0f), std::ceil(lutHeight / 32.0f), 1);
+
+				{
+					ImageMemoryBarrier barrier(
+						specularLUT, ImageLayout::ShaderReadOnlyOptimal, AccessFlags_ShaderWrite, AccessFlags_None);
+
+					RenderCommand::PipelineBarrier(PipelineStages_ComputeShader, PipelineStages_BottomOfPipe, {}, {}, { barrier });
+				}
+				RenderCommand::EndMarker();
+			});
+
+			s_Data->SpecularLUT = std::move(specularLUT);
 		}
 
-		s_Data->DefaultFont = CreateRef<Font>("assets/fonts/opensans/OpenSans-Regular.ttf");
+		{
+			TextureCubeSpecification cubeSpecs;
+			cubeSpecs.Width = 1;
+			cubeSpecs.Height = 1;
+			cubeSpecs.Layers = 1;
+			cubeSpecs.Mipped = false;
+			cubeSpecs.Layout = ImageLayout::ShaderReadOnlyOptimal;
+			cubeSpecs.InitialDatas.reserve(6);
+
+			glm::u8vec4 col = glm::u8vec4(127U, 127U, 127U, 255U);
+
+			for (uint32_t i = 0; i < 6; ++i)
+			{
+				TextureData td;
+				td.Layer = i;
+				td.Data = &col;
+				cubeSpecs.InitialDatas.emplace_back(td);
+			}
+
+			Ref<TextureCube> cube = TextureCube::Create(cubeSpecs);
+
+			EnvironmentMapSpecification environmentSpecs;
+			environmentSpecs.Environment = cube;
+			environmentSpecs.Irradiance = cube;
+			environmentSpecs.SpecularLUT = s_Data->SpecularLUT;
+			environmentSpecs.Specular = cube;
+			s_Data->SingleColorEnvironment = CreateRef<EnvironmentMap>(environmentSpecs);
+		}
 
 
 		Ref<Sampler> NearestCLAMP;
@@ -143,20 +202,32 @@ namespace Kaidel {
 			Update({}, s_Data->NearestMippedRepeat, {}, 6).
 			Update({}, s_Data->LinearMippedRepeat, {}, 7);
 	}
+
+	void RendererGlobals::CreateDefaults()
+	{
+		{
+			StandardMaterialInstance::Initializer matInitializer;
+
+			s_Data->DefaultMaterial = CreateRef<StandardMaterialInstance>(matInitializer);
+
+			AssetManager::RegisterBuiltIn(s_Data->DefaultMaterial, "Default material");
+		}
+	}
+
 	void RendererGlobals::Shutdown()
 	{
 		delete s_Data;
 	}
-	Ref<Sampler> RendererGlobals::GetSamler(SamplerFilter filter, SamplerMipMapMode mipMode)
+	Ref<Sampler> RendererGlobals::GetSampler(SamplerFilter filter, SamplerMipMapMode mipMode)
 	{
 		if (filter == SamplerFilter::Linear && mipMode == SamplerMipMapMode::Linear)
-			return s_Data->LinearMipLinear;
+			return s_Data->LinearMippedRepeat;
 		else if (filter == SamplerFilter::Linear && mipMode == SamplerMipMapMode::Nearest)
-			return s_Data->LinearMipNearest;
+			return s_Data->LinearRepeat;
 		else if (filter == SamplerFilter::Nearest && mipMode == SamplerMipMapMode::Nearest)
-			return s_Data->NearestMipNearest;
+			return s_Data->NearestRepeat;
 		else if (filter == SamplerFilter::Nearest && mipMode == SamplerMipMapMode::Linear)
-			return s_Data->NearestMipLinear;
+			return s_Data->NearestMippedRepeat;
 		return {};
 	}
 
@@ -173,6 +244,11 @@ namespace Kaidel {
 	Ref<EnvironmentMap> RendererGlobals::GetEnvironmentMap()
 	{
 		return s_Data->Environment;
+	}
+
+	Kaidel::Ref<Kaidel::EnvironmentMap> RendererGlobals::GetSingleColorEnvironmentMap()
+	{
+		return s_Data->SingleColorEnvironment;
 	}
 
 	Ref<EnvironmentMap> RendererGlobals::LoadEnvironmentMap(const Path& path)
@@ -226,4 +302,15 @@ namespace Kaidel {
 
 		return t.Texture;
 	}
+
+	Kaidel::Ref<Kaidel::Texture2D> RendererGlobals::GetSpecularLUT()
+	{
+		return s_Data->SpecularLUT;
+	}
+
+	Kaidel::Ref<Kaidel::StandardMaterialInstance> RendererGlobals::GetDefaultMaterial()
+	{
+		return s_Data->DefaultMaterial;
+	}
+
 }

@@ -12,7 +12,7 @@ namespace Kaidel {
 
 		std::vector<VkDeviceQueueCreateInfo> queueCreateInfos{};
 
-		for (auto& [name, queue] : physicalDevice.GetQueueManager()) {
+		for (auto& [name, queue] : physicalDevice.GetQueues()) {
 			if (auto ptr = std::find_if(queueCreateInfos.begin(), queueCreateInfos.end(), [&queue](const VkDeviceQueueCreateInfo& x) {return x.queueFamilyIndex == queue.FamilyIndex; });
 				ptr != queueCreateInfos.end())
 			{
@@ -50,7 +50,7 @@ namespace Kaidel {
 			delete[] queueInfo.pQueuePriorities;
 		}
 
-		for (auto& [name, queue] : physicalDevice.GetQueueManager()) {
+		for (auto& [name, queue] : physicalDevice.GetQueues()) {
 			vkGetDeviceQueue(m_Device, queue.FamilyIndex, queue.QueueIndex, &queue.Queue);
 		}
 

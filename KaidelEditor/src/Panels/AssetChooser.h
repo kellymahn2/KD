@@ -1,33 +1,46 @@
-//#pragma once
-//#include "PanelContext.h"
-//#include <imgui/imgui.h>
-//
-//namespace Kaidel {
-//
-//	class AssetChooser {
-//	public:
-//		AssetChooser(Ref<PanelContext> context)
-//			:m_Context(context) 
-//		{}
-//
-//		template<typename... Assets, typename... Funcs>
-//		void OnImGuiRender(Funcs&&... funcs) {
-//			static bool isOpen = false;
-//
-//			bool isActive = isOpen;
-//
-//			OnImGuiRenderAsset<Funcs,Assets>(funcs)...;
-//		}
-//
-//	private:
-//		template<typename Func,typename Asset>
-//		void OnImGuiRenderAsset(Func&& func) {
-//			AssetManager::Each<Asset>([](Ref<Asset> asset) {
-//				func(asset);
-//				});
-//		}
-//
-//		Ref<PanelContext> m_Context;
-//	};
-//
-//}
+#pragma once
+#include "Kaidel/Asset/Asset.h"
+
+#include <array>
+
+namespace Kaidel {
+	using OnAssetChosen = std::function<void(Asset)>;
+
+	struct AssetFilter {
+		std::array<bool, (uint64_t)AssetType::Count> Filters;
+		uint64_t ActiveCount = 0;
+
+		AssetFilter() = default;
+
+		AssetFilter(const std::initializer_list<AssetType>& list)
+		{
+			std::memset(Filters.data(), 0, sizeof(Filters));
+
+			for (auto& type : list)
+			{
+				Filters[(uint64_t)type] = true;
+			}
+
+			ActiveCount = list.size();
+		}
+
+		bool Passes(AssetType type) const
+		{
+			return Filters[(uint64_t)type];
+		}
+	};
+
+
+	class AssetChooser {
+	public:
+		
+		static void Render(const AssetFilter& filter, const OnAssetChosen& onChosen);
+
+		static void OnImGuiRender();
+
+	private:
+		static bool RenderAssetChooserElement(Ref<AssetBase> asset, const AssetMetadata& metadata, const OnAssetChosen& onChosen);
+	};
+
+}
+
