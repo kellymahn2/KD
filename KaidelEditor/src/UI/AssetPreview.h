@@ -8,6 +8,10 @@ namespace Kaidel {
 	class AssetPreview {
 	public:
 		static Ref<Texture2D> GetPreview(Asset asset);
+		
+		static void SetDirty(AssetHandle handle);
+
+		static void SetDirtyAll();
 	private:
 		static bool TryGetPreview(AssetHandle handle, Ref<Texture2D>& texture);
 	};

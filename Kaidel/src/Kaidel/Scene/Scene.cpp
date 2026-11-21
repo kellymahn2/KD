@@ -36,6 +36,7 @@ namespace Kaidel {
 
 	Scene::Scene()
 	{
+		
 	}
 
 	Scene::~Scene()
@@ -205,7 +206,7 @@ namespace Kaidel {
 			if (curr->NodeMesh->IsSkinned())
 			{
 				auto& smc = entity.AddComponent<SkinnedMeshComponent>();
-				smc.UsedMesh = curr->NodeMesh;
+				smc.UsedMesh = DynamicPointerCast<SkinnedMesh>(curr->NodeMesh);
 
 				for (auto& submesh : curr->NodeMesh->GetSubmeshes())
 				{
@@ -228,10 +229,10 @@ namespace Kaidel {
 		for (auto& child : curr->Children)
 		{
 			Entity chEntity = CreateEntity();
+			chEntity.AddParent(entity.GetHandle());
+			entity.AddChild(chEntity.GetHandle());
+			
 			CreateModelFromTree(child, chEntity, nameToEntity);
-
-			chEntity.AddParent(entity.GetUUID());
-			entity.AddChild(chEntity.GetUUID());
 		}
 	}
 
@@ -239,17 +240,32 @@ namespace Kaidel {
 	{
 		if (curr->NodeMesh && curr->NodeMesh->IsSkinned())
 		{
-			Ref<SkinnedMesh> mesh = curr->NodeMesh;
+			Ref<SkinnedMesh> mesh = DynamicPointerCast<SkinnedMesh>(curr->NodeMesh);
 
-			entity.GetComponent<SkinnedMeshComponent>().RootBone = nameToEntity[mesh->GetSkin()->Tree.Name].GetUUID();
+
+			entity.GetComponent<SkinnedMeshComponent>().SetRootBone(nameToEntity[mesh->GetSkin()->Tree.Name]);
 		}
 
 		uint32_t ch = 0;
 		for (auto& child : curr->Children)
 		{
-			Entity chEntity = GetEntity(entity.GetComponent<ParentComponent>().Children[ch++]);
+			Entity chEntity = { (entity.GetComponent<ParentComponent>().Children[ch++]), this };
 			SetSkinnedMeshRootBones(child, chEntity, nameToEntity);
 		}
+	}
+
+	void Scene::SetDepth(entt::entity e, uint32_t oldDepth, uint32_t newDepth)
+	{
+		auto& oldLevel = m_EntityLevels[oldDepth];
+
+		oldLevel.erase(std::find(oldLevel.begin(), oldLevel.end(), e));
+
+		if (newDepth >= m_EntityLevels.size())
+		{
+			m_EntityLevels.resize(newDepth + 1, std::vector<entt::entity>());
+		}
+
+		m_EntityLevels[newDepth].push_back(e);
 	}
 
 	void Scene::DuplicateEntity(Entity& entity)
@@ -265,8 +281,8 @@ namespace Kaidel {
 
 		if (entity.HasComponent<ChildComponent>()) {
 			auto& parentID = entity.GetComponent<ChildComponent>().Parent;
-			auto parent = GetEntity(parentID);
-			parent.AddChild(newEntity.GetUUID());
+			Entity parent = { parentID, this };
+			parent.AddChild(newEntity.GetHandle());
 		}
 	}
 
@@ -283,6 +299,8 @@ namespace Kaidel {
 		auto& tag = entity.AddComponent<TagComponent>();
 		tag.Tag = name.empty() ? "Entity" : name;
 		m_IDMap[uuid] = entity.operator entt::entity();
+
+		m_EntityLevels[0].push_back(entity.GetHandle());
 		return entity;
 	}
 	
@@ -511,4 +529,5 @@ namespace Kaidel {
 	DEF_COMPONENT_ADD(SkinnedMeshComponent)
 	DEF_COMPONENT_ADD(DirectionalLightComponent)
 	DEF_COMPONENT_ADD(TextComponent)
+	DEF_COMPONENT_ADD(RootBoneComponent)
 }

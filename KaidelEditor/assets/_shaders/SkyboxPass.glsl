@@ -1,5 +1,5 @@
 #version 460 core
-#ifdef vertex
+#type vertex
 
 
 const vec3 Cube[36] = vec3[36](
@@ -71,9 +71,9 @@ void main()
     gl_Position = gl_Position.xyww;
 
 }
-#endif
 
-#ifdef fragment
+
+#type fragment
 
 layout(location = 0) in vec3 v_TexCoords;
 
@@ -88,4 +88,4 @@ void main()
 {    
     o_Color = texture(EnvironmentMap, v_TexCoords);
 }
-#endif
+

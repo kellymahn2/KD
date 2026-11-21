@@ -1094,6 +1094,7 @@ namespace VulkanBackend {
 				VkDescriptorPoolSize poolSize = {};
 				poolSize.type = type;
 				poolSize.descriptorCount = size.descriptorCount * maxSets;
+				actualSizes.push_back(poolSize);
 			}
 		}
 		
@@ -1397,6 +1398,35 @@ namespace VulkanBackend {
 			(uint32_t)memoryBarriers.size(), memoryBarriers.begin(),
 			(uint32_t)bufferBarriers.size(), bufferBarriers.begin(),
 			(uint32_t)textureBarriers.size(), textureBarriers.begin());
+	}
+
+	void Backend::SetBufferName(BufferInfo* buffer, const std::string& name)
+	{
+		VkDebugUtilsObjectNameInfoEXT info{ VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
+
+		info.objectHandle = (uint64_t)buffer->Buffer;
+		info.objectType = VK_OBJECT_TYPE_BUFFER;
+		info.pObjectName = name.c_str();
+
+		vkSetDebugUtilsObjectNameEXT(m_Device, &info);
+	}
+
+
+	void Backend::SetTextureName(TextureInfo* texture, const std::string& name)
+	{
+		VkDebugUtilsObjectNameInfoEXT info{ VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
+
+		info.objectHandle = (uint64_t)texture->ViewInfo.image;
+		info.objectType = VK_OBJECT_TYPE_IMAGE;
+		info.pObjectName = name.c_str();
+
+		vkSetDebugUtilsObjectNameEXT(m_Device, &info);
+
+		info.objectHandle = (uint64_t)texture->View;
+		info.objectType = VK_OBJECT_TYPE_IMAGE_VIEW;
+		info.pObjectName = name.c_str();
+
+		vkSetDebugUtilsObjectNameEXT(m_Device, &info);
 	}
 
 	void Backend::ValuesToSizes(const std::vector<VkWriteDescriptorSet>& values, std::unordered_map<VkDescriptorType, VkDescriptorPoolSize>& sizes)

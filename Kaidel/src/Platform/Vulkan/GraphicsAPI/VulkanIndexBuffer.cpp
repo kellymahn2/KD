@@ -34,4 +34,10 @@ namespace Kaidel{
     {
         VK_CONTEXT.GetBackend()->DestroyBuffer(m_Buffer);
     }
+
+	uint64_t VulkanIndexBuffer::GetSize() const
+	{
+		return m_Buffer.BufferSize;
+	}
+
 }

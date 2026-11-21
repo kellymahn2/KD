@@ -426,6 +426,10 @@ namespace VulkanBackend
 			std::initializer_list<VkBufferMemoryBarrier> bufferBarriers,
 			std::initializer_list<VkImageMemoryBarrier> textureBarriers);
 
+		void SetBufferName(BufferInfo* buffer, const std::string& name);
+
+		void SetTextureName(TextureInfo* texture, const std::string& name);
+
 	private:
 		void SwapchainRelease(InOut<SwapchainInfo> swapchain);
 		uint32_t VkFormatSize(VkFormat format);

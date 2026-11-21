@@ -32,19 +32,28 @@ namespace Kaidel {
 			EditorContext::SelectedEntity({});
 		}
 
-		// Right-click on blank space
-		if (ImGui::BeginPopupContextWindow(0, 1|ImGuiPopupFlags_NoOpenOverItems|ImGuiPopupFlags_NoOpenOverExistingPopup))
-		{
-			if (ImGui::MenuItem("Create Empty Entity"))
-				scene->CreateEntity("Empty Entity");
-			if (ImGui::BeginMenu("New")) {
-				if (ImGui::MenuItem("Cube")) {
-					scene->CreateCube("Cube");
-				}
-				ImGui::EndMenu();
-			}
 
-			ImGui::EndPopup();
+		{
+			Styler styler;
+
+			styler.PushStyle(ImGuiStyleVar_PopupRounding, 12.0f);
+			styler.PushStyle(ImGuiStyleVar_WindowPadding, ImVec2(14, 14));
+
+
+			// Right-click on blank space
+			if (ImGui::BeginPopupContextWindow(0, 1 | ImGuiPopupFlags_NoOpenOverItems | ImGuiPopupFlags_NoOpenOverExistingPopup))
+			{
+				if (ImGui::MenuItem("Create Empty Entity"))
+					scene->CreateEntity("Empty Entity");
+				if (ImGui::BeginMenu("3D")) {
+					if (ImGui::MenuItem("Cube")) {
+						scene->CreateCube("Cube");
+					}
+					ImGui::EndMenu();
+				}
+
+				ImGui::EndPopup();
+			}
 		}
 
 		ImGui::End();
@@ -87,22 +96,22 @@ namespace Kaidel {
 				if (auto payload = dragdropTarget.Receive<IDComponent>("ENTITY_PARENT");payload) {
 					auto childEntityID = (*(IDComponent*)payload.Data).ID;
 
-					entity.AddChild(childEntityID);
+					//entity.AddChild();
 
-					auto childEntity = scene->GetEntity(childEntityID);
-					if (childEntity.HasComponent<ChildComponent>()) {
-						auto& cc = childEntity.GetComponent<ChildComponent>();
-						auto oldParent = scene->GetEntity(cc.Parent);
-						auto& oldpc = oldParent.GetComponent<ParentComponent>();
-						auto it = std::find(oldpc.Children.begin(), oldpc.Children.end(), childEntityID);
-						if (it != oldpc.Children.end())
-							oldpc.Children.erase(it, it + 1);
-					}
-					else {
-						childEntity.AddComponent<ChildComponent>(entity.GetUUID());
-					}
-					childEntity.GetComponent<ChildComponent>().LocalPosition = childEntity.GetComponent<TransformComponent>().Translation
-						- entity.GetComponent<TransformComponent>().Translation;
+					//auto childEntity = scene->GetEntity(childEntityID);
+					//if (childEntity.HasComponent<ChildComponent>()) {
+					//	auto& cc = childEntity.GetComponent<ChildComponent>();
+					//	auto oldParent = scene->GetEntity(cc.Parent);
+					//	auto& oldpc = oldParent.GetComponent<ParentComponent>();
+					//	auto it = std::find(oldpc.Children.begin(), oldpc.Children.end(), childEntityID);
+					//	if (it != oldpc.Children.end())
+					//		oldpc.Children.erase(it, it + 1);
+					//}
+					//else {
+					//	childEntity.AddComponent<ChildComponent>(entity.GetUUID());
+					//}
+					//childEntity.GetComponent<ChildComponent>().LocalPosition = childEntity.GetComponent<TransformComponent>().Translation
+					//	- entity.GetComponent<TransformComponent>().Translation;
 				}
 			}
 
@@ -112,7 +121,7 @@ namespace Kaidel {
 			}
 			if (opened) {
 				for (auto& child : entity.GetComponent<ParentComponent>().Children) {
-					DrawEntityNode(scene->GetEntity(child), scene);
+					DrawEntityNode(Entity(child, scene.Get()), scene);
 				}
 				ImGui::TreePop();
 			}

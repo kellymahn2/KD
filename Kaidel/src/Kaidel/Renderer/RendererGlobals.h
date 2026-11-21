@@ -22,7 +22,7 @@ namespace Kaidel {
 		static void CreateDefaults();
 		static void Shutdown();
 
-		static Ref<Sampler> GetSampler(SamplerFilter filter, SamplerMipMapMode mipMode);
+		static Ref<Sampler> GetSampler(SamplerFilter filter, SamplerMipMapMode mipMode, SamplerAddressMode addressMode = SamplerAddressMode::Repeat);
 		static Ref<DescriptorSet> GetSamplerSet();
 		
 		static Ref<Font> GetDefaultFont();
@@ -33,10 +33,10 @@ namespace Kaidel {
 		
 		static Ref<EnvironmentMap> LoadEnvironmentMap(const Path& path);
 
-		static Ref<Texture2D> GetSingleColorTexture(const glm::vec4& color);
+		static Ref<SpriteSheet> GetSingleColorTexture(const glm::vec4& color);
 
 		static Ref<Texture2D> GetSpecularLUT();
 
-		static Ref<StandardMaterialInstance> GetDefaultMaterial();
+		static Ref<StandardMaterial> GetDefaultMaterial();
 	};
 }

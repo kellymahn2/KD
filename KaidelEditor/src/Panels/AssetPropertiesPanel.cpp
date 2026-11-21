@@ -6,14 +6,20 @@
 #include "UI/IconLibrary.h"
 #include "UI/AssetPreview.h"
 
+#include <Kaidel\Renderer\Sprite.h>
+
+#include "SpriteSheetEditor.h"
+
 #include <imgui/imgui.h>
 
 namespace Kaidel {
 
 	namespace Utils {
-		static void DrawVisualMaterialTextureUI(const char* strID, Ref<VisualMaterialInstance> mat, uint32_t setID, uint32_t binding, const std::string& name,
+		static bool DrawVisualShaderTextureUI(const char* strID, Ref<ShaderMaterial> mat, uint32_t setID, uint32_t binding, const std::string& name,
 			const ImVec2 imageSize, Ref<Texture2D> fallback)
 		{
+			bool changed = false;
+
 			ImGuiTreeNodeFlags flags =
 				ImGuiTreeNodeFlags_SpanAvailWidth;
 
@@ -43,6 +49,7 @@ namespace Kaidel {
 						if (t)
 						{
 							mat->SetTexture(t, setID, binding);
+							changed = true;
 						}
 					}
 				}
@@ -50,7 +57,7 @@ namespace Kaidel {
 				if (ImGui::IsItemHovered() && texture != fallback)
 				{
 					ImGui::BeginTooltip();
-					ImGui::Text(TextureLibrary::GetPath(texture).string().c_str());
+					//ImGui::Text(TextureLibrary::GetPath(texture).string().c_str());
 					ImGui::EndTooltip();
 				}
 
@@ -58,15 +65,17 @@ namespace Kaidel {
 
 				ImGui::TreePop();
 			}
+
+			return changed;
 		}
 
 		static bool DrawMaterialTextureUI(
-			const char* strID, Ref<StandardMaterialInstance> mat, StandardMaterialInstance::MaterialTextureType type,
+			const char* strID, Ref<StandardMaterial> mat, StandardMaterial::MaterialTextureType type,
 			Ref<DescriptorSet> set, const ImVec2& imageSize, const ImVec2& iconSize, Ref<Texture2D> fallback, Format format,
 			std::function<bool()>&& func)
 		{
 			ImGuiTreeNodeFlags flags =
-				ImGuiTreeNodeFlags_SpanAvailWidth;
+				ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen;
 
 			bool changed = false;
 
@@ -74,7 +83,7 @@ namespace Kaidel {
 			{
 				float offset = ImGui::GetCursorPosY();
 				ImGui::PushID(strID);
-				Ref<Texture2D> texture = mat->GetTexture(type);
+				Ref<Texture2D> texture = mat->GetTexture(type)->GetTexture();
 				if (!texture)
 					texture = fallback;
 
@@ -101,18 +110,20 @@ namespace Kaidel {
 
 				if (ImGui::ImageButton("##Image", id, imageSize))
 				{
-					AssetChooser::Render(AssetFilter({ AssetType::StandardMaterial, AssetType::VisualMaterial }), [mat, type](Asset asset) {
-						mat->SetTexture(type, asset.As<Texture2D>());
+					AssetChooser::Render(AssetFilter({ AssetType::SpriteSheet }), [mat, type](Asset asset) {
+						mat->SetTexture(type, asset.As<SpriteSheet>());
+						mat->UploadUniforms();
 
 						AssetManager::SetDirty(mat->GetHandle());
+						AssetPreview::SetDirty(mat->GetHandle());
 					});
 				}
 
 				if (texture != fallback && ImGui::IsItemHovered())
 				{
 					ImGui::BeginTooltip();
-					auto& mtd = AssetManager::GetAssetMetadata(mat->GetTexture(type)->GetHandle());
-					ImGui::Text(mtd.Path.string().c_str());
+					//auto& mtd = AssetManager::GetAssetMetadata(mat->GetTexture(type)->GetHandle());
+					//ImGui::Text(mtd.Path.string().c_str());
 					ImGui::EndTooltip();
 				}
 
@@ -121,16 +132,27 @@ namespace Kaidel {
 					ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
 				}
 
-				ImGui::SameLine();
-				ImGui::SetCursorPosY(offset + imageSize.y * 0.5f - iconSize.y * 0.5f);
-				uint32_t crossIcon = IconLibrary::GetIcon("TextureClearCross.png");
-				auto& coords = IconLibrary::GetAtlas()->GetSamplingCoords(crossIcon);
-
-				if (ImGui::ImageButton("##Clear", (ImTextureID)IconLibrary::GetDescriptorSet()->GetSetID(),
-					iconSize, (ImVec2&)coords.BottomLeft, (ImVec2&)coords.TopRight))
+				if (ImGui::BeginPopupContextItem("##TexturePopup", ImGuiPopupFlags_MouseButtonRight))
 				{
-					mat->SetTexture(type, {});
-					changed = true;
+					if (ImGui::MenuItem("Clear"))
+					{
+						mat->SetTexture(type, {});
+						changed = true;
+					}
+
+					ImGui::EndPopup();
+				}
+
+				{
+					DragDropTarget t;
+
+					auto texture = t.Receive<uint64_t>(SpriteSheet::GetStaticAssetTypeString());
+
+					if (texture)
+					{
+						mat->SetTexture(type, AssetManager::GetAsset(*texture.Data).As<SpriteSheet>());
+						changed = true;
+					}
 				}
 
 				if (func)
@@ -163,12 +185,12 @@ namespace Kaidel {
 			}
 		}
 
-		static bool DrawStandardMaterial(Ref<StandardMaterialInstance> material)
+		static bool DrawStandardMaterial(Ref<StandardMaterial> material)
 		{
-			PerFrameResource<Ref<DescriptorSet>> sets[(uint32_t)StandardMaterialInstance::MaterialTextureType::Max] = { {} };
+			PerFrameResource<Ref<DescriptorSet>> sets[(uint32_t)StandardMaterial::MaterialTextureType::Max] = { {} };
 			if (!sets[0][0])
 			{
-				for (uint32_t i = 0; i < (uint32_t)StandardMaterialInstance::MaterialTextureType::Max; ++i)
+				for (uint32_t i = 0; i < (uint32_t)StandardMaterial::MaterialTextureType::Max; ++i)
 				{
 					DescriptorSetLayoutSpecification specs({ {DescriptorType::SamplerWithTexture, ShaderStage_FragmentShader} });
 					sets[i].Construct([&specs](uint32_t) {
@@ -190,21 +212,21 @@ namespace Kaidel {
 			bool changed = false;
 
 			changed |= DrawMaterialTextureUI(
-				"Albedo", material, StandardMaterialInstance::MaterialTextureType::Albedo,
-				sets[(uint32_t)StandardMaterialInstance::MaterialTextureType::Albedo],
+				"Albedo", material, StandardMaterial::MaterialTextureType::Albedo,
+				sets[(uint32_t)StandardMaterial::MaterialTextureType::Albedo],
 				imageSize, iconSize, fallback, Format::RGBA8UN, {});
 
 			changed |= DrawMaterialTextureUI(
-				"Normal", material, StandardMaterialInstance::MaterialTextureType::Normal,
-				sets[(uint32_t)StandardMaterialInstance::MaterialTextureType::Normal],
+				"Normal", material, StandardMaterial::MaterialTextureType::Normal,
+				sets[(uint32_t)StandardMaterial::MaterialTextureType::Normal],
 				imageSize, iconSize, fallback, Format::RGBA8UN, {});
 
 			changed |= DrawMaterialTextureUI(
-				"Metallic", material, StandardMaterialInstance::MaterialTextureType::Metallic,
-				sets[(uint32_t)StandardMaterialInstance::MaterialTextureType::Metallic],
+				"Metallic", material, StandardMaterial::MaterialTextureType::Metallic,
+				sets[(uint32_t)StandardMaterial::MaterialTextureType::Metallic],
 				imageSize, iconSize, fallback, Format::RGBA32F, [material]() {
 					bool changed = false;
-					if (material->GetTexture(StandardMaterialInstance::MaterialTextureType::Metallic))
+					if (material->GetTexture(StandardMaterial::MaterialTextureType::Metallic))
 					{
 						uint32_t currIndex = (uint32_t)material->GetUniformData().MetalnessChannel;
 
@@ -212,7 +234,7 @@ namespace Kaidel {
 
 						if (combo != -1 && currIndex != combo)
 						{
-							material->SetMetalnessColorChannel((StandardMaterialInstance::MaterialTextureChannel)combo);
+							material->SetMetalnessColorChannel((StandardMaterial::MaterialTextureChannel)combo);
 							changed = true;
 						}
 					}
@@ -231,11 +253,11 @@ namespace Kaidel {
 				});
 
 			changed |= DrawMaterialTextureUI(
-				"Roughness", material, StandardMaterialInstance::MaterialTextureType::Roughness,
-				sets[(uint32_t)StandardMaterialInstance::MaterialTextureType::Roughness],
+				"Roughness", material, StandardMaterial::MaterialTextureType::Roughness,
+				sets[(uint32_t)StandardMaterial::MaterialTextureType::Roughness],
 				imageSize, iconSize, fallback, Format::RGBA32F, [material]() {
 					bool changed = false;
-					if (material->GetTexture(StandardMaterialInstance::MaterialTextureType::Roughness))
+					if (material->GetTexture(StandardMaterial::MaterialTextureType::Roughness))
 					{
 						uint32_t currIndex = (uint32_t)material->GetUniformData().RoughnessChannel;
 
@@ -243,7 +265,7 @@ namespace Kaidel {
 
 						if (combo != -1 && currIndex != combo)
 						{
-							material->SetRoughnessColorChannel((StandardMaterialInstance::MaterialTextureChannel)combo);
+							material->SetRoughnessColorChannel((StandardMaterial::MaterialTextureChannel)combo);
 							changed = true;
 						}
 					}
@@ -261,22 +283,39 @@ namespace Kaidel {
 				});
 
 			changed |= DrawMaterialTextureUI(
-				"Emissive", material, StandardMaterialInstance::MaterialTextureType::Emissive,
-				sets[(uint32_t)StandardMaterialInstance::MaterialTextureType::Emissive],
+				"Emissive", material, StandardMaterial::MaterialTextureType::Emissive,
+				sets[(uint32_t)StandardMaterial::MaterialTextureType::Emissive],
 				imageSize, iconSize, fallback, Format::RGBA8UN, {});
 
 			return changed;
 		}
 
-
-		void DrawVisualMaterial(Ref<VisualMaterialInstance> material)
+		bool DrawVisualShader(Ref<ShaderMaterial> material)
 		{
+			AssetBinding<VisualShader>(0, Asset(material->GetVisualShader()), [material](Asset asset) {
+				material->SetVisualShader(asset.As<VisualShader>());
+				AssetManager::SetDirty(material->GetHandle());
+				AssetPreview::SetDirty(material->GetHandle());
+			});
+
+
+			if (!material->GetVisualShader())
+			{
+				return false;
+			}
+
+			material->AssureLatest();
 
 			DrawPreview(material);
-			auto& vm = material->GetVisualMaterial();
+			auto vm = material->GetVisualShader();
 			bool propertiesChanged = false;
 
 			const ImVec2 imageSize = ImVec2(64, 64);
+
+			if (!vm)
+			{
+				return propertiesChanged;
+			}
 
 			static Ref<Texture2D> fallback =
 				TextureLibrary::Load("Resources/Icons/TextureNullCross.png", ImageLayout::ShaderReadOnlyOptimal, Format::RGBA8UN);
@@ -285,7 +324,7 @@ namespace Kaidel {
 			{
 				ImGui::PushID(&param);
 
-				bool isTexture = param.Type == VisualMaterialParameterType::Texture;
+				bool isTexture = param.Type == VisualShaderParameterType::Texture;
 
 				if (!isTexture)
 				{
@@ -293,35 +332,34 @@ namespace Kaidel {
 
 					switch (param.Type)
 					{
-					case VisualMaterialParameterType::Bool: propertiesChanged = ImGui::Checkbox(name.c_str(), (bool*)dataPtr) || propertiesChanged; break;
-					case VisualMaterialParameterType::Int: propertiesChanged = ImGui::DragInt(name.c_str(), (int*)dataPtr) || propertiesChanged; break;
-					case VisualMaterialParameterType::UInt:
+					case VisualShaderParameterType::Bool: propertiesChanged |= ImGui::Checkbox(name.c_str(), (bool*)dataPtr); break;
+					case VisualShaderParameterType::Int: propertiesChanged |= ImGui::DragInt(name.c_str(), (int*)dataPtr); break;
+					case VisualShaderParameterType::UInt:
 					{
 						uint32_t min = 0, max = UINT32_MAX;
-						propertiesChanged = ImGui::DragScalar(name.c_str(), ImGuiDataType_U32, (uint32_t*)dataPtr, 1.0f, &min, &max) || propertiesChanged;
+						propertiesChanged |= ImGui::DragScalar(name.c_str(), ImGuiDataType_U32, (uint32_t*)dataPtr, 1.0f, &min, &max);
 					}
 					break;
-					case VisualMaterialParameterType::Float: propertiesChanged = ImGui::DragFloat(name.c_str(), (float*)dataPtr, 0.005f) || propertiesChanged; break;
-					case VisualMaterialParameterType::Vec2: propertiesChanged = DrawVec2Control(name, *(glm::vec2*)dataPtr, 0.0f, 100.0f) || propertiesChanged; break;
-					case VisualMaterialParameterType::Vec3: propertiesChanged = DrawVec3Control(name, *(glm::vec3*)dataPtr, 0.0f, 100.0f) || propertiesChanged; break;
-					case VisualMaterialParameterType::Vec4: propertiesChanged = DrawVec4Control(name, *(glm::vec4*)dataPtr, 0.0f, 100.0f) || propertiesChanged; break;
+					case VisualShaderParameterType::Float: propertiesChanged |= ImGui::DragFloat(name.c_str(), (float*)dataPtr, 0.005f); break;
+					case VisualShaderParameterType::Vec2: propertiesChanged |= DrawVec2Control(name, *(glm::vec2*)dataPtr, 0.0f, 100.0f); break;
+					case VisualShaderParameterType::Vec3: propertiesChanged |= DrawVec3Control(name, *(glm::vec3*)dataPtr, 0.0f, 100.0f); break;
+					case VisualShaderParameterType::Vec4: propertiesChanged |= DrawVec4Control(name, *(glm::vec4*)dataPtr, 0.0f, 100.0f); break;
 					}
 				}
 				else
 				{
-					DrawVisualMaterialTextureUI("##Texture", material, param.Set, param.Binding, name, imageSize, fallback);
+					propertiesChanged |= DrawVisualShaderTextureUI("##Texture", material, param.Set, param.Binding, name, imageSize, fallback);
 				}
-
-
 
 				ImGui::PopID();
 			}
 
 			if (propertiesChanged)
 				material->UploadUniformData();
+
+			return propertiesChanged;
 		}
 	}
-
 
 	void AssetPropertiesPanel::OnImGuiRender()
 	{
@@ -330,27 +368,70 @@ namespace Kaidel {
 		bool changed = false;
 		switch (m_SelectedAsset->GetAssetType())
 		{
-		case AssetType::Texture2D: break;
+		case AssetType::SpriteSheet: changed = SpriteSheetProperties();  break;
 		case AssetType::StandardMaterial: changed = StandardMaterialProperties(); break;
+		case AssetType::ShaderMaterial: changed = VisualShaderProperties(); break;
 		}
 
 		if (changed)
+		{
 			AssetManager::SetDirty(m_SelectedAsset->GetHandle());
+			AssetPreview::SetDirty(m_SelectedAsset->GetHandle());
+		}
 	}
 
 	bool AssetPropertiesPanel::StandardMaterialProperties()
 	{
-		Ref<StandardMaterialInstance> material = m_SelectedAsset.AssetPtr;
+		Ref<StandardMaterial> material = m_SelectedAsset.As<StandardMaterial>();
 		return Utils::DrawStandardMaterial(material);
 	}
 
-
-	bool AssetPropertiesPanel::VisualMaterialProperties()
+	bool AssetPropertiesPanel::VisualShaderProperties()
 	{
-		Ref<VisualMaterialInstance> material = m_SelectedAsset.AssetPtr;
-		Utils::DrawVisualMaterial(material);
-		//TODO: fix this.
-		return false;
+		Ref<ShaderMaterial> material = m_SelectedAsset.As<ShaderMaterial>();
+		return Utils::DrawVisualShader(material);
+	}
+
+	bool AssetPropertiesPanel::SpriteSheetProperties()
+	{
+		Ref<SpriteSheet> sheet = m_SelectedAsset.As<SpriteSheet>();
+
+		const auto& sampler = sheet->GetSampler()->GetSamplerState();
+
+		bool changed = false;
+
+		//Wrap mode
+		{
+			const char* options[] = { "Repeat", "Mirror", "Clamp"};
+			uint32_t newWrap = Combo("Wrap mode", options, ARRAYSIZE(options), options[(uint32_t)sampler.AddressModeU]);
+
+			if (newWrap != -1)
+			{
+				sheet->SetSampler(RendererGlobals::GetSampler(sampler.MagFilter, sampler.MipFilter, (SamplerAddressMode)newWrap));
+				changed |= true;
+			}
+		}
+
+		//Filter mode
+		{
+			const char* options[] = { "Point", "Bilinear" };
+
+			uint32_t newFilter = Combo("Filter mode", options, ARRAYSIZE(options), options[(uint32_t)sampler.MagFilter]);
+
+			if (newFilter != -1)
+			{
+				sheet->SetSampler(RendererGlobals::GetSampler((SamplerFilter)newFilter, sampler.MipFilter, sampler.AddressModeU));
+				changed |= true;
+			}
+		}
+
+		if (ImGui::Button("Open sprite editor"))
+		{
+			SpriteSheetEditor::Open(sheet);
+		}
+		changed |= SpriteSheetEditor::OnImGuiRender();
+
+		return changed;
 	}
 
 }

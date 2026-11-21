@@ -18,8 +18,8 @@ namespace Kaidel {
 		}
 	public:
 		bool StandardMaterialProperties();
-		bool VisualMaterialProperties();
-
+		bool VisualShaderProperties();
+		bool SpriteSheetProperties();
 	private:
 		Asset m_SelectedAsset;
 	};

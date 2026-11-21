@@ -11,7 +11,6 @@ namespace Kaidel {
 
 		static Ref<Font> Load(const Path& path);
 		static Ref<Font> Get(const Path& path);
-		static const Path& GetPath(Ref<Font> font);
 
 		static bool Exists(const Path& path);
 	};

@@ -101,8 +101,6 @@ namespace Kaidel {
 		SceneHierarchyPanel m_SceneHierarchyPanel;
 		//ContentBrowserPanel m_ContentBrowserPanel;
 		ConsolePanel m_ConsolePanel;
-		AnimationPanel m_AnimationPanel;
-
 
 		enum class SceneState {
 			Edit = 0, Play = 1 , Simulate = 2

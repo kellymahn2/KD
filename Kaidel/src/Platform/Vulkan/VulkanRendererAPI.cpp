@@ -67,8 +67,8 @@ namespace Kaidel {
 		Ref<RenderPass> renderPass, Ref<Framebuffer> framebuffer,
 		std::initializer_list<AttachmentClearValue> clearValues)
 	{
-		Ref<VulkanRenderPass> rp = renderPass;
-		Ref<VulkanFramebuffer> fb = framebuffer;
+		Ref<VulkanRenderPass> rp = DynamicPointerCast<VulkanRenderPass>(renderPass);
+		Ref<VulkanFramebuffer> fb = DynamicPointerCast<VulkanFramebuffer>(framebuffer);
 
 		VkRect2D renderArea{};
 		renderArea.offset = { 0,0 };
@@ -119,7 +119,7 @@ namespace Kaidel {
 		VulkanBackend::BufferInfo const** vkBuffers = ALLOCA_ARRAY(VulkanBackend::BufferInfo const*, buffers.size());
 		for (uint32_t i = 0; i < buffers.size(); ++i) {
 			const Ref<VertexBuffer>* buffer = buffers.begin() + i;
-			Ref<VulkanVertexBuffer> vkBuffer = *buffer;
+			Ref<VulkanVertexBuffer> vkBuffer = DynamicPointerCast<VulkanVertexBuffer>(*buffer);
 			vkBuffers[i] = &vkBuffer->GetBufferInfo();
 		}
 		
@@ -131,7 +131,7 @@ namespace Kaidel {
 	}
 	void VulkanRendererAPI::BindIndexBuffer(Ref<IndexBuffer> buffer, uint64_t offset)
 	{
-		Ref<VulkanIndexBuffer> vkBuffer = buffer;
+		Ref<VulkanIndexBuffer> vkBuffer = DynamicPointerCast<VulkanIndexBuffer>(buffer);
 		VK_BACKEND->CommandBindIndexBuffer(
 			COMMAND_BUFFER,
 			vkBuffer->GetBufferInfo(),
@@ -142,7 +142,7 @@ namespace Kaidel {
     {
 		if (m_CurrentBoundPipeline == pipeline)
 			return;
-		Ref<VulkanGraphicsPipeline> vkPipeline = pipeline;
+		Ref<VulkanGraphicsPipeline> vkPipeline = DynamicPointerCast<VulkanGraphicsPipeline>(pipeline);
 		VK_BACKEND->CommandBindGraphicsPipeline(
 			COMMAND_BUFFER,
 			vkPipeline->GetPipeline()
@@ -151,7 +151,7 @@ namespace Kaidel {
     }
 	void VulkanRendererAPI::BindComputePipeline(Ref<ComputePipeline> pipeline)
 	{
-		Ref<VulkanComputePipeline> vkPipeline = pipeline;
+		Ref<VulkanComputePipeline> vkPipeline = DynamicPointerCast<VulkanComputePipeline>(pipeline);
 		VK_BACKEND->CommandBindComputePipeline(
 			COMMAND_BUFFER,
 			vkPipeline->GetPipeline()
@@ -159,7 +159,7 @@ namespace Kaidel {
 	}
 	void VulkanRendererAPI::BindPushConstants(Ref<Shader> shader, uint32_t firstIndex, const uint8_t* values, uint64_t size)
 	{
-		Ref<VulkanShader> vkShader = shader;
+		Ref<VulkanShader> vkShader = DynamicPointerCast<VulkanShader>(shader);
 		VK_BACKEND->CommandBindPushConstants(
 			COMMAND_BUFFER,
 			vkShader->GetShaderInfo(),
@@ -168,8 +168,8 @@ namespace Kaidel {
 	}
 	void VulkanRendererAPI::BindDescriptorSet(Ref<Shader> shader, Ref<DescriptorSet> set, uint32_t setIndex)
 	{
-		Ref<VulkanShader> vkShader = shader;
-		Ref<VulkanDescriptorSet> vkSet = set;
+		Ref<VulkanShader> vkShader = DynamicPointerCast<VulkanShader>(shader);
+		Ref<VulkanDescriptorSet> vkSet = DynamicPointerCast<VulkanDescriptorSet>(set);
 		VK_BACKEND->CommandBindDescriptorSet(
 			COMMAND_BUFFER,
 			vkShader->GetShaderInfo(),
@@ -494,6 +494,16 @@ namespace Kaidel {
 	{
 		markers.pop();
 		VK_BACKEND->CommandEndMarker(COMMAND_BUFFER);
+	}
+
+	void VulkanRendererAPI::SetBufferName(Ref<Buffer> buffer, const std::string& name)
+	{
+		VK_BACKEND->SetBufferName((VulkanBackend::BufferInfo*)buffer->GetBackendID(), name);
+	}
+
+	void VulkanRendererAPI::SetTextureName(Ref<Texture> texture, const std::string& name)
+	{
+		VK_BACKEND->SetTextureName((VulkanBackend::TextureInfo*)texture->GetBackendInfo(), name);
 	}
 
 }

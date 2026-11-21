@@ -5,8 +5,9 @@
 #include "Kaidel/Renderer/GraphicsAPI/ShaderLibrary.h"
 #include "Kaidel/Renderer/GraphicsAPI/DescriptorSet.h"
 #include "Kaidel/Renderer/RenderCommand.h"
-#include "Kaidel/VisualMaterial/VisualMaterial.h"
+#include "Kaidel/VisualShader/VisualShader.h"
 #include "Kaidel/Asset/Asset.h"
+#include "Kaidel/Renderer/Sprite.h"
 
 namespace Kaidel {
 	class MaterialInstance : public AssetBase
@@ -26,7 +27,7 @@ namespace Kaidel {
 
 	
 
-	class StandardMaterialInstance : public MaterialInstance
+	class StandardMaterial : public MaterialInstance
 	{
 	public:
 		enum class MaterialTextureType {
@@ -63,14 +64,16 @@ namespace Kaidel {
 			MaterialTextureChannel MetalnessChannel = MaterialTextureChannel::Blue;
 			MaterialTextureChannel RoughnessChannel = MaterialTextureChannel::Green;
 
-			Ref<Texture2D> Textures[(uint32_t)MaterialTextureType::Max] = { nullptr };
+			Ref<SpriteSheet> Textures[(uint32_t)MaterialTextureType::Max] = { nullptr };
 		};
 
 		virtual bool IsLoaded() const override;
 
 	public:
 
-		StandardMaterialInstance(const Initializer& initializer);
+		StandardMaterial(const Initializer& initializer);
+
+		void Initialize(const Initializer& initializer);
 		
 		DECL_ASSET_TYPE(StandardMaterial)
 
@@ -106,7 +109,7 @@ namespace Kaidel {
 			return m_UniformData.BaseColor;
 		}
 
-		void SetTexture(MaterialTextureType type, Ref<Texture2D> image);
+		void SetTexture(MaterialTextureType type, Ref<SpriteSheet> image);
 
 		void SetMetalnessColorChannel(MaterialTextureChannel channel)
 		{
@@ -132,7 +135,7 @@ namespace Kaidel {
 			UploadUniforms();
 		}
 
-		Kaidel::Ref<Kaidel::Texture2D> GetTexture(MaterialTextureType type)
+		Kaidel::Ref<Kaidel::SpriteSheet> GetTexture(MaterialTextureType type)
 		{
 			return m_Textures[(uint32_t)type];
 		}
@@ -159,14 +162,14 @@ namespace Kaidel {
 		Ref<UniformBuffer> m_UniformBuffer;
 		Ref<DescriptorSet> m_UniformSet;
 
-		Ref<Texture2D> m_Textures[(uint32_t)MaterialTextureType::Max] = {};
+		Ref<SpriteSheet> m_Textures[(uint32_t)MaterialTextureType::Max] = {};
 		Ref<DescriptorSet> m_TextureSet;
 	};
 
-	class VisualMaterialInstance : public MaterialInstance
+	class ShaderMaterial : public MaterialInstance
 	{
 	public:
-		VisualMaterialInstance(Ref<VisualMaterial> visualMaterial);
+		ShaderMaterial(Ref<VisualShader> visualMaterial);
 
 		virtual void BindDescriptors() override;
 
@@ -178,9 +181,9 @@ namespace Kaidel {
 
 		virtual void BindPipeline() const override;
 
-		void SetVisualMaterial(Ref<VisualMaterial> visualMaterial);
+		void SetVisualShader(Ref<VisualShader> visualMaterial);
 
-		Ref<VisualMaterial> GetVisualMaterial() const { return m_VisualMaterial; }
+		Ref<VisualShader> GetVisualShader() const { return m_VisualShader; }
 
 		virtual void BindSceneData(Ref<DescriptorSet> sceneDataSet) override;
 
@@ -199,14 +202,16 @@ namespace Kaidel {
 			return m_Sets[set]->GetTextureAtBinding(binding);
 		}
 
-		void SetTexture(Ref<Texture> texture, uint32_t set, uint32_t binding);
+		void SetTexture(Ref<Texture2D> texture, uint32_t set, uint32_t binding);
+		void AssureLatest();
 
-		DECL_ASSET_TYPE(VisualMaterial)
+		DECL_ASSET_TYPE(ShaderMaterial)
+
 
 	private:
 		void CreateSets();
 	private:
-		Ref<VisualMaterial> m_VisualMaterial;
+		Ref<VisualShader> m_VisualShader;
 
 		std::unordered_map<uint32_t, Ref<DescriptorSet>> m_Sets;
 
@@ -218,9 +223,9 @@ namespace Kaidel {
 
 	/*
 	
-	class VisualMaterialInstance : MaterialInstance {
+	class VisualShaderInstance : MaterialInstance {
 
-		VisualMaterial mat;
+		VisualShader mat;
 		//Added descriptors		
 		//Added param arrays
 	};

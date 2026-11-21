@@ -13,10 +13,10 @@ namespace Kaidel {
 		virtual const DescriptorSetSpecification& GetSpecification()const override { return m_Specification; }
 
 		virtual Ref<UniformBuffer> GetUniformBufferAtBinding(uint32_t i, uint32_t arrayIndex = 0)const override {
-			 return m_Values[i][arrayIndex].BufferValues.Buffer; 
+			return DynamicPointerCast<UniformBuffer>(m_Values[i][arrayIndex].BufferValues.Buffer);
 		}
 		virtual Ref<StorageBuffer> GetStorageBufferAtBinding(uint32_t i, uint32_t arrayIndex = 0)const override {
-			 return m_Values[i][arrayIndex].BufferValues.Buffer; 
+			return DynamicPointerCast<StorageBuffer>(m_Values[i][arrayIndex].BufferValues.Buffer);
 		}
 		virtual Ref<Texture> GetTextureAtBinding(uint32_t i, uint32_t arrayIndex = 0)const override {
 			 return m_Values[i][arrayIndex].ImageValues.Image; 

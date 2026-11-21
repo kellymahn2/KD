@@ -14,6 +14,9 @@ namespace Kaidel {
 
 
 
+
+		uint64_t GetSize() const override;
+
 	private:
 		VulkanBackend::BufferInfo m_Buffer;
 		friend class VulkanRendererAPI;

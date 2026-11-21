@@ -153,6 +153,16 @@ namespace Kaidel {
 		
 		static Scope<RendererAPI>& Get() { return s_RendererAPI; }
 
+		static void SetBufferName(Ref<Buffer> buffer, const std::string& name)
+		{
+			s_RendererAPI->SetBufferName(buffer, name);
+		}
+
+		static void SetTextureName(Ref<Texture> texture, const std::string& name)
+		{
+			s_RendererAPI->SetTextureName(texture, name);
+		}
+
 	private:
 		static Scope<RendererAPI> s_RendererAPI;
 	};

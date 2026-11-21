@@ -3,15 +3,15 @@
 
 #include "Kaidel/Renderer/GraphicsAPI/TextureLibrary.h"
 #include "Kaidel/Asset/AssetImporters/MaterialSerializer.h"
+#include "Kaidel/Asset/AssetImporters/SpriteSheetSerializer.h"
+#include "Kaidel/Asset/AssetImporters/AnimationSerializer.h"
+#include "Kaidel/Scene/SceneSerializer.h"
 #include "Kaidel/Renderer/Text/FontLibrary.h"
 #include "Kaidel/Scene/ModelLoader.h"
 #include "Kaidel/Project/Project.h"
+#include "Kaidel/Renderer/Sprite.h"
 
 #include "AssetImporters/MetadataFile.h"
-
-#include "Kaidel/Renderer/Renderer3D.h"
-
-#include <yaml-cpp/yaml.h>
 
 namespace Kaidel {
 
@@ -31,22 +31,19 @@ namespace Kaidel {
 		std::unordered_map<AssetHandle, AssetMetadata> Registry;
 		std::unordered_map<Path, AssetHandle> ReverseRegistry;
 
-		std::unordered_map<AssetHandle, Ref<Texture2D>> Previews;
-
 	} static* s_Data;
-
 
 	namespace Utils {
 		static std::string AssetTypeToString(AssetType type)
 		{
 			switch (type)
 			{
-			case Kaidel::AssetType::Texture2D: return "Texture2D";
+			case Kaidel::AssetType::SpriteSheet: return "SpriteSheet";
 			case Kaidel::AssetType::Font: return "Font";
 			case Kaidel::AssetType::Model: return "Model";
 			case Kaidel::AssetType::Mesh: return "Mesh";
 			case Kaidel::AssetType::StandardMaterial: return "StandardMaterial";
-			case Kaidel::AssetType::VisualMaterial: return "VisualMaterial";
+			case Kaidel::AssetType::VisualShader: return "VisualShader";
 			}
 		}
 
@@ -55,12 +52,12 @@ namespace Kaidel {
 #define DECL_MAP(type) {#type, AssetType::##type}
 			static std::unordered_map<std::string, AssetType> s_Map =
 			{
-				DECL_MAP(Texture2D),
+				DECL_MAP(SpriteSheet),
 				DECL_MAP(Font),
 				DECL_MAP(Model),
 				DECL_MAP(Mesh),
 				DECL_MAP(StandardMaterial),
-				DECL_MAP(VisualMaterial)
+				DECL_MAP(VisualShader)
 			};
 #undef DECL_MAP
 
@@ -110,7 +107,6 @@ namespace Kaidel {
 		delete s_Data;
 	}
 
-
 	const Kaidel::AssetMetadata& AssetManager::GetAssetMetadata(AssetHandle handle)
 	{
 		std::shared_lock<std::shared_mutex> lock(s_Mutex);
@@ -136,7 +132,6 @@ namespace Kaidel {
 		return Asset(ptr);
 	}
 
-
 	Kaidel::Asset AssetManager::GetAssetAtPath(const Path& path)
 	{
 		std::shared_lock<std::shared_mutex> lock(s_Mutex);
@@ -149,8 +144,25 @@ namespace Kaidel {
 		return {};
 	}
 
+	Kaidel::AssetHandle AssetManager::GetAssetHandleAtPath(const Path& path)
+	{
+		std::shared_lock<std::shared_mutex> lock(s_Mutex);
+
+		auto it = s_Data->ReverseRegistry.find(path);
+
+		if (it != s_Data->ReverseRegistry.end())
+			return it->second;
+
+		return 0;
+	}
+
 	bool AssetManager::IsAssetHandleValid(AssetHandle handle)
 	{
+		if (handle == 0)
+		{
+			return false;
+		}
+
 		std::shared_lock<std::shared_mutex> lock(s_Mutex);
 
 		auto it = s_Data->TotalMap.find(handle);
@@ -158,10 +170,8 @@ namespace Kaidel {
 		return it != s_Data->TotalMap.end();
 	}
 
-
 	bool AssetManager::IsBuiltIn(AssetHandle handle)
 	{
-		//Hasn't been loaded yet, clearly not a builtin
 		if (handle == UUID(0))
 			return false;
 
@@ -188,9 +198,14 @@ namespace Kaidel {
 
 		auto& data = s_Data;
 
+		KD_CORE_ASSERT(metadata.Type != AssetType::None);
+
 		s_Data->Registry[metadata.Handle] = metadata;
 		s_Data->ReverseRegistry[metadata.Path] = metadata.Handle;
-		asset->m_AssetHandle = metadata.Handle;
+		if (asset)
+		{
+			asset->m_AssetHandle = metadata.Handle;
+		}
 		s_Data->TotalMap[metadata.Handle] = asset;
 		s_Data->LoadedMap[metadata.Handle] = std::move(asset);
 	}
@@ -204,9 +219,25 @@ namespace Kaidel {
 
 		s_Mutex.lock();
 		//Recheck to make sure no one has loaded it before this thread
-		if (auto it = s_Data->ReverseRegistry.find(metadata.Path); it != s_Data->ReverseRegistry.end())
+		Ref<AssetBase> skip;
+
+		if (metadata.Path.empty())
 		{
-			Asset asset = s_Data->LoadedMap.at(it->second);
+			auto it = s_Data->LoadedMap.find(metadata.Handle);
+
+			if (it != s_Data->LoadedMap.end() && it->second)
+			{
+				skip = it->second;
+			}
+		}
+		else if (auto it = s_Data->ReverseRegistry.find(metadata.Path); it != s_Data->ReverseRegistry.end())
+		{
+			skip = s_Data->LoadedMap.at(it->second);
+		}
+
+		if (skip)
+		{
+			Asset asset = Asset(skip);
 			if (onLoad)
 			{
 				if (asset.AssetPtr->m_AssetHandle == UUID(0))
@@ -225,16 +256,20 @@ namespace Kaidel {
 
 		AssetHandle handle = metadata.Handle;
 
-		MetadataFile* file = new MetadataFile(metadata.Path);
+		auto& path = metadata.Path.empty() ? s_Data->Registry.at(metadata.Handle).Path : metadata.Path;
+
+		MetadataFile* file = new MetadataFile(path, true);
 
 		file->Resolve(handle);
 		
 		Ref<AssetBase>& ptr = s_Data->TotalMap[handle];
 		Ref<AssetBase>& ptrLoaded = s_Data->LoadedMap[handle];
-		AssetMetadata& mtd = s_Data->Registry[handle] = metadata;
-		s_Data->ReverseRegistry[metadata.Path] = handle;
+		AssetMetadata& mtd = s_Data->Registry[handle];
+		mtd.Path = path;
+		s_Data->ReverseRegistry[path] = handle;
 		mtd.Handle = handle;
-		mtd.AssetName = metadata.Path.filename().string();
+		mtd.AssetName = path.filename().string();
+		mtd.Type = type;
 		
 		s_Mutex.unlock();
 
@@ -246,11 +281,133 @@ namespace Kaidel {
 		loadSpecs.PtrToLoaded = &ptrLoaded;
 		loadSpecs.Type = type;
 		loadSpecs.MtdFile = file;
-		loadSpecs.OnLoad = [](Asset) {};
+		loadSpecs.OnLoad = {};
 
 		LoadAssetLocked(loadSpecs);
 
 		return Asset(ptr);
+	}
+
+
+	Kaidel::Asset AssetManager::ResolveDependency(AssetHandle handle, AssetType type, bool required)
+	{
+		AssetMetadata mtd;
+		mtd.Handle = handle;
+		mtd.Type = type;
+
+		Asset asset = AssetManager::LoadAsset(mtd, mtd.Type);
+
+		if (required)
+		{
+			AssetManager::WaitOnAssets({ asset });
+		}
+
+		return asset;
+	}
+
+	void AssetManager::RemoveAsset(AssetHandle handle)
+	{
+		RemoveAsset(handle, GetAssetMetadata(handle).Path);
+	}
+
+	void AssetManager::RemoveAsset(AssetHandle handle, const Path& path)
+	{
+		std::unique_lock<std::shared_mutex> lock(s_Mutex);
+
+		auto& data = s_Data;
+
+		s_Data->ReverseRegistry.erase(path);
+
+		s_Data->Registry.erase(handle);
+
+		s_Data->LoadedMap.erase(handle);
+
+		s_Data->TotalMap.erase(handle);
+	}
+
+	void AssetManager::RemoveAssetAtPath(const Path& path)
+	{
+		AssetHandle handle = GetAssetHandleAtPath(path);
+		KD_CORE_ASSERT(handle);
+
+		RemoveAsset(handle, path);
+	}
+
+	void AssetManager::ResetAssetPath(AssetHandle handle, const Path& oldPath, const Path& newPath)
+	{
+		KD_CORE_ASSERT(GetAssetAtPath(oldPath));
+		
+		std::unique_lock<std::shared_mutex> lock(s_Mutex);
+
+		s_Data->ReverseRegistry.erase(oldPath);
+		s_Data->ReverseRegistry[newPath] = handle;
+
+		s_Data->Registry[handle].Path = newPath;
+
+		Project::ConsumePathByFileWatcher(oldPath, 1);
+		Project::ConsumePathByFileWatcher(newPath, 1);
+
+		FileSystem::rename(oldPath, newPath);
+
+		//update metadata paths
+		Path oldMtdPath = oldPath.string() + ".mtd";
+		Path newMtdPath = newPath.string() + ".mtd";
+
+		if (FileSystem::exists(oldMtdPath))
+		{
+			//remove the old one and log it probably.
+			if (FileSystem::exists(newMtdPath))
+			{
+				FileSystem::remove(newMtdPath);
+				KD_INFO("Metadata path {} already existed and is overwritten.", newMtdPath);
+			}
+
+			FileSystem::rename(oldMtdPath, newMtdPath);
+		}
+	}
+
+	void AssetManager::ResetAssetParentPath(AssetHandle handle, const Path& oldPath, const Path& newPath)
+	{
+		KD_CORE_ASSERT(GetAssetAtPath(oldPath) && oldPath.filename() == newPath.filename());
+
+		std::unique_lock<std::shared_mutex> lock(s_Mutex);
+
+		s_Data->ReverseRegistry.erase(oldPath);
+		s_Data->ReverseRegistry[newPath] = handle;
+
+		s_Data->Registry[handle].Path = newPath;
+	}
+
+	std::pair<Asset, AssetHandle> AssetManager::RefreshAsset(const FileSystem::path& path, AssetLoadPolicy loadPolicy)
+	{
+		s_Mutex.lock_shared();
+
+		AssetHandle handle = s_Data->ReverseRegistry[path];
+
+		auto& mtd = s_Data->Registry[handle];
+		KD_CORE_ASSERT(mtd.Type != AssetType::None);
+
+		Ref<AssetBase>& ptr = s_Data->TotalMap[handle];
+		Ref<AssetBase>& ptrLoaded = s_Data->LoadedMap[handle];
+
+		MetadataFile* file = new MetadataFile(mtd.Path);
+
+		file->Resolve(handle);
+
+		s_Mutex.unlock_shared();
+
+		AssetManagerLoadSpecification loadSpecs;
+		loadSpecs.LoadPolicy = loadPolicy;
+		loadSpecs.Metadata = &mtd;
+		loadSpecs.Ptr = &ptr;
+		loadSpecs.PtrToLoaded = &ptrLoaded;
+		loadSpecs.Type = mtd.Type;
+		loadSpecs.MtdFile = file;
+		loadSpecs.OnLoad = [](Asset) {};
+
+		LoadAssetLocked(loadSpecs);
+
+		return std::make_pair(Asset(ptr), mtd.Handle);
 	}
 
 	AssetMapIterator AssetManager::BeginTotal()
@@ -274,121 +431,64 @@ namespace Kaidel {
 		return AssetMapIterator{ s_Data->LoadedMap };
 	}
 
-	void AssetManager::Serialize(const FileSystem::path& path, Asset asset)
+	void AssetManager::Serialize(const FileSystem::path& path, Asset asset, bool forceSerialize, MetadataFile* mtdFile)
 	{
-		MetadataFile mtdFile(path);
-
-		if (mtdFile.IsCreated())
-			mtdFile.SerializeHandle(asset->GetHandle());
-
-		const AssetMetadata& metadata = GetAssetMetadata(asset->GetHandle());
-
-		if (metadata.Dirty)
+		if (!forceSerialize && !s_Data->Registry.at(asset->GetHandle()).Dirty)
+		{
 			return;
+		}
+
+		bool hadMtd = mtdFile != nullptr;
+
+		if (!hadMtd)
+		{
+			mtdFile = new MetadataFile(path);
+		}
+
+		if (mtdFile->IsCreated())
+			mtdFile->Resolve(asset->GetHandle());
+
+		Project::ConsumePathByFileWatcher(path, 1 + (FileSystem::exists(path) ? 1 : 1));
 		
 		switch (asset->GetAssetType())
 		{
+		case AssetType::SpriteSheet:
+		{
+			SpriteSheetSerializer().Serialize(asset.As<SpriteSheet>(), mtdFile);
+		} break;
 		case AssetType::StandardMaterial:
 		{
-			MaterialSerializer().Serialize(path, asset.As<StandardMaterialInstance>());
+			MaterialSerializer().Serialize(path, asset.As<StandardMaterial>(), mtdFile);
+		} break;
+		case AssetType::VisualShader:
+		{
+			MaterialSerializer().Serialize(path, asset.As<VisualShader>(), mtdFile);
+		} break;
+		case AssetType::Scene:
+		{
+			SceneSerializer(asset.As<Scene>()).Serialize(path.string());
+		} break;
+		case AssetType::Animation:
+		{
+			AnimationSerailizer().Serialize(path, asset.As<AnimationTree>());
+		} break;
+		case AssetType::ShaderMaterial:
+		{
+			MaterialSerializer().Serialize(path, asset.As<ShaderMaterial>(), mtdFile);
 		} break;
 		}
 
-		SetDirty(asset->GetHandle(), false);
-	}
-
-	/*
-	void AssetManager::Serialize(const FileSystem::path& path)
-	{
-		//Wait for everything to be loaded. might be better to have a canceling system.
-		s_Data->JobContext.Wait();
-		s_Mutex.lock_shared();
-
-		YAML::Emitter out;
-
-		out << YAML::BeginSeq;
-
-		for (auto& [id, asset] : s_Data->LoadedMap)
+		if (!hadMtd)
 		{
-			const AssetMetadata& metadata = s_Data->Registry[id];
-
-			AssetType type = asset->GetAssetType();
-			
-			out << YAML::BeginMap;
-		
-			out << YAML::Key << "Asset" << YAML::Value << (uint64_t)metadata.Handle;
-
-			if ((uint64_t)metadata.RootHandle != 0)
-			{
-				out << YAML::Key << "Root" << YAML::Value << (uint64_t)metadata.RootHandle;
-			}
-
-			out << YAML::Key << "Type" << YAML::Value << Utils::AssetTypeToString(type);
-
-			out << YAML::Key << "URL" << YAML::Value << metadata.Path.string();
-
-			out << YAML::EndMap;
-
+			delete mtdFile;
+			SetDirty(asset->GetHandle(), false);
 		}
-
-		out << YAML::EndSeq;
-
-		s_Mutex.unlock_shared();
-
-		std::ofstream file(path);
-		file << out.c_str();
 	}
-
-
-	void AssetManager::Deserialize(const FileSystem::path& path, bool clear)
-	{
-		if (clear)
-		{
-			Clear();
-		}
-
-		s_Mutex.lock();
-
-
-		YAML::Node data = YAML::Load(std::ifstream(path));
-
-		for (auto assetNode : data)
-		{
-			UUID id = assetNode["Asset"].as<uint64_t>();
-
-			//Parent is responsible for loading children.
-			if (assetNode["Root"])
-			{
-				AssetMetadata metadata("", id);
-				metadata.RootHandle = assetNode["Root"].as<uint64_t>();
-
-				//RegisterAsset({}, metadata);
-				continue;
-			}
-
-			std::string typeString = assetNode["Type"].as<std::string>();
-
-			std::string path = assetNode["URL"].as<std::string>();
-
-			AssetMetadata metadata = AssetMetadata(path, id);
-
-			AssetType type = Utils::StringToAssetType(typeString);
-
-			s_Data->Registry[metadata.Handle] = metadata;
-			s_Data->ReverseRegistry[metadata.Path] = metadata.Handle;
-			LoadAssetLocked(s_Data->TotalMap[id], s_Data->LoadedMap[id], metadata, type, [](Asset) {}, AssetLoadPolicy::Default);
-		}
-
-		s_Mutex.unlock();
-	}
-
-	*/
 
 	void AssetManager::Wait()
 	{
 		s_Data->JobContext.Wait();
 	}
-
 
 	void AssetManager::WaitOnAssets(const std::vector<Asset>& assets, const std::chrono::milliseconds& timeout)
 	{
@@ -428,23 +528,39 @@ namespace Kaidel {
 		static const std::unordered_map<std::string, Kaidel::AssetType> s_Map = 
 		{
 			//Texture2D
-			{".png", AssetType::Texture2D},
-			{".jpg", AssetType::Texture2D},
-			{".jpeg", AssetType::Texture2D},
+			{".png", AssetType::SpriteSheet},
+			{".jpg", AssetType::SpriteSheet},
+			{".jpeg", AssetType::SpriteSheet},
 			
 			//Fonts
 			{".ttf", AssetType::Font},
 
 			//Models
 			{".gltf", AssetType::Model},
-			{".mat", AssetType::StandardMaterial}
+			//Materials
+			{".mat", AssetType::StandardMaterial},
+			{".vshader", AssetType::VisualShader},
+			{".smat", AssetType::ShaderMaterial},
 			//{".fbx", AssetType::Model} // TODO: Add support
+
+			//Animations
+			{".anim", AssetType::Animation },
 		};
 
 
 		return s_Map;
 	}
 
+
+	Kaidel::AssetType AssetManager::GetTypeFromExtension(const std::string& extension)
+	{
+		if (auto it = GetSupportedAssets().find(extension); it != GetSupportedAssets().end())
+		{
+			return it->second;
+		}
+
+		return AssetType::None;
+	}
 
 	uint64_t AssetManager::GetAssetCount()
 	{
@@ -469,9 +585,9 @@ namespace Kaidel {
 	{
 		switch (type)
 		{
-		case Kaidel::AssetType::Texture2D:
+		case Kaidel::AssetType::SpriteSheet:
 		{
-			return Texture2D::CreateUninitialized();
+			return CreateRef<SpriteSheet>();
 		} break;
 		case Kaidel::AssetType::Font:
 		{
@@ -483,7 +599,23 @@ namespace Kaidel {
 		} break;
 		case Kaidel::AssetType::StandardMaterial:
 		{
-			return CreateRef<StandardMaterialInstance>(StandardMaterialInstance::Initializer{});
+			return CreateRef<StandardMaterial>(StandardMaterial::Initializer{});
+		} break;
+		case Kaidel::AssetType::VisualShader:
+		{
+			return CreateRef<VisualShader>();
+		} break;
+		case Kaidel::AssetType::Scene:
+		{
+			return CreateRef<Scene>();
+		} break;
+		case Kaidel::AssetType::Animation:
+		{
+			return CreateRef<AnimationTree>();
+		} break;
+		case Kaidel::AssetType::ShaderMaterial:
+		{
+			return CreateRef<ShaderMaterial>(Ref<VisualShader>(nullptr));
 		} break;
 		}
 
@@ -505,26 +637,58 @@ namespace Kaidel {
 
 		switch (loadSpecs.Type)
 		{
-		case AssetType::Texture2D:
+		case AssetType::SpriteSheet:
 		{
-			TextureLibrary::LoadInto(ptr, loadSpecs.Metadata->Path, ImageLayout::ShaderReadOnlyOptimal, Format::RGBA8UN);
+			Ref<Texture2D> texture = TextureLibrary::Load(loadSpecs.Metadata->Path, ImageLayout::ShaderReadOnlyOptimal, Format::RGBA8UN);
+
+			SpriteSheetSerializer().Deserialize(DynamicPointerCast<SpriteSheet>(ptr), texture, loadSpecs.MtdFile);
 		} break;
 		case AssetType::Font:
 		{
-			FontLibrary::LoadInto(ptr, loadSpecs.Metadata->Path);
+			FontLibrary::LoadInto(DynamicPointerCast<Font>(ptr), loadSpecs.Metadata->Path);
 		} break;
 		case AssetType::Model:
 		{
 			ModelLoader modelLoader;
-			modelLoader.LoadInto(ptr, loadSpecs.Metadata->Path, loadSpecs.MtdFile);
+			modelLoader.LoadInto(DynamicPointerCast<Model>(ptr), *loadSpecs.Metadata, loadSpecs.MtdFile);
 		} break;
 		case AssetType::StandardMaterial:
 		{
 			MaterialSerializer loader;
-			loader.Deserialize(ptr, loadSpecs.Metadata->Path);
+			loader.Deserialize(DynamicPointerCast<StandardMaterial>(ptr), loadSpecs.Metadata->Path, loadSpecs.MtdFile);
 		} break;
+		case AssetType::VisualShader:
+		{
+			MaterialSerializer loader;
+			loader.Deserialize(DynamicPointerCast<VisualShader>(ptr), loadSpecs.Metadata->Path, loadSpecs.MtdFile);
+		} break;
+
+		case AssetType::Scene:
+		{
+			SceneSerializer serializer(DynamicPointerCast<Scene>(ptr));
+			serializer.Deserialize(loadSpecs.Metadata->Path.string());
+		} break;
+		case AssetType::Animation:
+		{
+			AnimationSerailizer().Deserialize(DynamicPointerCast<AnimationTree>(ptr), loadSpecs.Metadata->Path);
+		} break;
+		case AssetType::ShaderMaterial:
+		{
+			MaterialSerializer loader;
+			loader.Deserialize(DynamicPointerCast<ShaderMaterial>(ptr), loadSpecs.Metadata->Path, loadSpecs.MtdFile);
+		} break;
+		default:
+			KD_CORE_ASSERT(false);
+			break;
 		}
 
+		loadSpecs.Ptr->Get()->m_AssetHandle = loadSpecs.Metadata->Handle;
+
+		//Serialize it since this might be a fresh asset or something.
+		if (loadSpecs.MtdFile->IsCreated())
+		{
+			Serialize(loadSpecs.Metadata->Path, Asset(ptr), true, loadSpecs.MtdFile);
+		}
 	}
 
 	void AssetManager::LoadAssetLocked(const AssetManagerLoadSpecification& loadSpecs)
@@ -544,15 +708,16 @@ namespace Kaidel {
 
 			delete loadSpecs.MtdFile;
 			
-			loadSpecs.Ptr->Get()->m_AssetHandle = loadSpecs.Metadata->Handle;
-
-			Application::Get().SubmitToMainThread([onLoad = loadSpecs.OnLoad, ptr = *loadSpecs.Ptr]() {
-				if(onLoad)
-					onLoad(Asset(ptr));
-			});
+			if (loadSpecs.OnLoad)
+			{
+				Application::Get().SubmitToMainThread([onLoad = loadSpecs.OnLoad, ptr = *loadSpecs.Ptr]() {
+						onLoad(Asset(ptr));
+				});
+			}
+			
 
 			timer.Stop();
-			KD_INFO("Finished loading asset: {} in {}ms", loadSpecs.Metadata->Path, timer.GetMS());
+			//KD_INFO("Finished loading asset: {} in {}ms", loadSpecs.Metadata->Path, timer.GetMS());
 		};
 
 		//Make sure its not set.

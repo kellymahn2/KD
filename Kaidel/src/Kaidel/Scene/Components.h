@@ -10,27 +10,30 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
 
-
 namespace Kaidel {
+	
+	class Entity;
 
 	struct IDComponent {
 		UUID ID;
 		bool IsActive = true;
 		bool IsVisible = true;
 		bool VisibilityResult = false;
+		uint32_t Depth = 0;
+
 		IDComponent() = default;
 		IDComponent(const IDComponent&) = default;
 	};
 	struct ParentComponent {
-		std::vector<UUID> Children;
+		std::vector<entt::entity> Children;
 	};
 	struct ChildComponent {
-		UUID Parent;
+		entt::entity Parent;
 		glm::vec3 LocalPosition = {0,0,0};
 		glm::vec3 LocalRotation = {0,0,0};
 
 		ChildComponent() = default;
-		ChildComponent(UUID parent):Parent(parent) {
+		ChildComponent(entt::entity parent) : Parent(parent) {
 		}
 	};
 	struct TagComponent
@@ -52,7 +55,21 @@ namespace Kaidel {
 		
 		glm::mat4 GlobalTransform = glm::mat4(1.0f);
 
-		TransformComponent() = default;
+		void SetDirty(bool dirty)
+		{
+			GlobalTransform[3][3] = dirty ? 0.0f : 1.0f;
+		}
+
+		bool IsDirty()
+		{
+			return GlobalTransform[3][3] == 0.0f;
+		}
+
+		TransformComponent()
+		{
+			SetDirty(true);
+		}
+
 		TransformComponent(const TransformComponent&) = default;
 		TransformComponent(const glm::vec3& translation)
 			: Translation(translation) {}
@@ -63,7 +80,6 @@ namespace Kaidel {
 		}
 	};
 
-
 	//2D
 	struct SpriteRendererComponent
 	{
@@ -71,7 +87,6 @@ namespace Kaidel {
 		SpriteRendererComponent() = default;
 		SpriteRendererComponent(const SpriteRendererComponent&) = default;
 	};
-
 
 	struct CircleRendererComponent {
 		glm::vec4 Color{ 1.0f };
@@ -153,9 +168,30 @@ namespace Kaidel {
 		Ref<SkinnedMesh> UsedMesh;
 		std::vector<Ref<MaterialInstance>> UsedMaterial;
 		std::vector<bool> VisibilityResults;
-		UUID RootBone;
+
+		Ref<VertexBuffer> GeneratedBuffer;
+
+
 		SkinnedMeshComponent() = default;
 		SkinnedMeshComponent(const SkinnedMeshComponent&) = default;
+			
+		//AABB SkinAABB;
+
+		UUID RootBone;
+
+		void SetRootBone(Entity& entity);
+	};
+
+	struct RootBoneComponent
+	{
+		uint32_t UsageCount = 0;
+
+		std::vector<glm::mat4> Transforms;
+		Ref<StorageBuffer> TransformsBuffer;
+
+		Ref<DescriptorSet> TransformSet;
+
+		uint32_t Version = 0;
 	};
 
 	struct DirectionalLightComponent {

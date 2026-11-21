@@ -17,6 +17,8 @@ namespace Kaidel{
 
 		virtual void UploadReserve(const void* reservedStart, uint64_t dataSize) override;
 
+		virtual uint64_t GetSize() const override { return m_Buffer.BufferSize; }
+
     private:
 		VulkanBackend::BufferInfo m_Buffer;
 		friend class VulkanRendererAPI;

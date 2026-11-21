@@ -5,18 +5,22 @@
 namespace Kaidel {
 	class AnimationPanel {
 	public:
-		void OnImGuiRender();
+		static void OnImGuiRender();
 
-		void SetContext(Ref<AnimationTree> context) { m_Context = context; }
+		static void OnPositionChanged();
+
+		static void OnRotationChanged();
+
+		static void OnScaleChanged();
+
+		static void OnSelectionChanged();
 
 	private:
-		void HeaderPlot();
-		void ShowPanel(Ref<AnimationTree> tree);
-		void RenderTrack(AnimationTrack& track);
-		void RenderNode(AnimationTree::AnimationTreeNode& currNode, const std::string& name);
-	private:
-		Ref<AnimationTree> m_Context;
-		double m_LimitMinX = 0.0, m_LimitMaxX = 2.0;
-		uint32_t m_Count = 1;
+		static void SetupPlot(bool header);
+		static void HeaderPlot();
+		static void ShowPanel(Ref<AnimationTree> tree);
+		static void RenderTrack(AnimationTrack& track);
+		static void RenderNode(AnimationTree::AnimationTreeNode& currNode, const std::string& name);
+		
 	};
 }

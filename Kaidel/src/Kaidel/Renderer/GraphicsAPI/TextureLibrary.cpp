@@ -142,7 +142,7 @@ namespace Kaidel {
 
 			{
 				int32_t count = 0;
-				data = func(buffer.data(), buffer.size(), &width, &height, &count, channelCount);
+				data = func(buffer.data(), (int)buffer.size(), &width, &height, &count, channelCount);
 			}
 
 			KD_CORE_ASSERT(data, stbi_failure_reason());
@@ -386,7 +386,7 @@ namespace Kaidel {
 		specularSpecs.Height = height;
 		specularSpecs.Format = Format::RGBA16F;
 		specularSpecs.Layout = ImageLayout::General;
-		Ref<Texture2D> specular = TextureCube::Create(specularSpecs);
+		Ref<TextureCube> specular = TextureCube::Create(specularSpecs);
 
 		std::vector<Ref<DescriptorSet>> sets;
 		std::vector<Ref<TextureReference>> references;
@@ -448,7 +448,7 @@ namespace Kaidel {
 			RenderCommand::BeginMarker("Environment loading");
 			RenderCommand::BindComputePipeline(s_LibraryData->EquiToCubePipeline);
 			RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("EquiToCube"), s_LibraryData->EquiToCubeSet, 0);
-			RenderCommand::Dispatch(std::ceil(width / 16.0f), std::ceil(height / 16.0f), 6);
+			RenderCommand::Dispatch((uint32_t)std::ceil(width / 16.0f), (uint32_t)std::ceil(height / 16.0f), 6);
 
 			
 			{
@@ -499,7 +499,7 @@ namespace Kaidel {
 
 				RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("SpecularFilter"), set, 0);
 				RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("SpecularFilter"), 0, deltaRoughness * level);
-				RenderCommand::Dispatch(std::ceil(width / 32.0f), std::ceil(height / 32.0f), 6);
+				RenderCommand::Dispatch((uint32_t)std::ceil(width / 32.0f), (uint32_t)std::ceil(height / 32.0f), 6);
 
 				if(width >  1)
 					width = width / 2;
@@ -521,7 +521,7 @@ namespace Kaidel {
 			RenderCommand::BindComputePipeline(s_LibraryData->IrradianceDiffusePipeline);
 			RenderCommand::BindDescriptorSet(
 				ShaderLibrary::GetNamedShader("IrradianceDiffuseCalc"), s_LibraryData->IrradianceDiffuseSet, 0);
-			RenderCommand::Dispatch(std::ceil(irrWidth / 32.0f), std::ceil(irrHeight / 32.0f), 6);
+			RenderCommand::Dispatch((uint32_t)std::ceil(irrWidth / 32.0f), (uint32_t)std::ceil(irrHeight / 32.0f), 6);
 
 			{
 				ImageMemoryBarrier barrier(

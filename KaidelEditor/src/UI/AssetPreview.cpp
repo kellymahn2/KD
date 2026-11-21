@@ -2,6 +2,7 @@
 #include "Kaidel/Renderer/RenderCommand.h"
 #include "Kaidel/Renderer/Renderer3D.h"
 #include "Kaidel/Scene/ModelLibrary.h"
+#include <Kaidel\Renderer\Sprite.h>
 namespace Kaidel {
 	glm::mat4 _GetTransform(const glm::vec3& pos, const glm::quat& rot, const glm::vec3& scl);
 
@@ -58,9 +59,8 @@ namespace Kaidel {
 			}
 		}
 
-		static void RenderNode(const Scope<MeshTree>& curr)
+		static void RenderMesh(Ref<Mesh>& mesh)
 		{
-			Ref<Mesh>& mesh = curr->NodeMesh;
 			if (mesh->GetSubmeshes().size() == 1)
 			{
 				Ref<MaterialInstance> mat = mesh->GetSubmeshes()[0].DefaultMaterial;
@@ -114,6 +114,15 @@ namespace Kaidel {
 				if (rendered)
 					Renderer3D::EndSubmesh();
 			}
+		}
+
+		static void RenderNode(const Scope<MeshTree>& curr)
+		{
+			if(curr->NodeMesh)
+			{
+				Ref<Mesh>& mesh = curr->NodeMesh;
+				RenderMesh(mesh);
+			}
 
 			for (auto& child : curr->Children)
 			{
@@ -124,57 +133,39 @@ namespace Kaidel {
 
 	static std::unordered_map<AssetHandle, Ref<Texture2D>> s_Previews;
 
-	Kaidel::Ref<Kaidel::Texture2D> AssetPreview::GetPreview(Asset asset)
+	static void RenderWithMaterial(Ref<Model> model, Ref<Texture2D> texture)
 	{
-		AssetType type = asset->GetAssetType();
-		AssetHandle handle = asset->GetHandle();
+		//Calculate bounding box of model
+		const AABB& boundingBox = model->GetBoundingBox();
 
-		Ref<Texture2D> texture;
+		glm::vec3 cameraDirection = glm::vec3(1, -1, -1.0f);
 
-		switch (type)
+		Utils::PreviewCamera camera = Utils::SetupPreviewCamera(boundingBox, 60.0f, 1.0f, cameraDirection);
+
+		//model->GetMeshTree()->
+
+		SceneData sceneData;
+		sceneData.AspectRatio = 1.0f;
+		sceneData.CameraPos = glm::vec4(camera.Position, 1.0f);
+		sceneData.FOV = 60.0f;
+		sceneData.Proj = camera.Projection;
+		sceneData.ScreenSize = glm::ivec2(100, 100);
+		sceneData.View = camera.View;
+		sceneData.ViewProj = camera.Projection * camera.View;
+		sceneData.zNear = camera.Near;
+		sceneData.zFar = camera.Far;
+
+		DirectionalLightData lightData{};
+		lightData.Color = glm::vec4(1.0f);
+		lightData.Direction =
+			-glm::normalize(glm::toMat4(glm::quat(glm::vec3(-glm::pi<float>() / 2.0f, 0.0f, 0.0f)))[2]);
+
+		Visibility vis;
+
+		Utils::PopulateVisibility(model->GetMeshTree(), vis);
+
+		RenderCommand::Submit([&]()
 		{
-		//In this case we don't store the preview since the texture is the preview.
-		case Kaidel::AssetType::Texture2D:
-		{
-			return asset.As<Texture2D>();
-		}
-		case Kaidel::AssetType::Model:
-		{
-			if (TryGetPreview(handle, texture))
-				break;
-
-			//Calculate bounding box of model
-			Ref<Model> model = asset.As<Model>();
-			const AABB& boundingBox = model->GetBoundingBox();
-
-			glm::vec3 cameraDirection = glm::vec3(1, -1, -1.0f);
-
-			Utils::PreviewCamera camera = Utils::SetupPreviewCamera(boundingBox, 60.0f, 1.0f, cameraDirection);
-
-			//model->GetMeshTree()->
-
-			SceneData sceneData;
-			sceneData.AspectRatio = 1.0f;
-			sceneData.CameraPos = glm::vec4(camera.Position, 1.0f);
-			sceneData.FOV = 60.0f;
-			sceneData.Proj = camera.Projection;
-			sceneData.ScreenSize = glm::ivec2(100, 100);
-			sceneData.View = camera.View;
-			sceneData.ViewProj = camera.Projection * camera.View;
-			sceneData.zNear = camera.Near;
-			sceneData.zFar = camera.Far;
-
-			DirectionalLightData lightData{};
-			lightData.Color = glm::vec4(1.0f);
-			lightData.Direction =
-				-glm::normalize(glm::toMat4(glm::quat(glm::vec3(-glm::pi<float>() / 2.0f, 0.0f, 0.0f)))[2]);
-
-			Visibility vis;
-
-			Utils::PopulateVisibility(model->GetMeshTree(), vis);
-
-			RenderCommand::Submit([&]() 
-			{
 				Renderer3D::Begin(texture, vis, sceneData, lightData, "ModelPreviewIcon");
 
 				Renderer3D::BeginColor(RendererGlobals::GetSingleColorEnvironmentMap());
@@ -184,14 +175,195 @@ namespace Kaidel {
 				Renderer3D::EndColor();
 
 				Renderer3D::End();
-			});
+		});
+	}
 
-		} break;
-		//case Kaidel::AssetType::StandardMaterial:
-		//case Kaidel::AssetType::VisualMaterial: 
+	static void RenderMeshToTexture(Ref<Mesh> mesh, Ref<Texture2D> texture)
+	{
+		const AABB& boundingBox = ModelLibrary::GetBaseSphere()->GetBoundingBox();
+
+		glm::vec3 cameraDirection = glm::vec3(0, 0, -1.0f);
+
+		Utils::PreviewCamera camera = Utils::SetupPreviewCamera(boundingBox, 60.0f, 1.0f, cameraDirection);
+
+		SceneData sceneData;
+		sceneData.AspectRatio = 1.0f;
+		sceneData.CameraPos = glm::vec4(camera.Position, 1.0f);
+		sceneData.FOV = 60.0f;
+		sceneData.Proj = camera.Projection;
+		sceneData.ScreenSize = glm::ivec2(100, 100);
+		sceneData.View = camera.View;
+		sceneData.ViewProj = camera.Projection * camera.View;
+		sceneData.zNear = camera.Near;
+		sceneData.zFar = camera.Far;
+
+		DirectionalLightData lightData{};
+		lightData.Color = glm::vec4(1.0f);
+		lightData.Direction =
+			-glm::normalize(glm::toMat4(glm::quat(glm::vec3(-glm::pi<float>() / 2.0f, 0.0f, 0.0f)))[2]);
+
+		Visibility vis;
+
+		vis.Instances.push_back(InstanceData{ glm::mat4(1.0f) });
+
+		RenderCommand::Submit([&]()
+			{
+				Renderer3D::Begin(texture, vis, sceneData, lightData, "MeshPreviewIcon");
+
+				Renderer3D::BeginColor(RendererGlobals::GetSingleColorEnvironmentMap());
+				
+				Utils::RenderMesh(mesh);
+
+				Renderer3D::EndColor();
+
+				Renderer3D::End();
+			});
+	}
+
+	static void RenderMaterial(Ref<MaterialInstance> mat, Ref<Texture2D> texture)
+	{
+
+		Ref<Mesh> sphere = ModelLibrary::GetBaseSphere();
+		const AABB& boundingBox = ModelLibrary::GetBaseSphere()->GetBoundingBox();
+
+		glm::vec3 cameraDirection = glm::vec3(0, 0, -1.0f);
+
+		Utils::PreviewCamera camera = Utils::SetupPreviewCamera(boundingBox, 60.0f, 1.0f, cameraDirection);
+
+		SceneData sceneData;
+		sceneData.AspectRatio = 1.0f;
+		sceneData.CameraPos = glm::vec4(camera.Position, 1.0f);
+		sceneData.FOV = 60.0f;
+		sceneData.Proj = camera.Projection;
+		sceneData.ScreenSize = glm::ivec2(100, 100);
+		sceneData.View = camera.View;
+		sceneData.ViewProj = camera.Projection * camera.View;
+		sceneData.zNear = camera.Near;
+		sceneData.zFar = camera.Far;
+
+		DirectionalLightData lightData{};
+		lightData.Color = glm::vec4(1.0f);
+		lightData.Direction =
+			-glm::normalize(glm::toMat4(glm::quat(glm::vec3(-glm::pi<float>() / 2.0f, 0.0f, 0.0f)))[2]);
+
+		Visibility vis;
+
+		vis.Instances.push_back(InstanceData{ glm::mat4(1.0f) });
+
+		RenderCommand::Submit([&]()
+			{
+				Renderer3D::Begin(texture, vis, sceneData, lightData, "MaterialPreviewIcon");
+
+				Renderer3D::BeginColor(RendererGlobals::GetSingleColorEnvironmentMap());
+
+				Renderer3DRenderParams params;
+				params.VB = sphere->GetVertexBuffer();
+				params.IB = sphere->GetIndexBuffer();
+				params.IndexCount = sphere->GetSubmeshes()[0].IndexCount;
+				params.IndexOffset = sphere->GetSubmeshes()[0].IndexOffset;
+				params.InstanceCount = 1;
+				params.InstanceOffset = 0;
+				params.VertexCount = sphere->GetSubmeshes()[0].VertexCount;
+				params.VertexOffset = sphere->GetSubmeshes()[0].VertexOffset;
+
+				Renderer3D::Draw(params, mat);
+
+				Renderer3D::EndColor();
+
+				Renderer3D::End();
+			});
+	}
+
+	Kaidel::Ref<Kaidel::Texture2D> AssetPreview::GetPreview(Asset asset)
+	{
+		AssetType type = asset->GetAssetType();
+		AssetHandle handle = asset->GetHandle();
+
+		if (handle == 0)
+		{
+			return {};
 		}
 
-		return texture ? texture : Ref<Texture2D>();
+		Ref<Texture2D> texture;
+
+		//In this case we don't store the preview since the texture is the preview.
+		if (type == Kaidel::AssetType::SpriteSheet)
+		{
+			return asset.As<SpriteSheet>()->GetTexture();
+		}
+
+		bool hasPreview = asset.IsOfType<StandardMaterial, ShaderMaterial>();
+
+		if (!hasPreview)
+		{
+			return {};
+		}
+
+		if (!TryGetPreview(handle, texture))
+		{
+			RenderCommand::SetTextureName(texture, AssetManager::GetAssetMetadata(asset->GetHandle()).Path.string());
+
+			switch (type)
+			{
+			//case Kaidel::AssetType::Model:
+			//{
+			//	Ref<Model> model = asset.As<Model>();
+
+			//	RenderWithMaterial(model, texture);
+
+			//} break;
+			//case AssetType::Mesh:
+			//{
+			//	Ref<Mesh> mesh = asset.As<Mesh>();
+
+			//	RenderMeshToTexture(mesh, texture);
+			//} break;
+			case Kaidel::AssetType::StandardMaterial:
+			{
+				Ref<StandardMaterial> mat = asset.As<StandardMaterial>();
+
+				Ref<Mesh> sphere = ModelLibrary::GetBaseSphere();
+
+				RenderMaterial(mat, texture);
+			} break;
+			case Kaidel::AssetType::ShaderMaterial:
+			{
+				Ref<ShaderMaterial> mat = asset.As<ShaderMaterial>();
+				if (!mat->GetVisualShader())
+				{
+					break;
+				}
+
+				Ref<Mesh> sphere = ModelLibrary::GetBaseSphere();
+				RenderMaterial(mat, texture);
+			}
+			}
+		}
+		
+		if (texture->GetTextureSpecification().Layout != ImageLayout::ShaderReadOnlyOptimal)
+		{
+			auto& spec = texture->GetTextureSpecification();
+
+			ImageMemoryBarrier barrier(texture, ImageLayout::ShaderReadOnlyOptimal, Utils::LayoutToAccessFlags(spec.Layout), AccessFlags_ShaderRead);
+
+			RenderCommand::PipelineBarrier(Utils::LayoutToPipelineStages(spec.Layout), PipelineStages_FragmentShader, {}, {}, { barrier });
+		}
+
+		return texture;
+	}
+
+	void AssetPreview::SetDirty(AssetHandle handle)
+	{
+		if (auto it = s_Previews.find(handle); it != s_Previews.end())
+		{
+			it->second = {};
+		}
+	}
+
+
+	void AssetPreview::SetDirtyAll()
+	{
+		s_Previews.clear();
 	}
 
 	bool AssetPreview::TryGetPreview(AssetHandle handle, Ref<Texture2D>& texture)

@@ -47,7 +47,7 @@ namespace Kaidel {
 		bool m_IsCube = false;
 	};
 
-	class Texture : public AssetBase {
+	class Texture : public IRCCounter<false> {
 	public:
 		Texture() {
 
@@ -79,8 +79,6 @@ namespace Kaidel {
 		static Ref<Texture2D> CreateUninitialized();
 		static Ref<Texture2D> Create(const Texture2DSpecification& specs);
 		static Ref<Texture2D> CreateAt(Ref<Texture2D> texture, const Texture2DSpecification& specs);
-
-		DECL_ASSET_TYPE(Texture2D);
 	};
 
 	struct TextureLayeredSpecification : TextureSpecification {
@@ -116,7 +114,7 @@ namespace Kaidel {
 	};
 
 
-	class FramebufferTexture : public Texture {
+	class FramebufferTexture : public Texture2D {
 	public:
 		virtual ~FramebufferTexture() = default;
 	};

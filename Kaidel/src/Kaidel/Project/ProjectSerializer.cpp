@@ -67,8 +67,6 @@ namespace Kaidel {
 			return false;
 		}
 
-
-
 		config.Name = projectNode["Name"].as<std::string>();
 		config.StartScene = projectNode["StartScene"].as<std::string>();
 		config.RelAssetDirectory = projectNode["RelativeAssetDirectory"].as<std::string>();

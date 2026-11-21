@@ -13,7 +13,10 @@ namespace Kaidel{
 
 		const VulkanBackend::BufferInfo& GetBufferInfo()const { return m_Buffer; }
 		IndexType GetIndexType()const { return m_IndexType; }
-    private:
+
+		uint64_t GetSize() const override;
+
+	private:
         VulkanBackend::BufferInfo m_Buffer;
         IndexType m_IndexType;
         friend class VulkanRendererAPI;

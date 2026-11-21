@@ -5,8 +5,6 @@
 #include "Kaidel/Scene/Entity.h"
 #include "Kaidel/Core/Timer.h"
 #include "Kaidel/Core/Application.h"
-#include "Kaidel/Core/Buffer.h"
-
 
 #include <mono/jit/jit.h>
 #include <mono/metadata/assembly.h>

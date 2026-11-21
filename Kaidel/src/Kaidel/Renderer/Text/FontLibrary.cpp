@@ -98,8 +98,6 @@ namespace Kaidel {
 	{
 		font->m_Data = new MSDFData();
 
-		
-
 		msdfgen::FreetypeHandle* ft = msdfgen::initializeFreetype();
 
 		KD_CORE_ASSERT(ft);
@@ -245,11 +243,6 @@ namespace Kaidel {
 		return {};
 	}
 
-
-	const Kaidel::Path& FontLibrary::GetPath(Ref<Font> texture)
-	{
-		return {};
-	}
 
 
 	bool FontLibrary::Exists(const Path& path)

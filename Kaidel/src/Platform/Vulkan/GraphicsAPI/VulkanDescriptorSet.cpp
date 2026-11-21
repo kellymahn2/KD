@@ -90,7 +90,7 @@ namespace Kaidel {
 	
 	VulkanDescriptorSet::VulkanDescriptorSet(Ref<Shader> shader, uint32_t setIndex) 
 	{
-		Ref<VulkanShader> vs = shader;
+		Ref<VulkanShader> vs = DynamicPointerCast<VulkanShader>(shader);
 		const auto& set = vs->GetShaderInfo().Reflection.Sets.at(setIndex);
 
 		m_Info = VK_BACKEND->CreateDescriptorSet(vs->GetShaderInfo(), setIndex);

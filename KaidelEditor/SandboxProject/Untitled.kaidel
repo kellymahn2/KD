@@ -1,6 +1,6 @@
 Scene: Untitled
 Entities:
-  - Entity: 6358044926049913402
+  - Entity: 1758887439287901407
     TagComponent:
       Tag: Light
     TransformComponent:
@@ -10,25 +10,45 @@ Entities:
     DirectionalLightComponent:
       Color: [1, 1, 1]
       MaxDistance: 100
-  - Entity: 5058016125798318033
+  - Entity: 7333464558620190668
     TagComponent:
-      Tag: Occluder
+      Tag: Animated
     TransformComponent:
-      Translation: [0, 4.30000019, 0]
-      Rotation: [-0.707106769, -0, 0, 0.707106769]
-      Scale: [0.0500000007, 0.0500000007, 0.0500000007]
-    MeshComponent:
-      Mesh: 12056299674295497121
-      Materials:
-        - 17155163734543502064
-  - Entity: 10349215569089701407
+      Translation: [3.0999999, 0, 0]
+      Rotation: [0, 0, 0, 0]
+      Scale: [1, 1, 1]
+    AnimationPlayerComponent:
+      Animation: 0
+  - Entity: 1815090935284213226
     TagComponent:
-      Tag: Occludee
+      Tag: Child1
+    ChildComponent:
+      Parent: 7333464558620190668
+      LocalPosition: [0, 0, 0]
+      LocalRotation: [0, 0, 0]
     TransformComponent:
       Translation: [0, 0, 0]
-      Rotation: [0, 0, 0, 1]
+      Rotation: [0, 0, 0, 0]
       Scale: [1, 1, 1]
-    MeshComponent:
-      Mesh: 3
-      Materials:
-        - 17155163734543502064
+  - Entity: 17860881492379863461
+    TagComponent:
+      Tag: Child2
+    ChildComponent:
+      Parent: 7333464558620190668
+      LocalPosition: [0, 0, 0]
+      LocalRotation: [0, 0, 0]
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0, 0]
+      Scale: [1, 1, 1]
+  - Entity: 15992044305198214126
+    TagComponent:
+      Tag: Child1_1
+    ChildComponent:
+      Parent: 1815090935284213226
+      LocalPosition: [0, 0, 0]
+      LocalRotation: [0, 0, 0]
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0, 0]
+      Scale: [1, 1, 1]

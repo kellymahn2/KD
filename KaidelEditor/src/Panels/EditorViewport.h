@@ -34,13 +34,13 @@ namespace Kaidel
 
 			Styler styler;
 			styler.PushStyle(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-			if (ImGui::BeginChild("##Viewport", ImVec2(m_Width, m_Height), ImGuiChildFlags_ResizeX | ImGuiChildFlags_ResizeY | ImGuiChildFlags_Borders, ImGuiWindowFlags_NoTitleBar))
+			if (ImGui::BeginChild("##Viewport", ImVec2((float)m_Width, (float)m_Height), ImGuiChildFlags_ResizeX | ImGuiChildFlags_ResizeY | ImGuiChildFlags_Borders, ImGuiWindowFlags_NoTitleBar))
 			{
 
 				static float rotate = 0.0f;
 
-				m_Width = ImGui::GetContentRegionAvail().x;
-				m_Height = ImGui::GetContentRegionAvail().y;
+				m_Width = (uint32_t)ImGui::GetContentRegionAvail().x;
+				m_Height = (uint32_t)ImGui::GetContentRegionAvail().y;
 
 				UpdateViewportSize();
 
@@ -73,8 +73,8 @@ namespace Kaidel
 				Renderer3DRenderParams params;
 				params.VB = ModelLibrary::GetBaseSphere()->GetVertexBuffer();
 				params.IB = ModelLibrary::GetBaseSphere()->GetIndexBuffer();
-				params.VertexCount = ModelLibrary::GetBaseSphere()->GetVertexCount();
-				params.IndexCount = ModelLibrary::GetBaseSphere()->GetIndexCount();
+				params.VertexCount = (uint32_t)ModelLibrary::GetBaseSphere()->GetVertexCount();
+				params.IndexCount = (uint32_t)ModelLibrary::GetBaseSphere()->GetIndexCount();
 
 				Renderer3D::Draw(params, mat);
 
@@ -126,7 +126,7 @@ namespace Kaidel
 					return set;
 				});
 
-				m_EditorCamera.SetViewportSize(m_Width, m_Height);
+				m_EditorCamera.SetViewportSize((float)m_Width, (float)m_Height);
 			}
 		}
 

@@ -75,20 +75,20 @@ namespace Kaidel {
 				22, 23, 20,
 			};
 
-			Ref<StandardMaterialInstance> mat = RendererGlobals::GetDefaultMaterial();
+			Ref<StandardMaterial> mat = RendererGlobals::GetDefaultMaterial();
 			
 			Submesh submesh;
 			submesh.DefaultMaterial = mat;
-			submesh.IndexCount = indices.size();
-			submesh.VertexCount = vertices.size();
+			submesh.IndexCount = (uint32_t)indices.size();
+			submesh.VertexCount = (uint32_t)vertices.size();
 			submesh.BoundingBox.Min = glm::vec3(-1.0f, -1.0f, -1.0f);
 			submesh.BoundingBox.Max = glm::vec3(1.0f, 1.0f, 1.0f);
 			submesh.IndexOffset = submesh.VertexOffset = 0;
 
 			MeshInitializer initializer;
 			initializer.Submeshes.push_back(submesh);
-			initializer.VertexCount = vertices.size();
-			initializer.IndexCount = indices.size();
+			initializer.VertexCount = (uint32_t)vertices.size();
+			initializer.IndexCount = (uint32_t)indices.size();
 			initializer.IndexFormat = IndexType::Uint16;
 			initializer.VertexSize = sizeof(MeshVertex);
 			initializer.Indices = indices.data();
@@ -174,20 +174,20 @@ namespace Kaidel {
 				indices.push_back(bottomLeft);
 			}
 
-			Ref<StandardMaterialInstance> mat = RendererGlobals::GetDefaultMaterial();
+			Ref<StandardMaterial> mat = RendererGlobals::GetDefaultMaterial();
 
 			Submesh submesh;
 			submesh.DefaultMaterial = mat;
-			submesh.IndexCount = indices.size();
-			submesh.VertexCount = vertices.size();
+			submesh.IndexCount = (uint32_t)indices.size();
+			submesh.VertexCount = (uint32_t)vertices.size();
 			submesh.BoundingBox.Min = glm::vec3(-1.0f, -1.0f, -1.0f);
 			submesh.BoundingBox.Max = glm::vec3(1.0f, 1.0f, 1.0f);
 			submesh.IndexOffset = submesh.VertexOffset = 0;
 
 			MeshInitializer initializer;
 			initializer.Submeshes.push_back(submesh);
-			initializer.VertexCount = vertices.size();
-			initializer.IndexCount = indices.size();
+			initializer.VertexCount = (uint32_t)vertices.size();
+			initializer.IndexCount = (uint32_t)indices.size();
 			initializer.IndexFormat = IndexType::Uint16;
 			initializer.VertexSize = sizeof(MeshVertex);
 			initializer.Indices = indices.data();

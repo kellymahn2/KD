@@ -87,6 +87,10 @@ namespace Kaidel {
 
 		virtual void EndMarker() override;
 
+		virtual void SetBufferName(Ref<Buffer> buffer, const std::string& name) override;
+
+		virtual void SetTextureName(Ref<Texture> texture, const std::string& name) override;
+
 	private:
 		static inline std::vector<VkBuffer> m_CurrentBoundBuffers = { 32 , 0 };
 		static inline std::vector<VkDeviceSize> m_CurrentBoundBufferOffsets = std::vector<VkDeviceSize>(32, VkDeviceSize(0));

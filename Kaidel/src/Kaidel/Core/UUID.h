@@ -13,7 +13,7 @@ namespace Kaidel {
 		explicit operator uint64_t() const  { return Get(); }
 		bool operator==(const UUID& other) const { return Get() == other.Get(); }
 		bool operator!=(const UUID& other) const { return Get() != other.Get(); }
-		bool operator!() const { return Get() != 0; }
+		bool operator!() const { return Get() == 0; }
 
 
 		static UUID GenerateFromSeed(uint64_t seed);

@@ -135,12 +135,12 @@ namespace Kaidel {
 	static UUID Entity_GetParentID(UUID ID)
 	{
 		auto& cc = GetComponent<ChildComponent>(ID);
-		return cc.Parent;
+		return 0;
 	}
 	static UUID Entity_GetChildEntityIDWithIndex(UUID ID, uint32_t index)
 	{
 		auto& pc = GetComponent<ParentComponent>(ID);
-		return pc.Children[index];
+		return 0;
 	}
 	static UUID Entity_GetChildEntityIDWithName(UUID ID, MonoString* name)
 	{
@@ -149,8 +149,8 @@ namespace Kaidel {
 		mono_free(cStr);
 		auto& pc = GetComponent<ParentComponent>(ID);
 		for (auto& entity : pc.Children) {
-			if (GetComponent<TagComponent>(entity).Tag == str)
-				return entity;
+			//if (GetComponent<TagComponent>(entity).Tag == str)
+			//	return entity;
 		}
 		KD_CORE_ASSERT(false);
 		return { 0 };

@@ -1,7 +1,7 @@
 #version 460 core
 #include "SceneData.glsli"
 #include "Sampler.glsli"
-#ifdef vertex
+#type vertex
 layout(location = 0)in vec3 a_Position;
 layout(location = 1)in vec2 a_TexCoords;
 layout(location = 2)in vec3 a_Normal;
@@ -48,9 +48,9 @@ void main() {
         Output.TexCoords = a_TexCoords;
 
 }
-#endif
 
-#ifdef fragment
+
+#type fragment
 layout (location = 0) out vec4 o_Position;
 layout (location = 1) out vec4 o_Normal;
 layout (location = 2) out vec4 o_Albedo;
@@ -64,4 +64,4 @@ void main() {
         //float Metallic = 0.0, Roughness = 1.0;
         //o_Albedo = Albedo; o_Normal = vec4(Normal, 1.0); o_Emissive = Emissive; o_MetallicRoughness = vec2(Metallic, Roughness);
 }
-#endif
+

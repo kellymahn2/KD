@@ -9,6 +9,10 @@
 #include "UI/IconLibrary.h"
 #include "AssetPropertiesPanel.h"
 
+#include "Kaidel/Renderer/Sprite.h"
+
+#include "Panels/AnimationPanel.h"
+
 #include "UI/UIHelper.h"
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
@@ -128,44 +132,13 @@ namespace Kaidel {
 
 	void DrawMaterialList(std::vector<Ref<MaterialInstance>>& list)
 	{
-		if (ImGui::TreeNodeEx("Material List", ImGuiTreeNodeFlags_SpanAvailWidth)) {
-			for (uint32_t i = 0; i < list.size(); ++i)
+		ReorderableList("Materials", list, list.size(), [&list](Ref<MaterialInstance> mat, int i) {
+			
+			AssetBinding<StandardMaterial, ShaderMaterial>(i, Asset(mat), [&list, i](Asset newAsset)
 			{
-				auto mat = list[i];
-
-				ImGui::PushID(i);
-				if (ImGui::TreeNodeEx("Material", ImGuiTreeNodeFlags_SpanAvailWidth, "Material %d", i))
-				{
-					if (ImGui::Button("Choose"))
-					{
-						AssetChooser::Render(AssetFilter({ AssetType::StandardMaterial, AssetType::VisualMaterial }), [&list, i](Asset asset) {
-							list[i] = asset.As<MaterialInstance>();
-						});
-					}
-
-					if (ImGui::Button("Make unique"))
-					{
-						//list[i] = Material::CreateFrom(mat);
-						//mat = list[i];
-					}
-					
-					if (mat->GetAssetType() == AssetType::StandardMaterial)
-					{
-						AssetPropertiesPanel(Asset(mat)).StandardMaterialProperties();
-					}
-					else
-					{
-						AssetPropertiesPanel(Asset(mat)).VisualMaterialProperties();
-					}
-
-					
-
-					ImGui::TreePop();
-				}
-				ImGui::PopID();
-			}
-			ImGui::TreePop();
-		}
+				list[i] = newAsset.As<MaterialInstance>();
+			});
+		});
 	}
 
 	static void ShowMat4Drag(const char* label, glm::mat4& m, float dragSpeed = 0.1f, float min = -FLT_MAX, float max = FLT_MAX)
@@ -214,6 +187,7 @@ namespace Kaidel {
 		}
 
 		auto& id = entity.GetComponent<IDComponent>();
+		ImGui::Text("%d", id.Depth);
 		ImGui::Checkbox("##Active", &id.IsActive);
 		ImGui::SameLine();
 		if (entity.HasComponent<TagComponent>())
@@ -232,11 +206,42 @@ namespace Kaidel {
 		ImGui::Text(std::to_string(entity.GetUUID().operator uint64_t()).c_str());
 		DrawComponent<TransformComponent>("Transform", entity, [&entity, scene = scene](TransformComponent& component)
 			{
+				bool changed = false;
+
 				glm::vec3 rotDeg = glm::degrees(glm::eulerAngles(component.Rotation));
 
-				DrawVec3Control("Translation", component.Translation);
-				DrawVec3Control("Rotation", rotDeg);
-				DrawVec3Control("Scale", component.Scale, 1.0f);
+				glm::vec3 pos = component.Translation;
+				
+				if (DrawVec3Control("Translation", pos))
+				{
+					AnimationPanel::OnPositionChanged();
+					component.Translation = pos;
+
+					changed = true;
+				}
+				
+				if (DrawVec3Control("Rotation", rotDeg))
+				{
+					AnimationPanel::OnRotationChanged();
+					component.Rotation = glm::radians(rotDeg);
+
+					changed = true;
+				}
+
+				glm::vec3 scale = component.Scale;
+
+				if (DrawVec3Control("Scale", scale, 1.0f))
+				{
+					AnimationPanel::OnScaleChanged();
+					component.Scale = scale;
+
+					changed = true;
+				}
+
+				if (changed)
+				{
+					component.SetDirty(true);
+				}
 
 				ImGui::BeginDisabled(true);
 
@@ -244,11 +249,15 @@ namespace Kaidel {
 
 				ImGui::EndDisabled();
 
-				component.Rotation = glm::radians(rotDeg);
 			}, false);
 
 		DrawComponent<AnimationPlayerComponent>("Animation Player", entity, [&entity, scene = scene](AnimationPlayerComponent& component)
 			{
+
+				AssetBinding<AnimationTree>(0, Asset(component.Animation), [&component](Asset asset) {
+					component.Animation = asset.As<AnimationTree>();
+					});
+
 				{
 					bool x = component.State == AnimationPlayerComponent::PlayerState::Playing;
 					ImGui::Checkbox("Playing", &x);
@@ -426,39 +435,12 @@ namespace Kaidel {
 		DrawComponent<MeshComponent>("Mesh", entity, [entity, scene = scene](MeshComponent& component)
 		{
 			{
-				ImGui::BeginDisabled(true);
-
 				Styler styler;
 				styler.PushStyle(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
-				char* meshName = nullptr;
-				uint64_t len = 0;
-
-				if (component.UsedMesh)
-				{
-					const auto& name = AssetManager::GetAssetMetadata(component.UsedMesh->GetHandle()).AssetName;
-					meshName = (char*)name.c_str();
-					len = name.size();
-				}
-				else
-				{
-					meshName = "None";
-					len = 4;
-				}
-
-				ImGui::InputText("##Mesh", meshName, len);
-				
-				ImGui::EndDisabled();
-
-				ImGui::SameLine();
-
-				if (ImGui::Button("Choose"))
-				{
-					AssetChooser::Render(AssetFilter({ AssetType::Mesh }), [&component](Asset asset) {
-						component.SetMesh(asset.As<Mesh>());
-					});
-				}
-
+				AssetBinding<Mesh>(0, Asset(component.UsedMesh), [&component](Asset asset) {
+					component.SetMesh(asset.As<Mesh>());
+				});
 			}
 
 			DrawMaterialList(component.Instance.UsedMaterial);
@@ -478,7 +460,7 @@ namespace Kaidel {
 				"Linear", "Logarithmic", "Mix", "Custom"
 			};
 
-			uint64_t chosen = Combo("Cascading type", options, ARRAYSIZE(options), options[(uint64_t)component.CascadeType]);
+			uint32_t chosen = Combo("Cascading type", options, ARRAYSIZE(options), options[(uint64_t)component.CascadeType]);
 
 			if (chosen != -1)
 				component.CascadeType = (DirectionalLightComponent::CascadesType)chosen;

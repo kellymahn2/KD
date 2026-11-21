@@ -1,6 +1,8 @@
 #include "EditorContext.h"
 #include "AssetChooser.h"
 
+#include "AnimationPanel.h"
+
 #include <variant>
 
 namespace Kaidel {
@@ -46,6 +48,8 @@ namespace Kaidel {
 	void EditorContext::SelectedEntity(Entity selectedEntity)
 	{
 		s_Data->Data = selectedEntity;
+
+		AnimationPanel::OnSelectionChanged();
 	}
 
 	Kaidel::Asset EditorContext::SelectedAsset()
@@ -60,6 +64,8 @@ namespace Kaidel {
 	void EditorContext::SelectedAsset(Asset asset)
 	{
 		s_Data->Data = asset;
+
+		AnimationPanel::OnSelectionChanged();
 	}
 
 	AnimationFrame* EditorContext::SelectedAnimationFrame()

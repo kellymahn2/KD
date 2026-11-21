@@ -1,7 +1,5 @@
 #include "KDpch.h"
 #include "Kaidel/Core/Application.h"
-#include "Kaidel/Core/Random.h"
-#include "Kaidel/Events/SettingsEvent.h"
 #include "Kaidel/Core/Log.h"
 
 #include "Kaidel/Renderer/Renderer.h"
@@ -9,9 +7,8 @@
 #include "Kaidel/Scripting/ScriptEngine.h"
 #include "Kaidel/Asset/AssetManager.h"
 
-#include "Kaidel/Core/Input.h"
-
 #include <GLFW/glfw3.h>
+
 namespace Kaidel {
 	Application* Application::s_Instance = nullptr;
 
@@ -19,6 +16,8 @@ namespace Kaidel {
 		: m_Specification(specification)
 	{
 		KD_CORE_ASSERT(!s_Instance, "Application already exists!");
+
+		m_MainThreadID = std::this_thread::get_id();
 		
 		Random::m_RandomEngine = std::mt19937(Random::m_RandomDevice());
 
@@ -67,17 +66,12 @@ namespace Kaidel {
 		m_Running = false;
 	}
 
-	void Application::SubmitToMainThread(const std::function<void()>& func)
-	{
-		std::scoped_lock<std::mutex> lock(m_AppThreadQueueMutex);
-		
-		m_AppThreadQueue.push_back(func);
-	}
+	
+
+	
 
 	void Application::OnUpdate()
 	{
-
-
 		float time = (float)glfwGetTime();
 		Timestep timestep = time - m_LastFrameTime;
 		m_LastFrameTime = time;
@@ -180,9 +174,22 @@ namespace Kaidel {
 		return false;
 	}
 
+	void Application::SubmitToMainThread(const std::function<void()>& func)
+	{
+		std::scoped_lock<std::recursive_mutex> lock(m_AppThreadQueueMutex);
+
+		if (std::this_thread::get_id() == m_MainThreadID)
+		{
+			func();
+			return;
+		}
+
+		m_AppThreadQueue.push_back(func);
+	}
+
 	void Application::ExecuteMainThreadQueue()
 	{
-		std::scoped_lock<std::mutex> lock(m_AppThreadQueueMutex);
+		std::scoped_lock<std::recursive_mutex> lock(m_AppThreadQueueMutex);
 
 		for (auto& func : m_AppThreadQueue)
 			func();

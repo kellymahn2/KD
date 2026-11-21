@@ -3,10 +3,9 @@
 #include "AssetMetadata.h"
 #include "Kaidel/Core/JobSystem.h"
 
-#include "AssetImporters/MetadataFile.h"
-
-
 namespace Kaidel {
+
+	class MetadataFile;
 
 	using AssetMap = std::unordered_map<AssetHandle, Ref<AssetBase>>;
 
@@ -71,6 +70,7 @@ namespace Kaidel {
 
 		static Asset GetAsset(AssetHandle handle);
 		static Asset GetAssetAtPath(const Path& path);
+		static AssetHandle GetAssetHandleAtPath(const Path& path);
 		static bool IsAssetHandleValid(AssetHandle handle);
 		static bool IsBuiltIn(AssetHandle handle);
 
@@ -84,13 +84,25 @@ namespace Kaidel {
 			const AssetMetadata& metadata, AssetType type, 
 			OnLoadFunction onLoad = [](Asset) {}, AssetLoadPolicy loadPolicy = AssetLoadPolicy::Default);
 
+		//Loads the asset with AssetHande = handle, optionally waiting on it to finish loading(by required flag).
+		static Asset ResolveDependency(AssetHandle handle, AssetType type, bool required = true);
+
+		static void RemoveAsset(AssetHandle handle);
+
+		static void RemoveAssetAtPath(const Path& path);
+
+		static void ResetAssetPath(AssetHandle handle, const Path& oldPath, const Path& newPath);
+		static void ResetAssetParentPath(AssetHandle handle, const Path& oldPath, const Path& newPath);
+
+		static std::pair<Asset, AssetHandle> RefreshAsset(const FileSystem::path& path, AssetLoadPolicy loadPolicy = AssetLoadPolicy::Default);
+
 		static AssetMapIterator BeginTotal();
 
 		static AssetMapIterator BeginBuiltIn();
 
 		static AssetMapIterator BeginLoaded();
 
-		static void Serialize(const FileSystem::path& path, Asset asset);
+		static void Serialize(const FileSystem::path& path, Asset asset, bool forceSerialize = false, MetadataFile* mtdFile = nullptr);
 
 		static void Deserialize(const FileSystem::path& path, bool clear = false);
 
@@ -101,6 +113,8 @@ namespace Kaidel {
 		static void Clear();
 
 		static const std::unordered_map<std::string, AssetType>& GetSupportedAssets();
+
+		static AssetType GetTypeFromExtension(const std::string& extension);
 
 		static uint64_t GetAssetCount();
 
@@ -117,6 +131,8 @@ namespace Kaidel {
 		static void LoadAssetLocked(const AssetManagerLoadSpecification& loadSpecs);
 
 		static void Run(Task task, AssetLoadPolicy loadPolicy);
+
+		static void RemoveAsset(AssetHandle handle, const Path& path);
 
 		//static AssetHandle (const FileSystem::path& path);
 	};

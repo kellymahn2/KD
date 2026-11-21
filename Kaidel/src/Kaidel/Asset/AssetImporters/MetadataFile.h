@@ -3,34 +3,105 @@
 
 #include "yaml-cpp/yaml.h"
 
-#include <variant>
+namespace Kaidel
+{
+	struct IDMap
+	{
+		std::unordered_map<uint64_t, UUID> IDs;
+
+	};
+}
+
+namespace YAML
+{
+	template<>
+	struct convert<::Kaidel::IDMap>
+	{
+		static Node encode(const ::Kaidel::IDMap& rhs)
+		{
+			Node node(NodeType::Map);
+			for (const auto& [key, value] : rhs.IDs)
+			{
+				node[std::to_string(key)] = (uint64_t)value;
+			}
+			return node;
+		}
+
+		static bool decode(const Node& node, ::Kaidel::IDMap& rhs)
+		{
+			if (!node.IsMap())
+				return false;
+
+			rhs.IDs.clear();
+
+			for (const auto& kv : node)
+			{
+				uint64_t key = 0;
+				try
+				{
+					key = std::stoull(kv.first.as<std::string>());
+				}
+				catch (const std::exception&)
+				{
+					return false;
+				}
+
+				try
+				{
+					rhs.IDs.emplace(key, ::Kaidel::UUID(kv.second.as<uint64_t>()));
+				}
+				catch (const YAML::Exception&)
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+	};
+
+	static YAML::Emitter& operator<<(YAML::Emitter& out, const ::Kaidel::IDMap& m)
+	{
+		out << YAML::BeginMap;
+
+		for (auto& [fileID, id] : m.IDs)
+		{
+			out << YAML::Key << fileID << YAML::Value << (uint64_t)id;
+		}
+
+		out << YAML::EndMap;
+
+		return out;
+	}
+}
 
 namespace Kaidel
 {
+	
+
 	class MetadataFile {
 	public:
-		MetadataFile(const Path& assetPath)
-			: m_AssetPath(assetPath)
+		MetadataFile(const Path& assetPath, bool discard = false)
+			: m_AssetPath(assetPath), m_Discard(discard)
 		{
 			auto metadataPath = assetPath.string() + ".mtd";
 			
 			std::ifstream file;
+			m_Emitter << YAML::BeginMap;
+
 			if (GainAccessToFile(&file, metadataPath))
 			{
 				m_Node = YAML::Load(file);
-				m_Iterator = m_Node.begin();
+				m_ID = m_Node["ID"].as<IDMap>();
 				m_IsCreated = false;
-			}
-			else
-			{
-				m_Emitter << YAML::BeginMap;
+				m_Emitter << YAML::Key << "ID" << YAML::Value << m_ID;
 			}
 		}
 
 		~MetadataFile()
 		{
-			if (m_IsCreated)
+			if(m_IsCreated || !m_Discard)
 			{
+				m_Emitter << YAML::Key << "ID" << YAML::Value << m_ID;
 				m_Emitter << YAML::EndMap;
 
 				const char* str = m_Emitter.c_str();
@@ -41,11 +112,6 @@ namespace Kaidel
 
 				file << str;
 			}
-		}
-
-		void SerializeHandle(AssetHandle handle)
-		{
-			m_Emitter << YAML::Key << m_Index << YAML::Value << handle.Get();
 		}
 
 		bool IsCreated() const { return m_IsCreated; }
@@ -60,29 +126,30 @@ namespace Kaidel
 			return m_Emitter;
 		}
 
-		void Resolve(AssetHandle& handle)
+		void Resolve(AssetHandle& handle, uint64_t index = 0)
 		{
-			if (IsCreated())
+			if (m_IsCreated)
 			{
-				SerializeHandle(handle);
+				m_ID.IDs[index] = handle;
 			}
 			else
 			{
-				handle = AssetHandle(m_Iterator->second.as<uint64_t>());
-				++m_Iterator;
+				handle = m_ID.IDs[index];
 			}
 		}
+		
+		auto& GetIDMap() { return m_ID; }
 
 	private:
 		YAML::Emitter m_Emitter;
-		uint32_t m_Index = 0;
 
 		Path m_AssetPath;
 
 		bool m_IsCreated = true;
+		bool m_Discard;
 
-
-		YAML::Node::const_iterator m_Iterator;
 		YAML::Node m_Node;
+
+		IDMap m_ID;
 	};
 }

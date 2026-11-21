@@ -93,8 +93,8 @@ namespace Kaidel {
 		sync2Feature.synchronization2 = VK_TRUE;
 		sync2Feature.pNext = &indexingFeatures;
 
-		m_LogicalDevice = CreateScope<VulkanLogicalDevice>(*m_PhysicalDevice, std::vector<const char*>{ VK_KHR_SWAPCHAIN_EXTENSION_NAME },
-																layers, features, &sync2Feature);
+		m_LogicalDevice = CreateScope<VulkanLogicalDevice>(*m_PhysicalDevice, std::vector<const char*>{VK_KHR_SWAPCHAIN_EXTENSION_NAME},
+																std::vector<const char*>(), features, & sync2Feature);
 
 		gladLoaderLoadVulkan(m_Instance->GetInstance(), m_PhysicalDevice->GetDevice(), m_LogicalDevice->GetDevice());
 		#pragma endregion
@@ -106,7 +106,7 @@ namespace Kaidel {
 			VulkanBackend::SurfaceInfo info{};
 			info.Width = 1280;
 			info.Height = 720;
-			info.PresentMode = VK_PRESENT_MODE_FIFO_KHR;
+			info.PresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
 			info.Surface = m_Surface->GetSurface();
 			m_Swapchain = m_Backend->CreateSwapchain(info, GetPresentQueue().Queue, GetPrimaryCommandPool(GetPresentQueue()), 4);
 		}
@@ -198,7 +198,6 @@ namespace Kaidel {
 
 	void VulkanGraphicsContext::SubmitSingle(VulkanQueue& queue, std::function<void(VkCommandBuffer)>&& func)
 	{
-		std::unique_lock<std::mutex> lock(queue.SubmitMutex);
 		VkCommandBuffer commandBuffer = m_Backend->CreateCommandBuffer(GetPrimaryCommandPool(queue));
 
 		m_Backend->CommandBufferBegin(commandBuffer);
@@ -207,6 +206,7 @@ namespace Kaidel {
 
 		m_Backend->CommandBufferEnd(commandBuffer);
 
+		std::unique_lock<std::mutex> lock(queue.SubmitMutex);
 		VkFence fence = GetSingleSubmitFence(queue);
 
 		m_Backend->SubmitCommandBuffers(queue, { commandBuffer }, fence);
@@ -277,6 +277,7 @@ namespace Kaidel {
 	
 	void VulkanGraphicsContext::PresentImage()
 	{
+		::Kaidel::ScopedAccumulativeTimer t280 = ::Kaidel::ScopedAccumulativeTimer(std::string("Timer"));;
 		VkCommandBuffer commandBuffer = m_Swapchain.Frames[m_CurrentFrameNumber].MainCommandBuffer;
 
 		m_Backend->CommandBufferEnd(commandBuffer);
@@ -287,8 +288,11 @@ namespace Kaidel {
 		VkCommandBuffer commandBuffers[] = { commandBuffer };
 		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 
+		VK_GRAPHICS_Q.SubmitMutex.lock();
 		m_Backend->SubmitCommandBuffers(VK_GRAPHICS_Q, { commandBuffer }, frame.InFlightFence,
 			{ frame.ImageAvailable }, { m_Swapchain.Frames[m_Swapchain.ImageIndex].RenderFinished }, { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT });
+
+		VK_GRAPHICS_Q.SubmitMutex.unlock();
 
 		VkSwapchainKHR swapchain = m_Swapchain.Swapchain;
 
@@ -299,7 +303,12 @@ namespace Kaidel {
 		presentInfo.waitSemaphoreCount = 1;
 		presentInfo.pWaitSemaphores = signalSemaphores;
 
-		VkResult presentResult = vkQueuePresentKHR(m_PhysicalDevice->GetQueue("PresentQueue").Queue, &presentInfo);
+		auto& presentQueue = m_PhysicalDevice->GetQueue("PresentQueue");
+		presentQueue.SubmitMutex.lock();
+
+		VkResult presentResult = vkQueuePresentKHR(presentQueue.Queue, &presentInfo);
+		
+		presentQueue.SubmitMutex.unlock();
 		bool needsResize = (presentResult == VK_SUBOPTIMAL_KHR) || (presentResult == VK_ERROR_OUT_OF_DATE_KHR);
 
 		if (needsResize)

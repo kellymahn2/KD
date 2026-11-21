@@ -8,12 +8,14 @@
 #include <memory>
 #include <filesystem>
 #include <unordered_map>
+#include <spdlog/fmt/fmt.h>
 
 #include <fstream>
 
 #pragma warning(disable: 4996)
 #pragma warning(disable: 4005)
 #pragma warning(disable: 4002)
+#pragma warning(disable: 4828)
 
 
 #ifdef KD_DEBUG
@@ -40,6 +42,14 @@
 #define ALLOCA(size) ((size != 0) ? alloca(size) : nullptr)
 #define ALLOCA_ARRAY(type, count) ((type*)ALLOCA(sizeof(type) * (count)))
 #define ALLOCA_SINGLE(type) ALLOCA_ARRAY(type, 1)
+
+
+template <>
+struct fmt::formatter<std::filesystem::path> : fmt::formatter<std::string> {
+    auto format(const std::filesystem::path& p, format_context& ctx) const {
+        return fmt::formatter<std::string>::format(p.string(), ctx);
+    }
+};
 
 namespace Kaidel {
 

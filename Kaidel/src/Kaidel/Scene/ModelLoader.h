@@ -23,8 +23,6 @@ namespace Kaidel {
 
 	private:
 
-		AssetHandle GetNextHandle();
-
 		void OpenScene(const Path& path);
 
 		void NodeDFS(const aiNode* currentNode, uint32_t& index);
@@ -35,13 +33,18 @@ namespace Kaidel {
 
 		void ProcessNode(const aiNode* node, MeshTree& outTree);
 		Ref<Mesh> ProcessMesh(const uint32_t* meshes, uint32_t meshCount);
-		Ref<StandardMaterialInstance> ProcessMaterial(const aiMesh* mesh, const aiMaterial* material);
+		Ref<StandardMaterial> ProcessMaterial(const aiMesh* mesh, const aiMaterial* material);
 
 		void ProcessVertices(const aiMesh* mesh, MeshVertex* output);
 		void ProcessSkinnedVertices(const aiMesh* mesh, SkinnedMeshVertex* output, uint32_t offset);
 
 		uint64_t CalcVertexCount(const uint32_t* meshes, uint32_t meshCount);
 		uint64_t CalcIndexCount(const uint32_t* meshes, uint32_t meshCount);
+
+		void Resolve(UUID& handle)
+		{
+			m_MtdFile->Resolve(handle, m_CurrentAssetIndex++);
+		}
 
 		template<typename T>
 		uint64_t ProcessIndices(const aiMesh* mesh, T* indices)
@@ -71,6 +74,7 @@ namespace Kaidel {
 		MetadataFile* m_MtdFile;
 
 		bool m_HasMtd = false;
-		std::vector<AssetMetadata> m_GeneratedAssets;
+
+		uint64_t m_CurrentAssetIndex = 1;
 	};
 }

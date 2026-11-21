@@ -68,7 +68,7 @@ namespace Kaidel {
 					continue;
 				}
 
-				if ((capability & QueueCapability_Transfer) && (!family.queueFlags & VK_QUEUE_TRANSFER_BIT))
+				if ((capability & QueueCapability_Transfer) && !(family.queueFlags & VK_QUEUE_TRANSFER_BIT))
 				{
 					continue;
 				}

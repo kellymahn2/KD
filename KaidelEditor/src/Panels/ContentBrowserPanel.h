@@ -2,6 +2,7 @@
 #include "Kaidel/Renderer/GraphicsAPI/Texture.h"
 #include "EditorContext.h"
 #include <filesystem>
+
 namespace Kaidel {
 	class ContentBrowserPanel {
 	public:

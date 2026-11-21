@@ -2,15 +2,30 @@
 #include "Kaidel/Core/Base.h"
 #include "Kaidel/Core/UUID.h"
 
-
 namespace Kaidel {
 	using AssetHandle = UUID;
+
+	enum class AssetType {
+		None = 0,
+		SpriteSheet,
+		Font,
+		Model,
+		Mesh,
+		SkinnedMesh,
+		StandardMaterial,
+		VisualShader,
+		ShaderMaterial,
+		Scene,
+		Animation,
+		Count
+	};
 
 	struct AssetMetadata {
 		//TODO: Remove for doing asset packs.
 		FileSystem::path Path;
 		std::string AssetName;
 
+		AssetType Type = AssetType::None;
 
 		AssetHandle Handle;
 

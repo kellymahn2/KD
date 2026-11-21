@@ -1,5 +1,5 @@
 #version 460 core
-#ifdef compute
+#type compute
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
 const float PI = 3.1415926535897932384626433832795;
@@ -39,4 +39,4 @@ void main(void)
 	imageStore(u_Cube, ivec3(gl_GlobalInvocationID), color);
 }
 
-#endif
+

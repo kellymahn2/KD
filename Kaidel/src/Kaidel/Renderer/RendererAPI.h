@@ -121,6 +121,10 @@ namespace Kaidel {
 			std::initializer_list<BufferMemoryBarrier> bufferBarriers,
 			std::initializer_list<ImageMemoryBarrier> textureBarriers) = 0;
 
+		virtual void SetBufferName(Ref<Buffer> buffer, const std::string& name) = 0;
+
+		virtual void SetTextureName(Ref<Texture> texture, const std::string& name) = 0;
+
 		static RendererSettings& GetSettings() { return s_RendererSettings; }
 
 		static API GetAPI() { return s_API; }

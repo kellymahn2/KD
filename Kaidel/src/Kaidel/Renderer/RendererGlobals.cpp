@@ -10,7 +10,7 @@ namespace Kaidel {
 
 	struct ColorTexture {
 		glm::vec4 Color;
-		Ref<Texture2D> Texture;
+		Ref<SpriteSheet> Texture;
 	};
 
 	struct GlobalsData {
@@ -31,7 +31,7 @@ namespace Kaidel {
 
 		Ref<DescriptorSet> SamplerSet;
 
-		Ref<StandardMaterialInstance> DefaultMaterial;
+		Ref<StandardMaterial> DefaultMaterial;
 
 		Ref<Texture2D> SpecularLUT;
 
@@ -82,7 +82,7 @@ namespace Kaidel {
 				RenderCommand::BindComputePipeline(integPipeline);
 				RenderCommand::BindDescriptorSet(
 					ShaderLibrary::GetNamedShader("BRDFIntegrationLUT"), integSet, 0);
-				RenderCommand::Dispatch(std::ceil(lutWidth / 32.0f), std::ceil(lutHeight / 32.0f), 1);
+				RenderCommand::Dispatch((uint32_t)std::ceil(lutWidth / 32.0f), (uint32_t)std::ceil(lutHeight / 32.0f), 1);
 
 				{
 					ImageMemoryBarrier barrier(
@@ -117,11 +117,16 @@ namespace Kaidel {
 
 			Ref<TextureCube> cube = TextureCube::Create(cubeSpecs);
 
-			EnvironmentMapSpecification environmentSpecs;
-			environmentSpecs.Environment = cube;
-			environmentSpecs.Irradiance = cube;
-			environmentSpecs.SpecularLUT = s_Data->SpecularLUT;
-			environmentSpecs.Specular = cube;
+			EnvironmentMapSpecification environmentSpecs;
+
+			environmentSpecs.Environment = cube;
+
+			environmentSpecs.Irradiance = cube;
+
+			environmentSpecs.SpecularLUT = s_Data->SpecularLUT;
+
+			environmentSpecs.Specular = cube;
+
 			s_Data->SingleColorEnvironment = CreateRef<EnvironmentMap>(environmentSpecs);
 		}
 
@@ -206,9 +211,9 @@ namespace Kaidel {
 	void RendererGlobals::CreateDefaults()
 	{
 		{
-			StandardMaterialInstance::Initializer matInitializer;
+			StandardMaterial::Initializer matInitializer;
 
-			s_Data->DefaultMaterial = CreateRef<StandardMaterialInstance>(matInitializer);
+			s_Data->DefaultMaterial = CreateRef<StandardMaterial>(matInitializer);
 
 			AssetManager::RegisterBuiltIn(s_Data->DefaultMaterial, "Default material");
 		}
@@ -218,17 +223,30 @@ namespace Kaidel {
 	{
 		delete s_Data;
 	}
-	Ref<Sampler> RendererGlobals::GetSampler(SamplerFilter filter, SamplerMipMapMode mipMode)
+	Ref<Sampler> RendererGlobals::GetSampler(SamplerFilter filter, SamplerMipMapMode mipMode, SamplerAddressMode addressMode)
 	{
-		if (filter == SamplerFilter::Linear && mipMode == SamplerMipMapMode::Linear)
-			return s_Data->LinearMippedRepeat;
-		else if (filter == SamplerFilter::Linear && mipMode == SamplerMipMapMode::Nearest)
-			return s_Data->LinearRepeat;
-		else if (filter == SamplerFilter::Nearest && mipMode == SamplerMipMapMode::Nearest)
-			return s_Data->NearestRepeat;
-		else if (filter == SamplerFilter::Nearest && mipMode == SamplerMipMapMode::Linear)
-			return s_Data->NearestMippedRepeat;
-		return {};
+		//first bit is for filter, second is for mipMode, third is for addressMode(0 is clamp, 1 is repeat)
+		Ref<Sampler>* samplers[8];
+
+		samplers[0b000] = &s_Data->NearestClamp;
+		samplers[0b001] = &s_Data->LinearClamp;
+		samplers[0b010] = &s_Data->NearestMippedClamp;
+		samplers[0b011] = &s_Data->LinearMippedClamp;
+
+		samplers[0b100] = &s_Data->NearestRepeat;
+		samplers[0b101] = &s_Data->LinearRepeat;
+		samplers[0b110] = &s_Data->NearestMippedRepeat;
+		samplers[0b111] = &s_Data->LinearMippedRepeat;
+		
+		int index = (int)(addressMode == SamplerAddressMode::Repeat);
+		index <<= 1;
+
+		index |= (int)(mipMode == SamplerMipMapMode::Linear);
+		index <<= 1;
+
+		index |= (int)(filter == SamplerFilter::Linear);
+
+		return *samplers[index];
 	}
 
 	Ref<DescriptorSet> RendererGlobals::GetSamplerSet()
@@ -260,7 +278,7 @@ namespace Kaidel {
 		return {};
 	}
 
-	Ref<Texture2D> RendererGlobals::GetSingleColorTexture(const glm::vec4& color)
+	Ref<SpriteSheet> RendererGlobals::GetSingleColorTexture(const glm::vec4& color)
 	{
 		for (auto& texture : s_Data->Textures) {
 			if (texture.Color == color)
@@ -294,9 +312,13 @@ namespace Kaidel {
 		d.Data = bytes;
 		specs.InitialDatas.push_back(d);
 
+		Ref<Texture2D> texture = Texture2D::Create(specs);
+
+		auto sprite = CreateRef<SpriteSheet>(texture, GetSampler(SamplerFilter::Nearest, SamplerMipMapMode::Nearest));
+
 		ColorTexture t;
 		t.Color = color;
-		t.Texture = Texture2D::Create(specs);
+		t.Texture = sprite;
 		
 		s_Data->Textures.push_back(t);
 
@@ -308,7 +330,7 @@ namespace Kaidel {
 		return s_Data->SpecularLUT;
 	}
 
-	Kaidel::Ref<Kaidel::StandardMaterialInstance> RendererGlobals::GetDefaultMaterial()
+	Kaidel::Ref<Kaidel::StandardMaterial> RendererGlobals::GetDefaultMaterial()
 	{
 		return s_Data->DefaultMaterial;
 	}

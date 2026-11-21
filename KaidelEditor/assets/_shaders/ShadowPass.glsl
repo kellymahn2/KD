@@ -1,5 +1,5 @@
 #version 460 core
-#ifdef vertex
+#type vertex
 layout(location = 0) in vec3 a_Position;
 
 layout(push_constant) uniform PushConstants {
@@ -7,7 +7,7 @@ layout(push_constant) uniform PushConstants {
     uint InstanceOffset;
 };
 
-layout(set = 0, binding = 0) buffer _InstanceData
+layout(set = 0, binding = 0) readonly buffer _InstanceData
 {
 	mat4 InstanceTransform[];
 };
@@ -19,4 +19,4 @@ void main() {
     // Transform the vertex position to world space
     gl_Position =  ViewProjection * transform * vec4(a_Position, 1.0);
 }
-#endif
+

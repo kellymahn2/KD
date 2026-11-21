@@ -7,7 +7,7 @@ namespace Kaidel {
 	VulkanComputePipeline::VulkanComputePipeline(Ref<Shader> shader)
 		:m_Shader(shader)
 	{
-		Ref<VulkanShader> vs = shader;
+		Ref<VulkanShader> vs = DynamicPointerCast<VulkanShader>(shader);
 		m_Pipeline = VK_BACKEND->CreateComputePipeline(vs->GetShaderInfo());
 	}
 	VulkanComputePipeline::~VulkanComputePipeline()

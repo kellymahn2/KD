@@ -86,21 +86,20 @@ namespace Kaidel {
 				
 				uint64_t boneCount = CalcBoneCount(skin->Tree);
 				skin->Offsets.resize(boneCount);
-				skin->BoneTransforms.resize(boneCount);
+				//skin->BoneTransforms.resize(boneCount);
 
 				FillOffsetsArray(skin->Tree, skin->Offsets);
 
 				skin->OffsetBuffer = StorageBuffer::Create(skin->Offsets.data(), boneCount * sizeof(glm::mat4));
-				skin->BoneTransformsBuffer = StorageBuffer::Create(nullptr, boneCount * sizeof(glm::mat4));
+				//skin->BoneTransformsBuffer = StorageBuffer::Create(nullptr, boneCount * sizeof(glm::mat4));
 				{
 					DescriptorSetLayoutSpecification specs(
 						{
 							{DescriptorType::StorageBuffer, ShaderStage_ComputeShader},
-							{DescriptorType::StorageBuffer, ShaderStage_ComputeShader}
 						}
 					);
 					skin->SkinSet = DescriptorSet::Create(specs);
-					skin->SkinSet->Update(skin->BoneTransformsBuffer, 0).Update(skin->OffsetBuffer, 1);
+					skin->SkinSet->Update(skin->OffsetBuffer, 0);
 				}
 				KD_CORE_INFO("Model: {}", (void*)skin->OffsetBuffer.Get());
 				m_Skins.push_back(skin);
@@ -188,7 +187,7 @@ namespace Kaidel {
 			const aiBone* bone = mesh->mBones[i];
 
 			const aiNode* node = m_NodeNameMap[bone->mName.C_Str()];
-			uint32_t depth = m_NodeDepthMap[node];
+			uint32_t depth = (uint32_t)m_NodeDepthMap[node];
 
 			if (depth < minDepth)
 			{

@@ -20,8 +20,8 @@ namespace Kaidel {
 
 		// Window attributes
 		void SetEventCallback(const EventCallbackFn& callback) override { m_Data.EventCallback = callback; }
-		void SetVSync(bool enabled) override;
-		bool IsVSync() const override;
+		void SetVSync(VSyncType vsync) override;
+		VSyncType GetVSync() const override;
 		virtual const Scope<GraphicsContext>& GetContext()const override{return m_Context;}
 
 		void SwapBuffers() const override;
@@ -53,8 +53,8 @@ namespace Kaidel {
 		struct WindowData
 		{
 			std::string Title;
-			unsigned int Width, Height;
-			bool VSync = false;
+			unsigned int Width, Height, RefreshRate;
+			VSyncType VSync;
 			bool Fullscreen = true;
 			EventCallbackFn EventCallback;
 		};

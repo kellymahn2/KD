@@ -5,11 +5,11 @@
 #include "Kaidel\Math\Math.h"
 #include "Kaidel\Renderer\Renderer3D.h"
 #include "Kaidel/Asset/AssetManager.h"
+#include "Kaidel/Renderer/Sprite.h"
 #include <yaml-cpp/yaml.h>
 
 #include <glm/gtx/matrix_decompose.hpp>
 
-#include <semaphore>
 #include <meshoptimizer.h>
 
 namespace Kaidel {
@@ -58,6 +58,8 @@ namespace Kaidel {
 			m_MtdFile = mtdFile;
 		}
 
+		m_CurrentAssetIndex = 1;
+
 		m_Model = model;
 
 		m_Model->m_ModelDir = metadata.Path.parent_path();
@@ -82,19 +84,6 @@ namespace Kaidel {
 		SCOPED_TIMER("Mesh loading");
 		ProcessNode(m_Scene->mRootNode, *m_Model->m_Tree);
 
-	}
-
-	Kaidel::AssetHandle ModelLoader::GetNextHandle()
-	{
-		if (m_GeneratedAssets.empty())
-			return AssetHandle();
-		
-		{
-			AssetHandle handle = m_GeneratedAssets.back().Handle;
-			m_GeneratedAssets.pop_back();
-
-			return handle;
-		}
 	}
 
 	void ModelLoader::OpenScene(const Path& path)
@@ -158,7 +147,7 @@ namespace Kaidel {
 
 	void ModelLoader::NodeDFS(const aiNode* currentNode, uint32_t& index)
 	{
-		m_ResourceToID[currentNode] = m_ResourceToID.size();
+		m_ResourceToID[currentNode] = (uint32_t)m_ResourceToID.size();
 
 		for (uint32_t i = 0; i < currentNode->mNumChildren; ++i)
 		{
@@ -199,7 +188,8 @@ namespace Kaidel {
 			AssetMetadata metadata;
 			metadata.AssetName = outTree.NodeName;
 			
-			m_MtdFile->Resolve(metadata.Handle);
+			Resolve(metadata.Handle);
+			metadata.Type = AssetType::Mesh;
 
 			AssetManager::RegisterAsset(asset, metadata);
 
@@ -246,8 +236,8 @@ namespace Kaidel {
 		initializer.Vertices = vertices;
 		initializer.Indices = new uint8_t[totalIndexCount * (uint64_t)initializer.IndexFormat * 2];
 
-		uint64_t vertexOffset = 0;
-		uint64_t indexOffset = 0;
+		uint32_t vertexOffset = 0;
+		uint32_t indexOffset = 0;
 
 
 		for (uint32_t i = 0; i < meshCount; ++i)
@@ -259,9 +249,9 @@ namespace Kaidel {
 			else
 				ProcessVertices(mesh, (MeshVertex*)initializer.Vertices + vertexOffset);
 			
-			uint64_t vertexCount = mesh->mNumVertices;
+			uint32_t vertexCount = mesh->mNumVertices;
 
-			uint64_t indexCount = 0;
+			uint32_t indexCount = 0;
 
 			void* startVertices = nullptr;
 
@@ -272,7 +262,7 @@ namespace Kaidel {
 
 			if (initializer.IndexFormat == IndexType::Uint32)
 			{
-				indexCount = ProcessIndices<uint32_t>(mesh, (uint32_t*)initializer.Indices + indexOffset);
+				indexCount = (uint32_t)ProcessIndices<uint32_t>(mesh, (uint32_t*)initializer.Indices + indexOffset);
 		
 				uint32_t* startIndices = (uint32_t*)initializer.Indices + indexOffset;
 
@@ -289,7 +279,7 @@ namespace Kaidel {
 			
 			}
 			else {
-				indexCount = ProcessIndices<uint16_t>(mesh, (uint16_t*)initializer.Indices + indexOffset);
+				indexCount = (uint32_t)ProcessIndices<uint16_t>(mesh, (uint16_t*)initializer.Indices + indexOffset);
 
 				uint16_t* startIndices = (uint16_t*)initializer.Indices + indexOffset;
 				/*meshopt_optimizeVertexCache(startIndices, startIndices, indexCount, vertexCount);
@@ -326,10 +316,13 @@ namespace Kaidel {
 			
 			Ref<MaterialInstance>& mat = submesh.DefaultMaterial = ProcessMaterial(mesh, m_Scene->mMaterials[mesh->mMaterialIndex]);
 
+			m_Model->m_SubAssets.push_back(mat);
+
 			AssetMetadata metadata;
 			metadata.AssetName = m_Scene->mMaterials[mesh->mMaterialIndex]->GetName().C_Str();
 
-			m_MtdFile->Resolve(metadata.Handle);
+			Resolve(metadata.Handle);
+			metadata.Type = AssetType::StandardMaterial;
 
 			AssetManager::RegisterAsset(mat, metadata);
 		}
@@ -340,6 +333,8 @@ namespace Kaidel {
 			mesh = CreateRef<SkinnedMesh>(initializer, m_MeshToSkin[GetMesh(meshes[0])]);
 		else
 			mesh = CreateRef<Mesh>(initializer);
+
+		m_Model->m_SubAssets.push_back(mesh);
 
 		delete[] initializer.Vertices;
 		delete[] initializer.Indices;
@@ -357,7 +352,7 @@ namespace Kaidel {
 		return mesh;
 	}
 
-	Ref<StandardMaterialInstance> ModelLoader::ProcessMaterial(const aiMesh* mesh, const aiMaterial* material)
+	Ref<StandardMaterial> ModelLoader::ProcessMaterial(const aiMesh* mesh, const aiMaterial* material)
 	{
 		//SCOPED_TIMER("ProcessMaterial");
 		std::vector<std::pair<uint32_t, std::string>> texturePaths;
@@ -394,12 +389,12 @@ namespace Kaidel {
 			"aiTextureType_GLTF_METALLIC_ROUGHNESS"
 		};
 		
-		StandardMaterialInstance::Initializer initializer;
+		StandardMaterial::Initializer initializer;
 		initializer.Roughness = 1.0f;
 		initializer.Metalness = 0.0f;
 
-		auto textureLoad = [&initializer, this](const FileSystem::path& modelDir, const aiMaterial* material,
-			aiTextureType textureType, StandardMaterialInstance::MaterialTextureType type)
+		auto textureLoad = [this](const FileSystem::path& modelDir, const aiMaterial* material,
+			aiTextureType textureType, StandardMaterial::MaterialTextureType type)
 		{
 			if (material->GetTextureCount(textureType)) {
 				aiString texturePath;
@@ -412,10 +407,8 @@ namespace Kaidel {
 
 				metadata.Path = modelDir / pathStr;
 
-				Asset texture = AssetManager::LoadAsset(metadata, AssetType::Texture2D, {}, AssetLoadPolicy::Async);
+				Asset texture = AssetManager::LoadAsset(metadata, AssetType::SpriteSheet, {}, AssetLoadPolicy::Synchronous);
 
-				initializer.Textures[(uint32_t)type] = texture.AssetPtr;
-				
 				return texture;
 			}
 
@@ -435,16 +428,20 @@ namespace Kaidel {
 			}
 		}
 
-		Asset diffuse = textureLoad(m_Model->m_ModelDir, material, aiTextureType_DIFFUSE, StandardMaterialInstance::MaterialTextureType::Albedo);
-		Asset metallic = textureLoad(m_Model->m_ModelDir, material, aiTextureType_GLTF_METALLIC_ROUGHNESS, StandardMaterialInstance::MaterialTextureType::Metallic);
-		Asset roughness = metallic;
-		initializer.Textures[(uint32_t)StandardMaterialInstance::MaterialTextureType::Roughness] = roughness.As<Texture2D>();
-		Asset normal = textureLoad(m_Model->m_ModelDir, material, aiTextureType_NORMALS, StandardMaterialInstance::MaterialTextureType::Normal);
-		Asset emissive = textureLoad(m_Model->m_ModelDir, material, aiTextureType_EMISSION_COLOR, StandardMaterialInstance::MaterialTextureType::Emissive);
+		Asset diffuse = textureLoad(m_Model->m_ModelDir, material, aiTextureType_DIFFUSE, StandardMaterial::MaterialTextureType::Albedo);
+		Asset metallic = textureLoad(m_Model->m_ModelDir, material, aiTextureType_GLTF_METALLIC_ROUGHNESS, StandardMaterial::MaterialTextureType::Metallic);
+		Asset normal = textureLoad(m_Model->m_ModelDir, material, aiTextureType_NORMALS, StandardMaterial::MaterialTextureType::Normal);
+		Asset emissive = textureLoad(m_Model->m_ModelDir, material, aiTextureType_EMISSION_COLOR, StandardMaterial::MaterialTextureType::Emissive);
 
-		AssetManager::WaitOnAssets({ diffuse, metallic, roughness, normal, emissive });
+		AssetManager::WaitOnAssets({ diffuse, metallic, normal, emissive });
+		
+		initializer.Textures[(uint32_t)StandardMaterial::MaterialTextureType::Albedo] = diffuse ? diffuse.As<SpriteSheet>() : nullptr;
+		initializer.Textures[(uint32_t)StandardMaterial::MaterialTextureType::Metallic] = metallic ? metallic.As<SpriteSheet>() : nullptr;
+		initializer.Textures[(uint32_t)StandardMaterial::MaterialTextureType::Roughness] = metallic ? metallic.As<SpriteSheet>() : nullptr;
+		initializer.Textures[(uint32_t)StandardMaterial::MaterialTextureType::Normal] = normal ? normal.As<SpriteSheet>() : nullptr;
+		initializer.Textures[(uint32_t)StandardMaterial::MaterialTextureType::Emissive] = emissive ? emissive.As<SpriteSheet>() : nullptr;
 
-		Ref<StandardMaterialInstance> mat = CreateRef<StandardMaterialInstance>(initializer);
+		Ref<StandardMaterial> mat = CreateRef<StandardMaterial>(initializer);
 
 		glm::vec4 baseColor = glm::vec4(1.0f);
 

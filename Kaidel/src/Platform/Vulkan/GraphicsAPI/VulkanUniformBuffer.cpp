@@ -49,4 +49,9 @@ namespace Kaidel {
 		VK_CONTEXT.GetBufferStager().StageUniformBuffer(VK_CONTEXT.GetCurrentCommandBuffer(), buffer.Buffer, data, size);
 	}
 
+	uint64_t VulkanUniformBuffer::GetSize() const
+	{
+		return m_Buffer.BufferSize;
+	}
+
 }

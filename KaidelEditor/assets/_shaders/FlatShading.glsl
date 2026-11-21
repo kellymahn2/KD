@@ -1,5 +1,5 @@
 #version 460 core
-#ifdef vertex
+#type vertex
 
 layout(location = 0) in vec3 a_Position;
 
@@ -14,9 +14,9 @@ void main()
 {
     gl_Position = ViewProjection * Model * vec4(a_Position, 1.0);
 }
-#endif
 
-#ifdef fragment
+
+#type fragment
 
 layout(location = 0) out vec4 o_Color;
 
@@ -31,4 +31,4 @@ void main()
 {
     o_Color = Color;
 }
-#endif
+

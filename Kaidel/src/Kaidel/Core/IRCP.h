@@ -9,7 +9,7 @@ namespace Kaidel {
 
 	template<>
 	struct IRCCounter<false> {
-		uint64_t Count;
+		uint64_t Count = 0;
 		void IncrementRef() {
 			++Count;
 		}
@@ -26,7 +26,7 @@ namespace Kaidel {
 	template<>
 	struct IRCCounter<true> {
 		
-		std::atomic<uint64_t> Count;
+		std::atomic<uint64_t> Count = 0;
 
 		void IncrementRef() {
 			++Count;
@@ -66,6 +66,7 @@ namespace Kaidel {
 
 		template<typename U>
 		IRCPointer(const IRCPointer<U>& other){
+			static_assert(std::is_base_of_v<T, U>, "You can only up cast");
 			m_Ptr = (T*)other.m_Ptr;
 			if (m_Ptr)
 				m_Ptr->IncrementRef();
@@ -97,6 +98,7 @@ namespace Kaidel {
 
 		template<typename U>
 		IRCPointer& operator=(const IRCPointer<U>& other) {
+			static_assert(std::is_base_of_v<T, U>, "You can only up cast");
 			if ((void*)this != (void*)&other) {
 				if (m_Ptr)
 					m_Ptr->DecrementRef<T>();
@@ -113,6 +115,7 @@ namespace Kaidel {
 
 		template<typename U>
 		IRCPointer& operator=(IRCPointer<U>&& other) noexcept {
+			static_assert(std::is_base_of_v<T, U>, "You can only up cast");
 			if ((void*)this != (void*)&other) {
 				if (m_Ptr)
 					m_Ptr->DecrementRef<T>();
@@ -161,7 +164,7 @@ namespace Kaidel {
 
 	template<typename To, typename From>
 	IRCPointer<To> DynamicPointerCast(const IRCPointer<From>& ptr) {
-		return IRCPointer<To>(dynamic_cast<To*>(ptr.m_Ptr));
+		return IRCPointer<To>(static_cast<To*>(ptr.m_Ptr));
 	}
 
 	template<typename T, typename... Args>

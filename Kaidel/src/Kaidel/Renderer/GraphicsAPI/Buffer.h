@@ -17,5 +17,7 @@ namespace Kaidel {
 
 		virtual BufferType GetBufferType()const = 0;
 		virtual RendererID GetBackendID()const = 0;
+
+		virtual uint64_t GetSize() const = 0;
 	};
 }

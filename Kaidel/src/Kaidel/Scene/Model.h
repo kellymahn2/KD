@@ -129,14 +129,10 @@ namespace Kaidel {
 	struct Skin : public IRCCounter<false> {
 		SkinTree Tree;
 		Ref<StorageBuffer> OffsetBuffer;
-		Ref<StorageBuffer> BoneTransformsBuffer;
 		std::vector<glm::mat4> Offsets;
-		std::vector<glm::mat4> BoneTransforms;
-		Ref<DescriptorSet> SkinSet;
-		UUID LastRoot;
-	};
 
-	
+		Ref<DescriptorSet> SkinSet;
+	};
 
 	struct Submesh 
 	{
@@ -188,6 +184,16 @@ namespace Kaidel {
 			m_IndexBuffer = 
 				IndexBuffer::Create(initializer.Indices, indexSize, initializer.IndexFormat);
 			
+			AABB boundingBox = GetSubmeshes()[0].BoundingBox;
+
+			for (uint32_t i = 0; i < GetSubmeshes().size(); ++i)
+			{
+				auto& aabb = GetSubmeshes()[i].BoundingBox;
+				boundingBox.Min = glm::min(aabb.Min, boundingBox.Min);
+				boundingBox.Max = glm::max(aabb.Max, boundingBox.Max);
+			}
+
+			SetBoundingBox(boundingBox);
 		}
 
 		Ref<VertexBuffer> GetVertexBuffer()const { return m_VertexBuffer; }
@@ -256,13 +262,12 @@ namespace Kaidel {
 			{
 				DescriptorSetLayoutSpecification specs(
 					{
-						{DescriptorType::StorageBuffer, ShaderStage_ComputeShader},
 						{DescriptorType::StorageBuffer, ShaderStage_ComputeShader}
 					});
 
 				m_SkinnedBufferSet = DescriptorSet::Create(specs);
 
- 				m_SkinnedBufferSet->Update(m_SkinnedBuffer, 0).Update(m_VertexBuffer, 1);
+ 				m_SkinnedBufferSet->Update(m_SkinnedBuffer, 0);
 			}
 
 		}
@@ -274,6 +279,10 @@ namespace Kaidel {
 		uint64_t GetBoneCount() const { return m_BoneCount; }
 
 		Ref<DescriptorSet> GetSkinnedBufferSet() const { return m_SkinnedBufferSet; }
+
+		Ref<VertexBuffer> GetSkinnedVertices() const { return m_SkinnedBuffer; }
+
+		DECL_ASSET_TYPE(SkinnedMesh)
 
 	private:
 		uint64_t CalcBoneCount(const SkinTree& tree) {
@@ -316,6 +325,14 @@ namespace Kaidel {
 		Scope<MeshTree>& GetMeshTree() { return m_Tree; }
 		const AABB& GetBoundingBox() const { return m_BoundingBox; }
 
+		virtual uint64_t GetSubAssetCount() const override { return m_SubAssets.size(); }
+
+		virtual void GetSubAssetAt(uint64_t i, SubAsset& subAsset) 
+		{
+			subAsset.Asset = m_SubAssets.at(i);
+			subAsset.UserIndex = 0;
+		}
+
 		DECL_ASSET_TYPE(Model);
 
 	private:
@@ -324,6 +341,8 @@ namespace Kaidel {
 		Scope<MeshTree> m_Tree;
 		SkinTree m_SkinTree;
 		AABB m_BoundingBox;
+
+		std::vector<Ref<AssetBase>> m_SubAssets;
 		
 		friend class ModelLibrary;
 		friend class ModelLoader;
