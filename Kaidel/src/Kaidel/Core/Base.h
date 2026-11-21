@@ -7,10 +7,15 @@
 #include "Kaidel/Core/IRCP.h"
 #include <memory>
 #include <filesystem>
+#include <unordered_map>
+#include <spdlog/fmt/fmt.h>
+
+#include <fstream>
 
 #pragma warning(disable: 4996)
 #pragma warning(disable: 4005)
 #pragma warning(disable: 4002)
+#pragma warning(disable: 4828)
 
 
 #ifdef KD_DEBUG
@@ -38,6 +43,14 @@
 #define ALLOCA_ARRAY(type, count) ((type*)ALLOCA(sizeof(type) * (count)))
 #define ALLOCA_SINGLE(type) ALLOCA_ARRAY(type, 1)
 
+
+template <>
+struct fmt::formatter<std::filesystem::path> : fmt::formatter<std::string> {
+    auto format(const std::filesystem::path& p, format_context& ctx) const {
+        return fmt::formatter<std::string>::format(p.string(), ctx);
+    }
+};
+
 namespace Kaidel {
 
 	template<typename T>
@@ -49,11 +62,20 @@ namespace Kaidel {
 	}
 
 	template<typename T>
-	using Ref = IRCPointer<T, false>;
+	using Ref = IRCPointer<T>;
 	template<typename T, typename ... Args>
 	constexpr Ref<T> CreateRef(Args&& ... args)
 	{
-		return CreateIRCPointer<T, false>(std::forward<Args>(args)...);
+		return CreateIRCPointer<T>(std::forward<Args>(args)...);
+	}
+
+	template<typename T, typename ...Args>
+	constexpr Ref<T> PlaceRef(Ref<T> ptr, Args&&... args)
+	{
+		uint64_t count = ptr->Count;
+		new (ptr.Get()) T(std::forward<Args>(args)...);
+		ptr->Count = count;
+		return ptr;
 	}
 
 	template<typename T, uint32_t _Count>
@@ -80,6 +102,22 @@ namespace Kaidel {
 
 	}
 
+	template<typename T>
+	struct AlignedBuffer {
+		alignas(T) uint8_t Ptr[sizeof(T)];
+	};
+
+	template<typename T>
+	T* CreateUninitialized() 
+	{
+		
+
+		T* ptr = (T*)new AlignedBuffer<T>;
+		memset(ptr, 0, sizeof(AlignedBuffer<T>));
+
+		return ptr;
+	}
+
 	namespace FileSystem = std::filesystem;
 
 
@@ -87,6 +125,60 @@ namespace Kaidel {
 	using DirectoryEntry = FileSystem::directory_entry;
 
 	typedef uintptr_t RendererID;
+
+	template<typename T>
+	class TLS {
+	public:
+		auto& GetMap() { return m_Map; }
+		const auto& GetMap() const { return m_Map; }
+
+		T& operator*() { return m_Map[std::this_thread::get_id()]; }
+		const T& operator*() const { return m_Map.at(std::this_thread::get_id()); }
+	private:
+		std::unordered_map<std::thread::id, T> m_Map;
+	};
+
+	static bool GainAccessToFile(std::ifstream* outFile, const Path& path, std::ios_base::openmode openMode = std::ios::in, 
+		const std::chrono::milliseconds& sleepTime = std::chrono::milliseconds(200))
+	{
+		bool good = false;
+
+		while (FileSystem::exists(path))
+		{
+			std::ifstream file(path, openMode);
+
+			if (file.is_open())
+			{
+				if(outFile)
+					outFile->swap(file);
+				good = true;
+				break;
+			}
+
+			std::this_thread::sleep_for(sleepTime);
+		}
+
+		return good;
+	}
+
+	static bool GainAccessToFile(FILE** outFile, const std::string& path, const char* openMode = "rt",
+		const std::chrono::milliseconds& sleepTime = std::chrono::milliseconds(200))
+	{
+		bool good = false;
+
+		while (FileSystem::exists(path))
+		{
+			if (fopen_s(outFile, path.c_str(), openMode) == 0)
+			{
+				good = true;
+				break;
+			}
+
+			std::this_thread::sleep_for(sleepTime);
+		}
+
+		return good;
+	}
 
 }
 

@@ -14,6 +14,8 @@ namespace Kaidel {
 
 		auto& origin = entity.GetParent().GetComponent<TransformComponent>();
 		//return glm::inverse(Math::Rotate(origin.Translation,origin.Rotation))*entity.GetComponent<TransformComponent>().GetTransform();
+
+		return glm::mat4(1.0f);
 	}
 	
 }
@@ -22,7 +24,7 @@ void Kaidel::RotateEntity(Kaidel::Entity entity, Kaidel::Scene* scene, const glm
 
 	if (entity.HasChildren()) {
 		for (auto& childID : entity.GetComponent<Kaidel::ParentComponent>().Children) {
-			auto child = scene->GetEntity(childID);
+			Entity child = { childID, scene };
 			RotateEntity(child, scene, delta, top ? top : entity);
 		}
 	}
@@ -45,7 +47,7 @@ void Kaidel::TranslateEntity(Kaidel::Entity entity, Kaidel::Scene* scene, const 
 
 	if (entity.HasChildren()) {
 		for (auto& childID : entity.GetComponent<Kaidel::ParentComponent>().Children) {
-			auto child = scene->GetEntity(childID);
+			Entity child = { childID, scene };
 			TranslateEntity(child, scene, delta, top ? top : entity);
 		}
 	}

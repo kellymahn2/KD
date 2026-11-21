@@ -13,10 +13,6 @@ namespace Kaidel {
 	{
 		auto* window = static_cast<GLFWwindow*>(Application::Get().GetWindow().GetNativeWindow());
 		auto state = glfwGetKey(window, static_cast<int32_t>(key));
-		if (state == GLFW_RELEASE)
-		{
-			KD_INFO("Released");
-		}
 
 		return state==GLFW_PRESS;
 	}

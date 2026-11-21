@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <unordered_map>
+#include <atomic>
 
 namespace Kaidel {
 	class Timer
@@ -13,7 +14,7 @@ namespace Kaidel {
 		void ResetTimer();
 		void Stop();
 
-		void Print(const std::string& padding = "");
+		void Print(uint32_t paddingAmount, char paddingChar = '\t');
 
 		double GetMS()const;
 		double GetS()const;
@@ -32,7 +33,8 @@ namespace Kaidel {
 		void Reset();
 	private:
 		Timer m_Timer;
-		static inline std::string s_Padding = "";
+		uint32_t m_CurrentPadding = 0;
+		static inline std::atomic<uint32_t> s_Padding = 0;
 	};
 
 	class AccumulativeTimer {

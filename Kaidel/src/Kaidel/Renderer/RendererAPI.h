@@ -68,6 +68,9 @@ namespace Kaidel {
 		virtual void Shutdown() = 0;
 		
 		//Commands
+		virtual void BeginMarker(const std::string& marker) = 0;
+		virtual void EndMarker() = 0;
+
 		virtual void BeginRenderPass(Ref<RenderPass> renderPass, Ref<Framebuffer> framebuffer,
 			std::initializer_list<AttachmentClearValue> clearValues) = 0;
 		virtual void EndRenderPass() = 0;
@@ -117,6 +120,10 @@ namespace Kaidel {
 			std::initializer_list<MemoryBarrier> memoryBarriers,
 			std::initializer_list<BufferMemoryBarrier> bufferBarriers,
 			std::initializer_list<ImageMemoryBarrier> textureBarriers) = 0;
+
+		virtual void SetBufferName(Ref<Buffer> buffer, const std::string& name) = 0;
+
+		virtual void SetTextureName(Ref<Texture> texture, const std::string& name) = 0;
 
 		static RendererSettings& GetSettings() { return s_RendererSettings; }
 

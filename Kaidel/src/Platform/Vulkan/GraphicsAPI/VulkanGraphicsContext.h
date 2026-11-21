@@ -3,7 +3,6 @@
 #include "Platform/Vulkan/VulkanDefinitions.h"
 #include "Kaidel/Renderer/GraphicsAPI/GraphicsContext.h"
 
-
 #include "VulkanInstance.h"
 #include "VulkanPhysicalDevice.h"
 #include "VulkanLogicalDevice.h"
@@ -11,7 +10,6 @@
 #include "VulkanAllocator.h"
 #include "VulkanStager.h"
 #include "Backend.h"
-
 
 #define VK_CONTEXT ::Kaidel::VulkanGraphicsContext::Get()
 #define VK_INSTANCE VK_CONTEXT.GetInstance()
@@ -21,33 +19,12 @@
 #define VK_BACKEND VK_CONTEXT.GetBackend()
 #define VK_CURRENT_COMMAND_BUFFER VK_CONTEXT.GetCurrentCommandBuffer()
 
-namespace Kaidel {
+#define VK_GRAPHICS_Q VK_CONTEXT.GetGraphicsQueue()
+#define VK_TRANSFER_Q VK_CONTEXT.GetTransferQueue()
 
-
-	/*struct PerSwapchainFrameData {
-		Ref<VulkanCommandBuffer> CommandBuffer;
-
-		Ref<VulkanSemaphore> RenderFinished;
-		Ref<VulkanSemaphore> ImageAvailable;
-		Ref<VulkanFence> InFlightFence;
-
-		std::shared_ptr<std::mutex> TaskSyncMutex;
-		std::shared_ptr<std::condition_variable> TaskConditionVariable;
-		std::shared_ptr<std::thread> TaskWorker;
-		bool TasksReady = false;
-		std::queue<std::function<void()>> Tasks;
-
-		~PerSwapchainFrameData() {
-			TaskWorker = {};
-			TaskConditionVariable = {};
-			TaskSyncMutex = {};
-
-		}
-	};*/
-
-	class VulkanGraphicsContext : public GraphicsContext{
+namespace Kaidel{
+	class VulkanGraphicsContext : public GraphicsContext {
 	public:
-
 		VulkanGraphicsContext(Window* window);
 		void Init() override;
 		void SwapBuffers() override;
@@ -64,8 +41,12 @@ namespace Kaidel {
 		
 		VulkanBufferStager& GetBufferStager() { return *m_Stager;  }
 
-		VkCommandBuffer GetCurrentCommandBuffer()const { return m_Swapchain.Frames[m_CurrentFrameNumber].MainCommandBuffer; }
-
+		VkCommandBuffer GetCurrentCommandBuffer()const 
+		{ 
+			return (*m_OverrideCommandBuffers).empty() ? 
+				m_Swapchain.Frames[m_CurrentFrameNumber].MainCommandBuffer : 
+				(*m_OverrideCommandBuffers).back(); 
+		}
 
 		void AcquireImage() override;
 		void PresentImage() override;
@@ -77,18 +58,25 @@ namespace Kaidel {
 			m_Swapchain.Frames[m_CurrentFrameNumber].DeferredDeletes.emplace(func);
 		}
 
+		void SubmitSingle(VulkanQueue& queue, std::function<void(VkCommandBuffer)>&& func);
+
 		VkDescriptorSetLayout GetSingleDescriptorSetLayout(VkDescriptorType type, VkShaderStageFlags flags);
 
-		const VulkanBackend::CommandPoolInfo& GetPrimaryCommandPool()const { return m_GlobalCommandPool; }
-		VkFence GetSingleSubmitFence() { return m_SingleSubmitFence; }
+		const VulkanBackend::CommandPoolInfo& GetPrimaryCommandPool(VulkanQueue& queue);
 
+		VkFence GetSingleSubmitFence(VulkanQueue& queue);
 
-		auto& GetQueue(const std::string& name)const { return m_PhysicalDevice->GetQueue(name); }
-		auto& GetGraphicsQueue()const { return GetQueue("GraphicsQueue"); }
-		auto& GetPresentQueue()const { return GetQueue("PresentQueue"); }
+		auto& GetQueue(const std::string& name) { return m_PhysicalDevice->GetQueue(name); }
+		auto& GetGraphicsQueue() { return GetQueue("GraphicsQueue"); }
+		auto& GetPresentQueue() { return GetQueue("PresentQueue"); }
+		auto& GetTransferQueue() { return GetQueue("TransferQueue"); }
 
 		virtual uint32_t GetMaxFramesInFlightCount()const override { return m_MaxFramesInFlight;}
 		virtual uint32_t GetCurrentFrameIndex()const override { return m_CurrentFrameNumber; }
+
+		void PushOverrideCommandBuffer(VkCommandBuffer cb) { (*m_OverrideCommandBuffers).push_back(cb); }
+
+		void PopOverrideCommandBuffer() { (*m_OverrideCommandBuffers).pop_back(); }
 
 		//ImGui callbacks
 		void ImGuiInit()const override;
@@ -96,10 +84,8 @@ namespace Kaidel {
 		void ImGuiEnd()const override;
 		void ImGuiShutdown()const override;
 	private:
-
-
 		void CreateImGuiDescriptorPool();
-		void LoadImGuiFonts()const;
+		void LoadImGuiFonts() const;
 	private:
 
 		static VulkanGraphicsContext* s_GraphicsContext;
@@ -113,6 +99,8 @@ namespace Kaidel {
 
 		Window* m_Window;
 
+		TLS<std::vector<VkCommandBuffer>> m_OverrideCommandBuffers;
+
 		//std::vector<PerSwapchainFrameData> m_FramesData;
 
 		uint32_t m_MaxFramesInFlight = 0;
@@ -120,13 +108,12 @@ namespace Kaidel {
 
 		bool m_ThreadsRunning = true;
 
-		VulkanBackend::CommandPoolInfo m_GlobalCommandPool;
+		TLS<VulkanBackend::CommandPoolInfo> m_GlobalCommandPool;
+		TLS<VkFence> m_SingleSubmitFence;
 
 		VkDescriptorPool m_ImGuiDescriptorPool;
 
 		Scope<VulkanBackend::Backend> m_Backend;
-
-		VkFence m_SingleSubmitFence;
 
 		Scope<VulkanBufferStager> m_Stager;
 

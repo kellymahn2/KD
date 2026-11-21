@@ -8,9 +8,9 @@ namespace Kaidel {
 	struct VertexInputElement
 	{
 		std::string Name;
-		Format AttribFormat;
+		Format AttribFormat = Format::None;
 		bool IsDummy = false;
-		uint32_t Size;
+		uint32_t Size = 0;
 
 		VertexInputElement(const std::string& name, Format format)
 			:Name(name), AttribFormat(format), Size(0)

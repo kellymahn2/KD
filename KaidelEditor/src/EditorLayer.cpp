@@ -8,13 +8,17 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "UI/AssetPreview.h"
+
 #include "Kaidel/Scene/SceneSerializer.h"
 
 #include "Kaidel/Utils/PlatformUtils.h"
 
 #include "Kaidel/Scripting/ScriptEngine.h"
+#include "Kaidel/Asset/AssetImporters/MaterialSerializer.h"
 #include "Kaidel/Renderer/Text/Font.h"
 #include "Kaidel/Scene/ModelLibrary.h"
+#include "Panels/AssetChooser.h"
 
 #include "yaml-cpp/yaml.h"
 
@@ -22,26 +26,25 @@
 #include "Kaidel/Scene/SceneRenderer.h"
 #include "Kaidel/Animation/Animation.h"
 
-#include "Kaidel/VisualMaterial/VisualMaterial.h"
-#include "Panels/VisualMaterialNodeEditor.h"
+#include "Kaidel/VisualShader/VisualShader.h"
+#include "Panels/VisualShaderNodeEditor.h"
+
+#include "Kaidel/Asset/AssetManager.h"
+
+#include "Kaidel/Renderer/Text/FontLibrary.h"
+
+#include "UI/IconLibrary.h"
+#include "UI/UIHelper.h"
 
 #include <forward_list>
 #include <inttypes.h>
 #include <random>
+#include <future>
 
 namespace Kaidel {
 	glm::vec4 _GetUVs();
-	Ref<Font> font;
-	Entity e;
 
-	float animationTime = 0.0f;
-
-	bool animationPlaying = false;
-
-
-	static Ref<VisualMaterial> mat;
-
-	float maxAnimationTime = 2.0f;
+	static Ref<VisualShader> mat;
 
 	//Animations work.
 	//TODO: Add the ability to actually render the animation curve.
@@ -51,10 +54,7 @@ namespace Kaidel {
 	EditorLayer::EditorLayer()
 		: Layer("EditorLayer")
 	{
-		//font = CreateRef<Font>("assets/fonts/opensans/OpenSans-Regular.ttf");
-		//font = CreateRef<Font>("C:/Windows/Fonts/Hack-BoldItalic.ttf");
 	}
-
 
 	static std::vector<uint8_t> ReadFile(const FileSystem::path& filePath) {
 		std::ifstream file(filePath, std::ios::binary | std::ios::in);
@@ -73,8 +73,41 @@ namespace Kaidel {
 		return res;
 	}
 
+	static bool IsAncestorOf(const FileSystem::path& ancestor, const FileSystem::path& child)
+	{
+		FileSystem::path a = FileSystem::canonical(ancestor);
+		FileSystem::path c = FileSystem::canonical(child);
+
+		if (a.is_relative())
+			a = FileSystem::absolute(a);
+
+		if (c.is_relative())
+			c = FileSystem::absolute(c);
+
+		if (a == c)
+		{
+			return true;
+		}
+		
+		auto aIt = a.begin();
+		auto cIt = c.begin();
+
+		while (aIt != a.end() && cIt != c.end())
+		{
+			if (*aIt != *cIt)
+				return false;
+			++aIt;
+			++cIt;
+		}
+
+
+		return aIt == a.end();
+	}
+
 	void EditorLayer::OnAttach()
 	{
+		IconLibrary::Init("Resources/Icons/");
+
 		{
 			SamplerState params{};
 			params.MipFilter = SamplerMipMapMode::Linear;
@@ -125,13 +158,18 @@ namespace Kaidel {
 		}
 
 
-		m_ActiveScene = CreateRef<Scene>();
-		m_EditorScene = m_ActiveScene;
+		
 		m_EditorCamera = EditorCamera(60.0f, 1.778f, m_Near, m_Far);
-		auto& commandLineArgs = Application::Get().GetCommandLineArgs();
+		auto commandLineArgs = Application::Get().GetCommandLineArgs();
+		KD_INFO("Command line count {}", commandLineArgs.Count);
 		if (commandLineArgs.Count > 1) {
 			auto projectFilePath = commandLineArgs[1];
 			OpenProject(projectFilePath);
+
+			if (!Project::GetActive())
+			{
+				NewProject();
+			}
 		}
 		else {
 			NewProject();
@@ -139,7 +177,7 @@ namespace Kaidel {
 
 		EditorContext::Init();
 		//m_ConsolePanel.SetContext(::Log::GetClientLogger());
-		/*m_ContentBrowserPanel.SetCurrentPath(Project::GetProjectDirectory());
+		/*
 		m_ContentBrowserPanel.SetStartPath(Project::GetProjectDirectory());
 		m_ContentBrowserPanel.SetContext(m_PanelContext);*/
 
@@ -158,50 +196,25 @@ namespace Kaidel {
 				return DescriptorSet::Create(specs);
 				});
 		}
-		{
-			Entity e = m_ActiveScene->CreateEntity("Light");
-			auto& tc = e.GetComponent<TransformComponent>();
-			tc.Rotation = glm::quat(glm::vec3(-glm::pi<float>() / 2.0f, 0.0f, 0.0f));
-			auto& dlc = e.AddComponent<DirectionalLightComponent>();
-			dlc.Color = glm::vec3(1.0);
-			dlc.MaxDistance = m_Far;
-			dlc.SplitLambda = 0.95f;
-			dlc.FadeStart = 1.0f;
-		}
+		
+		/*{
+			Entity e = m_ActiveScene->CreateCube("Occluder");
 
-		{
-			auto& mc = m_ActiveScene->CreateEntity("Visual").AddComponent<MeshComponent>();
-			mc.UsedMesh = ModelLibrary::GetBaseSphere();
-			mat = CreateRef<VisualMaterial>();
-			mat->Recompile();
-			mc.UsedMaterial.push_back(CreateRef<VisualMaterialInstance>(mat));
-			mc.VisibilityResults.resize(1, false);
+			e.GetComponent<TransformComponent>().Translation = glm::vec3(0.0f, 3.0f, 0.0f);
 		}
+		{
+			Entity e = m_ActiveScene->CreateCube("Occludee");
 
-		{
-			auto& mc = m_ActiveScene->CreateEntity("Standard").AddComponent<MeshComponent>();
-			mc.UsedMesh = ModelLibrary::GetBaseSphere();
-			mc.UsedMaterial.push_back(CreateRef<StandardMaterialInstance>());
-			mc.VisibilityResults.resize(1, false);
-		}
+			e.GetComponent<TransformComponent>().Scale = glm::vec3(5.0f, 1.0f, 5.0f);
+		}*/
 
 		RendererGlobals::LoadEnvironmentMap("assets/skybox/brown_photostudio_02_4k.hdr");
-
-
-		/*
-
-		mat.AddIntConstant(-3, -1)->Position = glm::vec2(300.0f, 0.0f);
-
-		mat.AddFloatConstant(5.36f, -1)->Position = glm::vec2(900.0f, 0.0f);
-		mat.AddUIntConstant(44, -1)->Position = glm::vec2(600.0f, 0.0f);*/
-		
-		//mat->CreateNode<VisualMaterialNodeVec4Constant>();
-
 	}
 
 	void EditorLayer::OnDetach()
 	{
 		EditorContext::Shutdown();
+		IconLibrary::Shutdown();
 	}
 
 	size_t FindFrameIndex(const std::vector<AnimationFrame>& frames, float time) {
@@ -221,7 +234,7 @@ namespace Kaidel {
 		if (track->Frames.empty())
 			return;
 
-		uint32_t frame = FindFrameIndex(track->Frames, time);
+		uint32_t frame = (uint32_t)FindFrameIndex(track->Frames, time);
 
 		switch (track->ValueType)
 		{
@@ -288,7 +301,7 @@ namespace Kaidel {
 
 			for (auto& childID : pc.Children)
 			{
-				Entity childEntity = scene->GetEntity(childID);
+				Entity childEntity = { childID, scene };
 
 				auto it = currNode.Children.find(childEntity.GetComponent<TagComponent>().Tag);
 
@@ -349,7 +362,7 @@ namespace Kaidel {
 
 			// Project Auto Save
 			auto& currentProjectConfig = Project::GetActive()->GetConfig();
-			if (currentProjectConfig.ProjectAutoSave) {
+			if (currentProjectConfig.ProjectAutoSave && FileSystem::exists(Project::GetProjectDirectory())) {
 				currentProjectConfig.TimeSinceLastProjectAutoSave += ts;
 				if (currentProjectConfig.TimeSinceLastProjectAutoSave >= currentProjectConfig.ProjectAutoSaveTimer) {
 					SaveProject();
@@ -476,11 +489,9 @@ namespace Kaidel {
 						SaveProject();
 					}
 
-
 					if (ImGui::MenuItem("Import Asset...")) {
 						ImportAsset();
 					}
-
 
 					if (ImGui::MenuItem("Exit"))
 						Application::Get().Close();
@@ -492,17 +503,26 @@ namespace Kaidel {
 						ScriptEngine::ReloadAssembly();
 					ImGui::EndMenu();
 				}
+				if (ImGui::BeginMenu("Editor"))
+				{
+					if (ImGui::MenuItem("Refresh asset previews"))
+					{
+						AssetPreview::SetDirtyAll();
+					}
+					ImGui::EndMenu();
+				}
 
 				ImGui::EndMenuBar();
 			}
 
 
 			m_SceneHierarchyPanel.OnImGuiRender(m_ActiveScene);
-			//m_ConsolePanel.OnImGuiRender();
-			//m_ContentBrowserPanel.OnImGuiRender();
-			m_AnimationPanel.OnImGuiRender();
+			//m_ConsolePanel.OnImGuiRender();4
+			ContentBrowserPanel::OnImGuiRender();
+			AnimationPanel::OnImGuiRender();
 			PropertiesPanel::OnImGuiRender();
-			VisualMaterialNodeEditor::OnImGuiRender(mat);
+			VisualShaderNodeEditor::OnImGuiRender();
+			AssetChooser::OnImGuiRender();
 
 			ShowDebugWindow();
 			ShowViewport();
@@ -748,6 +768,76 @@ namespace Kaidel {
 
 	void EditorLayer::ShowDebugWindow()
 	{
+		if (ImGui::Begin("Debug Assets"))
+		{
+			ImGui::Text("%" PRIu64, AssetManager::GetAssetCount());
+
+			if (ImGui::BeginTable("##Assets", 3, ImGuiTableFlags_Resizable))
+			{
+				ImGui::TableSetupColumn("ID");
+				ImGui::TableSetupColumn("Path");
+				ImGui::TableSetupColumn("Type");
+				ImGui::TableHeadersRow();
+
+				for (auto& [id, asset] : AssetManager::BeginLoaded())
+				{
+					if (!asset)
+					{
+						continue;
+					}
+
+					const AssetMetadata& metadata = AssetManager::GetAssetMetadata(id);
+
+					bool ready = asset->IsLoaded();
+
+					bool dirty = metadata.Dirty;
+
+					ImVec4 color;
+
+					if (ready && dirty)
+						color = ImVec4(0.93f, 0.10f, 0.4f, 1.0f);
+					else if (ready)
+						color = ImVec4(0.1f, 0.89f, 0.23f, 1.0f);
+					else
+						color = ImVec4(0.93f, 0.12f, 0.15f, 1.0f);
+					
+					AssetType type = asset->GetAssetType();
+
+					const char* typeName = "";
+
+					#define DECL_TYPE(type) case AssetType::##type: typeName = #type; break;
+
+					switch (type)
+					{
+						DECL_TYPE(SpriteSheet)
+							DECL_TYPE(Font)
+							DECL_TYPE(Model)
+							DECL_TYPE(Mesh)
+							DECL_TYPE(StandardMaterial)
+							DECL_TYPE(VisualShader)
+					}
+
+					ImGui::PushStyleColor(ImGuiCol_Text, color);
+
+					ImGui::TableNextColumn();
+					ImGui::Text("%llu", (uint64_t)id);
+					
+					ImGui::TableNextColumn();
+					ImGui::Text(metadata.Path.string().c_str());
+
+					ImGui::TableNextColumn();
+					ImGui::Text(typeName);
+
+					ImGui::PopStyleColor();
+				}
+
+				ImGui::EndTable();
+			}
+
+		}
+
+		ImGui::End();
+		
 		ImGui::Begin("Styler");
 		ImGui::ShowStyleEditor();
 		ImGui::End();
@@ -771,7 +861,7 @@ namespace Kaidel {
 						PipelineStages_FragmentShader, {}, {}, {barrier});
 				}
 
-				set->Update(texture, RendererGlobals::GetSamler(SamplerFilter::Linear, SamplerMipMapMode::Linear), ImageLayout::ShaderReadOnlyOptimal, 0);
+				set->Update(texture, GLOBAL_SAMPLER_LINEAR, ImageLayout::ShaderReadOnlyOptimal, 0);
 
 				ImGui::Text(name.c_str());
 				ImGui::SameLine();
@@ -786,8 +876,6 @@ namespace Kaidel {
 
 		ImGui::Begin("Stats");
 
-		ImGui::Text("Gizmo Mode : %d", m_GizmoType);
-		//auto stats = Renderer2D::GetStats();
 		ImGui::Text("UI Frame Rate: %.3f", ImGui::GetIO().Framerate);
 		ImGui::Text("UI Frame Time: %.3f", 1.0f / ImGui::GetIO().Framerate);
 
@@ -814,7 +902,7 @@ namespace Kaidel {
 			}
 		}
 
-		if (ImGui::BeginTable("##Timers", 4, ImGuiTableFlags_ScrollY, ImVec2(0.0f, 200.0f)))
+		if (ImGui::BeginTable("##Timers", 4, ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable, ImVec2(0.0f, 200.0f)))
 		{
 			ImGui::TableSetupColumn("Name");
 			ImGui::TableSetupColumn("ns");
@@ -850,32 +938,7 @@ namespace Kaidel {
 
 		ImGui::Text("UI Vertex Count: %d", ImGui::GetIO().MetricsRenderVertices);
 		
-		ImGui::Text("Current animation time: %.3f", animationTime);
-		if (ImGui::Button(!animationPlaying ? "Animation play" : "Animation Stop")) {
-			animationPlaying = !animationPlaying;
-		}
-
-		//Ref<Texture2D> t = *(DepthTexture[split]);
-		
-		//m_OutputDepthDescriptors->Get()->Update(t, m_OutputSampler, ImageLayout::ShaderReadOnlyOptimal, 0);
-		//ShowTextures("Debug depths", m_OutputDepthDescriptors->Get(), { m_ViewportSize.x,m_ViewportSize.y });
-		//
 		AccumulativeTimer::ResetTimers();
-		ImGui::Text("X out of bounds: Blue");
-		ImGui::Text("Y out of bounds: Yellow");
-		ImGui::Text("Z out of bounds: Magenta");
-		
-		ImGui::Text("In shadow: Red");
-		ImGui::Text("Not in shadow: Green");
-
-		ImGui::Text("%.3f,%.3f,%.3f", 
-			m_EditorCamera.GetForwardDirection().x, 
-			m_EditorCamera.GetForwardDirection().y, 
-			m_EditorCamera.GetForwardDirection().z);
-		ImGui::Text("%.3f,%.3f,%.3f",
-			m_EditorCamera.GetPosition().x,
-			m_EditorCamera.GetPosition().y,
-			m_EditorCamera.GetPosition().z);
 		ImGui::End();
 
 	}
@@ -903,6 +966,25 @@ namespace Kaidel {
 		glm::vec4 uvs = _GetUVs();
 		Ref<DescriptorSet> ds = *m_OutputDescriptorSet;
 		ImGui::Image(static_cast<ImTextureID>(ds->GetSetID()), ImVec2{m_ViewportSize.x,m_ViewportSize.y});
+
+		{
+			DragDropTarget target;
+
+			if (auto modelHandle = target.Receive<AssetHandle>(Model::GetStaticAssetTypeString()); modelHandle)
+			{
+				Ref<Model> model = AssetManager::GetAsset(*modelHandle.Data).As<Model>();
+
+				auto& trans = m_ActiveScene->CreateModel(model).GetComponent<TransformComponent>();
+
+				glm::vec2 mousePos = (glm::vec2&)ImGui::GetMousePos() - m_ViewportBounds[0];
+
+				glm::vec4 pos = glm::inverse(m_EditorCamera.GetViewProjection()) * glm::vec4(mousePos / m_ViewportSize * 2.0f - 1.0f, 0.25f, 1.0f);
+
+				pos /= pos.w;
+
+				trans.Translation = pos;
+			}
+		}
 		
 		//ImGui::Text("Hello");
 		
@@ -989,9 +1071,9 @@ namespace Kaidel {
 		ImGui::SetCursorPosY((ImGui::GetWindowContentRegionMax().y * .5f) - (size * .5f));
 
 		{
-			EditorIcon icon = m_Icons.IconPlay;
-			if (m_SceneState == SceneState::Play)
-				icon = m_Icons.IconStop;
+			//EditorIcon icon = m_Icons.IconPlay;
+			//if (m_SceneState == SceneState::Play)
+				//icon = m_Icons.IconStop;
 			/*if (ImGui::ImageButton((ImTextureID)icon.GetDescriptorSet()->GetSetID(), {size,size}, {0,0}, {1,1}, 0)) {
 				if (m_SceneState == SceneState::Edit) {
 					OnScenePlay();
@@ -1007,8 +1089,8 @@ namespace Kaidel {
 		}
 		{
 			if (m_SceneState == SceneState::Play) {
-				ImGui::SameLine();
-				EditorIcon icon = m_Icons.IconPause;
+				//ImGui::SameLine();
+				//EditorIcon icon = m_Icons.IconPause;
 				/*if (ImGui::ImageButton((ImTextureID)icon.GetDescriptorSet()->GetSetID(), { size,size }, { 0,0 }, { 1,1 }, 0)){
 					m_ActiveScene->ChangePauseState();
 
@@ -1017,9 +1099,9 @@ namespace Kaidel {
 		}
 		ImGui::SameLine();
 		{
-			EditorIcon icon = m_Icons.IconSimulateStart;
-			if (m_SceneState == SceneState::Simulate)
-				icon = m_Icons.IconSimulateStop;
+			//EditorIcon icon = m_Icons.IconSimulateStart;
+			//if (m_SceneState == SceneState::Simulate)
+				//icon = m_Icons.IconSimulateStop;
 			//if (ImGui::ImageButton((ImTextureID)icon.GetDescriptorSet()->GetSetID(), { size,size }, { 0,0 }, { 1,1 }, 0)) {
 			//	if (m_SceneState == SceneState::Simulate)
 			//		OnSceneSimulateStop();
@@ -1160,85 +1242,235 @@ namespace Kaidel {
 
 	void EditorLayer::NewScene()
 	{
-		m_ActiveScene = CreateRef<Scene>();
-		m_ActiveScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+		Ref<Scene> scene = CreateRef<Scene>();
+		scene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+
+		{
+			Entity e = scene->CreateEntity("Light");
+			auto& tc = e.GetComponent<TransformComponent>();
+			tc.Rotation = glm::quat(glm::vec3(-glm::pi<float>() / 2.0f, 0.0f, 0.0f));
+			auto& dlc = e.AddComponent<DirectionalLightComponent>();
+			dlc.Color = glm::vec3(1.0);
+			dlc.MaxDistance = m_Far;
+			dlc.SplitLambda = 0.95f;
+			dlc.FadeStart = 1.0f;
+		}
+
+		scene->SetPath("Untitled.kaidel");
+
+		Path assetPath = Project::GetActive()->GetProjectDirectory() / scene->GetPath();
+
+		m_EditorScene = m_ActiveScene = scene;
+		
+		if (FileSystem::exists(assetPath))
+		{
+			SaveSceneAs();
+		}
+		else
+		{
+			AssetMetadata mtd;
+			mtd.Path = assetPath;
+			mtd.Type = AssetType::Scene;
+
+			AssetManager::RegisterAsset(scene, mtd);
+			SaveScene();
+		}
 	}
 
-	void EditorLayer::OpenScene()
+	bool EditorLayer::OpenScene()
 	{
 		if (m_SceneState != SceneState::Edit)
 			OnSceneStop();
 		std::optional<std::string> filepath = FileDialogs::OpenFile("Kaidel Scene (*.Kaidel)\0*.Kaidel\0");
 		if (filepath)
 		{
-			OpenScene(*filepath);
+			return OpenScene(*filepath);
 		}
+
+		return false;
 	}
 
-	void EditorLayer::OpenScene(const std::filesystem::path& path)
+	bool EditorLayer::OpenScene(const std::filesystem::path& path)
 	{
 		if (m_SceneState != SceneState::Edit)
 			OnSceneStop();
 		if (path.extension().string() != ".Kaidel" && path.extension().string() != ".kaidel")
 		{
-			KD_WARN("Could not load {0} - not a scene file", path.filename().string());
+			KD_ERROR("Could not load {0} - not a scene file", path.filename().string());
+			return false;
 		}
-		Ref<Scene> newScene = CreateRef<Scene>();
-		newScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
-		newScene->SetPath(path.string());
-		SceneSerializer serializer(newScene);
-		if (serializer.Deserialize(path.string())) {
+		AssetMetadata mtd;
+		mtd.Path = path;
+		Ref<Scene> newScene = AssetManager::LoadAsset(mtd, AssetType::Scene, {}, AssetLoadPolicy::Synchronous).As<Scene>();
+		if (newScene)
+		{
+			newScene->OnViewportResize((uint32_t)m_ViewportSize.x, (uint32_t)m_ViewportSize.y);
+			newScene->SetPath(path.string());
 			m_EditorScene = newScene;
-
 			m_ActiveScene = m_EditorScene;
+			return true;
 		}
+		
+		return false;
 	}
 
 	void EditorLayer::SaveScene()
 	{
-		SceneSerializer serializer(m_EditorScene);
-		serializer.Serialize(m_EditorScene->GetPath());
+		if (m_EditorScene->GetPath().empty())
+		{
+			SaveSceneAs();
+			return;
+		}
+
+		Project::GetActive()->SaveAssets();
+
+		AssetManager::Serialize(Project::GetActive()->GetProjectDirectory() / m_EditorScene->GetPath(), Asset(m_EditorScene), true);
 	}
 
 	void EditorLayer::SaveSceneAs()
 	{
-		std::optional<std::string> filepath = FileDialogs::SaveFile("Kaidel Scene (*.Kaidel)\0*.Kaidel\0");
+		std::optional<std::string> filepath = FileDialogs::SaveFile("Kaidel Scene (*.kaidel)\0*.kaidel\0");
 		if (filepath)
 		{
-			SceneSerializer serializer(m_ActiveScene);
-			serializer.Serialize(*filepath);
+			AssetMetadata mtd;
+			mtd.Path = *filepath;
+			mtd.Type = AssetType::Scene;
+
+			Project::GetActive()->SaveAssets();
+			AssetManager::RegisterAsset(m_EditorScene, mtd);
+			AssetManager::Serialize(*filepath, Asset(m_EditorScene), true);
+			m_EditorScene->SetPath(FileSystem::relative(*filepath, Project::GetProjectDirectory()).string());
 		}
 	}
 
-	void EditorLayer::ImportAsset() {
-		auto filePath = FileDialogs::OpenFile("Texture Format (*.png)\0*.png\0");
-		if (filePath) {
+	bool EditorLayer::ImportAsset() {
+		return true;
+	}
+
+	static void OnProjectFileAddedEvent(const std::string& path)
+	{
+		Path assetPath = Project::GetProjectDirectory() / Path(path);
+
+		auto extension = assetPath.extension();
+
+		const auto& supportedAssets = AssetManager::GetSupportedAssets();
+
+		auto it = supportedAssets.find(extension.string());
+
+		if (it != supportedAssets.end())
+		{
+			AssetMetadata mtd;
+			mtd.Path = assetPath;
+
+			AssetManager::LoadAsset(mtd, it->second);
 		}
+	}
+
+	static void OnProjectFileModifiedEvent(const std::string& path, Ref<Scene>& activeScene)
+	{
+		return;
+		Path assetPath = Project::GetProjectDirectory() / Path(path);
+
+		if (!AssetManager::GetAssetAtPath(assetPath))
+		{
+			return;
+		}
+		
+		auto [asset, handle] = AssetManager::RefreshAsset(assetPath);
+
+		AssetPreview::SetDirty(handle);
 	}
 
 	void EditorLayer::NewProject()
 	{
-		Project::New();
+		std::string path = *FileDialogs::SelectFolder();
+
+
+		Path prjPath;
+
+		for (auto& entry : FileSystem::directory_iterator(path))
+		{
+			if (entry.path().extension() == ".kdprj")
+			{
+				prjPath = entry.path();
+				break;
+			}
+		}
+
+		if (!prjPath.empty() && OpenProject(prjPath))
+		{
+			return;
+		}
+
+		Project::New(path);
+
+		FileWatcherHandlers handlers;
+		handlers.OnAdded = &OnProjectFileAddedEvent;
+		handlers.OnModified = [this](auto path) {OnProjectFileModifiedEvent(path, this->m_ActiveScene); };
+
+		Project::GetActive()->SetFileWatcher(Project::GetProjectDirectory().string(), handlers);
+		
+		NewScene();
+		
+		SaveProject();
 	}
 
-	void EditorLayer::OpenProject(const std::filesystem::path& path)
+	bool EditorLayer::OpenProject(const std::filesystem::path& path)
 	{
+		if(Project::GetActive())
+			SaveProject();
+
+		if (!FileSystem::exists(path) || FileSystem::is_empty(path))
+		{
+			return false;
+		}
+
 		try {
 			if (Project::Load(path)) {
 				auto startScenePath = Project::GetAbsoluteAssetPath(Project::GetActive()->GetConfig().StartScene);
-				OpenScene(startScenePath);
-				m_EditorScene->SetPath(startScenePath.string());
+				
+				FileWatcherHandlers handlers;
+				handlers.OnAdded = &OnProjectFileAddedEvent;
+				handlers.OnModified = [this](auto path) {OnProjectFileModifiedEvent(path, this->m_ActiveScene); };
+
+				Project::GetActive()->SetFileWatcher(Project::GetProjectDirectory().string(), handlers);
+
+				bool result = false;
+
+				if (FileSystem::exists(startScenePath))
+				{
+					result = OpenScene(startScenePath);
+				}
+				else
+				{
+					NewScene();
+
+					result = true;
+				}
+
+				Application::Get().ExecuteMainThreadQueue();
+
+				return result;
 			}
 		}
-		catch (...) {
-			NewProject();
-			NewScene();
+		catch (std::exception& error) {
+			KD_ERROR("Couldn't load project at path: {} \n {}", path.string(), error.what());
 		}
-		
+
+		return false;
 	}
 
 	void EditorLayer::SaveProject()
 	{
+		if (!FileSystem::exists(Project::GetProjectDirectory()))
+		{
+			//FileDialogs::OpenFile()
+		}
+
+		if(AssetManager::GetAssetMetadata(m_EditorScene->GetHandle()).Dirty)
+			SaveScene();
+
+		Project::GetActive()->GetConfig().StartScene = m_EditorScene->GetPath();
 		Project::SaveActive(Project::GetProjectDirectory());
 	}
 

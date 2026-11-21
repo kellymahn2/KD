@@ -81,13 +81,21 @@ namespace Kaidel {
 
 		virtual void GenerateMips(const Ref<Texture> texture) override;
 
+
+		virtual void BeginMarker(const std::string& marker) override;
+
+
+		virtual void EndMarker() override;
+
+		virtual void SetBufferName(Ref<Buffer> buffer, const std::string& name) override;
+
+		virtual void SetTextureName(Ref<Texture> texture, const std::string& name) override;
+
 	private:
 		static inline std::vector<VkBuffer> m_CurrentBoundBuffers = { 32 , 0 };
 		static inline std::vector<VkDeviceSize> m_CurrentBoundBufferOffsets = std::vector<VkDeviceSize>(32, VkDeviceSize(0));
 		static inline VkBuffer m_CurrentIndexBuffer = 0;
 		static inline std::vector<VkDescriptorSet> m_DescriptorSets = { 32,VK_NULL_HANDLE };
-
-		VkCommandBuffer m_OverrideCommandBuffer = VK_NULL_HANDLE;
 
 		Ref<GraphicsPipeline> m_CurrentBoundPipeline = {};
 		RenderPassInstance m_RenderPassInstance{};

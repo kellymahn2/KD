@@ -6,13 +6,17 @@
 #include "Kaidel/Core/UUID.h"
 #include "entt.hpp"
 #include "Model.h"
+#include "Kaidel/Asset/Asset.h"
+
 class b2World;
 
 namespace Kaidel {
 	class Entity;
-	class Scene : public IRCCounter<false>
+	class Scene : public AssetBase
 	{
 	public:
+		DECL_ASSET_TYPE(Scene)
+
 		Scene();
 		~Scene();
 
@@ -69,6 +73,8 @@ namespace Kaidel {
 		void CreateModelFromTree(const Scope<MeshTree>& curr, Entity entity, std::unordered_map<std::string, Entity>& nameToEntity);
 		void SetSkinnedMeshRootBones(const Scope<MeshTree>& curr, Entity entity, std::unordered_map<std::string, Entity>& nameToEntity);
 
+		void SetDepth(entt::entity e, uint32_t oldDepth, uint32_t newDepth);
+
 	private:
 
 		Entity GetMainDirectionalLight();
@@ -90,6 +96,8 @@ namespace Kaidel {
 
 
 		std::unordered_map<UUID, entt::entity> m_IDMap;
+
+		std::vector<std::vector<entt::entity>> m_EntityLevels = std::vector<std::vector<entt::entity>>(1, std::vector<entt::entity>());
 	};
 
 }

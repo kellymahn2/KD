@@ -1,0 +1,54 @@
+Scene: Untitled
+Entities:
+  - Entity: 1758887439287901407
+    TagComponent:
+      Tag: Light
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [-0.707106769, 0, 0, 0.707106769]
+      Scale: [1, 1, 1]
+    DirectionalLightComponent:
+      Color: [1, 1, 1]
+      MaxDistance: 100
+  - Entity: 7333464558620190668
+    TagComponent:
+      Tag: Animated
+    TransformComponent:
+      Translation: [3.0999999, 0, 0]
+      Rotation: [0, 0, 0, 0]
+      Scale: [1, 1, 1]
+    AnimationPlayerComponent:
+      Animation: 0
+  - Entity: 1815090935284213226
+    TagComponent:
+      Tag: Child1
+    ChildComponent:
+      Parent: 7333464558620190668
+      LocalPosition: [0, 0, 0]
+      LocalRotation: [0, 0, 0]
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0, 0]
+      Scale: [1, 1, 1]
+  - Entity: 17860881492379863461
+    TagComponent:
+      Tag: Child2
+    ChildComponent:
+      Parent: 7333464558620190668
+      LocalPosition: [0, 0, 0]
+      LocalRotation: [0, 0, 0]
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0, 0]
+      Scale: [1, 1, 1]
+  - Entity: 15992044305198214126
+    TagComponent:
+      Tag: Child1_1
+    ChildComponent:
+      Parent: 1815090935284213226
+      LocalPosition: [0, 0, 0]
+      LocalRotation: [0, 0, 0]
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0, 0]
+      Scale: [1, 1, 1]

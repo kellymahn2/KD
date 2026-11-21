@@ -1,6 +1,7 @@
 #include "PropertiesPanel.h"
 #include "EntityPropertiesPanel.h"
 #include "AnimationPropertiesPanel.h"
+#include "AssetPropertiesPanel.h"
 #include "Kaidel/Scripting/ScriptEngine.h"
 #include "Kaidel/Project/Project.h"
 #include "UI/UIHelper.h"
@@ -22,6 +23,11 @@ namespace Kaidel {
 		else if (AnimationFrame* frame = EditorContext::SelectedAnimationFrame(); frame)
 		{
 			AnimationPropertiesPanel panel(frame, EditorContext::SelectedAnimationFrameValueType());
+			panel.OnImGuiRender();
+		}
+		else if (Asset asset = EditorContext::SelectedAsset(); asset)
+		{
+			AssetPropertiesPanel panel(asset);
 			panel.OnImGuiRender();
 		}
 		ImGui::End();

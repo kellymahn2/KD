@@ -248,13 +248,15 @@ namespace filewatch {
 		HANDLE _directory = { nullptr };
 		HANDLE _close_event = { nullptr };
 
+		//Changed from original to not allow renames to insert a modified
+
 		const DWORD _listen_filters =
-			FILE_NOTIFY_CHANGE_SECURITY |
-			FILE_NOTIFY_CHANGE_CREATION |
-			FILE_NOTIFY_CHANGE_LAST_ACCESS |
+			//FILE_NOTIFY_CHANGE_SECURITY |
+			//FILE_NOTIFY_CHANGE_CREATION |
+			//FILE_NOTIFY_CHANGE_LAST_ACCESS |
 			FILE_NOTIFY_CHANGE_LAST_WRITE |
-			FILE_NOTIFY_CHANGE_SIZE |
-			FILE_NOTIFY_CHANGE_ATTRIBUTES |
+			//FILE_NOTIFY_CHANGE_SIZE |
+			//FILE_NOTIFY_CHANGE_ATTRIBUTES |
 			FILE_NOTIFY_CHANGE_DIR_NAME |
 			FILE_NOTIFY_CHANGE_FILE_NAME;
 

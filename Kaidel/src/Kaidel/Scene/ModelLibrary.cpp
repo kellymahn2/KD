@@ -2,6 +2,7 @@
 #include "ModelLibrary.h"
 #include "ModelLoader.h"
 #include "Kaidel/Renderer/Renderer3D.h"
+#include "Kaidel/Asset/AssetManager.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -53,7 +54,7 @@ namespace Kaidel {
 				{glm::vec3(0.5f, -0.5f, 0.5f),glm::vec2(1,1),glm::vec3(0,-1,0),glm::vec3(1,0,0),glm::vec3(0,0,1)},
 				{glm::vec3(-0.5f, -0.5f, 0.5f),glm::vec2(0,1),glm::vec3(0,-1,0),glm::vec3(1,0,0),glm::vec3(0,0,1)},
 			};
-			const std::vector<unsigned int> indices = {
+			const std::vector<uint16_t> indices = {
 				// Front face
 				0, 1, 2,
 				2, 3, 0,
@@ -74,117 +75,130 @@ namespace Kaidel {
 				22, 23, 20,
 			};
 
-			//Ref<Material> mat = CreateRef<Material>(GetDeferredPassRenderPass());
-			//mat->SetRoughness(1.0f);
-			//mat->SetMetalness(0.0f);
+			Ref<StandardMaterial> mat = RendererGlobals::GetDefaultMaterial();
 			
-			/*Submesh submesh;
+			Submesh submesh;
 			submesh.DefaultMaterial = mat;
-			submesh.IndexCount = indices.size();
-			submesh.VertexCount = vertices.size();
+			submesh.IndexCount = (uint32_t)indices.size();
+			submesh.VertexCount = (uint32_t)vertices.size();
 			submesh.BoundingBox.Min = glm::vec3(-1.0f, -1.0f, -1.0f);
-			submesh.BoundingBox.Max = glm::vec3(1.0f, 1.0f, 1.0f);*/
+			submesh.BoundingBox.Max = glm::vec3(1.0f, 1.0f, 1.0f);
+			submesh.IndexOffset = submesh.VertexOffset = 0;
 
-			/*Ref<Mesh> mesh = CreateRef<Mesh>(vertices, indices, std::vector<Submesh>{submesh});
-			s_LibraryData->Cube = mesh;*/
+			MeshInitializer initializer;
+			initializer.Submeshes.push_back(submesh);
+			initializer.VertexCount = (uint32_t)vertices.size();
+			initializer.IndexCount = (uint32_t)indices.size();
+			initializer.IndexFormat = IndexType::Uint16;
+			initializer.VertexSize = sizeof(MeshVertex);
+			initializer.Indices = indices.data();
+			initializer.Vertices = vertices.data();
+
+			Ref<Mesh> mesh = CreateRef<Mesh>(initializer);
+			s_LibraryData->Cube = mesh;
+
+			AssetManager::RegisterBuiltIn(s_LibraryData->Cube, "Cube");
 		}
 
 		//Sphere
 		{
-			float pi = glm::pi<float>();
-			float tau = 2.0f * pi;
+			const float pi = glm::pi<float>();
 
-			int lats = 32;
-			int lons = 32;
+			const uint32_t lats = 32;
+			const uint32_t lons = 32;
 			
-			const double lat_step = tau / lats;
-			const double lon_step = tau / lons;
-			float radius = 1.0;
+			const float radius = 1.0;
 
 			std::vector<MeshVertex> vertices;
-			std::vector<uint32_t> indices;
+			std::vector<uint16_t> indices;
 
-			glm::mat3 rotate = glm::mat3(glm::rotate(glm::mat4(1.0f), pi * 0.5f, glm::vec3(0, 1, 0)));
+			for (uint32_t latIndex = 0; latIndex <= lats; ++latIndex)
+			{
+				float v = static_cast<float>(latIndex) / lats;
+				float lat = v * pi;
 
-			for (int i = 1; i <= lats; i++) {
-				double lat0 = lat_step * (i - 1) - tau/ 4;
-				double z0 = glm::sin(lat0);
-				double zr0 = glm::cos(lat0);
+				float cosLat = std::cos(lat);
+				float sinLat = std::sin(lat);
 
-				double lat1 = lat_step * i - tau / 4;
-				double z1 = glm::sin(lat1);
-				double zr1 = glm::cos(lat1);
+				for (uint32_t lonIndex = 0; lonIndex <= lons; ++lonIndex)
+				{
+					float u = static_cast<float>(lonIndex) / lons;
+					float lon = u * 2.0f * pi;
 
-				for (int j = lons; j >= 1; j--) {
-					double lng0 = lon_step * (j - 1);
-					double x0 = glm::cos(lng0);
-					double y0 = glm::sin(lng0);
+					float cosLon = std::cos(lon);
+					float sinLon = std::sin(lon);
 
-					double lng1 = lon_step * j;
-					double x1 = glm::cos(lng1);
-					double y1 = glm::sin(lng1);
+					// ---- Vertex ----
+					MeshVertex vertex{};
 
-					glm::vec3 v[4] = {
-						glm::vec3(x1 * zr0, z0, y1 * zr0),
-						glm::vec3(x1 * zr1, z1, y1 * zr1),
-						glm::vec3(x0 * zr1, z1, y0 * zr1),
-						glm::vec3(x0 * zr0, z0, y0 * zr0)
-					};
+					const float x = radius * sinLat * cosLon;
+					const float y = radius * sinLat * sinLon;
+					const float z = radius * cosLat;
 
-					uint32_t offset = (uint32_t)vertices.size();
-#define ADD_POINT(m_idx)                                                                       \
-	{																								\
-		MeshVertex vertex = {};																		\
-		vertex.Position = (v[m_idx] * radius);                                                               \
-		vertex.ModelNormal = glm::normalize(v[m_idx]);                                                     \
-		{                                                                                          \
-			glm::vec2 uv(std::atan2f(v[m_idx].x, v[m_idx].z), std::atan2f(-v[m_idx].y, v[m_idx].z)); \
-			uv /= pi;                                                                         \
-			uv *= 4.0f;                                                                             \
-			uv = uv * 0.5f + glm::vec2(0.5f, 0.5f);                                                     \
-			vertex.TexCoords = (uv);                                                                     \
-		}                                                                                          \
-		{                                                                                          \
-			vertex.ModelTangent = glm::normalize(rotate * (v[m_idx]));                                                        \
-			vertex.ModelBitangent = glm::normalize(glm::cross(vertex.ModelTangent, vertex.ModelNormal));\
-		}																						   \
-		vertices.push_back(vertex);\
-		indices.push_back(offset + m_idx);\
-	}
+					vertex.Position = glm::vec3(
+						x, y, z
+					);
 
-					ADD_POINT(0);
-					ADD_POINT(1);
-					ADD_POINT(2);
+					vertex.ModelNormal = glm::normalize(vertex.Position);
 
-					ADD_POINT(2);
-					ADD_POINT(3);
-					ADD_POINT(0);
+					vertex.ModelTangent = glm::vec3(-radius *  sinLon,
+						radius * cosLon,
+						0.0f);
+					vertex.ModelTangent = glm::normalize(vertex.ModelTangent);
+
+					vertex.ModelBitangent = glm::normalize(glm::cross(vertex.ModelNormal, vertex.ModelTangent));
+
+					vertex.TexCoords = glm::vec2(u, v);
+
+					vertices.emplace_back(vertex);
 				}
 			}
 
-			/*Ref<Material> mat = CreateRef<Material>(Renderer3D::GetDeferredPassRenderPass());
+			uint16_t sqrCount = (lats + 1) * (lons + 1);
+
+
+			for (uint16_t i = 0; i < sqrCount; ++i)
+			{
+				uint16_t topLeft = i;
+				uint16_t topRight = i + 1;
+
+				uint16_t bottomLeft = i + (lons + 1);
+				uint16_t bottomRight = i + (lons + 1) + 1;
+
+				indices.push_back(bottomLeft);
+				indices.push_back(bottomRight);
+				indices.push_back(topRight);
+
+				indices.push_back(topRight);
+				indices.push_back(topLeft);
+				indices.push_back(bottomLeft);
+			}
+
+			Ref<StandardMaterial> mat = RendererGlobals::GetDefaultMaterial();
 
 			Submesh submesh;
 			submesh.DefaultMaterial = mat;
-			submesh.IndexCount = indices.size();
-			submesh.VertexCount = vertices.size();
-			submesh.IndexOffset = 0;
-			submesh.VertexOffset = 0;
+			submesh.IndexCount = (uint32_t)indices.size();
+			submesh.VertexCount = (uint32_t)vertices.size();
 			submesh.BoundingBox.Min = glm::vec3(-1.0f, -1.0f, -1.0f);
 			submesh.BoundingBox.Max = glm::vec3(1.0f, 1.0f, 1.0f);
+			submesh.IndexOffset = submesh.VertexOffset = 0;
 
 			MeshInitializer initializer;
-			initializer.Indices = indices.data();
-			initializer.IndexCount = indices.size();
-			initializer.Vertices = vertices.data();
-			initializer.VertexCount = vertices.size();
+			initializer.Submeshes.push_back(submesh);
+			initializer.VertexCount = (uint32_t)vertices.size();
+			initializer.IndexCount = (uint32_t)indices.size();
 			initializer.IndexFormat = IndexType::Uint16;
 			initializer.VertexSize = sizeof(MeshVertex);
-			initializer.Submeshes = { submesh };
+			initializer.Indices = indices.data();
+			initializer.Vertices = vertices.data();
 
 
-			Ref<Mesh> mesh = CreateRef<Mesh>(initializer);*/
-			s_LibraryData->Sphere = ModelLibrary::LoadModel("assets/models/uvsphere.gltf")->GetMeshTree()->NodeMesh;
+			Ref<Mesh> mesh = CreateRef<Mesh>(initializer);
+			s_LibraryData->Sphere = mesh;
+
+			AssetManager::RegisterBuiltIn(s_LibraryData->Sphere, "Sphere");
+			//s_LibraryData->Sphere = ModelLibrary::LoadModel("assets/models/uvsphere.gltf")->GetMeshTree()->NodeMesh;
 		}
 	}
 
@@ -196,8 +210,11 @@ namespace Kaidel {
 	{
 		//if (IsCached(path))
 		//	return LoadFromCache(path);
-		ModelLoader loader;
-		return loader.Load(path);
+		//ModelLoader loader;
+		//return loader.Load(path);
+
+		return {};
+
 	}
 	Ref<Model> ModelLibrary::GetModel(const Path& path)
 	{

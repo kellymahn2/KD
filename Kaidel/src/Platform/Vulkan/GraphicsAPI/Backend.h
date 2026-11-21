@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Kaidel/Renderer/GraphicsAPI/ShaderReflection.h"
+#include "VulkanQueueManager.h"
+
 #include <VMA.h>
 #include <glad/vulkan.h>
 #include <spirv_cross/spirv_cross.hpp>
@@ -293,7 +295,7 @@ namespace VulkanBackend
 		VkSemaphore CreateSemaphore();
 		void DestroySemaphore(VkSemaphore semaphore);
 
-		//Commamd Pool
+		//Command Pool
 		CommandPoolInfo CreateCommandPool(uint32_t queueFamily, VkCommandBufferLevel level);
 		void DestroyCommandPool(InOut<CommandPoolInfo> commandPool);
 
@@ -302,7 +304,7 @@ namespace VulkanBackend
 		void CommandBufferBegin(VkCommandBuffer commandBuffer);
 		void CommandBufferEnd(VkCommandBuffer commandBuffer);
 		void CommandBufferExecuteSecondary(VkCommandBuffer commandBuffer, std::initializer_list<VkCommandBuffer> secondaryCommandBuffers);
-		void SubmitCommandBuffers(VkQueue queue, std::initializer_list<VkCommandBuffer> commandBuffers, VkFence fence = {},
+		void SubmitCommandBuffers(Kaidel::VulkanQueue& queue, std::initializer_list<VkCommandBuffer> commandBuffers, VkFence fence = {},
 			std::initializer_list<VkSemaphore> waitSemaphores = {}, std::initializer_list<VkSemaphore> signalSemaphores = {}, std::initializer_list<VkPipelineStageFlags> dstFlags = {});
 		void DestroyCommandBuffer(VkCommandBuffer commandBuffer, In<CommandPoolInfo> commandPool);
 		
@@ -373,6 +375,8 @@ namespace VulkanBackend
 		void DestroyDescriptorSet(InOut<DescriptorSetInfo> set);
 
 		//Command Recording
+		void CommandBeginMarker(VkCommandBuffer commandBuffer, const std::string& marker);
+		void CommandEndMarker(VkCommandBuffer commandBuffer);
 		void CommandBeginRenderPass(VkCommandBuffer commandBuffer, VkRenderPass renderPass, VkFramebuffer framebuffer, VkSubpassContents contents,
 			In<VkRect2D> renderArea, std::initializer_list<VkClearValue> clearValues);
 		void CommandEndRenderPass(VkCommandBuffer commandBuffer);
@@ -421,6 +425,10 @@ namespace VulkanBackend
 			std::initializer_list<VkMemoryBarrier> memoryBarriers,
 			std::initializer_list<VkBufferMemoryBarrier> bufferBarriers,
 			std::initializer_list<VkImageMemoryBarrier> textureBarriers);
+
+		void SetBufferName(BufferInfo* buffer, const std::string& name);
+
+		void SetTextureName(TextureInfo* texture, const std::string& name);
 
 	private:
 		void SwapchainRelease(InOut<SwapchainInfo> swapchain);

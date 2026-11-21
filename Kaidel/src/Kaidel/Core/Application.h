@@ -5,9 +5,6 @@
 #include "Kaidel/Core/Window.h"
 #include "Kaidel/Core/LayerStack.h"
 #include "Kaidel/Events/Event.h"
-#include "Kaidel/Events/ApplicationEvent.h"
-
-#include "Kaidel/Core/Timestep.h"
 
 #include "Kaidel/ImGui/ImGuiLayer.h"
 
@@ -86,8 +83,9 @@ namespace Kaidel {
 		bool m_Running = true;
 		bool m_Minimized = false;
 		LayerStack m_LayerStack;
-		std::mutex m_AppThreadQueueMutex;
+		std::recursive_mutex m_AppThreadQueueMutex;
 		std::vector<std::function<void()>>m_AppThreadQueue;
+		std::thread::id m_MainThreadID;
 		float m_LastFrameTime = 0.0f;
 		float m_RunningTime = 0.0f;
 		float m_DeltaTime = 0.0f;

@@ -9,7 +9,7 @@ namespace Kaidel {
 
 	struct ShaderUniformBlockReflection {
 		std::string Name;
-		uint32_t Size;
+		uint32_t Size = 0;
 		std::unordered_map<std::string, uint32_t> Elements;
 	};
 
@@ -30,14 +30,14 @@ namespace Kaidel {
 
 	struct DescriptorSetReflection
 	{
-		uint32_t Set;
+		uint32_t Set = 0;
 		std::unordered_map<uint32_t, DescriptorSetBindingReflection> Bindings;
 		std::unordered_map<std::string, uint32_t> NameToBinding;
 	};
 
 	struct VertexShaderInputReflection {
 		std::string Name;
-		uint32_t Location;
+		uint32_t Location = 0;
 	};
 
 	struct ShaderReflection

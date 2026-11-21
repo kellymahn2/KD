@@ -26,6 +26,16 @@ namespace Kaidel {
 			s_RendererAPI->DeviceWaitIdle();
 		}
 
+		static void BeginMarker(const std::string& marker)
+		{
+			s_RendererAPI->BeginMarker(marker);
+		}
+
+		static void EndMarker()
+		{
+			s_RendererAPI->EndMarker();
+		}
+
 		static void BeginRenderPass(Ref<RenderPass> renderPass, Ref<Framebuffer> framebuffer,
 			std::initializer_list<AttachmentClearValue> clearValues){
 			s_RendererAPI->BeginRenderPass(renderPass, framebuffer, clearValues);
@@ -142,6 +152,16 @@ namespace Kaidel {
 		}
 		
 		static Scope<RendererAPI>& Get() { return s_RendererAPI; }
+
+		static void SetBufferName(Ref<Buffer> buffer, const std::string& name)
+		{
+			s_RendererAPI->SetBufferName(buffer, name);
+		}
+
+		static void SetTextureName(Ref<Texture> texture, const std::string& name)
+		{
+			s_RendererAPI->SetTextureName(texture, name);
+		}
 
 	private:
 		static Scope<RendererAPI> s_RendererAPI;

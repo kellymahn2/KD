@@ -7,8 +7,21 @@ namespace Kaidel {
 		UUID();
 		UUID(uint64_t uuid);
 		UUID(const UUID&) = default;
-		explicit operator uint64_t()const  { return m_UUID; }
-		bool operator==(const UUID& other) const { return m_UUID == other.m_UUID; }
+
+		uint64_t Get() const { return m_UUID; }
+
+		explicit operator uint64_t() const  { return Get(); }
+		bool operator==(const UUID& other) const { return Get() == other.Get(); }
+		bool operator!=(const UUID& other) const { return Get() != other.Get(); }
+		bool operator!() const { return Get() == 0; }
+
+
+		static UUID GenerateFromSeed(uint64_t seed);
+
+		static void PushSeed(uint64_t seed);
+
+		static void PopSeed();
+
 	private:
 		uint64_t m_UUID;
 		friend struct std::hash<UUID>;

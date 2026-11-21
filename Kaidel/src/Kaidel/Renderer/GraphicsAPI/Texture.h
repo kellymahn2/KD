@@ -1,40 +1,57 @@
 #pragma once
 #include "Kaidel/Core/Base.h"
 #include "Kaidel/Renderer/RendererDefinitions.h"
+#include "Kaidel/Asset/Asset.h"
+#include "AtlasPacker.h"
+
+#include <glm/glm.hpp>
 
 namespace Kaidel {
 	struct TextureData {
 		uint32_t Layer = 0;
 		uint32_t OffsetX = 0, OffsetY = 0, OffsetZ = 0;
+		uint32_t Width = -1, Height = -1, Depth = -1;
 		const void* Data = nullptr;
 	};
 
 	struct TextureSpecification {
 		virtual ~TextureSpecification() = default;
-		std::vector<TextureData> InitialDatas;
+		
 		ImageLayout Layout = ImageLayout::None;
 		Format Format = Format::RGBA8UN;
 		uint32_t Width = 1;
 		uint32_t Height = 1;
 		uint32_t Depth = 1;
 		uint32_t Layers = 1;
-		bool Mipped = true;
 		uint32_t Mips = 1;
-		const ImageType Type = ImageType::_2D;
+		//Set by constructor
 		TextureSamples Samples = TextureSamples::x1;
 		TextureSwizzle Swizzles[4] = { TextureSwizzle::Red,TextureSwizzle::Green,TextureSwizzle::Blue,TextureSwizzle::Alpha };
-		const bool IsCube = false;
+		
+		bool Mipped = true;
+
+		//Set by constructor
 		bool IsCpuReadable = false;
 
 		TextureSpecification(ImageType type, bool isCube = false)
-			:Type(type), IsCube(isCube)
+			:m_Type(type), m_IsCube(isCube)
 		{}
 
-		TextureSpecification() = delete;
+		bool IsCube() const { return m_IsCube; }
+		ImageType Type() const { return m_Type; }
+
+		TextureSpecification() = default;
+
+	private:
+		ImageType m_Type = ImageType::_2D;
+		bool m_IsCube = false;
 	};
 
 	class Texture : public IRCCounter<false> {
 	public:
+		Texture() {
+
+		}
 		virtual ~Texture() = default;
 		virtual RendererID GetBackendInfo()const = 0;
 		virtual const TextureSpecification& GetTextureSpecification()const = 0;
@@ -48,19 +65,28 @@ namespace Kaidel {
 		Texture2DSpecification()
 			: TextureSpecification(ImageType::_2D)
 		{}
+
+		std::vector<TextureData> InitialDatas;
 	};
 
 	class Texture2D : public Texture {
 	public:
 		virtual ~Texture2D() = default;
+		Texture2D() {
 
+		}
+
+		static Ref<Texture2D> CreateUninitialized();
 		static Ref<Texture2D> Create(const Texture2DSpecification& specs);
+		static Ref<Texture2D> CreateAt(Ref<Texture2D> texture, const Texture2DSpecification& specs);
 	};
 
 	struct TextureLayeredSpecification : TextureSpecification {
 		TextureLayeredSpecification(ImageType type = ImageType::_2D_Array)
 			: TextureSpecification(type)
 		{}
+
+		std::vector<TextureData> InitialDatas;
 	};
 
 	class TextureLayered : public Texture {
@@ -75,6 +101,8 @@ namespace Kaidel {
 			: TextureSpecification(ImageType::_2D, true)
 		{
 		}
+
+		std::vector<TextureData> InitialDatas;
 	};
 
 	class TextureCube : public Texture
@@ -86,9 +114,33 @@ namespace Kaidel {
 	};
 
 
-	class FramebufferTexture : public Texture {
+	class FramebufferTexture : public Texture2D {
 	public:
 		virtual ~FramebufferTexture() = default;
+	};
+
+	struct TextureAtlasSpecification : TextureSpecification 
+	{
+		TextureAtlasSpecification()
+			: TextureSpecification(ImageType::_2D, false)
+		{
+		}
+	};
+
+
+	class TextureAtlas : public Texture
+	{
+	public:
+
+		virtual ~TextureAtlas() = default;
+
+		virtual const AtlasSamplingCoords& GetSamplingCoords(uint32_t i) const = 0;
+
+		virtual uint32_t AddToAtlas(const void* data, uint32_t width, uint32_t height) = 0;
+
+		virtual void SetData(const TextureData& data, uint32_t i) = 0;
+
+		static Ref<TextureAtlas> Create(const TextureAtlasSpecification& specs);
 	};
 
 	struct TextureReferenceSpecification {

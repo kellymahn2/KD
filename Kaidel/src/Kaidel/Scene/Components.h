@@ -10,27 +10,30 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
 
-
 namespace Kaidel {
+	
+	class Entity;
 
 	struct IDComponent {
 		UUID ID;
 		bool IsActive = true;
 		bool IsVisible = true;
 		bool VisibilityResult = false;
+		uint32_t Depth = 0;
+
 		IDComponent() = default;
 		IDComponent(const IDComponent&) = default;
 	};
 	struct ParentComponent {
-		std::vector<UUID> Children;
+		std::vector<entt::entity> Children;
 	};
 	struct ChildComponent {
-		UUID Parent;
+		entt::entity Parent;
 		glm::vec3 LocalPosition = {0,0,0};
 		glm::vec3 LocalRotation = {0,0,0};
 
 		ChildComponent() = default;
-		ChildComponent(UUID parent):Parent(parent) {
+		ChildComponent(entt::entity parent) : Parent(parent) {
 		}
 	};
 	struct TagComponent
@@ -52,7 +55,21 @@ namespace Kaidel {
 		
 		glm::mat4 GlobalTransform = glm::mat4(1.0f);
 
-		TransformComponent() = default;
+		void SetDirty(bool dirty)
+		{
+			GlobalTransform[3][3] = dirty ? 0.0f : 1.0f;
+		}
+
+		bool IsDirty()
+		{
+			return GlobalTransform[3][3] == 0.0f;
+		}
+
+		TransformComponent()
+		{
+			SetDirty(true);
+		}
+
 		TransformComponent(const TransformComponent&) = default;
 		TransformComponent(const glm::vec3& translation)
 			: Translation(translation) {}
@@ -63,7 +80,6 @@ namespace Kaidel {
 		}
 	};
 
-
 	//2D
 	struct SpriteRendererComponent
 	{
@@ -71,7 +87,6 @@ namespace Kaidel {
 		SpriteRendererComponent() = default;
 		SpriteRendererComponent(const SpriteRendererComponent&) = default;
 	};
-
 
 	struct CircleRendererComponent {
 		glm::vec4 Color{ 1.0f };
@@ -125,26 +140,66 @@ namespace Kaidel {
 		ModelComponent(const ModelComponent&) = default;
 	};
 
-
-
 	struct MeshComponent {
 		Ref<Mesh> UsedMesh;
-		std::vector<Ref<MaterialInstance>> UsedMaterial;
-		std::vector<bool> VisibilityResults;
+		MeshInstance Instance;
+
 		MeshComponent() = default;
 		MeshComponent(const MeshComponent&) = default;
+
+		MeshComponent(Ref<Mesh> mesh)
+			: UsedMesh(mesh), Instance(mesh->CreateInstance())
+		{
+		}
+
+		void SetMesh(Ref<Mesh> mesh)
+		{
+			UsedMesh = mesh;
+
+			auto& submeshes = mesh->GetSubmeshes();
+
+			Instance.UsedMaterial.resize(submeshes.size(), RendererGlobals::GetDefaultMaterial());
+
+			Instance.VisibilityResults.resize(submeshes.size());
+		}
 	};
 
 	struct SkinnedMeshComponent {
 		Ref<SkinnedMesh> UsedMesh;
 		std::vector<Ref<MaterialInstance>> UsedMaterial;
 		std::vector<bool> VisibilityResults;
-		UUID RootBone;
+
+		Ref<VertexBuffer> GeneratedBuffer;
+
+
 		SkinnedMeshComponent() = default;
 		SkinnedMeshComponent(const SkinnedMeshComponent&) = default;
+			
+		//AABB SkinAABB;
+
+		UUID RootBone;
+
+		void SetRootBone(Entity& entity);
+	};
+
+	struct RootBoneComponent
+	{
+		uint32_t UsageCount = 0;
+
+		std::vector<glm::mat4> Transforms;
+		Ref<StorageBuffer> TransformsBuffer;
+
+		Ref<DescriptorSet> TransformSet;
+
+		uint32_t Version = 0;
 	};
 
 	struct DirectionalLightComponent {
+
+		enum class CascadesType {
+			Linear, Logarithmic, Mix, Custom
+		} CascadeType = CascadesType::Mix;
+
 		glm::vec3 Color = glm::vec3(1.0);
 		float SplitDistances[4] = { 0.1f, 0.3f, 0.5f, 1.0f };
 		float MaxDistance = 1000.0f;
@@ -152,6 +207,49 @@ namespace Kaidel {
 		float SplitLambda = 0.95f;
 		float FadeStart = 1.0f;
 		float LightSize = 0.0f;
+
+		std::array<float, 4> GetSplitDistances(float n, float f)
+		{
+			std::array<float, 4> splits;
+
+			switch (CascadeType)
+			{
+#define UNI(n, f, i, m) ((float)(i + 1) / m)
+#define LOG(n, f, i, m) ((n * std::powf((f / n), ((float)(i + 1) / m)) - n) / (f - n))
+#define MIX(n, f, i ,m, lambda) (lambda * LOG(n, f, i, m) + (1.0f - lambda) * UNI(n, f, i, m))
+				using Type = DirectionalLightComponent::CascadesType;
+			case Type::Linear:
+			{
+				splits[0] = UNI(n, f, 0, 4);
+				splits[1] = UNI(n, f, 1, 4);
+				splits[2] = UNI(n, f, 2, 4);
+				splits[3] = UNI(n, f, 3, 4);
+			} break;
+			case Type::Logarithmic:
+			{
+				splits[0] = LOG(n, f, 0, 4);
+				splits[1] = LOG(n, f, 1, 4);
+				splits[2] = LOG(n, f, 2, 4);
+				splits[3] = LOG(n, f, 3, 4);
+			} break;
+			case Type::Mix:
+			{
+				splits[0] = MIX(n, f, 0, 4, SplitLambda);
+				splits[1] = MIX(n, f, 1, 4, SplitLambda);
+				splits[2] = MIX(n, f, 2, 4, SplitLambda);
+				splits[3] = MIX(n, f, 3, 4, SplitLambda);
+			} break;
+			case Type::Custom:
+			{
+				splits[0] = SplitDistances[0];
+				splits[1] = SplitDistances[1];
+				splits[2] = SplitDistances[2];
+				splits[3] = SplitDistances[3];
+			} break;
+			}
+
+			return splits;
+		}
 	};
 
 

@@ -74,10 +74,7 @@ project "Kaidel"
 	}
 
 	filter "files:vendor/ImGuizmo/**.cpp"
-		flags { "NoPCH" }
-	filter "files:vendor/stb_image/stb_image.cpp"
-		optimize "on"
-		runtime "Release"
+		flags { "NOPCH" }
 
 	filter "system:windows"
 		systemversion "latest"

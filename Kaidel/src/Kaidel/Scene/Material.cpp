@@ -36,92 +36,23 @@ namespace Kaidel {
 		return mat;
 	}
 
-	void Material::SetBaseColor(const glm::vec4& color)
-	{
-		m_UniformData.BaseColor = color;
-	}
-
-	const glm::vec4& Material::GetBaseColor() const
-	{
-		return m_UniformData.BaseColor;
-	}
-
-	void Material::SetTexture(MaterialTextureType type, Ref<Texture2D> image)
-	{
-		if (image)
-		{
-			m_Textures[(uint32_t)type] = image;
-			Application::Get().SubmitToMainThread([this, image, type]() {
-				KD_INFO("Bound");
-				RenderCommand::DeviceWaitIdle();
-				m_TextureSet->Update(image, {}, ImageLayout::ShaderReadOnlyOptimal, (uint32_t)type);
-				});
-			m_UniformData.HasTexture[(uint32_t)type] = 1;
-		}
-		else
-		{
-			m_Textures[(uint32_t)type] = {};
-			Application::Get().SubmitToMainThread([this, type]() {
-				RenderCommand::DeviceWaitIdle();
-				m_TextureSet->Update(
-					RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f)), {},
-					ImageLayout::ShaderReadOnlyOptimal, (uint32_t)type);
-				});
-			m_UniformData.HasTexture[(uint32_t)type] = 0;
-		}
-		UploadUniforms();
-	}
-
-	void Material::SetMetalnessColorChannel(MaterialTextureChannel channel)
-	{
-		m_UniformData.MetalnessChannel = channel;
-		UploadUniforms();
-	}
-
-	void Material::SetRoughnessColorChannel(MaterialTextureChannel channel)
-	{
-		m_UniformData.RoughnessChannel = channel;
-		UploadUniforms();
-	}
-
-	void Material::SetMetalness(float metalness)
-	{
-		m_UniformData.Metalness = metalness;
-		UploadUniforms();
-	}
-
-	void Material::SetRoughness(float roughness)
-	{
-		m_UniformData.Roughness = roughness;
-		UploadUniforms();
-	}
-
-	Kaidel::Ref<Kaidel::Texture2D> Material::GetTexture(MaterialTextureType type)
-	{
-		return m_Textures[(uint32_t)type];
-	}
-
-	bool Material::IsTextureUsed(MaterialTextureType type)
-	{
-		return m_UniformData.HasTexture[(uint32_t)type];
-	}
-
-	void Material::SetTextureUsed(MaterialTextureType type, bool isUsed)
-	{
-		m_UniformData.HasTexture[(uint32_t)type] = isUsed;
-		UploadUniforms();
-	}
-
-	void Material::UploadUniforms()
-	{
-		RenderCommand::DeviceWaitIdle();
-		m_MaterialBuffer->SetData(&m_UniformData, sizeof(MaterialUniformData));
-	}*/
+	*/
 
 
 	static Ref<GraphicsPipeline> s_StandardPipeline;
 
-	StandardMaterialInstance::StandardMaterialInstance()
+	bool StandardMaterial::IsLoaded() const
+	{
+		if (!AssetBase::IsLoaded())
+			return false;
+
+		//Make sure every texture is loaded.
+		//for(uint32_t i = 0; i < )
+
+		return true;
+	}
+
+	StandardMaterial::StandardMaterial(const Initializer& initializer)
 	{
 		if (!s_StandardPipeline) {
 			{
@@ -137,7 +68,7 @@ namespace Kaidel {
 				specs.Multisample.Samples = TextureSamples::x1;
 				specs.Primitive = PrimitiveTopology::TriangleList;
 				specs.Rasterization.FrontCCW = true;
-				specs.Rasterization.CullMode = PipelineCullMode::Front;
+				specs.Rasterization.CullMode = PipelineCullMode::None;
 				specs.Shader = ShaderLibrary::LoadShader("DeferredGBufferGen", "assets/_shaders/DeferredGBufferGen.glsl");
 				specs.RenderPass = Renderer3D::GetDeferredPassRenderPass();
 				specs.Subpass = 0;
@@ -148,142 +79,213 @@ namespace Kaidel {
 			}
 		}
 
+		Initialize(initializer);
+	}
+
+	void StandardMaterial::Initialize(const Initializer& initializer)
+	{
 		m_TextureSet = DescriptorSet::Create(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), 3);
 
-		Ref<Texture> defaultWhite = RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f));
+		Ref<SpriteSheet> defaultWhite = RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f));
 
 		for (uint32_t i = 0; i < (uint32_t)MaterialTextureType::Max; ++i) {
-			m_TextureSet->Update(defaultWhite, {}, ImageLayout::ShaderReadOnlyOptimal, i);
+			Ref<SpriteSheet> t = defaultWhite;
+
+			if (initializer.Textures[i])
+			{
+				t = initializer.Textures[i];
+				m_UniformData.HasTexture[i] = true;
+			}
+
+			m_Textures[i] = t;
+
+			m_TextureSet->Update(t->GetTexture(), {}, ImageLayout::ShaderReadOnlyOptimal, i);
 		}
 
-		m_UniformBuffer = UniformBuffer::Create(sizeof(MaterialUniformData));
+
+		m_UniformData.BaseColor = initializer.BaseColor;
+		m_UniformData.Roughness = initializer.Roughness;
+		m_UniformData.Metalness = initializer.Metalness;
+		m_UniformData.MetalnessChannel = initializer.MetalnessChannel;
+		m_UniformData.RoughnessChannel = initializer.RoughnessChannel;
+
+		m_UniformBuffer = UniformBuffer::Create(sizeof(MaterialUniformData), &m_UniformData);
 
 		m_UniformSet =
 			DescriptorSet::Create(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), 4);
 
 		m_UniformSet->Update(m_UniformBuffer, 0);
-
-		UploadUniforms();
 	}
 
-	void StandardMaterialInstance::BindDescriptors()
+	void StandardMaterial::BindDescriptors()
 	{
 		RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), m_TextureSet, 3);
 		RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), m_UniformSet, 4);
 	}
 
 
-	void StandardMaterialInstance::BindInstanceData(Ref<DescriptorSet> instanceDataSet)
+	void StandardMaterial::BindInstanceData(Ref<DescriptorSet> instanceDataSet)
 	{
 		RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), instanceDataSet, 2);
 	}
 
 
-	void StandardMaterialInstance::BindInstanceOffset(uint32_t instanceOffset)
+	void StandardMaterial::BindInstanceOffset(uint32_t instanceOffset)
 	{
 		RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), 0, instanceOffset);
 	}
 
 
-	void StandardMaterialInstance::BindPipeline() const
+	void StandardMaterial::BindPipeline() const
 	{
 		RenderCommand::BindGraphicsPipeline(s_StandardPipeline);
 	}
 
 
-	void StandardMaterialInstance::BindSceneData(Ref<DescriptorSet> sceneDataSet)
+	void StandardMaterial::BindSceneData(Ref<DescriptorSet> sceneDataSet)
 	{
 		RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("DeferredGBufferGen"), sceneDataSet, 1);
 	}
 
 
-	Kaidel::Ref<Kaidel::Shader> StandardMaterialInstance::GetShader()
+	Kaidel::Ref<Kaidel::Shader> StandardMaterial::GetShader()
 	{
 		return ShaderLibrary::GetNamedShader("DeferredGBufferGen");
 	}
 
 
-	void StandardMaterialInstance::Recreate()
+	void StandardMaterial::Recreate()
 	{
 		throw std::logic_error("The method or operation is not implemented.");
 	}
 
 
-	VisualMaterialInstance::VisualMaterialInstance(Ref<VisualMaterial> visualMaterial)
+	void StandardMaterial::SetTexture(MaterialTextureType type, Ref<SpriteSheet> image)
 	{
-		SetVisualMaterial(visualMaterial);
+		if (image)
+		{
+			m_Textures[(uint32_t)type] = image;
+			m_UniformData.HasTexture[(uint32_t)type] = 1; 
+			//TODO: since the previews run on their own command buffer, it doesn't get updated.
+			Application::Get().SubmitToMainThread([this, image, type]() {
+				RenderCommand::DeviceWaitIdle();
+				m_TextureSet->Update(image->GetTexture(), image->GetSampler(), ImageLayout::ShaderReadOnlyOptimal, (uint32_t)type);
+			});
+		}
+		else
+		{
+			m_Textures[(uint32_t)type] = {};
+			m_UniformData.HasTexture[(uint32_t)type] = 0;
+			Application::Get().SubmitToMainThread([this, type]() {
+				RenderCommand::DeviceWaitIdle();
+				m_TextureSet->Update(
+					RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f))->GetTexture(), {},
+					ImageLayout::ShaderReadOnlyOptimal, (uint32_t)type);
+				});
+		}
+		UploadUniforms();
 	}
 
-	void VisualMaterialInstance::BindDescriptors()
+	ShaderMaterial::ShaderMaterial(Ref<VisualShader> visualMaterial)
 	{
-		if (m_LastVersion != m_VisualMaterial->Version)
+		if (visualMaterial)
 		{
-			CreateSets();
-
-			m_LastVersion = m_VisualMaterial->Version;
+			SetVisualShader(visualMaterial);
 		}
+	}
+
+	void ShaderMaterial::BindDescriptors()
+	{
+		AssureLatest();
 
 		for (auto& [setID, set] : m_Sets)
 		{
-			RenderCommand::BindDescriptorSet(m_VisualMaterial->Shader, set, setID);
+			RenderCommand::BindDescriptorSet(m_VisualShader->Shader, set, setID);
 		}
 	}
 
 
-	void VisualMaterialInstance::BindInstanceData(Ref<DescriptorSet> instanceDataSet)
+	void ShaderMaterial::BindInstanceData(Ref<DescriptorSet> instanceDataSet)
 	{
-		RenderCommand::BindDescriptorSet(m_VisualMaterial->Shader, instanceDataSet, 2);
+		RenderCommand::BindDescriptorSet(m_VisualShader->Shader, instanceDataSet, 2);
 	}
 
 
-	void VisualMaterialInstance::BindInstanceOffset(uint32_t instanceOffset)
+	void ShaderMaterial::BindInstanceOffset(uint32_t instanceOffset)
 	{
-		throw std::logic_error("The method or operation is not implemented.");
+		RenderCommand::BindPushConstants(m_VisualShader->Shader, 0, instanceOffset);
 	}
 
 
-	void VisualMaterialInstance::BindPipeline() const
+	void ShaderMaterial::BindPipeline() const
 	{
-		RenderCommand::BindGraphicsPipeline(m_VisualMaterial->Pipeline);
+		RenderCommand::BindGraphicsPipeline(m_VisualShader->Pipeline);
 	}
 
 
-	void VisualMaterialInstance::SetVisualMaterial(Ref<VisualMaterial> visualMaterial)
+	void ShaderMaterial::SetVisualShader(Ref<VisualShader> visualMaterial)
 	{
-		m_VisualMaterial = visualMaterial;
+		m_VisualShader = visualMaterial;
 
 		CreateSets();
 
 		m_LastVersion = visualMaterial->Version;
 	}
 
-	void VisualMaterialInstance::BindSceneData(Ref<DescriptorSet> sceneDataSet)
+	void ShaderMaterial::BindSceneData(Ref<DescriptorSet> sceneDataSet)
 	{
-		RenderCommand::BindDescriptorSet(m_VisualMaterial->Shader, sceneDataSet, 1);
+		RenderCommand::BindDescriptorSet(m_VisualShader->Shader, sceneDataSet, 1);
 	}
 
 
-	Kaidel::Ref<Kaidel::Shader> VisualMaterialInstance::GetShader()
+	Kaidel::Ref<Kaidel::Shader> ShaderMaterial::GetShader()
 	{
-		return m_VisualMaterial->Shader;
+		return m_VisualShader->Shader;
 	}
 
 
-	void VisualMaterialInstance::Recreate()
+	void ShaderMaterial::Recreate()
 	{
 		throw std::logic_error("The method or operation is not implemented.");
 	}
 
 
-	void VisualMaterialInstance::UploadUniformData()
+	void ShaderMaterial::UploadUniformData()
 	{
-		RenderCommand::DeviceWaitIdle();
-		m_UniformBuffer->SetData(m_UniformData.data(), m_VisualMaterial->UniformLayout.Size);
+		m_UniformBuffer->SetData(m_UniformData.data(), m_VisualShader->UniformLayout.Size);
 	}
 
-	void VisualMaterialInstance::CreateSets()
+	void ShaderMaterial::SetTexture(Ref<Texture2D> texture, uint32_t set, uint32_t binding)
 	{
-		Ref<Shader> shader = m_VisualMaterial->Shader;
+		if (texture)
+		{
+			Application::Get().SubmitToMainThread([this, texture, set, binding]() {
+				RenderCommand::DeviceWaitIdle();
+				m_Sets[set]->Update(texture, {}, ImageLayout::ShaderReadOnlyOptimal, binding);
+				});
+		}
+		else
+		{
+			Application::Get().SubmitToMainThread([this, set, binding]() {
+				RenderCommand::DeviceWaitIdle();
+				m_Sets[set]->Update(RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f))->GetTexture(), {}, ImageLayout::ShaderReadOnlyOptimal, binding);
+				});
+		}
+	}
+
+	void ShaderMaterial::AssureLatest()
+	{
+		if (m_LastVersion != m_VisualShader->Version)
+		{
+			CreateSets();
+
+			m_LastVersion = m_VisualShader->Version;
+		}
+	}
+
+	void ShaderMaterial::CreateSets()
+	{
+		Ref<Shader> shader = m_VisualShader->Shader;
 		auto& reflection = shader->GetReflection();
 
 		m_UniformData.clear();
@@ -297,21 +299,21 @@ namespace Kaidel {
 
 			for (auto& [bindingID, binding] : set.Bindings)
 			{
-				if (set.Set == m_VisualMaterial->Code.UniformSet && binding.Binding == m_VisualMaterial->Code.UniformBinding)
+				if (set.Set == m_VisualShader->Code.UniformSet && binding.Binding == m_VisualShader->Code.UniformBinding)
 				{
-					m_UniformBuffer = UniformBuffer::Create(m_VisualMaterial->UniformLayout.Size);
+					m_UniformBuffer = UniformBuffer::Create(m_VisualShader->UniformLayout.Size);
 
 					m_Sets[set.Set]->Update(m_UniformBuffer, binding.Binding);
 						
-					m_UniformData.resize(m_VisualMaterial->UniformLayout.Size, 0);
+					m_UniformData.resize(m_VisualShader->UniformLayout.Size, 0);
 					continue;
 				}
 				
-				auto it = m_VisualMaterial->DefaultTextureValues.find(binding.Name);
+				auto it = m_VisualShader->DefaultTextureValues.find(binding.Name);
 				
-				if (it == m_VisualMaterial->DefaultTextureValues.end() || !it->second)
+				if (it == m_VisualShader->DefaultTextureValues.end() || !it->second)
 				{ 
-					m_Sets[set.Set]->Update(RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f)), {}, ImageLayout::ShaderReadOnlyOptimal, bindingID);
+					m_Sets[set.Set]->Update(RendererGlobals::GetSingleColorTexture(glm::vec4(1.0f))->GetTexture(), {}, ImageLayout::ShaderReadOnlyOptimal, bindingID);
 					continue;
 				}
 

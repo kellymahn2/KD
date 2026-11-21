@@ -1,5 +1,5 @@
 #version 460 core
-#ifdef vertex
+#type vertex
 layout(location = 0) in vec3 a_Position;
 layout(location = 1) in vec4 a_Color;
 layout(location = 2) in vec2 a_TexCoords;
@@ -21,9 +21,9 @@ void main(){
 	gl_Position = ViewProjection * vec4(a_Position, 1.0);
 	gl_Position.y *= -1.0;
 }
-#endif
 
-#ifdef fragment
+
+#type fragment
 
 layout(location = 0) in vec4 v_Color;
 layout(location = 1) in vec2 v_TexCoords;
@@ -149,7 +149,7 @@ void main() {
 
 #elif TYPE == 3
 	
-#endif
+
 
 
 
@@ -306,20 +306,20 @@ SubShader {
 			half d = tex2D(_MainTex, input.texcoord0.xy).a * input.param.x;
 			half4 c = input.faceColor * saturate(d - input.param.w);
 
-			#ifdef OUTLINE_ON
+			#type OUTLINE_ON
 			c = lerp(input.outlineColor, input.faceColor, saturate(d - input.param.z));
 			c *= saturate(d - input.param.y);
-			#endif
+			
 
 			// Alternative implementation to UnityGet2DClipping with support for softness.
 			#if UNITY_UI_CLIP_RECT
 			half2 m = saturate((_ClipRect.zw - _ClipRect.xy - abs(input.mask.xy)) * input.mask.zw);
 			c *= m.x * m.y;
-			#endif
+			
 
 			#if UNITY_UI_ALPHACLIP
 			clip(c.a - 0.001);
-			#endif
+			
 
 			return c;
 		}
@@ -332,4 +332,4 @@ CustomEditor "TMPro.EditorUtilities.TMP_SDFShaderGUI"
 
 
 */
-#endif
+

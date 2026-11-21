@@ -2,16 +2,20 @@
 
 #include "Kaidel/Core/Base.h"
 #include "Kaidel/Core/IRCP.h"
+
+#include "Kaidel/Utils/PlatformUtils.h"
+
 #include <string>
 #include <filesystem>
 #include <vector>
 #include <unordered_set>
+
 namespace Kaidel {
 	struct ProjectConfig {
 		std::string Name = "Untitled";
 		std::filesystem::path RelAssetDirectory;
 		std::filesystem::path AbsAssetDirectory;
-		std::string StartScene;
+		std::string StartScene = "Untitled.kaidel";
 
 		bool ProjectAutoSave = true;
 		bool SceneAutoSave = true;
@@ -22,8 +26,8 @@ namespace Kaidel {
 	public:
 		Project() {}
 		// ProjectConfig::RelAssetDirectory
-		static const std::filesystem::path& GetRelativeAssetDirectory() { 
-			KD_CORE_ASSERT(GetActive()); 
+		static const std::filesystem::path& GetRelativeAssetDirectory() {
+			KD_CORE_ASSERT(GetActive());
 			return GetActive()->m_Config.RelAssetDirectory;
 		}
 		// ProjectConfig::AbsAssetDirectory
@@ -50,20 +54,43 @@ namespace Kaidel {
 			return GetActive()->m_Config.RelAssetDirectory / path;
 		}
 
+		const Path& GetProjectFilePath() const
+		{
+			return m_ProjectPath;
+		}
+
 		ProjectConfig& GetConfig() {
 			return m_Config;
 		}
 
-		static Ref<Project> New();
+		void SetFileWatcher(const std::string& path, const FileWatcherHandlers& handlers) { m_Watcher.Reset(path, handlers); }
+
+		void SaveAssets();
+
+		static void ConsumePathByFileWatcher(const Path& path, uint32_t amount);
+
+		static Ref<Project> New(const std::filesystem::path& path);
+		//Loads the project located at .kdproj file at path and sets it as active project.
 		static Ref<Project> Load(const std::filesystem::path& path);
 		static bool SaveActive(const std::filesystem::path& path);
 		static Ref<Project> GetActive();
 
 
 
+
+
+	private:
+		
+		FileSystem::path GetProjectFilePath(const FileSystem::path& path)
+		{
+			return path / (m_Config.Name + ".kdprj");
+		}
+
 	private:
 		ProjectConfig m_Config;
 		std::filesystem::path m_ProjectDirectory;
+		Path m_ProjectPath;
+		FileWatcher m_Watcher;
 
 		friend class ProjectSerializer;
 

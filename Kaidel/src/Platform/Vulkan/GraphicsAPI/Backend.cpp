@@ -97,7 +97,7 @@ namespace VulkanBackend {
 		vkCmdExecuteCommands((VkCommandBuffer)commandBuffer, (uint32_t)secondaryCommandBuffers.size(), secondaryCommandBuffers.begin());
 	}
 
-	void Backend::SubmitCommandBuffers(VkQueue queue, std::initializer_list<VkCommandBuffer> commandBuffers, VkFence fence, std::initializer_list<VkSemaphore> waitSemaphores, std::initializer_list<VkSemaphore> signalSemaphores, std::initializer_list<VkPipelineStageFlags> dstFlags)
+	void Backend::SubmitCommandBuffers(Kaidel::VulkanQueue& queue, std::initializer_list<VkCommandBuffer> commandBuffers, VkFence fence, std::initializer_list<VkSemaphore> waitSemaphores, std::initializer_list<VkSemaphore> signalSemaphores, std::initializer_list<VkPipelineStageFlags> dstFlags)
 	{
 		VkSubmitInfo info{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
 		info.pCommandBuffers = commandBuffers.begin();
@@ -108,7 +108,7 @@ namespace VulkanBackend {
 		info.pSignalSemaphores = signalSemaphores.begin();
 		info.signalSemaphoreCount = (uint32_t)signalSemaphores.size();
 
-		vkQueueSubmit(queue, 1, &info, fence);
+		vkQueueSubmit(queue.Queue, 1, &info, fence);
 	}
 
 	void Backend::DestroyCommandBuffer(VkCommandBuffer commandBuffer, In<CommandPoolInfo> commandPool)
@@ -1094,6 +1094,7 @@ namespace VulkanBackend {
 				VkDescriptorPoolSize poolSize = {};
 				poolSize.type = type;
 				poolSize.descriptorCount = size.descriptorCount * maxSets;
+				actualSizes.push_back(poolSize);
 			}
 		}
 		
@@ -1207,6 +1208,19 @@ namespace VulkanBackend {
 	}
 
 	
+	void Backend::CommandBeginMarker(VkCommandBuffer commandBuffer, const std::string& marker)
+	{
+		VkDebugUtilsLabelEXT beginInfo{ VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT };
+		beginInfo.pLabelName = marker.c_str();
+		vkCmdBeginDebugUtilsLabelEXT(commandBuffer, &beginInfo);
+	}
+
+
+	void Backend::CommandEndMarker(VkCommandBuffer commandBuffer)
+	{
+		vkCmdEndDebugUtilsLabelEXT(commandBuffer);
+	}
+
 	void Backend::CommandBeginRenderPass(VkCommandBuffer commandBuffer, VkRenderPass renderPass, VkFramebuffer framebuffer, VkSubpassContents contents,
 		In<VkRect2D> renderArea, std::initializer_list<VkClearValue> clearValues)
 	{
@@ -1384,6 +1398,35 @@ namespace VulkanBackend {
 			(uint32_t)memoryBarriers.size(), memoryBarriers.begin(),
 			(uint32_t)bufferBarriers.size(), bufferBarriers.begin(),
 			(uint32_t)textureBarriers.size(), textureBarriers.begin());
+	}
+
+	void Backend::SetBufferName(BufferInfo* buffer, const std::string& name)
+	{
+		VkDebugUtilsObjectNameInfoEXT info{ VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
+
+		info.objectHandle = (uint64_t)buffer->Buffer;
+		info.objectType = VK_OBJECT_TYPE_BUFFER;
+		info.pObjectName = name.c_str();
+
+		vkSetDebugUtilsObjectNameEXT(m_Device, &info);
+	}
+
+
+	void Backend::SetTextureName(TextureInfo* texture, const std::string& name)
+	{
+		VkDebugUtilsObjectNameInfoEXT info{ VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
+
+		info.objectHandle = (uint64_t)texture->ViewInfo.image;
+		info.objectType = VK_OBJECT_TYPE_IMAGE;
+		info.pObjectName = name.c_str();
+
+		vkSetDebugUtilsObjectNameEXT(m_Device, &info);
+
+		info.objectHandle = (uint64_t)texture->View;
+		info.objectType = VK_OBJECT_TYPE_IMAGE_VIEW;
+		info.pObjectName = name.c_str();
+
+		vkSetDebugUtilsObjectNameEXT(m_Device, &info);
 	}
 
 	void Backend::ValuesToSizes(const std::vector<VkWriteDescriptorSet>& values, std::unordered_map<VkDescriptorType, VkDescriptorPoolSize>& sizes)

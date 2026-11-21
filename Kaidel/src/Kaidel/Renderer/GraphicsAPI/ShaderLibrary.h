@@ -51,5 +51,7 @@ namespace Kaidel {
 		static std::unordered_map<ShaderType, Spirv> ReadSPIRVsFromCache(const Path& path);
 		static std::unordered_map<ShaderType, Spirv> ReadSPIRVsFromFile(const Path& path);
 		static std::unordered_map<ShaderType, Spirv> ReadSPIRVsFromSource(const std::string& source, const Path& path);
+
+		static std::unordered_map<ShaderType, std::string> PreprocessSource(const std::string& source);
 	};
 }

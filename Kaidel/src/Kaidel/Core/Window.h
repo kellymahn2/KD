@@ -10,12 +10,21 @@
 
 namespace Kaidel {
 
+	enum class VSyncType
+	{
+		None = 0,
+		Half,
+		Full
+	};
+
 	struct WindowProps
 	{
 		std::string Title;
 		uint32_t Width;
 		uint32_t Height;
 		bool Fullscreen;
+
+		VSyncType VSync = VSyncType::Full;
 
 		WindowProps(const std::string& title = "Kaidel Engine",
 					bool fullscreen = true,
@@ -44,8 +53,8 @@ namespace Kaidel {
 
 		// Window attributes
 		virtual void SetEventCallback(const EventCallbackFn& callback) = 0;
-		virtual void SetVSync(bool enabled) = 0;
-		virtual bool IsVSync() const = 0;
+		virtual void SetVSync(VSyncType vsync) = 0;
+		virtual VSyncType GetVSync() const = 0;
 
 		virtual void WrapCursor() const = 0;
 

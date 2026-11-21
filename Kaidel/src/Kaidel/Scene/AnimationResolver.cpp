@@ -38,7 +38,7 @@ namespace Kaidel {
 			const aiNodeAnim* nodeAnim = animation->mChannels[i];
 			
 			const aiNode* node = m_NodeNameMap[nodeAnim->mNodeName.C_Str()];
-			uint32_t depth = m_NodeDepthMap[node];
+			uint32_t depth = (uint32_t)m_NodeDepthMap[node];
 
 			if (depth < rootDepth)
 			{
@@ -109,7 +109,7 @@ namespace Kaidel {
 				}
 			}
 
-			frames.emplace_back(std::make_pair(key.mTime * timeScale, value));
+			frames.emplace_back(std::make_pair((float)(key.mTime * timeScale), value));
 		}
 
 		return frames;
@@ -136,7 +136,7 @@ namespace Kaidel {
 				}
 			}
 
-			frames.emplace_back(std::make_pair(key.mTime * timeScale, value));
+			frames.emplace_back(std::make_pair((float)(key.mTime * timeScale), value));
 		}
 
 		return frames;
@@ -148,7 +148,7 @@ namespace Kaidel {
 
 		float timeScale = 1.0f / (float)(animation->mTicksPerSecond != 0.0 ? animation->mTicksPerSecond : 30.0);
 		
-		tree->Duration = animation->mDuration * timeScale;
+		tree->Duration = (float)(animation->mDuration * timeScale);
 
 		//TODO: remove duplicates
 

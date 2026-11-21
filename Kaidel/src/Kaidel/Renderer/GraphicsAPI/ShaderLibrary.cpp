@@ -55,6 +55,8 @@ namespace Kaidel {
 			return result;
 		}
 
+		
+
 	}
 
 	struct ShaderLibraryData {
@@ -70,6 +72,8 @@ namespace Kaidel {
 	public:
 		shaderc_include_result* GetInclude(const char* requested_source, shaderc_include_type type, const char* requesting_source, size_t include_depth) override
 		{
+			SCOPED_TIMER(fmt::format("Including shader {}", requested_source));
+
 			std::string includeDir = "";
 			if (requesting_source) {
 				std::string requestingSource = requesting_source;
@@ -164,7 +168,7 @@ namespace Kaidel {
 				spirvs = ReadSPIRVsFromFile(path);
 				CreateCache(spirvs, path);
 			}
-			catch(std::exception& e)
+			catch(std::exception&)
 			{ }
 			
 		}
@@ -250,7 +254,7 @@ namespace Kaidel {
 
 		for (auto& [name, path] : paths)
 		{
-			JobSystem::GetMainJobSystem().Execute([&name, &path, &results]() {
+			auto task = [&name, &path, &results](const JobArgs&) {
 				std::unordered_map<ShaderType, Spirv> spirvs;
 				if (IsCacheValid(path)) {
 					spirvs = ReadSPIRVsFromCache(path);
@@ -260,8 +264,9 @@ namespace Kaidel {
 						spirvs = ReadSPIRVsFromFile(path);
 						CreateCache(spirvs, path);
 					}
-					catch (std::exception& e)
+					catch (std::exception&)
 					{
+						KD_ASSERT(false);
 					}
 
 				}
@@ -269,10 +274,12 @@ namespace Kaidel {
 				Ref<Shader> shader = Shader::Create(spirvs);
 
 				results[name] = shader;
-			});
+			};
+
+			task({});
 		}
 		
-		JobSystem::GetMainJobSystem().Wait();
+		JobSystem::GetDefault().Wait();
 
 		for (auto& [name, shader] : results)
 		{
@@ -418,57 +425,59 @@ namespace Kaidel {
 
 	std::unordered_map<ShaderType, Spirv> ShaderLibrary::ReadSPIRVsFromSource(const std::string& source, const Path& path)
 	{
-		KD_INFO("Compiling shader at: {}", path);
+		SCOPED_TIMER(fmt::format("Compiling shader from source", path.string()));
 
 		std::unordered_map<ShaderType, Spirv> spirvs;
 
-
 		std::string pathStr = path.string();
 
-		for (auto& [name, type] : s_LibraryData->TypeStringsToTypes) {
+		auto sources = PreprocessSource(source);
+
+		for (auto& [type, src] : sources) {
 
 			shaderc::Compiler compiler;
-			if (size_t pos = source.find("#ifdef " + name);
-				pos == std::string::npos)
-			{
-				continue;
-			}
 
+			std::string lines;
 			shaderc::CompileOptions opt;
 
-			opt.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
-			opt.SetGenerateDebugInfo();
+			{
+				SCOPED_TIMER(fmt::format("Preprocessing shader"));
+
+				opt.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
+				opt.SetGenerateDebugInfo();
 #ifdef  KD_RELEASE 
-			opt.SetOptimizationLevel(shaderc_optimization_level_performance);
-			opt.SetPreserveBindings(true);
+				opt.SetOptimizationLevel(shaderc_optimization_level_performance);
+				opt.SetPreserveBindings(true);
 #endif //  KD_RELEASE 
 
-			opt.SetIncluder(CreateScope<ShaderIncluder>());
+				opt.SetIncluder(CreateScope<ShaderIncluder>());
 
-			opt.AddMacroDefinition(name, "1");
-			auto c = compiler.PreprocessGlsl(source, Utils::KaidelShaderTypeToShaderCShaderKind(type), pathStr.c_str(), opt);
+				auto c = compiler.PreprocessGlsl(src, Utils::KaidelShaderTypeToShaderCShaderKind(type), pathStr.c_str(), opt);
 
-			if (c.GetCompilationStatus() != shaderc_compilation_status_success) {
-				KD_ERROR(c.GetErrorMessage());
+				if (c.GetCompilationStatus() != shaderc_compilation_status_success) {
+					KD_ERROR(c.GetErrorMessage());
 
-				KD_INFO("Shader Code");
+					KD_INFO("Shader Code");
 
-				uint32_t lineNum = 0;
+					uint32_t lineNum = 0;
 
-				std::string line;
-				std::stringstream preprocessed(std::string(c.begin(), c.end()));
-				while (std::getline(preprocessed, line))
-				{
-					KD_INFO("{} {}", lineNum++, line);
+					std::string line;
+					std::stringstream preprocessed(std::string(c.begin(), c.end()));
+					while (std::getline(preprocessed, line))
+					{
+						KD_INFO("{} {}", lineNum++, line);
+					}
+
+					KD_ASSERT(false);
+					throw std::exception("Error");
 				}
 
-				KD_ASSERT(false);
-				throw std::exception("Error");
+				lines = std::string(c.begin(), c.end());
 			}
 
-			std::string lines = std::string(c.begin(), c.end());
-
 			//lines = Utils::RemoveEmptyLines(lines);
+
+			SCOPED_TIMER(fmt::format("Compiling shader"));
 
 			shaderc::CompilationResult res =
 				compiler.CompileGlslToSpv(lines.c_str(), lines.length(), Utils::KaidelShaderTypeToShaderCShaderKind(type), pathStr.c_str(), "main", opt);
@@ -496,6 +505,82 @@ namespace Kaidel {
 		}
 
 		return spirvs;
+	}
+
+	std::unordered_map<Kaidel::ShaderType, std::string> ShaderLibrary::PreprocessSource(const std::string& source)
+	{
+
+		std::unordered_map<ShaderType, std::string> res;
+
+		std::string common;
+
+		std::stringstream sourceStream(source);
+
+		std::string line;
+		std::string_view sub = source;
+
+		while (std::getline(sourceStream, line))
+		{
+			if (line.find("#type") != std::string::npos)
+			{
+				break;
+			}
+			common += line;
+
+			if (line.empty() || line.back() != '\n')
+			{
+				common += '\n';
+			}
+
+			sub = sub.substr(line.length() + 1);
+		}
+		
+		while (!sub.empty())
+		{
+			if (sub[0] != '#')
+			{
+				std::size_t loc = sub.find('#');
+
+				//no more shaders
+				if (loc == std::string::npos)
+				{
+					break;
+				}
+
+				sub = sub.substr(loc);
+			}
+
+			std::size_t lineEnd = sub.find_first_of("\r\n");
+
+			static const constexpr auto TYPE_LENGTH = 5;
+
+			//skip #ifdef
+			auto shaderType = sub.substr(TYPE_LENGTH, lineEnd - TYPE_LENGTH);
+
+			std::size_t shaderTypeStart = shaderType.find_first_not_of(' ');
+			shaderType = shaderType.substr(shaderTypeStart, shaderType.find_last_not_of(' ') - shaderTypeStart + 1);
+
+			ShaderType type = s_LibraryData->TypeStringsToTypes.at(std::string(shaderType));
+
+			KD_ASSERT(res.find(type) == res.end());
+
+			sub = sub.substr(lineEnd + (sub[lineEnd] == '\r' ? 2 : 1));
+
+			std::size_t shaderEnd = sub.find("#type");
+
+			auto shaderCode = common + std::string(sub.substr(0, shaderEnd));
+
+			res[type] = std::move(shaderCode);
+
+			if (shaderEnd == std::string::npos)
+			{
+				break;
+			}
+
+			sub = sub.substr(shaderEnd);
+		}
+
+		return res;
 	}
 
 }

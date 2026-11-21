@@ -9,6 +9,7 @@
 #include "Material.h"
 #include "Kaidel/Animation/Animation.h"
 #include "Kaidel/Core/UUID.h"
+#include "Kaidel/Asset/Asset.h"
 
 #include <assimp/Importer.hpp>
 #include <assimp/mesh.h>
@@ -128,14 +129,10 @@ namespace Kaidel {
 	struct Skin : public IRCCounter<false> {
 		SkinTree Tree;
 		Ref<StorageBuffer> OffsetBuffer;
-		Ref<StorageBuffer> BoneTransformsBuffer;
 		std::vector<glm::mat4> Offsets;
-		std::vector<glm::mat4> BoneTransforms;
-		Ref<DescriptorSet> SkinSet;
-		UUID LastRoot;
-	};
 
-	
+		Ref<DescriptorSet> SkinSet;
+	};
 
 	struct Submesh 
 	{
@@ -145,6 +142,11 @@ namespace Kaidel {
 		uint32_t VertexCount;
 		uint32_t IndexCount;
 		Ref<MaterialInstance> DefaultMaterial;
+	};
+
+	struct MeshInstance {
+		std::vector<Ref<MaterialInstance>> UsedMaterial;
+		std::vector<bool> VisibilityResults;
 	};
 
 	extern Ref<RenderPass> GetDeferredPassRenderPass();
@@ -167,7 +169,7 @@ namespace Kaidel {
 		std::vector<Submesh> Submeshes;
 	};
 
-	class Mesh : public IRCCounter<false> {
+	class Mesh : public AssetBase {
 	public:
 		Mesh() = default;
 		virtual ~Mesh() = default;
@@ -182,6 +184,16 @@ namespace Kaidel {
 			m_IndexBuffer = 
 				IndexBuffer::Create(initializer.Indices, indexSize, initializer.IndexFormat);
 			
+			AABB boundingBox = GetSubmeshes()[0].BoundingBox;
+
+			for (uint32_t i = 0; i < GetSubmeshes().size(); ++i)
+			{
+				auto& aabb = GetSubmeshes()[i].BoundingBox;
+				boundingBox.Min = glm::min(aabb.Min, boundingBox.Min);
+				boundingBox.Max = glm::max(aabb.Max, boundingBox.Max);
+			}
+
+			SetBoundingBox(boundingBox);
 		}
 
 		Ref<VertexBuffer> GetVertexBuffer()const { return m_VertexBuffer; }
@@ -197,7 +209,23 @@ namespace Kaidel {
 
 		void SetBoundingBox(const AABB& boundingBox) { m_BoundingBox = boundingBox; }
 
+		inline MeshInstance Mesh::CreateInstance()
+		{
+			MeshInstance instance;
 
+			instance.UsedMaterial.resize(GetSubmeshes().size());
+
+			for (uint32_t i = 0; i < GetSubmeshes().size(); ++i)
+			{
+				instance.UsedMaterial[i] = GetSubmeshes()[i].DefaultMaterial;
+			}
+
+			instance.VisibilityResults.resize(GetSubmeshes().size());
+
+			return instance;
+		}
+
+		DECL_ASSET_TYPE(Mesh);
 	protected:
 		AABB m_BoundingBox;
 		Ref<VertexBuffer> m_VertexBuffer;
@@ -207,6 +235,8 @@ namespace Kaidel {
 		std::vector<Submesh> m_Submeshes;
 		uint64_t m_VertexCount = 0, m_IndexCount = 0;
 	};
+
+	
 
 	class SkinnedMesh : public Mesh {
 	public:
@@ -232,13 +262,12 @@ namespace Kaidel {
 			{
 				DescriptorSetLayoutSpecification specs(
 					{
-						{DescriptorType::StorageBuffer, ShaderStage_ComputeShader},
 						{DescriptorType::StorageBuffer, ShaderStage_ComputeShader}
 					});
 
 				m_SkinnedBufferSet = DescriptorSet::Create(specs);
 
- 				m_SkinnedBufferSet->Update(m_SkinnedBuffer, 0).Update(m_VertexBuffer, 1);
+ 				m_SkinnedBufferSet->Update(m_SkinnedBuffer, 0);
 			}
 
 		}
@@ -250,6 +279,10 @@ namespace Kaidel {
 		uint64_t GetBoneCount() const { return m_BoneCount; }
 
 		Ref<DescriptorSet> GetSkinnedBufferSet() const { return m_SkinnedBufferSet; }
+
+		Ref<VertexBuffer> GetSkinnedVertices() const { return m_SkinnedBuffer; }
+
+		DECL_ASSET_TYPE(SkinnedMesh)
 
 	private:
 		uint64_t CalcBoneCount(const SkinTree& tree) {
@@ -283,19 +316,33 @@ namespace Kaidel {
 
 	
 
-	class Model : public IRCCounter<false> {
+	class Model : public AssetBase {
 	public:
 		Model() = default;
 
 		std::vector<Ref<Mesh>> GetMeshes() { return {}; }
 
 		Scope<MeshTree>& GetMeshTree() { return m_Tree; }
+		const AABB& GetBoundingBox() const { return m_BoundingBox; }
+
+		virtual uint64_t GetSubAssetCount() const override { return m_SubAssets.size(); }
+
+		virtual void GetSubAssetAt(uint64_t i, SubAsset& subAsset) 
+		{
+			subAsset.Asset = m_SubAssets.at(i);
+			subAsset.UserIndex = 0;
+		}
+
+		DECL_ASSET_TYPE(Model);
 
 	private:
 		Path m_ModelPath;
 		Path m_ModelDir;
 		Scope<MeshTree> m_Tree;
 		SkinTree m_SkinTree;
+		AABB m_BoundingBox;
+
+		std::vector<Ref<AssetBase>> m_SubAssets;
 		
 		friend class ModelLibrary;
 		friend class ModelLoader;

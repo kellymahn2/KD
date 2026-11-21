@@ -1,0 +1,23 @@
+Scene: Untitled
+Entities:
+  - Entity: 10032373690199166667
+    TagComponent:
+      Tag: Cerberus00_Fixed
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 0.99999994, 0.99999994]
+    MeshComponent:
+      MeshID: 16795776195466785825
+      Materials:
+        - 7736011505917826031
+  - Entity: 6358044926049913402
+    TagComponent:
+      Tag: Light
+    TransformComponent:
+      Translation: [0, 0, 0]
+      Rotation: [0, 0, 0, 1]
+      Scale: [1, 1, 1]
+    DirectionalLightComponent:
+      Color: [1, 1, 1]
+      MaxDistance: 1000

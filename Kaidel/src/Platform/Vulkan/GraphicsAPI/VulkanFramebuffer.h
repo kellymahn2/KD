@@ -7,7 +7,7 @@ namespace Kaidel {
 
 	struct VulkanFramebufferResources {
 		VkFramebuffer Framebuffer;
-		std::vector<Ref<Texture>> Textures;
+		std::vector<Ref<Texture2D>> Textures;
 		std::vector<Ref<VulkanFramebufferTexture>> Resolves;
 	};
 

@@ -67,6 +67,8 @@ namespace Kaidel {
 		m_Context = GraphicsContext::Create(this);
 		m_Context->Init();
 
+		SetThreadDescription(GetCurrentThread(), L"MainThread");
+
 		RenderCommand::Get() = RendererAPI::Create();
 
 		glfwSetWindowUserPointer(m_Window, &m_Data);
@@ -167,8 +169,10 @@ namespace Kaidel {
 			WindowRedrawEvent event;
 			data.EventCallback(event);
 			});
+		
+		SetVSync(props.VSync);
 
-		SetVSync(false);
+		m_Data.RefreshRate = glfwGetVideoMode(glfwGetPrimaryMonitor())->refreshRate;
 	}
 
 	void WindowsWindow::Shutdown()
@@ -195,9 +199,28 @@ namespace Kaidel {
 		m_Context->AcquireImage();
 	}
 
+	static void CapToFPS(float targetFPS)
+	{
+		const float targetFrameTime = 1.0f / targetFPS;
+
+		static double nextTime = glfwGetTime();
+		double now = glfwGetTime();
+		double sleepTime = nextTime - now;
+		if (sleepTime > 0.0)
+			std::this_thread::sleep_for(std::chrono::duration<double>(sleepTime));
+		nextTime += targetFrameTime;
+		
+		if (nextTime < now) nextTime = now + targetFrameTime;
+	}
+
 	void WindowsWindow::PresentImage() const
 	{
 		m_Context->PresentImage();
+
+		if (m_Data.VSync != VSyncType::None)
+		{
+			CapToFPS(m_Data.RefreshRate * (m_Data.VSync == VSyncType::Full ? 1.0f : 0.5f));
+		}
 	}
 
 	void WindowsWindow::SwapBuffers() const
@@ -211,18 +234,12 @@ namespace Kaidel {
 		SwapBuffers();
 	}
 
-	void WindowsWindow::SetVSync(bool enabled)
+	void WindowsWindow::SetVSync(VSyncType vsync)
 	{
-
-		if (enabled)
-			glfwSwapInterval(1);
-		else
-			glfwSwapInterval(0);
-
-		m_Data.VSync = enabled;
+		m_Data.VSync = vsync;
 	}
 
-	bool WindowsWindow::IsVSync() const
+	VSyncType WindowsWindow::GetVSync() const
 	{
 		return m_Data.VSync;
 	}

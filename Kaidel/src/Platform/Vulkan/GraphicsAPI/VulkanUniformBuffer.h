@@ -5,7 +5,7 @@
 namespace Kaidel {
 	class VulkanUniformBuffer : public UniformBuffer {
 	public:
-		VulkanUniformBuffer(uint64_t size);
+		VulkanUniformBuffer(uint64_t size, const void* initData);
 		~VulkanUniformBuffer();
 		virtual RendererID GetRendererID()const { return (RendererID)&m_Buffer; }
 		virtual RendererID GetBackendID()const override{ return (RendererID)&m_Buffer; }
@@ -13,6 +13,9 @@ namespace Kaidel {
 		const VulkanBackend::BufferInfo& GetBufferInfo()const { return m_Buffer; }
 
 
+
+
+		uint64_t GetSize() const override;
 
 	private:
 		VulkanBackend::BufferInfo m_Buffer;

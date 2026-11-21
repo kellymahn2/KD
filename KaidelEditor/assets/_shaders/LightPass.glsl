@@ -3,7 +3,7 @@
 #include "Sampler.glsli"
 #include "PBRFunctions.glsli"
 #include "SceneData.glsli"
-#ifdef vertex
+#type vertex
 const vec2 positions[3] = vec2[3](vec2(-1.0, -1.0), vec2(3.0, -1.0), vec2(-1.0, 3.0));
 
 layout(location = 0)out vec2 v_TexCoords;
@@ -12,9 +12,9 @@ void main(){
 	gl_Position = vec4(positions[gl_VertexIndex],0.0,1.0);
 	v_TexCoords = 0.5 * gl_Position.xy + vec2(0.5);
    }
-#endif
 
-#ifdef fragment
+
+#type fragment
 
 
 const int SplitCount = 4;
@@ -56,26 +56,6 @@ vec4 SRGBtoLINEAR(vec4 srgbIn)
 	return vec4(linOut,1.0);
 }
 
-vec3 Uncharted2Tonemap(vec3 color)
-{
-	float A = 0.15;
-	float B = 0.50;
-	float C = 0.10;
-	float D = 0.20;
-	float E = 0.02;
-	float F = 0.30;
-	float W = 11.2;
-	return ((color*(A*color+C*B)+D*E)/(color*(A*color+B)+D*F))-E/F;
-}
-
-vec4 tonemap(vec4 color)
-{
-	vec3 outcol = Uncharted2Tonemap(color.rgb * 4.5);
-	outcol = outcol * (1.0f / Uncharted2Tonemap(vec3(11.2f)));	
-	return vec4(pow(outcol, vec3(1.0f / 2.2)), color.a);
-}
-
-
 vec3 CalcAmbientLighting(vec3 N, vec3 albedo, vec3 F0, float metalness, float roughness, vec3 Lo, float cosLo)
 {
 	vec3 Lr = reflect(-Lo, N);
@@ -85,11 +65,11 @@ vec3 CalcAmbientLighting(vec3 N, vec3 albedo, vec3 F0, float metalness, float ro
     vec3 kD = 1.0 - kS;
     kD *= 1.0 - metalness;	  
     
-    vec3 irradiance = SRGBtoLINEAR(tonemap(texture(IrradianceMap, N))).rgb;
+    vec3 irradiance = texture(IrradianceMap, N).rgb;
     vec3 diffuse      = irradiance * albedo;
     
     const float MAX_REFLECTION_LOD = textureQueryLevels(Specular);
-    vec3 prefilteredColor = SRGBtoLINEAR(tonemap(textureLod(Specular, Lr,  roughness * (MAX_REFLECTION_LOD)))).rgb;    
+    vec3 prefilteredColor = (textureLod(Specular, Lr,  roughness * (MAX_REFLECTION_LOD))).rgb;    
     vec2 brdf  = texture(SpecularLUT, vec2(cosLo, roughness)).rg;
     vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);
 
@@ -164,14 +144,22 @@ float calcDirShadow(vec3 worldPos,vec3 norm,vec3 lightDir)
 		vec3 shadow_pos = (cascade_projection * vec4(worldPos, 1.0)).xyz;
 		vec3 shadow_uv = shadow_pos * vec3(0.5, 0.5, 1.0) + vec3(0.5, 0.5, 0.0);
 		// Determine if pixel is inside current cascade bounds and compute shadow if it is:
-		if(shadow_uv == clamp(shadow_uv, 0.0, 1.0))	
+		if(all(greaterThan(shadow_pos, vec3(-1.0, -1.0, 0.0))) && all(lessThan(shadow_pos, vec3(1.0))))	
 		{
+			#ifdef DEBUG_SHADOWS
+				o_Color = colors[cascade];
+				return 1.0; 
+			#endif
+			
+
 			const float shadow_main = sampleShadowPCFDisk(shadow_uv.xy, shadow_uv.z - bias, DLight.LightSize, DirectionalShadows[cascade]);
 			//const float shadow_main = sampleShadowPCFBasic(shadow_uv.xy, shadow_uv.z - bias, DirectionalShadows[cascade]);
 			return shadow_main;
 		}
 
 	}
+
+	return 1.0;
 } 
 
 void main()
@@ -248,6 +236,8 @@ void main()
 
 	vec3 color = ambientLighting + directionalLight + emission;
 
-	o_Color = vec4(color, 1.0);
+	#ifndef DEBUG_SHADOWS
+		o_Color = vec4(color, 1.0);
+	#endif
 }
-#endif
+

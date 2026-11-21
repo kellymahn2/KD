@@ -16,8 +16,10 @@ namespace Kaidel {
 		Entity(entt::entity handle, Scene* scene);
 		Entity(const Entity& other) = default;
 
+		entt::entity GetHandle() const { return m_EntityHandle; }
+
 		template<typename T, typename... Args>
-		T& AddComponent(Args&&... args)
+		T& AddComponent(Args&&... args) const
 		{
 			KD_CORE_ASSERT(!HasComponent<T>(), "Entity already has component!");
 			T& component = m_Scene->m_Registry.emplace<T>(m_EntityHandle, std::forward<Args>(args)...);
@@ -26,28 +28,97 @@ namespace Kaidel {
 		}
 
 		template<typename... Components>
-		decltype(auto) AddComponents() {
+		decltype(auto) AddComponents() const {
 			return std::tie(AddComponent<Components>()...);
 		}
 
+		const std::string& GetName() const { return GetComponent<TagComponent>().Tag; }
+
+		template<typename Cond>
+		Entity WalkUp(Entity current, Cond&& cond) const
+		{
+			if (cond(current))
+			{
+				return current;
+			}
+
+			auto cc = current.TryGetComponent<ChildComponent>();
+
+			if (cc)
+			{
+				Entity parent(cc->Parent, m_Scene);
+
+				return WalkUp(parent, std::forward(cond));
+			}
+
+			return {};
+		}
+
+		template<typename Cond>
+		Entity WalkDown(Entity current, Cond&& cond) const
+		{
+			if (cond(current))
+			{
+				return current;
+			}
+
+			auto pc = current.TryGetComponent<ParentComponent>();
+
+			if (pc)
+			{
+				for (auto& childID : pc->Children)
+				{
+					Entity child(childID, m_Scene);
+
+					return WalkDown(child, std::forward(cond));
+				}
+			}
+
+			return {};
+		}
+		
 		template<typename... T>
-		decltype(auto) GetComponent()
+		Entity GetComponentInParent() const
+		{
+			return WalkUp(*this, [](Entity entity) 
+			{
+				return entity.HasComponents<T...>();
+			});
+		}
+
+		template<typename... T>
+		Entity GetComponentInChildren() const
+		{
+			return WalkDown(*this, [](Entity entity)
+			{
+				return entity.HasComponents<T...>();
+			});
+		}
+
+		template<typename... T>
+		decltype(auto) GetComponent() const
 		{
 			KD_CORE_ASSERT(HasComponents<T...>(), "Entity does not have component!");
 			return m_Scene->m_Registry.get<T...>(m_EntityHandle);
 		}
 		template<typename T>
-		bool HasComponent() {
+		bool HasComponent() const {
 			return m_Scene->m_Registry.try_get<T>(m_EntityHandle) != nullptr;
 		}
 		template<typename... T>
-		bool HasComponents()
+		bool HasComponents() const
 		{
 			return (HasComponent<T>()&&...);
 		}
 
+		template<typename... T>
+		decltype(auto) TryGetComponent() const
+		{
+			return m_Scene->m_Registry.try_get<T...>(m_EntityHandle);
+		}
+
 		template<typename T,typename... Args>
-		T& TryAddComponent(Args&&... args) {
+		T& TryAddComponent(Args&&... args) const {
 			{
 				T* has = m_Scene->m_Registry.try_get<T>(m_EntityHandle);
 				if (has != nullptr)
@@ -58,25 +129,32 @@ namespace Kaidel {
 
 
 		template<typename T>
-		void RemoveComponent()
+		void RemoveComponent() const
 		{
 			KD_CORE_ASSERT(HasComponent<T>(), "Entity does not have component!");
 			m_Scene->m_Registry.remove<T>(m_EntityHandle);
 		}
-		void AddChild(UUID childId) {
+		void AddChild(entt::entity childId) const {
 			if (!HasComponent<ParentComponent>())
 				AddComponent<ParentComponent>();
 			auto& pc=GetComponent<ParentComponent>();
 			pc.Children.push_back(childId);
 		}
-		void AddParent(UUID parentID) {
+		void AddParent(entt::entity parentID) const {
 			if (!HasComponent<ChildComponent>())
 				AddComponent<ChildComponent>();
 			auto& cc = GetComponent<ChildComponent>();
 			cc.Parent = parentID;
+
+			auto& id = GetComponent<IDComponent>();
+
+			uint32_t oldDepth = id.Depth;
+			id.Depth = m_Scene->m_Registry.get<IDComponent>(parentID).Depth + 1;
+
+			m_Scene->SetDepth(m_EntityHandle, oldDepth, id.Depth);
 		}
 
-		void AddScript() {
+		void AddScript() const {
 			if (!HasComponent<ScriptComponent>())
 				AddComponent<ScriptComponent>();
 			auto& sc = GetComponent<ScriptComponent>();
@@ -84,17 +162,17 @@ namespace Kaidel {
 		}
 
 
-		Entity GetParent() {
-			return m_Scene->GetEntity(GetComponent<ChildComponent>().Parent);
+		Entity GetParent() const {
+			return { GetComponent<ChildComponent>().Parent, m_Scene };
 		}
 
-		bool HasParent() {
+		bool HasParent() const {
 			return HasComponent<ChildComponent>() && GetParent();
 		}
-		bool HasChildren() {
+		bool HasChildren() const {
 			return HasComponent<ParentComponent>() && !GetComponent<ParentComponent>().Children.empty();
 		}
-		inline UUID GetUUID() { return GetComponent<IDComponent>().ID; }
+		inline UUID GetUUID() const { return GetComponent<IDComponent>().ID; }
 		operator bool() const { return m_EntityHandle != entt::null&&(int)m_EntityHandle!=-1; }
 		operator entt::entity() const { return m_EntityHandle; }
 		operator uint32_t() const { return (uint32_t)m_EntityHandle; }
@@ -108,7 +186,11 @@ namespace Kaidel {
 		{
 			return !(*this == other);
 		}
-		inline Scene* GetScene() { return m_Scene; }
+		inline Scene* GetScene() const { return m_Scene; }
+
+	private:
+		
+
 	private:
 		entt::entity m_EntityHandle{ entt::null };
 		Scene* m_Scene = nullptr;

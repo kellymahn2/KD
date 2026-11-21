@@ -2,112 +2,20 @@
 #include "SceneSerializer.h"
 
 #include "Entity.h"
+#include "Kaidel/Core/YAMLHelpers.h"
 #include "Components.h"
 #include "Kaidel/Project/Project.h"
 #include "Kaidel/Scripting/ScriptEngine.h"
-#include <fstream>
+#include "Kaidel/Asset/AssetManager.h"
+#include "Kaidel/Scene/ModelLibrary.h"
 
+#include <fstream>
 #include <yaml-cpp/yaml.h>
 
-namespace YAML {
-
-	template<>
-	struct convert<glm::vec2>
-	{
-		static Node encode(const glm::vec2& rhs)
-		{
-			Node node;
-			node.push_back(rhs.x);
-			node.push_back(rhs.y);
-			node.SetStyle(EmitterStyle::Flow);
-			return node;
-		}
-
-		static bool decode(const Node& node, glm::vec2& rhs)
-		{
-			if (!node.IsSequence() || node.size() != 2)
-				return false;
-
-			rhs.x = node[0].as<float>();
-			rhs.y = node[1].as<float>();
-			return true;
-		}
-	};
-
-	template<>
-	struct convert<glm::vec3>
-	{
-		static Node encode(const glm::vec3& rhs)
-		{
-			Node node;
-			node.push_back(rhs.x);
-			node.push_back(rhs.y);
-			node.push_back(rhs.z);
-			node.SetStyle(EmitterStyle::Flow);
-			return node;
-		}
-
-		static bool decode(const Node& node, glm::vec3& rhs)
-		{
-			if (!node.IsSequence() || node.size() != 3)
-				return false;
-
-			rhs.x = node[0].as<float>();
-			rhs.y = node[1].as<float>();
-			rhs.z = node[2].as<float>();
-			return true;
-		}
-	};
-
-	template<>
-	struct convert<glm::vec4>
-	{
-		static Node encode(const glm::vec4& rhs)
-		{
-			Node node;
-			node.push_back(rhs.x);
-			node.push_back(rhs.y);
-			node.push_back(rhs.z);
-			node.push_back(rhs.w);
-			node.SetStyle(EmitterStyle::Flow);
-			return node;
-		}
-
-		static bool decode(const Node& node, glm::vec4& rhs)
-		{
-			if (!node.IsSequence() || node.size() != 4)
-				return false;
-
-			rhs.x = node[0].as<float>();
-			rhs.y = node[1].as<float>();
-			rhs.z = node[2].as<float>();
-			rhs.w = node[3].as<float>();
-			return true;
-		}
-	};
-}
 namespace Kaidel {
 
 
-	static YAML::Emitter& operator<<(YAML::Emitter& out, const glm::vec2& v)
-	{
-		out << YAML::Flow;
-		out << YAML::BeginSeq << v.x << v.y << YAML::EndSeq;
-		return out;
-	}
-	static YAML::Emitter& operator<<(YAML::Emitter& out, const glm::vec3& v)
-	{
-		out << YAML::Flow;
-		out << YAML::BeginSeq << v.x << v.y << v.z << YAML::EndSeq;
-		return out;
-	}
-
-	static YAML::Emitter& operator<<(YAML::Emitter& out, const glm::vec4& v)
-	{
-		out << YAML::Flow;
-		out << YAML::BeginSeq << v.x << v.y << v.z << v.w << YAML::EndSeq;
-		return out;
-	}
+	
 
 	static std::string ScriptFieldTypeToString(ScriptFieldType type) {
 		switch (type)
@@ -202,7 +110,7 @@ namespace Kaidel {
 			out << YAML::BeginMap; // ChildComponent
 
 			auto& cc = entity.GetComponent<ChildComponent>();
-			out << YAML::Key << "Parent" << YAML::Value << (uint64_t)cc.Parent;
+			out << YAML::Key << "Parent" << YAML::Value << (uint64_t)Entity(cc.Parent, entity.GetScene()).GetUUID();
 			out << YAML::Key << "LocalPosition" << YAML::Value << cc.LocalPosition;
 			out << YAML::Key << "LocalRotation" << YAML::Value << cc.LocalRotation;
 
@@ -215,10 +123,33 @@ namespace Kaidel {
 
 			auto& tc = entity.GetComponent<TransformComponent>();
 			out << YAML::Key << "Translation" << YAML::Value << tc.Translation;
-			//out << YAML::Key << "Rotation" << YAML::Value << tc.Rotation;
+			out << YAML::Key << "Rotation" << YAML::Value << tc.Rotation;
 			out << YAML::Key << "Scale" << YAML::Value << tc.Scale;
 
 			out << YAML::EndMap; // TransformComponent
+		}
+		if (entity.HasComponent<MeshComponent>())
+		{
+			out << YAML::Key << "MeshComponent";
+			out << YAML::BeginMap; // MeshComponent
+
+			auto& mc = entity.GetComponent<MeshComponent>();
+
+
+			out << YAML::Key << "Mesh" << YAML::Value;
+
+			out << (uint64_t)mc.UsedMesh->GetHandle();
+
+			out << YAML::Key << "Materials" << YAML::Value;
+
+			out << YAML::BeginSeq;
+			for (auto& mat : mc.Instance.UsedMaterial)
+			{
+				out << (uint64_t)mat->GetHandle();
+			}
+			out << YAML::EndSeq;
+
+			out << YAML::EndMap; // MeshComponent
 		}
 		if (entity.HasComponent<CameraComponent>())
 		{
@@ -390,6 +321,17 @@ namespace Kaidel {
 			out << YAML::EndMap; // TextComponent
 		}
 
+		if (entity.HasComponent<AnimationPlayerComponent>()) {
+			out << YAML::Key << "AnimationPlayerComponent";
+
+			out << YAML::BeginMap; // AnimationPlayerComponent
+
+			auto& apc = entity.GetComponent<AnimationPlayerComponent>();
+			out << YAML::Key << "Animation" << YAML::Value << (apc.Animation && apc.Animation->GetHandle() != 0 ? (uint64_t)apc.Animation->GetHandle() : 0);
+
+			out << YAML::EndMap; // AnimationPlayerComponent
+		}
+
 
 		out << YAML::EndMap; // Entity
 	}
@@ -420,14 +362,194 @@ namespace Kaidel {
 		// Not implemented
 		KD_CORE_ASSERT(false);
 	}
-	template<typename T,typename Func>
-	static void DeserializeComponent(Entity& entity, const std::string& name,YAML::Node& entityData,Func&& func) {
-		auto componentData = entityData[name];
-		if (componentData) {
-			auto& component = entity.AddComponent<T>();
-			func(component, entity, componentData);
+	template<typename T>
+	static void DeserializeComponent(Entity& entity, const char* name,YAML::Node& entityData, std::function<void(T&, Entity&, YAML::Node&)> && func) {
+		try {
+			auto componentData = entityData[name];
+			if (componentData) {
+				auto& component = entity.AddComponent<T>();
+				func(component, entity, componentData);
+			}
+		}
+		catch (std::exception& error)
+		{
+			KD_ERROR("Couldn't deserialize component: {} error: {}", name, error.what());
+			KD_CORE_ASSERT(false);
+			
+			return;
 		}
 	}
+
+	static Entity DeserializeEntity(YAML::Node& entityNode, Ref<Scene>& scene)
+	{
+		UUID uuid = entityNode["Entity"].as<uint64_t>();
+		std::string name;
+		auto tagComponent = entityNode["TagComponent"];
+		if (tagComponent)
+			name = tagComponent["Tag"].as<std::string>();
+
+		//KD_CORE_TRACE("Deserialized entity with ID = {0}, name = {1}", uuid, name);
+
+		Entity deserializedEntity = scene->CreateEntity(uuid, name);
+
+		auto transformComponent = entityNode["TransformComponent"];
+		if (transformComponent)
+		{
+			// Entities always have transforms
+			auto& tc = deserializedEntity.GetComponent<TransformComponent>();
+			tc.Translation = transformComponent["Translation"].as<glm::vec3>();
+			tc.Rotation = transformComponent["Rotation"].as<glm::quat>();
+			tc.Scale = transformComponent["Scale"].as<glm::vec3>();
+		}
+
+		DeserializeComponent<MeshComponent>(deserializedEntity, "MeshComponent", entityNode,
+			[](MeshComponent& cc, Entity& entity, YAML::Node& node)
+			{
+				uint64_t id = node["Mesh"].as<uint64_t>();
+
+				cc.UsedMesh = AssetManager::GetAsset(id).As<Mesh>();
+
+				for (auto matNode : node["Materials"])
+				{
+					uint64_t id = matNode.as<uint64_t>();
+
+					cc.Instance.UsedMaterial.push_back(AssetManager::GetAsset(id).As<StandardMaterial>());
+				}
+				cc.Instance.VisibilityResults.resize(cc.UsedMesh->GetSubmeshes().size());
+			});
+
+		DeserializeComponent<CameraComponent>(deserializedEntity, "CameraComponent", entityNode,
+			[](CameraComponent& cc, Entity& entity, YAML::Node& cameraComponent) {
+				auto& cameraProps = cameraComponent["Camera"];
+
+				cc.Camera.SetPerspectiveVerticalFOV(cameraProps["PerspectiveFOV"].as<float>());
+				cc.Camera.SetPerspectiveNearClip(cameraProps["PerspectiveNear"].as<float>());
+				cc.Camera.SetPerspectiveFarClip(cameraProps["PerspectiveFar"].as<float>());
+
+				cc.Camera.SetOrthographicSize(cameraProps["OrthographicSize"].as<float>());
+				cc.Camera.SetOrthographicNearClip(cameraProps["OrthographicNear"].as<float>());
+				cc.Camera.SetOrthographicFarClip(cameraProps["OrthographicFar"].as<float>());
+
+				cc.Primary = cameraComponent["Primary"].as<bool>();
+				cc.FixedAspectRatio = cameraComponent["FixedAspectRatio"].as<bool>();
+				cc.Camera.SetProjectionType((SceneCamera::ProjectionType)cameraProps["ProjectionType"].as<int>());
+			}
+		);
+
+		DeserializeComponent<SpriteRendererComponent>(deserializedEntity, "SpriteRendererComponent", entityNode,
+			[](SpriteRendererComponent& src, Entity& entity, YAML::Node& spriteRendererComponent) {
+			}
+		);
+		DeserializeComponent<CircleRendererComponent>(deserializedEntity, "CircleRendererComponent", entityNode,
+			[](CircleRendererComponent& crc, Entity& entity, YAML::Node& circleRendererComponent) {
+				crc.Color = circleRendererComponent["Color"].as < glm::vec4>();
+				crc.Thickness = circleRendererComponent["Thickness"].as <float>();
+				crc.Fade = circleRendererComponent["Fade"].as < float>();
+
+			}
+		);
+		DeserializeComponent<Rigidbody2DComponent>(deserializedEntity, "Rigidbody2DComponent", entityNode,
+			[](Rigidbody2DComponent& rb2d, Entity& entity, YAML::Node& rigidbody2DComponent) {
+				rb2d.Type = RigidBody2DBodyTypeFromString(rigidbody2DComponent["BodyType"].as<std::string>());
+				rb2d.FixedRotation = rigidbody2DComponent["FixedRotation"].as<bool>();
+			}
+		);
+		DeserializeComponent<BoxCollider2DComponent>(deserializedEntity, "BoxCollider2DComponent", entityNode,
+			[](BoxCollider2DComponent& bc2d, Entity& entity, YAML::Node& boxCollider2DComponent) {
+				bc2d.Offset = boxCollider2DComponent["Offset"].as<glm::vec2>();
+				bc2d.Size = boxCollider2DComponent["Size"].as<glm::vec2>();
+				bc2d.Density = boxCollider2DComponent["Density"].as<float>();
+				bc2d.Friction = boxCollider2DComponent["Friction"].as<float>();
+				bc2d.Restitution = boxCollider2DComponent["Restitution"].as<float>();
+				bc2d.RestitutionThreshold = boxCollider2DComponent["RestitutionThreshold"].as<float>();
+			}
+		);
+
+		DeserializeComponent<CircleCollider2DComponent>(deserializedEntity, "CircleCollider2DComponent", entityNode,
+			[](CircleCollider2DComponent& cc2d, Entity& entity, YAML::Node& circleCollider2DComponent) {
+				cc2d.Offset = circleCollider2DComponent["Offset"].as<glm::vec2>();
+				cc2d.Radius = circleCollider2DComponent["Radius"].as<float>();
+				cc2d.Density = circleCollider2DComponent["Density"].as<float>();
+				cc2d.Friction = circleCollider2DComponent["Friction"].as<float>();
+				cc2d.Restitution = circleCollider2DComponent["Restitution"].as<float>();
+				cc2d.RestitutionThreshold = circleCollider2DComponent["RestitutionThreshold"].as<float>();
+			}
+		);
+
+		DeserializeComponent<LineRendererComponent>(deserializedEntity, "LineRendererComponent", entityNode,
+			[](LineRendererComponent& lrc, Entity& entity, YAML::Node& lineRendererComponent) {
+				lrc.Tesselation = lineRendererComponent["Tesselation"].as<uint32_t>();
+				lrc.Color = lineRendererComponent["Color"].as<glm::vec4>();
+				YAML::Node points = lineRendererComponent["Points"];
+				for (auto point : points) {
+					lrc.Points.push_back({ point.as<glm::vec3>() });
+				}
+				lrc.RecalculateFinalPoints();
+			}
+		);
+
+		DeserializeComponent<DirectionalLightComponent>
+			(deserializedEntity, "DirectionalLightComponent", entityNode,
+				[](DirectionalLightComponent& dlc, Entity& entity, YAML::Node& directionalLightComponent) {
+					dlc.Color = directionalLightComponent["Color"].as<glm::vec3>();
+					dlc.MaxDistance = directionalLightComponent["MaxDistance"].as<float>();
+				});
+
+		DeserializeComponent<ScriptComponent>(deserializedEntity, "ScriptComponent", entityNode,
+			[](ScriptComponent& src, Entity& entity, YAML::Node& scriptRendererComponent) {
+				YAML::Node scripts = scriptRendererComponent["Scripts"];
+				for (auto node : scripts) {
+					src.ScriptNames.push_back(node["Name"].as<std::string>());
+					auto klass = ScriptEngine::GetEntityClass(node["Name"].as<std::string>());
+					if (!klass)
+						continue;
+					YAML::Node fields = node["ScriptFields"];
+					for (auto field : fields) {
+						ScriptFieldType type = ScriptFieldTypeFromString(field["Type"].as<std::string>());
+						std::string name = field["Name"].as<std::string>();
+#define 						FIELD_DATA_SERILIZATION(T,Type) \
+								case ScriptFieldType::##T:\
+									ScriptEngine::AddSerializedField<Type>(entity.GetUUID(), name,\
+										type, klass, field["Data"].as<Type>());\
+									break
+						switch (type)
+						{
+							FIELD_DATA_SERILIZATION(Float, float);
+						}
+					}
+
+				}
+
+			}
+		);
+		DeserializeComponent<TextComponent>(deserializedEntity, "TextComponent", entityNode,
+			[](TextComponent& tc, Entity& entity, YAML::Node& textComponent) {
+				tc.TextContent = textComponent["Text"].as<std::string>();
+				tc.Color = textComponent["Color"].as<glm::vec4>();
+				tc.BorderThickness = textComponent["BorderThickness"].as<float>();
+				tc.BorderColor = textComponent["BorderColor"].as<glm::vec4>();
+				tc.Kerning = textComponent["Kerning"].as<float>();
+				//TODO: Add fonts.
+			});
+
+		DeserializeComponent<AnimationPlayerComponent>(deserializedEntity, "AnimationPlayerComponent", entityNode,
+			[](AnimationPlayerComponent& apc, Entity& entity, YAML::Node& animComponent) {
+				auto animHandle = animComponent["Animation"].as<uint64_t>();
+
+				if (AssetManager::IsAssetHandleValid(animHandle))
+				{
+					apc.Animation = AssetManager::GetAsset(animHandle).As<AnimationTree>();
+				}
+				else if (animHandle == 0)
+				{
+					KD_INFO("Invalid animation.");
+				}
+			});
+
+		return deserializedEntity;
+	}
+
+
 	bool SceneSerializer::Deserialize(const std::string& filepath)
 	{
 		YAML::Node data = YAML::LoadFile(filepath);
@@ -435,195 +557,51 @@ namespace Kaidel {
 			return false;
 
 		std::string sceneName = data["Scene"].as<std::string>();
-		//KD_CORE_TRACE("Deserializing scene '{0}'", sceneName);
 
 		auto entities = data["Entities"];
 		if (entities)
 		{
-			for (auto entityNode : entities)
+			try 
 			{
-				UUID uuid = entityNode["Entity"].as<uint64_t>(); 
-				std::string name;
-				auto tagComponent = entityNode["TagComponent"];
-				if (tagComponent)
-					name = tagComponent["Tag"].as<std::string>();
-
-				//KD_CORE_TRACE("Deserialized entity with ID = {0}, name = {1}", uuid, name);
-
-				Entity deserializedEntity = m_Scene->CreateEntity(uuid,name);
-
-				auto transformComponent = entityNode["TransformComponent"];
-				if (transformComponent)
+				for (auto entityNode : entities)
 				{
-					// Entities always have transforms
-					auto& tc = deserializedEntity.GetComponent<TransformComponent>();
-					tc.Translation = transformComponent["Translation"].as<glm::vec3>();
-					tc.Rotation = transformComponent["Rotation"].as<glm::vec3>();
-					tc.Scale = transformComponent["Scale"].as<glm::vec3>();
+					DeserializeEntity(entityNode, m_Scene);
 				}
 
-				DeserializeComponent<ChildComponent>(deserializedEntity, "ChildComponent", entityNode,
-					[](auto& cc, auto& entity, auto& childComponent) {
-						cc.Parent = childComponent["Parent"].as<uint64_t>();
-						if (childComponent["LocalPosition"]) {
-							cc.LocalPosition = childComponent["LocalPosition"].as<glm::vec3>();
-						}
-						if (childComponent["LocalRotation"]) {
-							cc.LocalRotation= childComponent["LocalRotation"].as<glm::vec3>();
-						}
+				//Deserialize parent child relationships.
+				for (auto entityNode : entities)
+				{
+					UUID uuid = entityNode["Entity"].as<uint64_t>();
+					Entity e = m_Scene->GetEntity(uuid);
+
+					DeserializeComponent<ChildComponent>(e, "ChildComponent", entityNode,
+					[](ChildComponent& cc, Entity& entity, YAML::Node& childData)
+					{
+						UUID parentID = childData["Parent"].as<uint64_t>();
+
+						Entity parent = entity.GetScene()->GetEntity(parentID);
+
+						cc.Parent = parent.GetHandle();
+
+						parent.AddChild(entity);
 					});
-				DeserializeComponent<CameraComponent>(deserializedEntity, "CameraComponent", entityNode,
-					[](auto& cc, auto& entity, auto& cameraComponent) {
-						auto& cameraProps = cameraComponent["Camera"];
-
-						cc.Camera.SetPerspectiveVerticalFOV(cameraProps["PerspectiveFOV"].as<float>());
-						cc.Camera.SetPerspectiveNearClip(cameraProps["PerspectiveNear"].as<float>());
-						cc.Camera.SetPerspectiveFarClip(cameraProps["PerspectiveFar"].as<float>());
-
-						cc.Camera.SetOrthographicSize(cameraProps["OrthographicSize"].as<float>());
-						cc.Camera.SetOrthographicNearClip(cameraProps["OrthographicNear"].as<float>());
-						cc.Camera.SetOrthographicFarClip(cameraProps["OrthographicFar"].as<float>());
-
-						cc.Primary = cameraComponent["Primary"].as<bool>();
-						cc.FixedAspectRatio = cameraComponent["FixedAspectRatio"].as<bool>();
-						cc.Camera.SetProjectionType((SceneCamera::ProjectionType)cameraProps["ProjectionType"].as<int>());
-					}
-				);
-
-				DeserializeComponent<SpriteRendererComponent>(deserializedEntity, "SpriteRendererComponent", entityNode,
-					[](SpriteRendererComponent& src, auto& entity, auto& spriteRendererComponent) {
-					}
-				);
-				DeserializeComponent<CircleRendererComponent>(deserializedEntity, "CircleRendererComponent", entityNode,
-					[](CircleRendererComponent& crc, auto& entity, auto& circleRendererComponent) {
-						crc.Color = circleRendererComponent["Color"].as < glm::vec4>();
-						crc.Thickness = circleRendererComponent["Thickness"].as <float>();
-						crc.Fade = circleRendererComponent["Fade"].as < float>();
-
-					}
-				);
-				DeserializeComponent<Rigidbody2DComponent>(deserializedEntity, "Rigidbody2DComponent", entityNode,
-					[](auto& rb2d, auto& entity, auto& rigidbody2DComponent) {
-						rb2d.Type = RigidBody2DBodyTypeFromString(rigidbody2DComponent["BodyType"].as<std::string>());
-						rb2d.FixedRotation = rigidbody2DComponent["FixedRotation"].as<bool>();
-					}
-				);
-				DeserializeComponent<BoxCollider2DComponent>(deserializedEntity, "BoxCollider2DComponent", entityNode,
-					[](auto& bc2d, auto& entity, auto& boxCollider2DComponent) {
-						bc2d.Offset = boxCollider2DComponent["Offset"].as<glm::vec2>();
-						bc2d.Size = boxCollider2DComponent["Size"].as<glm::vec2>();
-						bc2d.Density = boxCollider2DComponent["Density"].as<float>();
-						bc2d.Friction = boxCollider2DComponent["Friction"].as<float>();
-						bc2d.Restitution = boxCollider2DComponent["Restitution"].as<float>();
-						bc2d.RestitutionThreshold = boxCollider2DComponent["RestitutionThreshold"].as<float>();
-					}
-				);
-
-				DeserializeComponent<CircleCollider2DComponent>(deserializedEntity, "CircleCollider2DComponent", entityNode,
-					[](auto& cc2d, auto& entity, auto& circleCollider2DComponent) {
-						cc2d.Offset = circleCollider2DComponent["Offset"].as<glm::vec2>();
-						cc2d.Radius = circleCollider2DComponent["Radius"].as<float>();
-						cc2d.Density = circleCollider2DComponent["Density"].as<float>();
-						cc2d.Friction = circleCollider2DComponent["Friction"].as<float>();
-						cc2d.Restitution = circleCollider2DComponent["Restitution"].as<float>();
-						cc2d.RestitutionThreshold = circleCollider2DComponent["RestitutionThreshold"].as<float>();
-					}
-				);
-
-				DeserializeComponent<LineRendererComponent>(deserializedEntity, "LineRendererComponent", entityNode,
-					[](LineRendererComponent& lrc, auto& entity, YAML::Node& lineRendererComponent) {
-						lrc.Tesselation = lineRendererComponent["Tesselation"].as<uint32_t>();
-						lrc.Color = lineRendererComponent["Color"].as<glm::vec4>();
-						YAML::Node points = lineRendererComponent["Points"];
-						for (auto point : points) {
-							lrc.Points.push_back({ point.as<glm::vec3>() });
-						}
-						lrc.RecalculateFinalPoints();
-					}
-				);
-
-				DeserializeComponent<DirectionalLightComponent>
-					(deserializedEntity, "DirectionalLightComponent", entityNode,
-					 [](DirectionalLightComponent& dlc, auto& entity, YAML::Node& directionalLightComponent) {
-						 dlc.Color = directionalLightComponent["Color"].as<glm::vec3>();
-						 dlc.MaxDistance = directionalLightComponent["MaxDistance"].as<float>();
-					 });
-
-				DeserializeComponent<ScriptComponent>(deserializedEntity, "ScriptComponent", entityNode,
-					[](ScriptComponent& src , auto& entity,YAML::Node& scriptRendererComponent) {
-						YAML::Node scripts = scriptRendererComponent["Scripts"];
-						for (auto node : scripts) {
-							src.ScriptNames.push_back(node["Name"].as<std::string>());
-							auto klass = ScriptEngine::GetEntityClass(node["Name"].as<std::string>());
-							if(!klass)
-								continue;
-							YAML::Node fields = node["ScriptFields"];
-							for(auto field : fields){
-								ScriptFieldType type = ScriptFieldTypeFromString(field["Type"].as<std::string>());
-								std::string name = field["Name"].as<std::string>();
-#define 						FIELD_DATA_SERILIZATION(T,Type) \
-								case ScriptFieldType::##T:\
-									ScriptEngine::AddSerializedField<Type>(entity.GetUUID(), name,\
-										type, klass, field["Data"].as<Type>());\
-									break
-									switch (type)
-									{
-										FIELD_DATA_SERILIZATION(Float,float);
-									}
-							}
-
-						}
-						
-					}
-					);
-				DeserializeComponent<TextComponent>(deserializedEntity, "TextComponent", entityNode,
-					[](TextComponent& tc, auto& entity, YAML::Node& textComponent) {
-						tc.TextContent = textComponent["Text"].as<std::string>();
-						tc.Color = textComponent["Color"].as<glm::vec4>();
-						tc.BorderThickness = textComponent["BorderThickness"].as<float>();
-						tc.BorderColor = textComponent["BorderColor"].as<glm::vec4>();
-						tc.Kerning = textComponent["Kerning"].as<float>();
-						//TODO: Add fonts.
-					});
-
-				/*DeserializeComponent<ScriptComponent>(deserializedEntity, "ScriptComponent", entity,
-					[&uuid](auto& sc, auto& entity, YAML::Node& scriptComponent) {
-						auto& entityFields = ScriptEngine::GetScriptFieldMap(uuid);
-						sc.Name = scriptComponent["Name"].as<std::string>();
-						if (!ScriptEngine::ClassExists(sc.Name))
-						{
-							KD_ERROR("Entity Script Class {} Could not be found.", sc.Name);
-							return;
-						}
-						if (scriptComponent["ScriptFields"]) {
-							Ref<ScriptClass> scriptClass = ScriptEngine::GetEntityClass(sc.Name);
-							for (auto v : scriptComponent["ScriptFields"]) {
-								auto name = v["Name"].as<std::string>();
-								if (scriptClass->GetFields().find(name) == scriptClass->GetFields().end())
-									continue;
-								auto type = ScriptFieldTypeFromString(v["Type"].as<std::string>());
-#define FIELD_DATA_SERILIZATION(T,Type) \
-case ScriptFieldType::##T:\
-	ScriptEngine::AddSerializedField<Type>(entity.GetUUID(), name,\
-		type, ScriptEngine::GetEntityClass(sc.Name), v["Data"].as<Type>());\
-	break
-								switch (type)
-								{
-									FIELD_DATA_SERILIZATION(Float,float);
-								}
-								
-							}
-						}
-					});*/
+				}
+			}
+			catch (std::exception& error)
+			{
+				KD_ERROR("Couldn't deserialize entity: {}", error.what());
+				KD_CORE_ASSERT(false);
+				return false;
 			}
 		}
 
-		auto view = m_Scene->m_Registry.view<ChildComponent>();
-		for (auto e : view) {
-			Entity childEntity{ e,m_Scene.Get() };
-			auto& parentID = childEntity.GetComponent<ChildComponent>().Parent;
-			m_Scene->GetEntity(parentID).AddChild(childEntity.GetUUID());
+		if (m_Scene->m_Registry.view<DirectionalLightComponent>().empty())
+		{
+			Entity e = m_Scene->CreateEntity("Main light");
+
+			e.AddComponent<DirectionalLightComponent>();
 		}
+
 		return true;
 	}
 

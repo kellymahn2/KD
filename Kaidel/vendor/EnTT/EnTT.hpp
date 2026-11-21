@@ -4473,7 +4473,7 @@ namespace entt {
         }
 
         /**
-         * @brief Checks if the container contains an element that compares
+		 * @brief Checks if the container contains an element that compares
          * _equivalent_ to a given value.
          * @tparam Other Type of an element to search for.
          * @param value Value of an element to search for.

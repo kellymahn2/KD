@@ -13,6 +13,8 @@
 
 #include "GraphicsAPI/VulkanStorageBuffer.h"
 
+#define COMMAND_BUFFER VK_CURRENT_COMMAND_BUFFER
+
 namespace Kaidel {
 
 	namespace Utils {
@@ -45,7 +47,17 @@ namespace Kaidel {
     }
 	void VulkanRendererAPI::DeviceWaitIdle()
 	{
+		for (auto& [name, queue] : VK_PHYSICAL_DEVICE.GetQueues())
+		{
+			queue.SubmitMutex.lock();
+		}
+
 		vkDeviceWaitIdle(VK_DEVICE.GetDevice());
+
+		for (auto& [name, queue] : VK_PHYSICAL_DEVICE.GetQueues())
+		{
+			queue.SubmitMutex.unlock();
+		}
 	}
     void VulkanRendererAPI::Shutdown()
     {
@@ -55,8 +67,8 @@ namespace Kaidel {
 		Ref<RenderPass> renderPass, Ref<Framebuffer> framebuffer,
 		std::initializer_list<AttachmentClearValue> clearValues)
 	{
-		Ref<VulkanRenderPass> rp = renderPass;
-		Ref<VulkanFramebuffer> fb = framebuffer;
+		Ref<VulkanRenderPass> rp = DynamicPointerCast<VulkanRenderPass>(renderPass);
+		Ref<VulkanFramebuffer> fb = DynamicPointerCast<VulkanFramebuffer>(framebuffer);
 
 		VkRect2D renderArea{};
 		renderArea.offset = { 0,0 };
@@ -66,7 +78,7 @@ namespace Kaidel {
 		const VkClearValue* clearEnd = rp->GetVkClearValues().data() + rp->GetVkClearValues().size();
 
 		VK_BACKEND->CommandBeginRenderPass(
-			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
+			COMMAND_BUFFER,
 			rp->GetRenderPass(), fb->GetFramebuffer(),
 			VK_SUBPASS_CONTENTS_INLINE,
 			renderArea,
@@ -83,7 +95,7 @@ namespace Kaidel {
 	}
 	void VulkanRendererAPI::EndRenderPass()
     {
-		VK_BACKEND->CommandEndRenderPass(m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER);
+		VK_BACKEND->CommandEndRenderPass(COMMAND_BUFFER);
 
 		uint32_t colorIndex = 0;
 		for (auto& val : m_RenderPassInstance.Framebuffer->GetResources().Textures) {
@@ -100,28 +112,28 @@ namespace Kaidel {
     }
 	void VulkanRendererAPI::NextSubpass()
 	{
-		VK_BACKEND->CommandNextSubpass(m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER, VK_SUBPASS_CONTENTS_INLINE);
+		VK_BACKEND->CommandNextSubpass(COMMAND_BUFFER, VK_SUBPASS_CONTENTS_INLINE);
 	}
 	void VulkanRendererAPI::BindVertexBuffers(std::initializer_list<Ref<VertexBuffer>> buffers, std::initializer_list<uint64_t> offsets)
 	{
 		VulkanBackend::BufferInfo const** vkBuffers = ALLOCA_ARRAY(VulkanBackend::BufferInfo const*, buffers.size());
 		for (uint32_t i = 0; i < buffers.size(); ++i) {
 			const Ref<VertexBuffer>* buffer = buffers.begin() + i;
-			Ref<VulkanVertexBuffer> vkBuffer = *buffer;
+			Ref<VulkanVertexBuffer> vkBuffer = DynamicPointerCast<VulkanVertexBuffer>(*buffer);
 			vkBuffers[i] = &vkBuffer->GetBufferInfo();
 		}
 		
 		VK_BACKEND->CommandBindVertexBuffers(
-			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
+			COMMAND_BUFFER,
 			std::initializer_list<const VulkanBackend::BufferInfo*>(vkBuffers, vkBuffers + buffers.size()),
 			offsets
 		);
 	}
 	void VulkanRendererAPI::BindIndexBuffer(Ref<IndexBuffer> buffer, uint64_t offset)
 	{
-		Ref<VulkanIndexBuffer> vkBuffer = buffer;
+		Ref<VulkanIndexBuffer> vkBuffer = DynamicPointerCast<VulkanIndexBuffer>(buffer);
 		VK_BACKEND->CommandBindIndexBuffer(
-			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
+			COMMAND_BUFFER,
 			vkBuffer->GetBufferInfo(),
 			Utils::IndexTypeToVulkanIndexType(vkBuffer->GetIndexType()),
 			offset);
@@ -130,36 +142,36 @@ namespace Kaidel {
     {
 		if (m_CurrentBoundPipeline == pipeline)
 			return;
-		Ref<VulkanGraphicsPipeline> vkPipeline = pipeline;
+		Ref<VulkanGraphicsPipeline> vkPipeline = DynamicPointerCast<VulkanGraphicsPipeline>(pipeline);
 		VK_BACKEND->CommandBindGraphicsPipeline(
-			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
+			COMMAND_BUFFER,
 			vkPipeline->GetPipeline()
 		);
 		m_CurrentBoundPipeline = pipeline;
     }
 	void VulkanRendererAPI::BindComputePipeline(Ref<ComputePipeline> pipeline)
 	{
-		Ref<VulkanComputePipeline> vkPipeline = pipeline;
+		Ref<VulkanComputePipeline> vkPipeline = DynamicPointerCast<VulkanComputePipeline>(pipeline);
 		VK_BACKEND->CommandBindComputePipeline(
-			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
+			COMMAND_BUFFER,
 			vkPipeline->GetPipeline()
 		);
 	}
 	void VulkanRendererAPI::BindPushConstants(Ref<Shader> shader, uint32_t firstIndex, const uint8_t* values, uint64_t size)
 	{
-		Ref<VulkanShader> vkShader = shader;
+		Ref<VulkanShader> vkShader = DynamicPointerCast<VulkanShader>(shader);
 		VK_BACKEND->CommandBindPushConstants(
-			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
+			COMMAND_BUFFER,
 			vkShader->GetShaderInfo(),
 			firstIndex, values, size
 		);
 	}
 	void VulkanRendererAPI::BindDescriptorSet(Ref<Shader> shader, Ref<DescriptorSet> set, uint32_t setIndex)
 	{
-		Ref<VulkanShader> vkShader = shader;
-		Ref<VulkanDescriptorSet> vkSet = set;
+		Ref<VulkanShader> vkShader = DynamicPointerCast<VulkanShader>(shader);
+		Ref<VulkanDescriptorSet> vkSet = DynamicPointerCast<VulkanDescriptorSet>(set);
 		VK_BACKEND->CommandBindDescriptorSet(
-			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
+			COMMAND_BUFFER,
 			vkShader->GetShaderInfo(),
 			vkSet->GetSetInfo(),
 			setIndex
@@ -172,7 +184,7 @@ namespace Kaidel {
 		viewport.offset = { offsetX,offsetY };
 
 		VK_BACKEND->CommandSetViewport(
-			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
+			COMMAND_BUFFER,
 			{ viewport }
 		);
 	}
@@ -183,21 +195,21 @@ namespace Kaidel {
 		scissor.offset = { offsetX,offsetY };
 		
 		VK_BACKEND->CommandSetScissor(
-			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
+			COMMAND_BUFFER,
 			{ scissor }
 		);
 	}
 	void VulkanRendererAPI::SetBlendConstants(const float color[4])
 	{
 		VK_BACKEND->CommandSetBlendConstants(
-			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
+			COMMAND_BUFFER,
 			color
 		);
 	}
 	void VulkanRendererAPI::SetLineWidth(float width)
 	{
 		VK_BACKEND->CommandSetLineWidth(
-			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER, 
+			COMMAND_BUFFER, 
 			width
 		);
 	}
@@ -221,7 +233,7 @@ namespace Kaidel {
 		}
 		
 		VK_BACKEND->CommandClearAttachments(
-			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
+			COMMAND_BUFFER,
 			std::initializer_list<VkClearAttachment>(vkClears, vkClears + clearValues.size()),
 			std::initializer_list<VkClearRect>(vkRects, vkRects + clearValues.size())
 		);
@@ -229,21 +241,21 @@ namespace Kaidel {
 	void VulkanRendererAPI::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t vertexOffset, uint32_t instanceOffset)
 	{
 		VK_BACKEND->CommandDraw(
-			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
+			COMMAND_BUFFER,
 			vertexCount, instanceCount, vertexOffset, instanceOffset
 		);
 	}
 	void VulkanRendererAPI::DrawIndexed(uint32_t indexCount, uint32_t vertexCount, uint32_t instanceCount, uint32_t indexOffset, uint32_t vertexOffset, uint32_t instanceOffset)
 	{
 		VK_BACKEND->CommandDrawIndexed(
-			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
+			COMMAND_BUFFER,
 			indexCount,vertexCount,instanceCount,indexOffset,vertexOffset,instanceOffset
 		);
 	}
 	void VulkanRendererAPI::Dispatch(uint32_t x, uint32_t y, uint32_t z)
 	{
 		VK_BACKEND->CommandDispatch(
-			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
+			COMMAND_BUFFER,
 			x, y, z
 		);
 	}
@@ -265,7 +277,7 @@ namespace Kaidel {
 		region.dstSubresource.mipLevel = dstMip;
 
 		VK_BACKEND->CommandCopyTexture(
-			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
+			COMMAND_BUFFER,
 			*srcInfo,
 			Utils::ImageLayoutToVulkanImageLayout(srcTexture->GetTextureSpecification().Layout),
 			*dstInfo,
@@ -279,7 +291,7 @@ namespace Kaidel {
 		const VulkanBackend::TextureInfo* dstInfo = (const VulkanBackend::TextureInfo*)dstTexture->GetBackendInfo();
 
 		VK_BACKEND->CommandResolveTexture(
-			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
+			COMMAND_BUFFER,
 			*srcInfo,
 			Utils::ImageLayoutToVulkanImageLayout(srcTexture->GetTextureSpecification().Layout),
 			srcLayer, srcMip,
@@ -297,7 +309,7 @@ namespace Kaidel {
 		range.layerCount = texture->GetTextureSpecification().Layers;
 		range.levelCount = texture->GetTextureSpecification().Mips;
 		VK_BACKEND->CommandClearColorTexture(
-			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
+			COMMAND_BUFFER,
 			info,
 			Utils::ImageLayoutToVulkanImageLayout(texture->GetTextureSpecification().Layout),
 			(const VkClearColorValue&)clear,
@@ -368,7 +380,7 @@ namespace Kaidel {
 		}
 
 		VK_BACKEND->CommandPipelineBarrier(
-			m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER,
+			COMMAND_BUFFER,
 			vkSrcStages,
 			vkDstStages,
 			std::initializer_list<VkMemoryBarrier>(vkMemoryBarriers, vkMemoryBarriers + memoryBarriers.size()),
@@ -384,29 +396,26 @@ namespace Kaidel {
 
 	void VulkanRendererAPI::Submit(std::function<void()>&& func)
     {
-		m_OverrideCommandBuffer = VK_BACKEND->CreateCommandBuffer(VK_CONTEXT.GetPrimaryCommandPool());
-		VK_BACKEND->CommandBufferBegin(m_OverrideCommandBuffer);
-
-		func();
-
-		VK_BACKEND->CommandBufferEnd(m_OverrideCommandBuffer);
-
-		VK_BACKEND->SubmitCommandBuffers(VK_CONTEXT.GetGraphicsQueue(), { m_OverrideCommandBuffer }, VK_CONTEXT.GetSingleSubmitFence());
-		VK_BACKEND->FenceWait(VK_CONTEXT.GetSingleSubmitFence());
-
-		VK_BACKEND->DestroyCommandBuffer(m_OverrideCommandBuffer, VK_CONTEXT.GetPrimaryCommandPool());
-		m_OverrideCommandBuffer = VK_NULL_HANDLE;
+		VK_CONTEXT.SubmitSingle(VK_GRAPHICS_Q,
+			[&](VkCommandBuffer cb)
+			{
+				VK_CONTEXT.PushOverrideCommandBuffer(cb);
+				func();
+				VK_CONTEXT.PopOverrideCommandBuffer();
+			});
     }
 
 	void VulkanRendererAPI::GenerateMips(const Ref<Texture> texture)
 	{
 		KD_CORE_ASSERT(texture->GetTextureSpecification().Layout == ImageLayout::TransferSrcOptimal);
 
+		BeginMarker("Mips generation");
+
 		auto& specs = texture->GetTextureSpecification();
 
 		auto& info = *(VulkanBackend::TextureInfo*)texture->GetBackendInfo();
 
-		VkCommandBuffer cb = m_OverrideCommandBuffer ? m_OverrideCommandBuffer : VK_CURRENT_COMMAND_BUFFER;
+		VkCommandBuffer cb = COMMAND_BUFFER;
 
 		int w = (uint32_t)specs.Width;
 		int h = (uint32_t)specs.Height;
@@ -469,5 +478,32 @@ namespace Kaidel {
 			if (h > 1)
 				h /= 2;
 		}
+
+		EndMarker();
 	}
+
+	static std::stack<std::string> markers;
+
+	void VulkanRendererAPI::BeginMarker(const std::string& marker)
+	{
+		VK_BACKEND->CommandBeginMarker(COMMAND_BUFFER, marker);
+		markers.push(marker);
+	}
+
+	void VulkanRendererAPI::EndMarker()
+	{
+		markers.pop();
+		VK_BACKEND->CommandEndMarker(COMMAND_BUFFER);
+	}
+
+	void VulkanRendererAPI::SetBufferName(Ref<Buffer> buffer, const std::string& name)
+	{
+		VK_BACKEND->SetBufferName((VulkanBackend::BufferInfo*)buffer->GetBackendID(), name);
+	}
+
+	void VulkanRendererAPI::SetTextureName(Ref<Texture> texture, const std::string& name)
+	{
+		VK_BACKEND->SetTextureName((VulkanBackend::TextureInfo*)texture->GetBackendInfo(), name);
+	}
+
 }

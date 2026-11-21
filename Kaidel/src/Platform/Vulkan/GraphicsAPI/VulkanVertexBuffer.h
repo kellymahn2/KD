@@ -12,7 +12,10 @@ namespace Kaidel{
 
         virtual void SetData(const void* data, uint64_t size, uint64_t offset) override;
 		const VulkanBackend::BufferInfo& GetBufferInfo()const { return m_Buffer; }
-    private:
+
+		uint64_t GetSize() const override;
+
+	private:
 		VulkanBackend::BufferInfo m_Buffer = {};
         friend class VulkanRendererAPI;
     };

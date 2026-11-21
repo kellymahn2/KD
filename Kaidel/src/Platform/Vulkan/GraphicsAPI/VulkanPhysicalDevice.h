@@ -3,15 +3,18 @@
 #include "Platform/Vulkan/VulkanDefinitions.h"
 #include "VulkanInstance.h"
 #include "VulkanQueueManager.h"
+#include "VulkanSurface.h"
+
 namespace Kaidel {
 	class VulkanPhysicalDevice {
 	public:
 
-		VulkanPhysicalDevice(const VulkanInstance& instance, const std::vector<VulkanQueueGroupSpecification>& specs);
+		VulkanPhysicalDevice(const VulkanInstance& instance, const VulkanSurface& surface, const std::unordered_map<std::string, QueueCapability>& requested);
 
 		~VulkanPhysicalDevice() = default;
-		VulkanQueueManager& GetQueueManager() { return m_QueueManager; }
-		VulkanQueue& GetQueue(const std::string& name) { return m_QueueManager[name]; }
+		VulkanQueue& GetQueue(const std::string& name) { return m_Queues[name]; }
+
+		auto& GetQueues() { return m_Queues; }
 
 		VkPhysicalDevice GetDevice()const { return m_Device; }
 		const VkPhysicalDeviceProperties& GetProperties()const { return *m_Properties; }
@@ -21,8 +24,8 @@ namespace Kaidel {
 		std::vector<VkPhysicalDevice> GetDevices(const VulkanInstance& instance);
 	private:
 		VkPhysicalDevice m_Device;
-		VulkanQueueManager m_QueueManager;
 		Scope<VkPhysicalDeviceProperties> m_Properties;
+		std::unordered_map<std::string, VulkanQueue> m_Queues;
 	};
 
 

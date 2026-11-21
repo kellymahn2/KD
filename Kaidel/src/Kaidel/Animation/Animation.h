@@ -1,5 +1,6 @@
 #pragma once
 #include "Kaidel/Core/Base.h"
+#include "Kaidel/Asset/Asset.h"
 #include <glm/glm.hpp>
 #include <glm/gtx/quaternion.hpp>
 
@@ -36,17 +37,19 @@ namespace Kaidel {
 			AnimationRotationData Rotation;
 			AnimationScaleData Scale;
 		};
-		float Time;
+		uint32_t Time;
 
-		AnimationFrame(const AnimationPositionData& position, float time)
+		AnimationFrame() = default;
+
+		AnimationFrame(const AnimationPositionData& position, uint32_t time)
 			: Position(position), Time(time)
 		{ 
 		}
-		AnimationFrame(const AnimationRotationData& rotation, float time)
+		AnimationFrame(const AnimationRotationData& rotation, uint32_t time)
 			: Rotation(rotation), Time(time)
 		{
 		}
-		AnimationFrame(const AnimationScaleData& scale, float time)
+		AnimationFrame(const AnimationScaleData& scale, uint32_t time)
 			: Scale(scale), Time(time)
 		{ 
 		}
@@ -58,7 +61,7 @@ namespace Kaidel {
 		std::vector<AnimationFrame> Frames;
 	};
 
-	struct AnimationTree : IRCCounter<false> {
+	struct AnimationTree : AssetBase {
 		struct AnimationTreeNode {
 			Scope<AnimationTrack> Tracks[AnimationValueTypeCount];
 			std::unordered_map<std::string, AnimationTreeNode> Children;
@@ -66,5 +69,7 @@ namespace Kaidel {
 
 		AnimationTreeNode RootNode;
 		float Duration;
+
+		DECL_ASSET_TYPE(Animation);
 	};
 }

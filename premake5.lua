@@ -13,11 +13,15 @@ workspace "KD"
 
 	flags
 	{
-		"MultiProcessorCompile"
+		"multiprocessorcompile"
 	}
 	buildoptions{
 		"/wd4005"
 	}
+
+	filter "action:vs*"
+   		buildoptions { "/utf-8" }
+
 	linkoptions{
 		"/IGNORE:4006",
 		"/IGNORE:4099",

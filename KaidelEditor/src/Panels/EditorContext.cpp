@@ -1,4 +1,7 @@
 #include "EditorContext.h"
+#include "AssetChooser.h"
+
+#include "AnimationPanel.h"
 
 #include <variant>
 
@@ -12,7 +15,13 @@ namespace Kaidel {
 
 	struct EditorContextData
 	{
-		std::variant<Entity, SelectedAnimationData> Data;
+		std::variant<Entity, SelectedAnimationData, Asset> Data;
+
+		struct {
+			AssetFilter ActiveFilter;
+			OnAssetChosen ActiveFunc;
+		} AssetChooserData;
+
 	};
 
 	static EditorContextData* s_Data;
@@ -39,6 +48,24 @@ namespace Kaidel {
 	void EditorContext::SelectedEntity(Entity selectedEntity)
 	{
 		s_Data->Data = selectedEntity;
+
+		AnimationPanel::OnSelectionChanged();
+	}
+
+	Kaidel::Asset EditorContext::SelectedAsset()
+	{
+		Asset* asset = std::get_if<2>(&s_Data->Data);
+		if (asset)
+			return *asset;
+		return {};
+	}
+
+
+	void EditorContext::SelectedAsset(Asset asset)
+	{
+		s_Data->Data = asset;
+
+		AnimationPanel::OnSelectionChanged();
 	}
 
 	AnimationFrame* EditorContext::SelectedAnimationFrame()
@@ -47,6 +74,22 @@ namespace Kaidel {
 		if (data)
 			return data->SelectedAnimationFrame;
 		return nullptr;
+	}
+
+	Kaidel::AssetFilter& EditorContext::GetActiveAssetFilter()
+	{
+		return s_Data->AssetChooserData.ActiveFilter;
+	}
+
+	Kaidel::OnAssetChosen& EditorContext::GetActiveAssetFunc()
+	{
+		return s_Data->AssetChooserData.ActiveFunc;
+	}
+
+	void EditorContext::SetAssetChooserData(const AssetFilter& filter, const OnAssetChosen& onChosen)
+	{
+		s_Data->AssetChooserData.ActiveFilter = filter;
+		s_Data->AssetChooserData.ActiveFunc = onChosen;
 	}
 
 	AnimationValueType EditorContext::SelectedAnimationFrameValueType()

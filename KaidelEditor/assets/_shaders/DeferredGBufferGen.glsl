@@ -1,8 +1,9 @@
 #version 460 core
 #include "SceneData.glsli"
 #include "Sampler.glsli"
+#include "sRGBToLinear.glsli"
 
-#ifdef vertex
+#type vertex
 
 layout(location = 0)in vec3 a_Position;
 layout(location = 1)in vec2 a_TexCoords;
@@ -14,7 +15,7 @@ layout(push_constant) uniform DrawData{
 	uint InstanceOffset;
 };
 
-layout(set = 2, binding = 0) buffer _InstanceData
+layout(set = 2, binding = 0) readonly buffer _InstanceData
 {
 	mat4 InstanceTransform[];
 };
@@ -50,9 +51,9 @@ void main() {
 	Output.TexCoords = a_TexCoords;
 
 }
-#endif
 
-#ifdef fragment
+
+#type fragment
 layout (location = 0) out vec4 o_Position;
 layout (location = 1) out vec4 o_Normal;
 layout (location = 2) out vec4 o_Albedo;
@@ -103,8 +104,7 @@ void main(){
 
 	vec4 baseColor = MaterialData.BaseColor;
 	if(MaterialData.HasAlbedo == 1)
-		baseColor *= pow(vec4(texture(sampler2D(Albedo,SAMPLER_LINEAR_MIPPED_CLAMP),Input.TexCoords).rgba), vec4(2.2));
-
+		baseColor *= sRGBToLinear(texture(sampler2D(Albedo,SAMPLER_LINEAR_MIPPED_CLAMP),Input.TexCoords));
 	o_Albedo = baseColor;
 	
 	float metallic = MaterialData.Metalness;
@@ -156,4 +156,4 @@ void main(){
 		o_Emissive = vec4(0.0);
 	}
 }
-#endif
+

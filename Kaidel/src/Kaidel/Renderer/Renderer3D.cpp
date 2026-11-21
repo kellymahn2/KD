@@ -121,9 +121,11 @@ namespace Kaidel {
 
 	struct Renderer3DData
 	{
+		std::mutex SingleRenderMutex;
+
 		PerViewportData<Renderer3DScreenSize> ViewportSize;
 
-		ShadowPass Shadow;
+		PerViewportData<ShadowPass> Shadow;
 		PerViewportData<DeferredPass> Deferred;
 		PerViewportData<ScreenPass> Screen;
 		PerViewportData<TonemapPass> Tonemap;
@@ -150,12 +152,14 @@ namespace Kaidel {
 
 		PerViewportData<ViewportStorageBuffers> StorageBuffers;
 
-		uint64_t InstanceCount = 0;
+		uint32_t InstanceCount = 0;
 
-		uint64_t InstanceOffset = 0;
-		uint64_t CurrentBatchSize = 0;
+		uint32_t InstanceOffset = 0;
+		uint32_t CurrentBatchSize = 0;
 
 		Renderer3DStats Stats;
+
+		PerViewportData<bool> HasShadow;
 	};
 
 	static Renderer3DData* s_Data = nullptr;
@@ -210,9 +214,9 @@ namespace Kaidel {
 			RenderPassAttachment(Format::Depth32F, ImageLayout::None, ImageLayout::DepthAttachmentOptimal, TextureSamples::x1, 
 				AttachmentLoadOp::Clear, AttachmentStoreOp::Store
 			);
-		s_Data->Shadow.Pass = RenderPass::Create(shadowRenderPass);
+		s_Data->Shadow["Main"].Pass = RenderPass::Create(shadowRenderPass);
 		
-		s_Data->Shadow.Shader = shaders["ShadowPass"];
+		s_Data->Shadow["Main"].Shader = shaders["ShadowPass"];
 
 		GraphicsPipelineSpecification shadowGraphicsPipeline;
 		shadowGraphicsPipeline.Input.Bindings =
@@ -222,22 +226,22 @@ namespace Kaidel {
 				{sizeof(MeshVertex) - sizeof(glm::vec3)}
 			}
 		};
-		shadowGraphicsPipeline.RenderPass = s_Data->Shadow.Pass;
+		shadowGraphicsPipeline.RenderPass = s_Data->Shadow["Main"].Pass;
 		shadowGraphicsPipeline.Primitive = PrimitiveTopology::TriangleList;
 		shadowGraphicsPipeline.Rasterization.DepthClamp = true;
 		shadowGraphicsPipeline.DepthStencil.DepthTest = true;
 		shadowGraphicsPipeline.DepthStencil.DepthWrite = true;
-		shadowGraphicsPipeline.Shader = s_Data->Shadow.Shader;
+		shadowGraphicsPipeline.Shader = s_Data->Shadow["Main"].Shader;
 
-		s_Data->Shadow.Pipeline = GraphicsPipeline::Create(shadowGraphicsPipeline);
+		s_Data->Shadow["Main"].Pipeline = GraphicsPipeline::Create(shadowGraphicsPipeline);
 
 		FramebufferSpecification shadowFramebuffer;
 		shadowFramebuffer.Width = DirectionalShadowmapWidth;
 		shadowFramebuffer.Height = DirectionalShadowmapHeight;
-		shadowFramebuffer.RenderPass = s_Data->Shadow.Pass;
+		shadowFramebuffer.RenderPass = s_Data->Shadow["Main"].Pass;
 		for (uint32_t i = 0; i < 4; ++i)
 		{
-			s_Data->Shadow.Cascades[i].Construct([&shadowFramebuffer](uint32_t) {
+			s_Data->Shadow["Main"].Cascades[i].Construct([&shadowFramebuffer](uint32_t) {
 				return Framebuffer::Create(shadowFramebuffer);
 			});
 		}
@@ -323,7 +327,7 @@ namespace Kaidel {
 			
 			for (uint32_t cascade = 0; cascade < 4; ++cascade)
 			{
-				Ref<Texture> depth = s_Data->Shadow.Cascades[cascade][i]->GetDepthAttachment();
+				Ref<Texture> depth = s_Data->Shadow["Main"].Cascades[cascade][i]->GetDepthAttachment();
 				pack[3]->Update(depth, {}, ImageLayout::ShaderReadOnlyOptimal, 1, cascade);
 			}
 
@@ -424,6 +428,10 @@ namespace Kaidel {
 		const DirectionalLightData& lightData, 
 		const std::string& viewportName /*= "Main"*/)
 	{
+		s_Data->SingleRenderMutex.lock();
+		
+		RenderCommand::BeginMarker(viewportName);
+
 		s_Data->SceneData = sceneData;
 		s_Data->SceneDataBuffer->Get()->SetData(&s_Data->SceneData, sizeof(Kaidel::SceneData));
 		
@@ -456,6 +464,8 @@ namespace Kaidel {
 					s_Data->StorageBuffers[s_Data->CurrentViewport].ShadowInstanceDataBuffer[i],
 					s_Data->StorageBuffers[s_Data->CurrentViewport].ShadowInstanceDataSet[i]);
 			}
+
+			s_Data->HasShadow[s_Data->CurrentViewport] = false;
 		}
 
 		s_Data->LightData = lightData;
@@ -464,25 +474,25 @@ namespace Kaidel {
 
 	void Renderer3D::BeginShadow(const DirectionalLightData& lightData)
 	{
-		
 	}
 
 	void Renderer3D::BeginDirectionalShadow(uint32_t cascade)
 	{
-		RenderCommand::BindGraphicsPipeline(s_Data->Shadow.Pipeline);
-		RenderCommand::BindPushConstants(s_Data->Shadow.Shader, 0, s_Data->LightData.ViewProjection[cascade]);
-		RenderCommand::BindDescriptorSet(s_Data->Shadow.Shader, 
+		RenderCommand::BeginMarker(fmt::format("ShadowPass {}", cascade));
+		RenderCommand::BindGraphicsPipeline(s_Data->Shadow[s_Data->CurrentViewport].Pipeline);
+		RenderCommand::BindPushConstants(s_Data->Shadow[s_Data->CurrentViewport].Shader, 0, s_Data->LightData.ViewProjection[cascade]);
+		RenderCommand::BindDescriptorSet(s_Data->Shadow[s_Data->CurrentViewport].Shader,
 			s_Data->StorageBuffers[s_Data->CurrentViewport].ShadowInstanceDataSet[cascade], 0);
 
-		s_Data->Shadow.Pass->SetDepthClearValue(AttachmentDepthStencilClearValue(1.0f, 0));
-		RenderCommand::BeginRenderPass(s_Data->Shadow.Pass, s_Data->Shadow.Cascades[cascade], {});
+		s_Data->Shadow[s_Data->CurrentViewport].Pass->SetDepthClearValue(AttachmentDepthStencilClearValue(1.0f, 0));
+		RenderCommand::BeginRenderPass(s_Data->Shadow[s_Data->CurrentViewport].Pass, s_Data->Shadow[s_Data->CurrentViewport].Cascades[cascade], {});
 		
 		RenderCommand::SetViewport(DirectionalShadowmapWidth, DirectionalShadowmapHeight, 0, 0);
 		RenderCommand::SetScissor(DirectionalShadowmapWidth, DirectionalShadowmapHeight, 0, 0);
 
 		s_Data->RendererState = Renderer3DState::Shadow;
 
-		s_Data->Shadow.CurrentCascade = cascade;
+		s_Data->Shadow[s_Data->CurrentViewport].CurrentCascade = cascade;
 
 		s_Data->InstanceOffset = 0;
 		s_Data->CurrentBatchSize = 0;
@@ -493,6 +503,7 @@ namespace Kaidel {
 
 	void Renderer3D::BeginColor(Ref<EnvironmentMap> environment)
 	{
+		RenderCommand::BeginMarker("ColorPass");
 		auto& deferred = s_Data->Deferred[s_Data->CurrentViewport];
 
 		for (uint32_t i = 0; i < deferred.Pass->GetSpecification().Colors.size(); ++i)
@@ -520,7 +531,6 @@ namespace Kaidel {
 		s_Data->CurrentBatchSize = 0;
 
 		s_Data->m_LastParams = {};
-
 	}
 
 	void Renderer3D::UploadInstanceData(const std::vector<InstanceData>& instances, Ref<StorageBuffer> buffer, Ref<DescriptorSet> set)
@@ -539,10 +549,6 @@ namespace Kaidel {
 
 	void Renderer3D::Draw(const Renderer3DRenderParams& params, Ref<MaterialInstance> material)
 	{
-
-		//SCOPED_ACCU_TIMER("Draw");
-		
-
 		switch (s_Data->RendererState)
 		{
 		case Renderer3DState::Shadow:
@@ -576,11 +582,18 @@ namespace Kaidel {
 
 	void Renderer3D::DrawSubmesh(const Renderer3DRenderParams& params, Ref<MaterialInstance> material)
 	{
-		//SCOPED_ACCU_TIMER("DrawSubmesh");
+		//TODO: check everything is loaded.
+		if (material && !material->IsLoaded())
+		{
+			return;
+		}
+
+
 		s_Data->m_LastMat = material;
 		s_Data->m_LastParams = params;
 
 		s_Data->CurrentBatchSize = 1;
+
 
 		DrawBatch(false);
 	}
@@ -604,6 +617,7 @@ namespace Kaidel {
 		s_Data->RendererState = Renderer3DState::None;
 
 		RenderCommand::EndRenderPass();
+		RenderCommand::EndMarker();
 	}
 
 	void Renderer3D::EndShadow()
@@ -612,7 +626,10 @@ namespace Kaidel {
 
 		s_Data->RendererState = Renderer3DState::None;
 
+		s_Data->HasShadow[s_Data->CurrentViewport] = true;
+
 		RenderCommand::EndRenderPass();
+		RenderCommand::EndMarker();
 	}
 
 
@@ -624,8 +641,8 @@ namespace Kaidel {
 		{
 			shadowBarriers[i] = 
 				ImageMemoryBarrier(
-					s_Data->Shadow.Cascades[i]->Get()->GetDepthAttachment(),
-					ImageLayout::ShaderReadOnlyOptimal, AccessFlags_DepthStencilWrite, AccessFlags_ShaderRead);
+					s_Data->Shadow[s_Data->CurrentViewport].Cascades[i]->Get()->GetDepthAttachment(),
+					ImageLayout::ShaderReadOnlyOptimal, s_Data->HasShadow[s_Data->CurrentViewport] ? AccessFlags_DepthStencilWrite : AccessFlags_None, AccessFlags_ShaderRead);
 		}
 		
 		ImageMemoryBarrier gbufferBarriers[6];
@@ -651,6 +668,7 @@ namespace Kaidel {
 			PipelineStages_ColorAttachmentOutput | PipelineStages_LateFragmentTests, PipelineStages_EarlyFragmentTests | PipelineStages_FragmentShader,
 			{}, {}, std::initializer_list<ImageMemoryBarrier>(gbufferBarriers, gbufferBarriers + 6));
 
+		auto& data = s_Data;
 		auto& screen = s_Data->Screen[s_Data->CurrentViewport];
 		auto& viewport = s_Data->ViewportSize[s_Data->CurrentViewport];
 
@@ -672,7 +690,7 @@ namespace Kaidel {
 		{
 			RenderCommand::BindGraphicsPipeline(s_Data->Skybox.Pipeline);
 			RenderCommand::BindVertexBuffers({ s_Data->Skybox.Vertices }, { 0 });
-			RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("SkyboxPass"), RendererGlobals::GetEnvironmentMap()->GetSet(), 0);
+			RenderCommand::BindDescriptorSet(ShaderLibrary::GetNamedShader("SkyboxPass"), s_Data->Environment->GetSet(), 0);
 			RenderCommand::BindPushConstants(ShaderLibrary::GetNamedShader("SkyboxPass"), 0, s_Data->SceneData.Proj, s_Data->SceneData.View);
 			RenderCommand::Draw(36, 1, 0, 0);
 		}
@@ -735,6 +753,12 @@ namespace Kaidel {
 			PipelineStages_Transfer, PipelineStages_FragmentShader,
 			{}, {}, { outputEndCopyBarrier }
 		);
+
+		s_Data->Output = {};
+
+		RenderCommand::EndMarker();
+
+		s_Data->SingleRenderMutex.unlock();
 	}
 
 
@@ -758,6 +782,26 @@ namespace Kaidel {
 
 		s_Data->ViewportSize[viewportName].RenderWidth = viewportWidth;
 		s_Data->ViewportSize[viewportName].RenderHeight = viewportHeight;
+
+		//Shadow pass
+		s_Data->Shadow[viewportName].Pass = s_Data->Shadow["Main"].Pass;
+
+		s_Data->Shadow[viewportName].Shader = s_Data->Shadow["Main"].Shader;
+
+		s_Data->Shadow[viewportName].Pipeline = s_Data->Shadow["Main"].Pipeline;
+
+		FramebufferSpecification shadowFramebuffer;
+		shadowFramebuffer.Width = DirectionalShadowmapWidth;
+		shadowFramebuffer.Height = DirectionalShadowmapHeight;
+		shadowFramebuffer.RenderPass = s_Data->Shadow["Main"].Pass;
+		for (uint32_t i = 0; i < 4; ++i)
+		{
+			s_Data->Shadow[viewportName].Cascades[i].Construct([&shadowFramebuffer, &viewportName](uint32_t i) {
+				auto fb = Framebuffer::Create(shadowFramebuffer);
+				RenderCommand::SetTextureName(fb->GetDepthAttachment(), fmt::format("{}_Cascade_{}", viewportName, i));
+				return fb;
+				});
+		}
 
 		//Deferred pass
 		RenderPassSpecification deferredRenderPass;
@@ -825,7 +869,7 @@ namespace Kaidel {
 
 			for (uint32_t cascade = 0; cascade < 4; ++cascade)
 			{
-				Ref<Texture> depth = s_Data->Shadow.Cascades[cascade][i]->GetDepthAttachment();
+				Ref<Texture> depth = s_Data->Shadow[viewportName].Cascades[cascade][i]->GetDepthAttachment();
 				pack[3]->Update(depth, {}, ImageLayout::ShaderReadOnlyOptimal, 1, cascade);
 			}
 
@@ -883,7 +927,6 @@ namespace Kaidel {
 			});
 		}
 
-
 	}
 
 
@@ -905,7 +948,7 @@ namespace Kaidel {
 		{
 		case Renderer3DState::Shadow:
 		{
-			RenderCommand::BindPushConstants(s_Data->Shadow.Shader, sizeof(glm::mat4), (uint32_t)s_Data->InstanceOffset);
+			RenderCommand::BindPushConstants(s_Data->Shadow["Main"].Shader, sizeof(glm::mat4), (uint32_t)s_Data->InstanceOffset);
 			RenderCommand::DrawIndexed(params.IndexCount, params.VertexCount, s_Data->CurrentBatchSize,
 				params.IndexOffset, params.VertexOffset, 0);
 		} break;

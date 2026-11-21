@@ -25,7 +25,9 @@ namespace Kaidel {
 
 	class Sampler : public IRCCounter<false> {
 	public:
-		
+		Sampler() {
+
+		}
 		virtual ~Sampler() = default;
 		virtual const SamplerState& GetSamplerState()const = 0;
 

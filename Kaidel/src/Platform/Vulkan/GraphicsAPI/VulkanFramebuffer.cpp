@@ -42,7 +42,7 @@ namespace Kaidel {
 			
 			for (uint32_t i = 0; i < rpSpec.Colors.size(); ++i) {
 				const auto& color = rpSpec.Colors[i];
-				Ref<Texture> t;
+				Ref<Texture2D> t;
 				if (auto it = specs.TextureOverrides.find(i); it != specs.TextureOverrides.end() && it->second) {
 					t = it->second;
 				}
@@ -58,8 +58,8 @@ namespace Kaidel {
 			if (usesDepth) {
 
 				auto& depth = rpSpec.DepthStencil;
-
-				Ref<Texture> t;
+				
+				Ref<Texture2D> t;
 				if (specs.OverrideDepth) {
 					t = specs.OverrideDepth;
 				}

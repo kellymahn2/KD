@@ -6,5 +6,5 @@
 
 #include "Platform/Vulkan/GraphicsAPI/VulkanUniformBuffer.h"
 namespace Kaidel {
-	TMAKE(Ref<UniformBuffer>, UniformBuffer::Create, TPACK(uint64_t size), CreateRef<VulkanUniformBuffer>, TPACK(size));
+	TMAKE(Ref<UniformBuffer>, UniformBuffer::Create, TPACK(uint64_t size, const void* initData), CreateRef<VulkanUniformBuffer>, TPACK(size, initData));
 }

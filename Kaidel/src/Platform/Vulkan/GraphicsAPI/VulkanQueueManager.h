@@ -3,165 +3,101 @@
 #include "Platform/Vulkan/VulkanDefinitions.h"
 
 namespace Kaidel {
-	struct VulkanQueueSpecification {
-		std::function<bool(const VkQueueFamilyProperties& queueFamilyProperties, uint32_t familyIndex, VkPhysicalDevice physicalDevice)> Validator;
+
+	typedef int QueueCapability;
+
+	enum QueueCapability_
+	{
+		QueueCapability_Graphics,
+		QueueCapability_Compute,
+		QueueCapability_Transfer,
+		QueueCapability_Present,
+
+		QueueCapability_General = QueueCapability_Graphics | QueueCapability_Transfer | QueueCapability_Compute
 	};
-
-	struct VulkanQueueGroupSpecification {
-		std::unordered_map<std::string, VulkanQueueSpecification> QueueSpecifications;
-	};
-
-
 
 	struct VulkanQueue {
 		VkQueue Queue;
 		uint32_t FamilyIndex;
 		uint32_t QueueIndex;
 
+		std::mutex SubmitMutex;
+		TLS<VkFence> SingleSubmitFence;
+
 		operator VkQueue()const { return Queue; }
 	};
 
 
-	class VulkanQueueGroup {
-	public:
+	static std::unordered_map<std::string, VulkanQueue> 
+		GetRequestedQueues(const std::unordered_map<std::string, QueueCapability>& requested, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)
+	{
+		uint32_t supportedPhysicalDeviceQueueFamilyCount = 0;
 
-		bool Filled()const { return m_Filled; }
+		std::vector<VkQueueFamilyProperties> supportedQueueFamilies;
+		
+		vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &supportedPhysicalDeviceQueueFamilyCount, nullptr);
 
-		void FillQueueGroup(const VulkanQueueGroupSpecification& specification, const std::vector<VkQueueFamilyProperties> queueFamilyProperties,
-			std::unordered_map<uint32_t, uint32_t>& allAcceptedFamilies, VkPhysicalDevice physicalDevice)
+		supportedQueueFamilies.resize(supportedPhysicalDeviceQueueFamilyCount);
+		
+		vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &supportedPhysicalDeviceQueueFamilyCount, supportedQueueFamilies.data());
 
+		std::unordered_map<std::string, VulkanQueue> queues;
+
+		std::unordered_map<uint32_t, uint32_t> acceptedQueueFamilies;
+
+		for (const auto& [name, capability] : requested)
 		{
-			m_Filled = true;
-			m_Queues.clear();
+			bool found = false;
+		
+			for (uint32_t i = 0; i < supportedQueueFamilies.size(); ++i)
+			{
+				const auto& family = supportedQueueFamilies[i];
+				
+				if (family.queueCount == acceptedQueueFamilies[i])
+				{
+					continue;
+				}
 
-			std::unordered_map<uint32_t, bool> acceptedFamilies;
+				if ((capability & QueueCapability_Graphics) && !(family.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+				{
+					continue;
+				}
 
-			for (auto& [queueName, spec] : specification.QueueSpecifications) {
+				if ((capability & QueueCapability_Compute) && !(family.queueFlags & VK_QUEUE_COMPUTE_BIT))
+				{
+					continue;
+				}
 
-				uint32_t foundQueueIndex = -1;
-				uint32_t currentQueueIndex = 0;
+				if ((capability & QueueCapability_Transfer) && !(family.queueFlags & VK_QUEUE_TRANSFER_BIT))
+				{
+					continue;
+				}
 
-				for (auto& queueFamily : queueFamilyProperties) {
+				if ((capability & QueueCapability_Present))
+				{
+					VkBool32 supported;
+					VK_ASSERT(vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &supported));
 
-					if (!QueueFamilyHasSpace(allAcceptedFamilies, currentQueueIndex, queueFamily.queueCount))
+					if (!supported)
 						continue;
-
-					bool validatonResult = spec.Validator(queueFamily, currentQueueIndex, physicalDevice);
-
-					if (validatonResult) {
-						acceptedFamilies[currentQueueIndex] = true;
-						foundQueueIndex = currentQueueIndex;
-						break;
-					}
-					++currentQueueIndex;
 				}
 
-				if (foundQueueIndex == -1) {
-					m_Filled = false;
-					return;
-				}
-				VulkanQueue queue{};
-				queue.FamilyIndex = foundQueueIndex;
-				m_Queues.insert({ queueName,queue });
+				VulkanQueue& queue = queues[name];
+
+				queue.FamilyIndex = i;
+				queue.QueueIndex = acceptedQueueFamilies[i]++;
+				
+				found = true;
+
+				break;
 			}
 
-
-			for (auto& acceptedFamily : acceptedFamilies) {
-				++allAcceptedFamilies[acceptedFamily.first];
-			}
-
-			for (auto& [queueName, queue] : m_Queues) {
-				queue.QueueIndex = allAcceptedFamilies.at(queue.FamilyIndex) - 1;
+			if (!found)
+			{
+				return {};
 			}
 		}
 
-		const auto& GetQueues()const { return m_Queues; }
-
-
-	private:
-
-		bool QueueFamilyHasSpace(const std::unordered_map<uint32_t, uint32_t>& acceptedFamilies, uint32_t queueFamilyIndex, uint32_t maxQueueCount) {
-			auto acceptedFamily = acceptedFamilies.find(queueFamilyIndex);
-			if (acceptedFamily != acceptedFamilies.end()) {
-				return acceptedFamily->second < maxQueueCount;
-			}
-
-			return maxQueueCount != 0;
-		}
-
-		std::unordered_map<std::string, VulkanQueue> m_Queues;
-		bool m_Filled = true;
-
-	};
-
-
-	class VulkanQueueManager {
-	public:
-
-		void FillQueueManager(const std::vector<VulkanQueueGroupSpecification>& queueGroups, VkPhysicalDevice physicalDevice) {
-			m_Queues.clear();
-			m_Filled = true;
-
-			std::vector<VkQueueFamilyProperties> queueFamilies = QuerySupportedPhysicalDeviceQueueFamilies(physicalDevice);
-
-			std::unordered_map<uint32_t, uint32_t> acceptedFamilies;
-
-			for (auto& queueGroupSpecification : queueGroups) {
-				VulkanQueueGroup queueGroup;
-				queueGroup.FillQueueGroup(queueGroupSpecification, queueFamilies, acceptedFamilies, physicalDevice);
-				if (queueGroup.Filled()) {
-					AddQueuesFromGroup(queueGroup);
-				}
-				else {
-					m_Filled = false;
-					return;
-				}
-			}
-		}
-
-		bool Filled() const { return m_Filled; }
-
-		std::vector<uint32_t> GetUniqueFamilyIndices()const {
-			std::vector<uint32_t> families;
-
-			for (auto& queue : m_Queues) {
-				families.push_back(queue.second.FamilyIndex);
-			}
-
-			auto uniqueEnd = std::unique(families.begin(), families.end());
-
-			return { families.begin(),uniqueEnd };
-		}
-
-		const auto& GetQueues()const { return m_Queues; }
-		auto begin() { return m_Queues.begin(); }
-		auto end() { return m_Queues.end(); }
-		auto begin()const { return m_Queues.begin(); }
-		auto end()const { return m_Queues.end(); }
-
-		VulkanQueue& operator[](const std::string& queueName) { return m_Queues.at(queueName); }
-		const VulkanQueue& operator[](const std::string& queueName)const { return m_Queues.at(queueName); }
-
-	private:
-		void AddQueuesFromGroup(const VulkanQueueGroup& queueGroup) {
-			for (auto& queue : queueGroup.GetQueues()) {
-				KD_CORE_ASSERT(m_Queues.find(queue.first) == m_Queues.end());
-				m_Queues.insert(queue);
-			}
-		}
-
-		std::vector<VkQueueFamilyProperties> QuerySupportedPhysicalDeviceQueueFamilies(VkPhysicalDevice physicalDevice) {
-			uint32_t supportedPhysicalDeviceQueueFamilyCount = 0;
-			std::vector<VkQueueFamilyProperties> supportedQueueFamilies;
-			vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &supportedPhysicalDeviceQueueFamilyCount, nullptr);
-			supportedQueueFamilies.resize(supportedPhysicalDeviceQueueFamilyCount);
-			vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &supportedPhysicalDeviceQueueFamilyCount, supportedQueueFamilies.data());
-			return supportedQueueFamilies;
-		}
-
-		std::unordered_map<std::string, VulkanQueue> m_Queues;
-
-		bool m_Filled = false;
-	};
-
+		return queues;
+	}
 }

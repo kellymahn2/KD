@@ -1,5 +1,5 @@
 #version 460 core
-#ifdef compute
+#type compute
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 layout(set = 0, binding = 0, std430) buffer restrict readonly SrcVertexData{
@@ -7,14 +7,14 @@ layout(set = 0, binding = 0, std430) buffer restrict readonly SrcVertexData{
 } SrcVertices;
 
 
-layout(set = 0, binding = 1, std430) buffer restrict writeonly DstVertexData{
+layout(set = 1, binding = 0, std430) buffer restrict writeonly DstVertexData{
 	uint Data[];
 } DstVertices;
 
-layout(set = 1, binding = 0, std430) buffer restrict readonly SkeletonData {
+layout(set = 2, binding = 0, std430) buffer restrict readonly SkeletonData {
 	mat4 Data[];
 } BoneTransforms;
-layout(set = 1, binding = 1, std430) buffer restrict readonly OffsetsData {
+layout(set = 3, binding = 0, std430) buffer restrict readonly OffsetsData {
 	mat4 Data[];
 } BoneOffsets;
 
@@ -140,4 +140,4 @@ void main() {
 	
 	encodeDestination(dst, gl_GlobalInvocationID.x * 14U);
 }
-#endif
+

@@ -4,7 +4,7 @@
 
 namespace Kaidel {
 
-	uint64_t Combo(const char* name, const char* strings[], uint64_t stringCount, const char*& current) {
+	uint32_t Combo(const char* name, const char* strings[], uint64_t stringCount, const char*& current) {
 		if (ImGui::BeginCombo(name, current))
 		{
 			for (int i = 0; i < stringCount; i++)

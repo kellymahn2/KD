@@ -19,6 +19,15 @@ namespace Kaidel {
 		BiMap() = default;
 		~BiMap() = default;
 
+
+		BiMap(const std::initializer_list<std::pair<_Key, _Value>>& values)
+		{
+			for (auto& value : values)
+			{
+				Add(value.first, value.second);
+			}
+		}
+
 		BiMap(const current_direction& other) : m_KV(other.m_KV), m_VK(other.m_VK) {}
 		BiMap(const reverse_direction& other) : m_KV(other.m_VK), m_VK(other.m_VK) {}
 
@@ -106,6 +115,14 @@ namespace Kaidel {
 				Add(k, {});
 			}
 
+			return m_KV.at(k);
+		}
+
+		const_key_reference_type At(const_value_reference_type v) {
+			return m_VK.at(v);
+		}
+
+		const_value_reference_type At(const_key_reference_type k) {
 			return m_KV.at(k);
 		}
 

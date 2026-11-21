@@ -1,6 +1,6 @@
 #version 460 core
 #include "Sampler.glsli"
-#ifdef vertex
+#type vertex
 const vec2 positions[3] = vec2[3](vec2(-1.0, -1.0), vec2(3.0, -1.0), vec2(-1.0, 3.0));
 
 layout(location = 0)out vec2 v_TexCoords;
@@ -10,9 +10,9 @@ void main(){
 	v_TexCoords = 0.5 * gl_Position.xy + vec2(0.5);
 	gl_Position.y *= -1.0;
 }
-#endif
 
-#ifdef fragment
+
+#type fragment
 
 layout(location = 0) out vec4 o_Color;
 
@@ -50,4 +50,4 @@ void main(){
 
 }
 
-#endif
+

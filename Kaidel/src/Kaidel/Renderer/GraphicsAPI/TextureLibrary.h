@@ -17,10 +17,17 @@ namespace Kaidel {
 		}
 	};
 
+	struct TextureLoadResult {
+		Scope<uint8_t[]> Data;
+		uint32_t Width, Height;
+	};
+
 	class TextureLibrary {
 	public:
 		static void Init();
 		static void Shutdown();
+
+		static void LoadInto(Ref<Texture2D> texture, const Path& path, ImageLayout layout, Format format);
 
 		static Ref<Texture2D> Load(const Path& path, ImageLayout layout, Format format);
 		static Ref<TextureCube> LoadCube(const TextureCubePathParameters& pathParams, ImageLayout layout, Format format);
@@ -29,6 +36,8 @@ namespace Kaidel {
 		static Ref<Texture2D> LoadFromBuffer(const void* buffer, uint64_t size, ImageLayout layout, Format format);
 		static const Path& GetPath(Ref<Texture2D> texture);
 		
+		static TextureLoadResult LoadData(const Path& path, Format format);
+
 		static bool Exists(const Path& path);
 	};
 

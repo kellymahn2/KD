@@ -1,5 +1,5 @@
 #version 460 core
-#ifdef vertex
+#type vertex
 
 layout(location = 0) in vec3 a_Position;
 
@@ -16,9 +16,9 @@ void main()
 {
     gl_Position = ViewProjection * Model * vec4(a_Position, 1.0);
 }
-#endif
 
-#ifdef geo
+
+#type geo
 layout(triangles, invocations = 1) in;
 layout(triangle_strip, max_vertices = 3) out;
 
@@ -156,9 +156,9 @@ void main() {
     EndPrimitive();
 }  
 
-#endif
 
-#ifdef fragment
+
+#type fragment
 
 layout(location = 0) out vec4 o_Color;
 
@@ -236,4 +236,4 @@ void main()
 
     o_Color = mix(vec4(0.0), Color, mixVal);
 }
-#endif
+
