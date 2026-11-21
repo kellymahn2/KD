@@ -74,11 +74,12 @@ namespace Kaidel {
 		m_PhysicalDevice = CreateScope<VulkanPhysicalDevice>(*m_Instance, *m_Surface, requestedQueues);
 		#pragma endregion
 		#pragma region LogicalDevice
-		VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures feature{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES,nullptr,VK_TRUE };
 		VkPhysicalDeviceFeatures features{};
 		features.geometryShader = true;
 		features.tessellationShader = true;
 		features.depthClamp = true;
+
+		VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures feature{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES,nullptr,VK_TRUE };
 
 		VkPhysicalDeviceDescriptorIndexingFeatures indexingFeatures{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES };
 		indexingFeatures.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
@@ -89,12 +90,13 @@ namespace Kaidel {
 		indexingFeatures.descriptorBindingUniformTexelBufferUpdateAfterBind = VK_TRUE;
 		indexingFeatures.pNext = &feature;
 
-		VkPhysicalDeviceSynchronization2Features sync2Feature{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES };
-		sync2Feature.synchronization2 = VK_TRUE;
-		sync2Feature.pNext = &indexingFeatures;
+		VkPhysicalDeviceVulkan13Features f13{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
+		f13.shaderDemoteToHelperInvocation = VK_TRUE;
+		f13.synchronization2 = VK_TRUE;
+		f13.pNext = &indexingFeatures;
 
 		m_LogicalDevice = CreateScope<VulkanLogicalDevice>(*m_PhysicalDevice, std::vector<const char*>{VK_KHR_SWAPCHAIN_EXTENSION_NAME},
-																std::vector<const char*>(), features, & sync2Feature);
+																std::vector<const char*>(), features, &f13);
 
 		gladLoaderLoadVulkan(m_Instance->GetInstance(), m_PhysicalDevice->GetDevice(), m_LogicalDevice->GetDevice());
 		#pragma endregion

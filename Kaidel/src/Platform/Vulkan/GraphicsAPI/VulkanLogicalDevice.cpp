@@ -34,7 +34,6 @@ namespace Kaidel {
 			}
 			queueInfo.pQueuePriorities = priorities;
 		}
-
 		VkDeviceCreateInfo deviceInfo{ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO };
 		deviceInfo.queueCreateInfoCount = (uint32_t)queueCreateInfos.size();
 		deviceInfo.pQueueCreateInfos = queueCreateInfos.data();
