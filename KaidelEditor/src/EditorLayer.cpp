@@ -49,6 +49,8 @@ namespace Kaidel {
 
 	Ref<AudioSource> source;
 
+	Ref<AudioSource> source;
+
 	EditorLayer::EditorLayer()
 		: Layer("EditorLayer")
 	{
@@ -901,6 +903,12 @@ namespace Kaidel {
 		static int sec;
 		static int ms = 500;
 		
+		}
+		}
+		static int min;
+		static int sec;
+		static int ms = 500;
+		
 		ImGui::InputInt("Play from: (min)", &min);
 		
 		ImGui::InputInt("Play from: (sec)", &sec);
@@ -909,6 +917,19 @@ namespace Kaidel {
 
 		static bool playing = false;
 		if (ImGui::Button("Play") && !playing) {
+		ImGui::InputInt("Play from: (min)", &min);
+		
+		ImGui::InputInt("Play from: (sec)", &sec);
+
+		ImGui::InputInt("Play from: (milli)", &ms);
+
+		static bool playing = false;
+		if (ImGui::Button("Play") && !playing) {
+			playing = true;
+			XAudioEngine::Play(source, std::chrono::minutes(min) + std::chrono::seconds(sec) + std::chrono::milliseconds(ms));
+		if (ImGui::Button("Stop") && playing) {
+			playing = false;
+			XAudioEngine::Stop(source);
 			playing = true;
 			XAudioEngine::Play(source, std::chrono::minutes(min) + std::chrono::seconds(sec) + std::chrono::milliseconds(ms));
 		}
